@@ -1,0 +1,20 @@
+name: the_secure_comm
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.6.1
+
+# Add regular dependencies here.
+dependencies:
+  encrypt: ^5.0.3
+  # path: ^1.8.0
+  paxlog:
+    path: /home/pomo/git/dart-packages/paxlog
+  utils:
+    path: /home/pomo/git/dart-packages/utils
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0

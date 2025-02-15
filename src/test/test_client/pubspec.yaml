@@ -1,0 +1,26 @@
+name: test_client
+description: A sample command-line application with basic argument parsing.
+version: 0.0.1
+publish_to: none
+# repository: https://github.com/my_org/my_repo
+
+environment:
+  sdk: ^3.7.0
+
+# Add regular dependencies here.
+dependencies:
+  args: ^2.5.0
+  paxlog:
+    path: ../../../modules/paxlog/
+  the_tcp_messaging:
+    path: ../../../modules/the_tcp_messaging
+  the_secure_comm:
+    path: ../../../modules/the_secure_comm
+  stcp:
+    path: ../../stcp
+  socket_io: ^1.0.1
+  socket_io_client: ^1.0.2
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0

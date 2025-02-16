@@ -18,9 +18,6 @@ class StcpCommon {
   StcpCommon(String theKey) {
     theAesKey = theKey.padRight(STCP_AES_KEY_SIZE_IN_BYTES, "0").substring(0, STCP_AES_KEY_SIZE_IN_BYTES);
     logi.traceMe("AES key set: // $theAesKey //");
-    if (theAesKey.length != 32) {
-      throw ArgumentError('Avaimen pituuden on oltava 32 tavua.');
-    }
   }
  
   String theSecureMessageTransferIncoming(String msgIncomingCrypted) {
@@ -33,9 +30,6 @@ class StcpCommon {
 
   String theSecureMessageTransferOutgoing(String msgOutgoingPlain) {
     String theOutgoingIV = generateRandomBase64AsString(STCP_AES_IV_SIZE_IN_BYTES);
-    if (theOutgoingIV.length != 16) {
-      throw ArgumentError('IV:n pituuden on oltava 16 tavua. nyt ${theOutgoingIV.length}');
-    }
     logi.traceMe("MSG OUT KEY: ${theAesKey.length} // $theAesKey //");
     logi.traceMe("MSG OUT IV : ${theOutgoingIV.length} // $theOutgoingIV //");
     scom.SecureCommunication theSC = scom.SecureCommunication(theAesKey, theOutgoingIV);

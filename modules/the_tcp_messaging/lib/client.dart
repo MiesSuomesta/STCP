@@ -2,71 +2,126 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:utils/utils.dart' as util;
-import 'package:paxlog/paxlog.dart' as logi;
-import 'package:the_simple_http/the_simple_http.dart' as SH;
 import 'package:encrypt/encrypt.dart' as enc;
+import 'package:pointycastle/export.dart';
+import 'package:pointycastle/pointycastle.dart';
 
+import 'package:paxlog/paxlog.dart' as logi;
 import 'package:the_secure_comm/the_secure_comm.dart' as scom;
-import './thePaxsudosMessage.dart' as pm;
 
-
-typedef processMsgFunction = String Function(String msgIn);
+import 'package:stcp/stcp.dart';
 
 class TcpClient {
   final String host;
   final int port;
-  final processMsgFunction theMessageHandler;
-  final String theAesKey; // 16, 24 tai 32 bytee
+  late EllipticCodec theEC;
+  theHandshakeFunction theHandshakeHandler;
+  processMsgFunction theMessageHandler;
+  theHandshakeAESGotFunction theAesGotCallback;
+  theHandshakePublicKeyGotFunction thePublicKeyGotCallback;
+  Socket? socket;
 
-  Socket? _socket;
-
-  TcpClient(this.host, this.port, this.theAesKey, this.theMessageHandler) {
-    logi.traceMe("At constructor: Connecting .....");
+  TcpClient(
+      this.host,
+      this.port,
+      this.theEC,
+      this.theMessageHandler,
+      this.theHandshakeHandler,
+      this.theAesGotCallback,
+      this.thePublicKeyGotCallback) {
+    logi.traceMe("Setting up client for $host:$port");
+    logi.traceMe(
+        "MSCB: $theMessageHandler HSH: $theHandshakeHandler, AG: $theAesGotCallback");
+    logi.traceMe("PKGOT: $thePublicKeyGotCallback");
   }
 
   Future<void> connect() async {
-    try {
-      logi.traceMe('connecting to server: $host:$port ....');
-      _socket = await Socket.connect( host, port );
-      logi.traceMe('connected to server: ${_socket!.remoteAddress.address}:$port .. socket: $_socket');
-    } catch (err) {
-      logi.traceMe("Had an error while connecting..");
-    }
-  }
+//    try {
 
-  Stream<String> recvStream() {
-    StreamController scont = StreamController<String>();
-    
-    Stream<String> myStream = scont.stream as Stream<String>;
-    logi.traceMe("[Socket listen (Client)] Stratin listening.....");
+    bool needsServerPublicKey = true;
+    logi.traceMe('connecting to server: $host:$port ....');
+    socket = await Socket.connect(host, port);
+    logi.traceMe(
+        'connected to server: ${socket!.address.host}:${socket!.port} .. socket: $socket');
 
-    _socket?.listen((theData){
-        String toStream = String.fromCharCodes(theData);
-        logi.traceMe("[Socket listen (Client)], $toStream");
-        scont.add(toStream);
+    logi.traceMe("[Socket listen (Client)] Starting listening ....");
+    socket?.listen((theData) {
+      logi.logAndGetStringFromBytes("incoming data", theData);
+      logi.traceMe("Got incoming data ${theData.length} bytes");
+
+      if (needsServerPublicKey) {
+        if (theData.length != 65) {
+          logi.traceMe("[STCP] =========================================");
+          logi.traceMe("[STCP] ==== Handshake process, no valid data...");
+          logi.traceMe("[STCP] =========================================");
+          return;
+        }
+
+        logi.traceMe(
+            "[Socket listen (Client)] Sending my public key to server..");
+        Uint8List thePubKeyBytes = theEC.getPublicKeyAsBytes();
+        logi.logAndGetStringFromBytes(
+            "The public key of client", thePubKeyBytes);
+
+        // Serveri on lähettänyt public keyn
+        ECPublicKey theServerKey = theEC.bytesToPublicKey(theData);
+        Uint8List theSharedKey = theEC.computeSharedSecretAsBytes(theServerKey);
+
+        logi.logAndGetStringFromBytes("Shared key", theSharedKey);
+
+        logi.traceMe("[Socket listen (Client)] Computed shared secret ....");
+        String theNewAesKey = theEC.deriveSharedKeyBasedAESKey(theSharedKey);
+        Uint8List myKeyList = logi.logAndGetBytesFromString(
+            "New AES key from shared data", theNewAesKey);
+
+        logi.traceMe("[STCP] Got sharedkey, setting it to be AES key,"
+            " passing it to STCP layer .....");
+
+        theAesGotCallback(socket!, myKeyList);
+        logi.traceMe("[Socket listen (Client)] Set AES key ....");
+
+        /* lähetetään clientin public key */
+
+        needsServerPublicKey = false;
+
+        send(thePubKeyBytes);
+
+        return;
+      }
+
+      logi.traceMe("[Socket listen (Client)] Passing to STCP handler");
+      Uint8List? retFromHandler = this.theMessageHandler(socket!, theData);
+      if (retFromHandler != null) {
+        String out = logi.logAndGetStringFromBytes(
+            "Send after handler call", retFromHandler);
+        logi.traceMe("Sending now data from message handler...");
+        send(retFromHandler);
+      } else {
+        logi.traceMe("Got nothing to send from message handler....");
+      }
     });
-    return myStream;
   }
 
-  Future<void> send(String message) async {
-    logi.traceMe("Sending to $host:$port via socket $_socket");
-    if (_socket == null) {
-      logi.traceMe("Socket was null, reconnecting....");
-      await connect();
-      logi.traceMe("Socket was null, reconnected.. Socket: $_socket");
-    }
+  send(Uint8List message) {
+    logi.traceMe("Sending to $host:$port via socket $socket");
     int len = 512;
     if (len > message.length) {
-        len = message.length;
+      len = message.length;
     }
-    logi.traceMe("Sending data to sock: $_socket // ${message.substring(0,len)} //");
-    _socket?.write(message);
+    String HN = host;
+    int HP = port;
+
+    logi.logAndGetStringFromBytes("Sending to wire for $HN:$HP", message);
+    Socket.connect(host, port).then((theSck) {
+      theSck.add(message);
+      theSck.close();
+    });
   }
 
   Future<void> disconnect() async {
-    await _socket?.close();
+    if (socket != null) {
+      await socket?.close();
+    }
     logi.traceMe('Disconnected.');
   }
 }
-

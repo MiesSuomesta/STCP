@@ -11,18 +11,11 @@ dependencies:
   shelf: ^1.4.0
   shelf_router: ^1.1.0
   paxlog:
-    path: /home/pomo/git/dart-packages/paxlog
-  the_simple_http:
-    path: /home/pomo/git/dart-packages/the_simple_http
-  utils:
-    path: /home/pomo/git/dart-packages/utils
-  license_manager_api:
-    path: /home/pomo/git/dart-packages/license_manager_api
+    path: ../paxlog/
   the_secure_comm:
-    path: /home/pomo/git/dart-packages/the_secure_comm
-  provider: ^6.1.2
-  intl: ^0.17.0
-  dio: ^5.7.0
+    path: ../the_secure_comm
+  stcp:
+    path: ../../src/stcp
   socket_io: ^1.0.1
   socket_io_client: ^1.0.2
 

@@ -3,6 +3,7 @@
 /// More dartdocs go here.
 library;
 
-export 'src/the_tcp_messaging_base.dart';
+export 'client.dart';
+export 'server.dart';
 
 // TODO: Export any libraries intended for clients of this package.

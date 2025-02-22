@@ -39,7 +39,7 @@ class TestClient:
  
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Test STCP client")
     parser.add_argument("--host", type=str, default="localhost", help="Server hostname")
     parser.add_argument("--port", type=int, default=8888, help="Server port")

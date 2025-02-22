@@ -2,7 +2,10 @@
 pip3 install -r requirements.txt
 python3 setup.py build_ext --inplace 
 export LD_LIBRARY_PATH="$PWD:$LD_LIBRARY_PATH"
+
 echo Compiling test_server
 gcc -o test_server test_server_main.c -I/usr/include/python3.12 -lpython3.12 -Wl,-rpath=.
 echo Compiling test_client
 gcc -o test_client test_client_main.c -I/usr/include/python3.12 -lpython3.12 -Wl,-rpath=.
+
+echo "Not working!, if you need binaries, check the python build script to build."

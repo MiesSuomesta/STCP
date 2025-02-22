@@ -1,0 +1,6 @@
+#!/bin/bash
+pip3 install -r requirements.txt
+echo Building ...............
+pyinstaller --onefile test_client.py
+pyinstaller --onefile test_server.py
+echo Build done. Check ./dist/

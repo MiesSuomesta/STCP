@@ -25,7 +25,7 @@ class TestServer:
         self.server.start()
         print(f"Started.");
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Test STCP Server")
     parser.add_argument("--host", type=str, default="localhost", help="Server hostname")
     parser.add_argument("--port", type=int, default=8888, help="Server port")

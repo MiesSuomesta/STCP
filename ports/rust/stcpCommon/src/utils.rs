@@ -86,7 +86,8 @@ impl StcpUtils {
             
                 if gotPK && gotSK {
                     dprint!("Got valid PublicKey from peer, shared key set: {} // {:?}", thesharedkey.len(), thesharedkey);
-                    dprint!("Got PSK: {} // {:?}", thesharedkey.len(), thesharedkey);
+// PSK pois debugeista 
+//                     dprint!("Got PSK: {} // {:?}", thesharedkey.len(), thesharedkey);
                     return (thepubkey, thesharedkey);
                 }
             }
@@ -119,7 +120,8 @@ impl StcpUtils {
             dprint!("Got valid? {} // {}", gotPK, gotSK);
             if gotPK && gotSK {
                 dprint!("Got valid PublicKey from peer, shared key set.");
-                dprint!("Got PSK: {} // {:?}", thesharedkey.len(), thesharedkey);
+// PSK pois debugeista 
+//                 dprint!("Got PSK: {} // {:?}", thesharedkey.len(), thesharedkey);
                 return (thepubkey, thesharedkey);
             }
         }

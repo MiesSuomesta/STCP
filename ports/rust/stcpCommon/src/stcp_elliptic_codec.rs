@@ -150,7 +150,8 @@ impl StcpEllipticCodec {
                         self.peer_public_key = the_peer_public_key.clone();
                         let peer_public_key_bytes = the_peer_public_key.public_key_to_der().expect("Failed to serialize peer's public key");
                         self.shared_secret = self.compute_shared_secret(the_peer_public_key);
-                        dprint!("Handshake return PSK: {} // {:x?} //", self.shared_secret.len(), self.shared_secret);
+// PSK pois debugeista 
+//                         dprint!("Handshake return PSK: {} // {:x?} //", self.shared_secret.len(), self.shared_secret);
                         return Some((peer_public_key_bytes, self.shared_secret.clone()));
                     }
                 }

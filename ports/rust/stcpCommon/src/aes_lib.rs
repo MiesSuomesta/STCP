@@ -102,10 +102,12 @@ impl StcpAesCodec {
         data: &Vec<u8>,
         the_shared_key: &Vec<u8>,
     ) -> Vec<u8> {
-        dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
+// PSK pois debugeista 
+//         dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
         println!("Received AES: {} // {:?}", data.len(), data);
         let the_incoming: Vec<u8> = self.the_secure_message_transfer_incoming(data, the_shared_key);
-        dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
+// PSK pois debugeista 
+//         dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
         println!("Incoming decrypted message: {} // {:?}", the_incoming.len(), the_incoming);
         the_incoming
     }
@@ -115,12 +117,14 @@ impl StcpAesCodec {
         data: &Vec<u8>,
         the_shared_key: &Vec<u8>,
     ) -> Vec<u8> {
-        dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
+// PSK pois debugeista 
+//         dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
         let resp = self.the_secure_message_transfer_outgoing(
             data,
             the_shared_key,
         );
-        dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
+// PSK pois debugeista 
+//         dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
         println!("Response crypted: {:?}", resp);
         resp
     }

@@ -12,12 +12,11 @@ dependencies:
   # path: ^1.8.0
   basic_utils: ^5.7.0
   paxlog:
-    path: ../../modules/paxlog/
+    path: /home/pomo/git/dart-packages/paxlog/
   the_tcp_messaging:
-    path: ../../modules/the_tcp_messaging
+    path: ../local-packages/the_tcp_messaging
   the_secure_comm:
-    path: ../../modules/the_secure_comm
-
+    path: /home/pomo/git/dart-packages/the_secure_comm
   socket_io: ^1.0.1
   socket_io_client: ^1.0.2
   pointycastle: ^3.9.1

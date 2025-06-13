@@ -1,0 +1,38 @@
+name: Build STCP SDK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Full SDK Build
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 🛠️ Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential curl unzip cmake git pkg-config rustup
+
+      - name: 🛠️ Setup Rust toolchain
+        run: |
+          rustup install nightly
+          rustup component add rust-src --toolchain nightly
+          rustup target add x86_64-unknown-linux-musl --toolchain nightly
+          rustup default nightly
+
+      - name: 📦 Setup toolchain and dependencies
+        run: |
+          cd SDK/C/tools
+          bash setup.sh
+
+      - name: 🚀 Build SDK and run tests
+        run: |
+          cd SDK/C
+          bash build-sdk.sh

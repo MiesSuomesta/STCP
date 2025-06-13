@@ -1,0 +1,19 @@
+[package]
+name = "stcpclientlib" 
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+stcpcommon = { workspace = true }
+base64 = { workspace = true }
+hex = { workspace = true }
+aes = { workspace = true }
+openssl = { workspace = true }
+tokio = { workspace = true }
+rand = { workspace = true }
+ring = { workspace = true }
+
+[lib]
+name = "stcpclientlib" 
+path = "src/lib.rs"
+crate-type = ["rlib", "staticlib"]

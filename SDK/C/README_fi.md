@@ -26,12 +26,25 @@ sdk/
 
 ## 🛠️ Asennus
 
+Kloonaa ja rakenna SDK:
+
 ```bash
-cd sdk
-./install-sdk.sh [--prefix /haluttu/polku]
+git clone https://github.com/MiesSuomesta/STCP.git
+cd STCP/SDK/C
+bash tools/setup.sh
+bash build-sdk.sh
 ```
 
-Oletuksena SDK asennetaan hakemistoon `/usr/local`.
+Tuloksena saat:
+
+- `sdk/include/*.h` — Headerit
+- `sdk/lib/*.a` — Staattiset kirjastot
+- `sdk/install-sdk.sh` — Installi scripti
+- `sdk/pkgconfig/*.pc` — Komennolle `pkg-config` tarkoitettu konfiguraatio
+- `sdk.zip` — SDK pakattuna valmiiksi siirtoa varten
+
+---
+
 
 ---
 

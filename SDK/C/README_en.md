@@ -1,6 +1,6 @@
 # STCP SDK
 
-The **Secure Tiny Communication Protocol (STCP) SDK** provides a minimal, portable, and secure communication layer built with Rust and C integration. This SDK includes:
+The **Secure Transmission Communication Protocol (STCP) SDK** provides a minimal, portable, and secure communication layer built with Rust and C integration. This SDK includes:
 
 - Statically linked libraries
 - Clean C header interfaces
@@ -28,7 +28,8 @@ Clone and build the SDK from scratch:
 
 ```bash
 git clone https://github.com/MiesSuomesta/STCP.git
-cd STCP/ports/dect-nr9161/dect-nr9161-C-STCP-API
+cd STCP/SDK/C
+bash tools/setup.sh
 bash build-sdk.sh
 ```
 

@@ -1,6 +1,6 @@
 # STCP SDK
 
-The **Secure Transmission Communication Protocol (STCP) SDK** provides a minimal, portable, and secure communication layer built with Rust and C integration. This SDK includes:
+The **Secure Transmission Control Protocol (STCP) SDK** provides a minimal, portable, and secure communication layer built with Rust and C integration. This SDK includes:
 
 - Statically linked libraries
 - Clean C header interfaces

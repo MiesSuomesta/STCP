@@ -1,0 +1,33 @@
+[package]
+name = "stcpcrypto"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+p256 = { workspace = true }
+base64 = { workspace = true }
+hex = { workspace = true }
+aes-gcm = { workspace = true }
+aes = { workspace = true }
+aead = { workspace = true }
+heapless = { workspace = true }
+spin = { workspace = true }
+dlmalloc = { workspace = true }
+stcpdefines = { workspace = true }
+stcptypes = { workspace = true }
+getrandom = { workspace = true }
+rand = { workspace = true }
+rand_core = { workspace = true }
+
+[lib]
+name = "stcpcrypto"
+path = "src/mod.rs"
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []
+

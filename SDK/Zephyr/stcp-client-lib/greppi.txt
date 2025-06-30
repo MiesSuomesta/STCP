@@ -1,0 +1,94 @@
+rust-c-wrapper/Cargo.toml:[package]
+rust-c-wrapper/Cargo.toml:name = "stcp_client_cwrapper_lib"
+rust-c-wrapper/Cargo.toml:version = "0.1.0"
+rust-c-wrapper/Cargo.toml:edition = "2021"
+rust-c-wrapper/Cargo.toml:build = "build.rs"
+rust-c-wrapper/Cargo.toml:[dependencies]
+rust-c-wrapper/Cargo.toml:stcpclientlib = { path = "../rust-client-lib" }
+rust-c-wrapper/Cargo.toml:[lib]
+rust-c-wrapper/Cargo.toml:name = "stcp_client_cwrapper_lib"
+rust-c-wrapper/Cargo.toml:crate-type = ["staticlib"]
+rust-c-wrapper/Cargo.toml:[build-dependencies]
+rust-c-wrapper/Cargo.toml:cbindgen = "0.26"
+rust-client-lib/Cargo.toml:[package]
+rust-client-lib/Cargo.toml:name = "stcpclientlib"
+rust-client-lib/Cargo.toml:version = "0.0.1"
+rust-client-lib/Cargo.toml:edition = "2021"
+rust-client-lib/Cargo.toml:# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-client-lib/Cargo.toml:[dependencies]
+rust-client-lib/Cargo.toml:stcpCommon = { path = "stcpCommon" }
+rust-client-lib/Cargo.toml:aes = "0.8"
+rust-client-lib/Cargo.toml:openssl = { version = "0.10", features = ["vendored"] }
+rust-client-lib/Cargo.toml:rand = "0.8"
+rust-client-lib/Cargo.toml:base64 = "0.21"
+rust-client-lib/Cargo.toml:hex = "0.4"
+rust-client-lib/Cargo.toml:tokio = { version = "1", features = ["full"] }
+rust-client-lib/Cargo.toml:rand_core = "0.6"
+rust-client-lib/Cargo.toml:ring = "0.16"
+rust-client-lib/Cargo.toml:[lib]
+rust-client-lib/Cargo.toml:name = "stcpclientlib"
+rust-client-lib/Cargo.toml:crate-type = ["staticlib", "cdylib"]
+rust-client-lib/Cargo.toml:[build-dependencies]
+rust-client-lib/Cargo.toml:cbindgen = "0.26"
+rust-c-wrapper/src/lib.rs:extern "C" {
+rust-c-wrapper/src/lib.rs:    pub fn rust_stcp_client_start() -> i32;
+rust-c-wrapper/src/lib.rs:}
+rust-c-wrapper/src/lib.rs:#[no_mangle]
+rust-c-wrapper/src/lib.rs:pub extern "C" fn start_rust_stcp_client() {
+rust-c-wrapper/src/lib.rs:    unsafe {
+rust-c-wrapper/src/lib.rs:        rust_stcp_client_start();
+rust-c-wrapper/src/lib.rs:    }
+rust-c-wrapper/src/lib.rs:}
+CMakeLists.txt:cmake_minimum_required(VERSION 3.16)
+CMakeLists.txt:project(STCP-demo-client VERSION 0.1.0 LANGUAGES C)
+CMakeLists.txt:set(RUST_WRAPPER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rust-c-wrapper)
+CMakeLists.txt:set(RUST_LIB_NAME stcp_client_cwrapper_lib)
+CMakeLists.txt:set(RUST_LIB_PATH ${CMAKE_CURRENT_BINARY_DIR}/lib/lib${RUST_LIB_NAME}.a)
+CMakeLists.txt:set(RUST_HEADER_PATH ${CMAKE_CURRENT_BINARY_DIR}/include/${RUST_LIB_NAME}.h)
+CMakeLists.txt:# Polut generointia varten
+CMakeLists.txt:set(RUST_WRAPPER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rust-c-wrapper)
+CMakeLists.txt:set(RUST_HEADER_PATH ${CMAKE_CURRENT_BINARY_DIR}/include/stcp_client_cwrapper_lib.h)
+CMakeLists.txt:# Lisää tämä command ennen rustlib_build targetia:
+CMakeLists.txt:add_custom_command(
+CMakeLists.txt:    OUTPUT ${RUST_HEADER_PATH}
+CMakeLists.txt:    WORKING_DIRECTORY ${RUST_WRAPPER_DIR}
+CMakeLists.txt:    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/include
+CMakeLists.txt:    COMMAND cbindgen --config cbindgen.toml --crate stcp_client_cwrapper_lib --output ${RUST_HEADER_PATH}
+CMakeLists.txt:    DEPENDS ${RUST_WRAPPER_DIR}/src/lib.rs ${RUST_WRAPPER_DIR}/Cargo.toml
+CMakeLists.txt:    COMMENT "Generating C header with cbindgen"
+CMakeLists.txt:)
+CMakeLists.txt:# Päivitä rustlib_build targetti:
+CMakeLists.txt:add_custom_target(rustlib_build_headers ALL
+CMakeLists.txt:    DEPENDS ${RUST_LIB_PATH} ${RUST_HEADER_PATH}
+CMakeLists.txt:)
+CMakeLists.txt:# Sisällytä generoidut headerit
+CMakeLists.txt:include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+CMakeLists.txt:add_custom_command(
+CMakeLists.txt:    OUTPUT ${RUST_LIB_PATH} ${RUST_HEADER_PATH}
+CMakeLists.txt:    WORKING_DIRECTORY ${RUST_WRAPPER_DIR}
+CMakeLists.txt:    COMMAND cargo build --release
+CMakeLists.txt:    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/lib
+CMakeLists.txt:    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/include
+CMakeLists.txt:    COMMAND ${CMAKE_COMMAND} -E copy
+CMakeLists.txt:        ${RUST_WRAPPER_DIR}/target/release/lib${RUST_LIB_NAME}.a
+CMakeLists.txt:        ${RUST_LIB_PATH}
+CMakeLists.txt:    COMMAND ${CMAKE_COMMAND} -E copy
+CMakeLists.txt:        $<JOIN:$<SHELL_PATH:${RUST_WRAPPER_DIR}>/target/release/build/*/out/${RUST_LIB_NAME}.h,>
+CMakeLists.txt:        ${RUST_HEADER_PATH}
+CMakeLists.txt:)
+CMakeLists.txt:add_custom_target(rustlib_build ALL
+CMakeLists.txt:    DEPENDS ${RUST_LIB_PATH} ${RUST_HEADER_PATH}
+CMakeLists.txt:)
+CMakeLists.txt:configure_file(
+CMakeLists.txt:    ${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
+CMakeLists.txt:    ${CMAKE_CURRENT_BINARY_DIR}/config.h
+CMakeLists.txt:    @ONLY
+CMakeLists.txt:)
+CMakeLists.txt:include_directories(${CMAKE_CURRENT_BINARY_DIR}/include) 
+CMakeLists.txt:include_directories(${CMAKE_CURRENT_BINARY_DIR})
+CMakeLists.txt:add_executable(stcp_client src/main.c)
+CMakeLists.txt:add_dependencies(stcp_client rustlib_build)
+CMakeLists.txt:target_link_libraries(stcp_client
+CMakeLists.txt:    ${RUST_LIB_PATH}
+CMakeLists.txt:    pthread dl m
+CMakeLists.txt:)

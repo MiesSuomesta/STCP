@@ -1,0 +1,166 @@
+use std::ffi::CStr;
+use std::os::raw::c_char;
+use std::ptr;
+use std::result::Result;
+use stcpcommon::aes_lib::StcpAesCodec;
+use stcpcommon::stcp_elliptic_codec::StcpEllipticCodec;
+use stcpcommon::utils::StcpUtils;
+use tokio::net::TcpStream;
+use tokio::io::AsyncWriteExt;
+use tokio::sync::Mutex;
+
+use stcpcommon::aes_lib as myAES;
+use stcpcommon::stcp_elliptic_codec as myEC;
+use stcpcommon::utils as myUtils;
+use stcpcommon::defines_etc as myDefs;
+use stcpcommon::defines_etc::{StcpServer, ServerMessageProcessCB};
+
+#[cfg(not(feature = "cbindgen"))]
+use stcpcommon::dprint;
+
+// Julkinen api alkaa -----------------------------------------------------------
+#[no_mangle]
+pub extern "C" fn stcp_server_bind(
+    ip_ptr: *const u8,
+    ip_len: usize,
+    port: u16,
+    cb: ServerMessageProcessCB,
+) -> *mut StcpServer {
+    if ip_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let ip_slice = unsafe { std::slice::from_raw_parts(ip_ptr, ip_len) };
+    let ip_str = match std::str::from_utf8(ip_slice) {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    match stcp_internal_server_bind(ip_str, port, cb) {
+        Ok(server) => Box::into_raw(Box::new(server)),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn stcp_server_listen(server_ptr: *mut StcpServer) -> i32 {
+    if server_ptr.is_null() {
+        return -1;
+    }
+    let server = unsafe { &mut *server_ptr };
+    match stcp_internal_server_listen(server) {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn stcp_server_stop(server_ptr: *mut StcpServer) {
+    stcp_internal_server_stop(server_ptr);
+}
+
+
+// Julkinen api loppuu -----------------------------------------------------------
+
+#[cfg(not(feature = "cbindgen"))]
+pub fn stcp_internal_server_bind(ip: &str, port: u16, cb: ServerMessageProcessCB) -> Result<StcpServer, t: u16, cb: ServerMessageProcessCB) -> Result<StcpServer, Box<dyn std::error::Error>> {
+    let addr = format!("{}:{}", ip, port);
+    let listener = tokio::runtime::Runtime::new()?.block_on(tokio::net::TcpListener::bind(&addr))?;
+    Ok(StcpServer { listener, port, callback: cb })
+}
+
+#[cfg(not(feature = "cbindgen"))]
+pub fn stcp_internal_server_listen(server: &mut StcpServer) -> Result<()> {
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async move {
+        loop {
+            let (stream, addr) = server.listener.accept().await?;
+            println!("New connection from: {}", addr);
+            let cb = server.callback;
+            tokio::spawn(async move {
+                handle_client_connection(stream, cb).await;
+            });
+        }
+    })
+}
+
+#[cfg(not(feature = "cbindgen"))]
+pub fn stcp_internal_server_stop(server_ptr: *mut StcpServer) {
+    if server_ptr.is_null() {
+        return;
+    }
+    unsafe {
+        drop(Box::from_raw(server_ptr));
+    }
+}
+
+#[cfg(not(feature = "cbindgen"))]
+async fn handle_client_connection(mut stream: TcpStream, server_cb: ServerMessageProcessCB) {
+
+    let theEC: myEC::StcpEllipticCodec = myEC::StcpEllipticCodec::new();
+    let theAES: myAES::StcpAesCodec = myAES::StcpAesCodec::new();
+    let theUtilit: myUtils::StcpUtils = myUtils::StcpUtils::new();
+
+    let the_shared_key: Vec<u8> = Vec::new();
+    let the_peer_public_key: Vec<u8> = Vec::new();
+
+    let (the_peer_public_key, the_shared_key) = theUtilit.do_the_stcp_handshake_server(&mut stream, theEC).await;
+
+    if the_peer_public_key.is_empty() || the_shared_key.is_empty() {
+        eprintln!("Handshake failed.");
+        return;
+    }
+
+    #[cfg(not(feature = "cbindgen"))]
+    dprint!("✅ Connection created, handshake passed ok.");
+
+    let buffer = [0u8; myDefs::STCP_IPv4_PACKET_MAX_SIZE];
+
+    let mut loopCount: i32 = 1;
+
+    #[cfg(not(feature = "cbindgen"))]
+    dprint!("PSK: {} // {:?} //", the_shared_key.len(), the_shared_key);
+
+    loop {
+        loopCount += 1;
+        #[cfg(not(feature = "cbindgen"))]
+        dprint!("---------------------------------------------------------------------------------------");
+
+        let (bytes_in, the_raw_data): (usize, Vec<u8>) = theUtilit.read_from(&mut stream).await;
+
+        #[cfg(not(feature = "cbindgen"))]
+        dprint!("Received crypted: {} // {} //{:?} ", bytes_in, the_raw_data.len(), the_raw_data);
+        let decrypted_message_in = theAES.handle_aes_incoming_message(&the_raw_data, &the_shared_key);
+
+
+	// 🔁 Kutsu C:hen
+        #[cfg(not(feature = "cbindgen"))]
+        dprint!("🔁 Rust => C: calling callback with '{:?}'", decrypted_message_in);
+
+
+
+        let mut output_buf = [0u8; myDefs::STCP_IPv4_PACKET_MAX_SIZE];
+        let mut actual_len: usize = 0;
+
+        // 🔁 Käytä server.callback:ia
+        let response = unsafe {
+            (server_cb)(
+                decrypted_message_in.as_ptr(),
+                decrypted_message_in.len(),
+                output_buf.as_mut_ptr(),
+                output_buf.len(),
+                &mut actual_len as *mut usize,
+            );
+            output_buf[..actual_len].to_vec()
+        };
+
+        let str_in_plain =  String::from_utf8_lossy(&response);
+
+        #[cfg(not(feature = "cbindgen"))]
+        dprint!("🔁 C => Rust: Callback returned: '{}'", str_in_plain);
+
+        let data_out = theAES.handle_aes_outgoing_message(&response, &the_shared_key);
+        let _ = stream.write_all(&data_out).await;
+
+    }
+}
+

@@ -1,0 +1,7 @@
+language = "C"
+include_version = false
+autogen_warning = "/* AUTOGENEROITU, älä muokkaa käsin! */"
+
+[export]
+# Vie kaikki `#[no_mangle] extern "C"` funktiot
+

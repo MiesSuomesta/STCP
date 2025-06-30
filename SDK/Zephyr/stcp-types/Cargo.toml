@@ -1,0 +1,22 @@
+[package]
+name = "stcptypes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stcpdefines = { workspace = true }
+globals = { workspace = true }
+spin = { workspace = true }
+libc = { workspace = true }
+
+[lib]
+name = "stcptypes"
+path = "src/mod.rs"
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []

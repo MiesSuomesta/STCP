@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+echo > logi.txt
+
+bash do-test-build.sh stcp-common check 2>&1 | tee -a logi.txt 
+bash do-test-build.sh stcp-client-lib/rust-client-lib/ check 2>&1 | tee -a logi.txt 
+bash do-test-build.sh stcp-client-lib/rust-c-wrapper/ check 2>&1 | tee -a logi.txt 
+
+bash do-test-build.sh stcp-common check 2>&1 | tee -a logi.txt 
+bash do-test-build.sh stcp-server-lib/rust-server-lib/ check 2>&1 | tee -a logi.txt 
+bash do-test-build.sh stcp-server-lib/rust-c-wrapper/ check 2>&1 | tee -a logi.txt 
+

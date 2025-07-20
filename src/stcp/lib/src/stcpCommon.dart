@@ -134,7 +134,7 @@ class EllipticCodec {
       org = publicKeyBytesWithType;
     }
 
-    utils.logAndGetStringFromBytes("publicKeyToBytes", org);
+    //utils.logAndGetStringFromBytes("publicKeyToBytes", org);
     return org;
   }
 
@@ -161,7 +161,7 @@ class EllipticCodec {
   ECPublicKey bytesToPublicKey(Uint8List publicKeyBytes) {
     // Varmista, että julkinen avain alkaa oikealla tavulla
 
-    logi.traceIntList("Public key raw data in", publicKeyBytes);
+    //logi.traceIntList("Public key raw data in", publicKeyBytes);
 
     if (publicKeyBytes[0] != 0x04) {
       throw ArgumentError("Invalid public key encoding.");
@@ -186,7 +186,7 @@ class EllipticCodec {
   Uint8List computeSharedSecretAsBytes(PublicKey paramPublicKey) {
     BigInt agreement = computeSharedSecret(paramPublicKey);
     Uint8List rv = bigIntToBytes(agreement);
-    logi.traceIntList("Return value", rv);
+    //logi.traceIntList("Return value", rv);
     return rv;
   }
 }
@@ -197,128 +197,74 @@ class StcpCommon {
     Uint8List theAESpresharedkeyList,
   ) {
     logi.traceIntList("MSG TRANSFER incoming", theAESpresharedkeyList);
-    String theAESpresharedkey =
-        String.fromCharCodes(theAESpresharedkeyList.toList());
 
-    String theAesKey = theAESpresharedkey
-        .padRight(STCP_AES_KEY_SIZE_IN_BYTES, "0")
-        .substring(0, STCP_AES_KEY_SIZE_IN_BYTES);
+    // Erotetaan IV ja salattu viesti binäärisesti
+    final theIncomingIV =
+        msgIncomingCrypted.sublist(0, STCP_AES_IV_SIZE_IN_BYTES);
+    final theEncryptedMessage =
+        msgIncomingCrypted.sublist(STCP_AES_IV_SIZE_IN_BYTES);
 
-    logi.traceMe("The AES key in incoming: $theAesKey");
-    String strIncomingPacket = utils.logAndGetStringFromBytes(
-      "the IV vector + Payload of message in",
-      msgIncomingCrypted,
-    );
-
-    Uint8List theIncomingIV = utils.logAndGetBytesFromString(
-      "the incoming IV-vector",
-      strIncomingPacket.substring(0, STCP_AES_IV_SIZE_IN_BYTES),
-    );
     logi.traceIntList("MSG TRANSFER incoming IV", theIncomingIV);
-
-    Uint8List theEncryptedMessage = utils.logAndGetBytesFromString(
-      "the Encrypted message",
-      strIncomingPacket.substring(STCP_AES_IV_SIZE_IN_BYTES),
-    );
-
     logi.traceIntList("MSG TRANSFER incoming enc MSG", theEncryptedMessage);
 
-    String theIV = String.fromCharCodes(theIncomingIV.toList());
-
-    scom.SecureCommunication theSCincomign = scom.SecureCommunication(
-      theAesKey,
-      theIV,
+    // Luodaan SecureCommunication olio käyttäen binäärisiä IV:tä ja avainta
+    final sc = scom.SecureCommunication(
+      theAESpresharedkeyList,
+      theIncomingIV,
       "Incoming AES traffic",
     );
 
-    utils.logAndGetBytesFromString("theAesKey", theAesKey);
-    utils.logAndGetStringFromBytes("theIncomingIV", theIncomingIV);
-    logi.traceIntList("the Encrypted message", theEncryptedMessage);
+    // Puretaan salattu viesti binäärinä
+    final decryptedBytes = sc.decryptBytes(theEncryptedMessage);
 
-    String theEncryptedMessageStr =
-        String.fromCharCodes(theEncryptedMessage.toList());
-    String decryptedMessage = theSCincomign.decrypt(theEncryptedMessageStr);
+    logi.traceIntList("MSG TRANSFER incoming decrypt", decryptedBytes,
+        nLenMax: 1024 * 2000);
 
-    logi.traceIntList("MSG TRANSFER incoming decrypt",
-        Uint8List.fromList(decryptedMessage.codeUnits));
-
-    Uint8List tmp = utils.logAndGetBytesFromString(
-      "Decrypted message",
-      decryptedMessage,
-    );
-    return tmp;
+    return decryptedBytes;
   }
 
   Uint8List theSecureMessageTransferOutgoing(
     Uint8List msgOutgoingPlain,
     Uint8List theAESpresharedkey,
   ) {
-    logi.traceIntList("MSG TRANSFER incoming", theAESpresharedkey);
-    String theAESpresharedkeyStr =
-        String.fromCharCodes(theAESpresharedkey.toList());
-
-    String theAesKey = theAESpresharedkeyStr
+    // Pad key to exact length
+    String keyStr = String.fromCharCodes(theAESpresharedkey)
         .padRight(STCP_AES_KEY_SIZE_IN_BYTES, "0")
         .substring(0, STCP_AES_KEY_SIZE_IN_BYTES);
-    Uint8List theAesKeyUintList = Uint8List.fromList(theAesKey.codeUnits);
+    Uint8List theAesKey = Uint8List.fromList(keyStr.codeUnits);
 
-    logi.traceMe("The AES key in incoming: $theAesKey");
+    // Luo satunnainen IV (täsmälleen oikean mittainen binäärinä)
+    Uint8List theOutgoingIV = generateRandomBytes(STCP_AES_IV_SIZE_IN_BYTES);
 
-    Uint8List theOutgoingIV = generateRandomBase64(STCP_AES_IV_SIZE_IN_BYTES);
+    logi.traceIntList("MSG OUT KEY", theAesKey);
+    logi.traceIntList("MSG OUT IV", theOutgoingIV);
+    logi.traceIntList("MSG OUT raw plain", msgOutgoingPlain);
 
-    logi.traceMeBetter("MSG OUT KEY: ${theAesKey.length} // $theAesKey //");
-    logi.traceMe("MSG OUT IV : ${theOutgoingIV.length} // $theOutgoingIV //");
-    utils.logAndGetStringFromBytes("MSG OUT raw plain", msgOutgoingPlain);
-
-    String theOutgoingIVStr = String.fromCharCodes(theOutgoingIV.toList());
-
-    scom.SecureCommunication theSC = scom.SecureCommunication(
+    // Luo AES-salaaja
+    final theSC = scom.SecureCommunication(
       theAesKey,
-      theOutgoingIVStr,
+      theOutgoingIV,
       "Outgoing msg",
     );
 
-    String outgoingIVvector = utils.logAndGetStringFromBytes(
-      "MSG OUT raw IV Vector",
-      theOutgoingIV,
-    );
+    // Salaa binääridata
+    final encryptedMessage = theSC.encryptBytes(msgOutgoingPlain);
 
-    String encryptedOut = utils.logAndGetStringFromBytes(
-      "MSG OUT raw out going payload",
-      msgOutgoingPlain,
-    );
+    // Liitä IV + salattu viesti peräkkäin
+    final outMessage =
+        Uint8List.fromList([...theOutgoingIV, ...encryptedMessage]);
 
-    String cryptedMessage = theSC.encrypt(encryptedOut);
+    logi.traceIntList("MSG out [IV + crypted]", outMessage);
 
-    utils.logAndGetBytesFromString("MSG OUT raw crypted", cryptedMessage);
-
-    String outMessage = outgoingIVvector + cryptedMessage;
-    Uint8List tmp = utils.logAndGetBytesFromString(
-      "MSG out [Outgoing IV] + [crypted message]",
-      outMessage,
-    );
-
-    logi.traceMe("==============================================");
-    logi.traceMe("== lja1 ");
-    logi.traceMe("==============================================");
-    logi.traceMe("MSG decrypt try ============================");
-    this.theSecureMessageTransferIncoming(tmp, theAesKeyUintList);
-    logi.traceMe("MSG decrypt try end ========================");
-
-    return tmp;
+    return outMessage;
   }
 
-  Uint8List generateRandomBase64(int length) {
+  Uint8List generateRandomBytes(int length) {
     // Get random's seeded with time
     // .secure random failed so ...
     final random = Random(DateTime.timestamp().millisecondsSinceEpoch);
 
-    final bytes = List<int>.generate(length, (i) => random.nextInt(26) + 97);
+    final bytes = List<int>.generate(length, (i) => random.nextInt(255));
     return Uint8List.fromList(bytes);
-  }
-
-  String generateRandomBase64AsString(int length) {
-    final random = generateRandomBase64(length);
-    return String.fromCharCodes(random);
   }
 }

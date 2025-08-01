@@ -11,14 +11,13 @@ environment:
 dependencies:
   args: ^2.5.0
   paxlog:
-    path: ../../../modules/paxlog/
+    path: ../../../paxlog
   the_tcp_messaging:
-    path: ../../../modules/the_tcp_messaging
+    path: ../../../the_tcp_messaging
   the_secure_comm:
-    path: ../../../modules/the_secure_comm
-
+    path: ../../../the_secure_comm
   stcp:
-    path: ../../stcp
+    path: ../../../stcp
   socket_io: ^1.0.1
   socket_io_client: ^1.0.2
 

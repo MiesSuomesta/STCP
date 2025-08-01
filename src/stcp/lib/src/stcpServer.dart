@@ -1,8 +1,11 @@
 library stcp;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'dart:math';
 import 'dart:typed_data';
+import 'package:stcp/src/stcpHeader.dart';
 import 'package:the_tcp_messaging/server.dart' as tcpServer;
 import 'package:paxlog/paxlog.dart' as logi;
 
@@ -22,52 +25,105 @@ class StcpServer {
   late StcpCommon theCommon;
   late EllipticCodec theEC = EllipticCodec();
 
-  void set_socket_meta(Socket theSock, dynamic theMeta) {
-    String key = getKeyStringFromSock(theSock);
-    theSockedMetadata[key] = theMeta;
-    //utils.dump_pretty_json_from_object("Socket Meta (SET)", theSockedMetadata);
+  void forceCloseSocket(Socket socket) {
+    try {
+      socket.destroy();
+      logi.traceMeIf(false, "Socket destroyed.");
+    } catch (err, st) {
+      logi.traceMeIf(false, "Error while destoroying socket: $err");
+      logi.traceTryCatch(err, theStack: st);
+    }
+    logi.traceMeIf(false, "Dispose reader & controller...");
+    streamReaders.remove(socket)?.dispose();
+    socketControllers.remove(socket)?.close();
+    logi.traceMeIf(false, "Socket removed from maps.");
   }
 
-  Map<String, dynamic> get_socket_meta(Socket theSock) {
-    String key = getKeyStringFromSock(theSock);
-    //utils.dump_pretty_json_from_object("Socket Meta (GET)", theSockedMetadata);
-    return theSockedMetadata[key] ?? {};
+  Future<void> restartHandshake(Socket theSock) async {
+    logi.traceMeIf(false, "[STCP] Restarting handshake....");
+    logi.traceMeIf(false, "Removing Shared key ..");
+    try {
+      theSharedKeys.remove(theSock);
+      logi.traceMeIf(false, "Force socket close.");
+    } catch (err, st) {
+      logi.traceMeIf(false, "Error while removing info of socket: $err");
+      logi.traceTryCatch(err, theStack: st);
+    }
+    forceCloseSocket(theSock);
   }
 
   Future<Uint8List?> theSecureMessageTransferAES(Socket theSock,
       Uint8List msgIncomingCrypted, Uint8List? theAESDerivedKey) async {
-    //logi.traceIntList("Secure message transfer AES input", msgIncomingCrypted);
-    //logi.traceIntList("The AES key", theAESDerivedKey);
+    logi.traceIntListIf(false, "Secure message transfer AES input", msgIncomingCrypted);
+    //logi.traceIntListIf(false, "The AES key", theAESDerivedKey);
     if (theAESDerivedKey == null) {
       throw Exception(
           "STCP Protocol init failure: AES secret is not set to metadata!");
     }
 
-    Uint8List decryptedMessage = theCommon.theSecureMessageTransferIncoming(
-        msgIncomingCrypted, theAESDerivedKey!);
+    late Uint8List? decryptedMessage;
+    try {
+      decryptedMessage = theCommon.theSecureMessageTransferIncoming(
+          msgIncomingCrypted, theAESDerivedKey!);
+      if (decryptedMessage == null) {
+        if (HARD_EXEPTIONS) {
+          throw Exception("Errror while processing incoming message!");
+        } else {
+          logi.traceMeIf(false, "Errror while processing incoming message!");
+          return null;
+        }
+      }
+    } catch (e, st) {
+      logi.traceMeIf(false, "[STCP] AES decrypt failed: $e\n$st");
+      logi.traceTryCatch(e, theStack: st);
+      // Kutsu handshake-prosessia uudelleen
+      await restartHandshake(theSock);
+      return null;
+    }
 
-    //logi.traceIntList("[SERVER] AES message decrypted", decryptedMessage);
+    logi.traceIntListIf(false, "[SERVER] AES message decrypted", decryptedMessage);
 
     // the unsecure call
-    //logi.traceMe("Undesure callback call ===================================");
+    logi.traceMeIf(false, "Undesure callback call ===================================");
+    logi.traceIntListIf(false, "[SERVER] UNSEC to process", decryptedMessage);
 
     Uint8List? unsecureResponse =
         await theUnsecureMessageHandler(theSock, decryptedMessage);
 
-    //logi.traceIntList("[SERVER] UNSEC returned", unsecureResponse);
-    //logi.traceMe("Undesure callback done ===================================");
-
-    //logi.traceIntList("[SERVER] outgoing", unsecureResponse);
+    logi.traceIntListIf(false, "[SERVER] unsecure callback returned", unsecureResponse);
 
     if (unsecureResponse != null) {
-      Uint8List encryptedOut = theCommon.theSecureMessageTransferOutgoing(
-          unsecureResponse!, theAESDerivedKey!);
+      if (StcpHeader.isProbablyHeadered(unsecureResponse)) {
+        logi.traceMeIf(false, 
+            "[SERVER] Response already headered. Removing header before encrypt.");
+        final map = removeHeaderFromPayload(unsecureResponse);
+        unsecureResponse = map["payload"];
+      }
+    }
 
-      //logi.traceIntList("[SERVER] finally outgoing", encryptedOut);
+    //logi.traceMeIf(false, "Undesure callback done ===================================");
+
+    if (unsecureResponse != null) {
+      logi.traceIntListIf(false, "[SERVER] going to out transfer", unsecureResponse);
+
+      Uint8List? encryptedOut = theCommon.theSecureMessageTransferOutgoing(
+          unsecureResponse!, theAESDerivedKey!);
+      if (encryptedOut == null) {
+        if (HARD_EXEPTIONS) {
+          await restartHandshake(theSock);
+          throw Exception("Errror while processing outgoing message!");
+        } else {
+          logi.traceMeIf(false, "Errror while processing outgoing message!");
+        }
+        await restartHandshake(theSock);
+        return null;
+      }
+
+      logi.traceIntListIf(false, "[SERVER] outgoing encrypted message", encryptedOut);
       return encryptedOut;
     }
 
-    //logi.traceMe("[SERVER] finally outgoing, no response: return null");
+    //logi.traceMeIf(false, "[SERVER] finally outgoing, no response: return null");
     return null;
   }
 
@@ -77,75 +133,34 @@ class StcpServer {
     return decryptor.process(encryptedKey);
   }
 
-  void theKeyExchangeProcess(Socket theSock) async {
-    //logi.traceMe(
-    //    'Connection from ${theSock.remoteAddress.host}:${theSock.remotePort} at handshake...');
-    Map<String, dynamic>? tmpMap = get_socket_meta(theSock);
-    bool needHandshake = true;
-    if (tmpMap.isNotEmpty) {
-      if (tmpMap.containsKey("AESkey")) {
-        String tmpKey = tmpMap["AESkey"];
-        if (tmpKey.isNotEmpty) {
-          //logi.traceMe(
-          //    "Already have done handshake but doing anyway: // $tmpKey // ...");
-        }
+  Map<Socket, bool> thePublicKeySentForSocketDone = {};
+  Uint8List? thePublicKeyGot(Socket theSocket, Uint8List thePublicKey) {
+    ECPublicKey? gotPubKey = theEC.bytesToPublicKey(thePublicKey);
+    if (gotPubKey == null) {
+      if (HARD_EXEPTIONS) {
+        throw Exception("Error while validating public key...");
+      } else {
+        logi.traceMeIf(false, "Error while validating public key...");
+        return null;
       }
     }
-
-    //logi.traceMe("[STCP] Sending public key? $needHandshake ..");
-    if (needHandshake) {
-      Uint8List publicKeyBytes = theEC.getPublicKeyAsBytes();
-      //logi.traceIntList("[STCP] Sending public key", publicKeyBytes);
-      try {
-        //logi.traceIntList("Sending public key", publicKeyBytes);
-        theSock.add(publicKeyBytes);
-        theSock.flush();
-      } catch (e) {
-        logi.traceMe("Error while sending public key: $e");
-      }
-//      logi.traceIntList("[STCP] Sent public key", publicKeyBytes);
-    }
-  }
-
-  Future<void> setTheAesKey(Socket theSocket, Uint8List theAesKeyGot) async {
-    Map<String, dynamic>? tmpMap = get_socket_meta(theSocket);
-    if (tmpMap.isNotEmpty) {
-      if (tmpMap.containsKey("AESkey")) {
-        Uint8List tmpKey = tmpMap["AESkey"];
-        if (tmpKey.isNotEmpty) {
-          //logi.traceIntList("Found AES derived key", tmpKey);
-        }
-      }
-    }
-    tmpMap["AESkey"] = theAesKeyGot;
-    //logi.traceIntList("Updated AES derived key", theAesKeyGot);
-    set_socket_meta(theSocket, tmpMap);
-  }
-
-  Uint8List thePublicKeyGot(Socket theSocket, Uint8List thePublicKey) {
-    ECPublicKey gotPubKey = theEC.bytesToPublicKey(thePublicKey);
     return theEC.computeSharedSecretAsBytes(gotPubKey);
   }
 
   Future<Uint8List?> theSecureMessageTransfer(
       Socket theSock, Uint8List msgIncomingCrypted) async {
-    Map<String, dynamic> theMap = get_socket_meta(theSock);
-    if (theMap == null) {
-      //logi.traceMe("Got no meta for socket! ${theSock}");
-      return null;
-    }
-    Uint8List? theAESDerivedKey = theMap["AESkey"];
+    Uint8List? theAESDerivedKey = getAESFromSocket(theSock);
 
-    //logi.traceIntList("[SERVER] Derived AES key", theAESDerivedKey);
-    //logi.traceIntList("[SERVER] Data got in from AES", msgIncomingCrypted);
+    //logi.traceIntListIf(false, "[SERVER] Derived AES key", theAESDerivedKey);
+    //logi.traceIntListIf(false, "[SERVER] Data got in from AES", msgIncomingCrypted);
 
     Uint8List? theList = await theSecureMessageTransferAES(
         theSock, msgIncomingCrypted, theAESDerivedKey);
 
-    //logi.traceIntList("[SERVER] theSecureMessageTransferAES Returned", theList);
+    logi.traceIntListIf(false, "[SERVER] theSecureMessageTransferAES Returned", theList);
 
     if (theList == null) {
-      //logi.traceMe("[SERVER] Secure transfer Outgoing was null");
+      //logi.traceMeIf(false, "[SERVER] Secure transfer Outgoing was null");
     }
 
     return theList;
@@ -157,188 +172,260 @@ class StcpServer {
     /*
       read() -> SECURE(decrypt) -> INSECURE -> SECURE(encrypt) -> send()
     */
-    //logi.traceMe("Initialized StcpServer at $host:$port ...");
+    logi.traceMeIf(false, "Initialized StcpServer at $host:$port ...");
   }
 
   Future<void> start() async {
     await bind();
     await for (var sck in socket!) {
+      sck.timeout(
+        Duration(seconds: PAXSUDOS_SOCKET_TIMEOUT_IN_SECONDS),
+        onTimeout: (sink) {
+          logi.traceMeIf(false, 
+              "Nothing heard in $PAXSUDOS_SOCKET_TIMEOUT_IN_SECONDS minutes, closing...");
+          sck.destroy(); // Katkaise yhteys, jos ei kuulu mitään minuuttiin
+        },
+      );
+
+      String hostt = sck.remoteAddress.address;
+      int port = sck.port;
+
+      logi.traceMeIf(false, 
+          "New socket from $host:$port with timeout of $PAXSUDOS_SOCKET_TIMEOUT_IN_SECONDS minutes");
+
       _handleConnection(sck);
     }
-    //logi.traceMe('Server started.');
+    //logi.traceMeIf(false, 'Server started.');
   }
 
   Future<void> stop() async {
-    //logi.traceMe('Server closed.');
+    //logi.traceMeIf(false, 'Server closed.');
   }
 
   Future<void> bind() async {
     socket = await ServerSocket.bind(host, port);
-    //logi.traceMe('Bound to ${socket!.address.address}:$port');
+    //logi.traceMeIf(false, 'Bound to ${socket!.address.address}:$port');
   }
 
-  Map<String, Uint8List> theSharedKeys = {};
-  String getKeyStringFromSock(Socket theSock) {
-    return "${theSock.remoteAddress.host}:${theSock.remotePort}";
+  Map<Socket, Uint8List> theSharedKeys = {};
+
+  void setAESKeyOfSocket(Socket theSock, Uint8List theAESKey) {
+    assert(theAESKey.length == STCP_AES_KEY_SIZE_IN_BYTES);
+    theSharedKeys[theSock] = theAESKey;
   }
 
-  Future<void> _handleConnection(Socket theSocket) async {
-    bool gotPublicKey = false;
-    Uint8List? myAesKey;
-    Uint8List? theSharedSecret;
-    String sharedKeysKey = getKeyStringFromSock(theSocket);
-    bool gotClientPublicKey = false;
+  void removeAESKeyOfSocket(Socket theSock) {
+    theSharedKeys.remove(theSock);
+  }
 
-    if (theSharedKeys.containsKey(sharedKeysKey)) {
-      Uint8List? tmpUI = theSharedKeys[sharedKeysKey];
-      if (tmpUI != null) {
-        gotClientPublicKey = true;
-        myAesKey = tmpUI!;
-        //  logi.traceIntList("Got already a key for $sharedKeysKey", myAesKey);
+  Uint8List? getAESKeyOfSocket(Socket theSock) {
+    return theSharedKeys[theSock];
+  }
+
+  Future<void> theKeyExchangeProcess(Socket sock, StcpCommon common) async {
+    // 0. lähetä oma julkinen avain vain kerran per soketti
+    if (!thePublicKeySentForSocketDone.containsKey(sock)) {
+      final pubBytes = theEC.getPublicKeyAsBytes();
+      await common.stcp_send_packet(sock, pubBytes,
+          aesKey: null, theCommon: common);
+      thePublicKeySentForSocketDone[sock] = true;
+      logi.traceMeIf(false, '[STCP] ⇢  sent server pubkey (65 B)');
+    }
+
+    final reader = CreatePaxsudosBufferedReaderFromSocket(sock, streamReaders);
+
+    /* ------- 1. odota CLIENT‑PUBKEY -------- */
+    Uint8List clientPubKey;
+    while (true) {
+      final payload = await common.stcp_recv_packet(reader,
+          aesKey: null, theCommon: common);
+      if (payload == null) continue;
+
+      if (payload.length == 65 && payload[0] == 0x04) {
+        clientPubKey = payload;
+        logi.traceMeIf(false, '[STCP] ⇠  client pubkey received');
+        break;
       }
     }
 
-//    if (!gotClientPublicKey) {
-    //logi.traceMe("[STCP] Connecting to $host:$port .....");
+    // 2. laske shared secret  →  derive AES‑key
+    final ecPub = theEC.bytesToPublicKey(clientPubKey)!;
+    final secret = theEC.computeSharedSecretAsBytes(ecPub);
+    final aesKey = theEC.deriveSharedKeyBasedAESKey(secret);
 
-    if (theEC == null) {
-      //logi.traceMe("Elliptic curve is null!");
-      throw Exception("STCP Protocol init failure: Elliptic Curve is not set.");
+    setAESKeyOfSocket(sock, aesKey); // talteen karttaan
+
+    /* ------- 3. lähetä AES("READY") -------- */
+    await common.stcp_send_packet(sock, Uint8List.fromList('READY'.codeUnits),
+        aesKey: aesKey, theCommon: common);
+
+    /* ------------------------------------------------------------------
+     *  ODOTA CLIENTILTÄ KUITTAUS
+     * ------------------------------------------------------------------ */
+    bool readyAcked = false;
+    Uint8List? firstAppMsg;
+    while (!readyAcked) {
+      final plain = await common.stcp_recv_packet(reader,
+          aesKey: aesKey, theCommon: common);
+      if (plain == null) continue;
+
+      if (utf8.decode(plain) == 'READY') {
+        readyAcked = true;
+        logi.traceMeIf(false, '[STCP] ⇠  client READY OK → handshake done (Server)');
+      } else {
+        // saatiin oikea data ennen READY-kuittausta
+        firstAppMsg = plain;
+        readyAcked = true;
+        logi.traceMeIf(false, '[STCP] ⇠  client sent data before READY – hyväksytään');
+      }
+    }
+
+    /* Handshake valmis – siirry viestin­käsittelyyn */
+    if (firstAppMsg != null) {
+      final reply = await theUnsecureMessageHandler(sock, firstAppMsg);
+      if (reply != null) {
+        await theCommon.stcp_send_packet(sock, reply,
+            aesKey: getAESKeyOfSocket(sock), theCommon: theCommon);
+      }
+    }
+
+    // nyt voit siirtyä varsinaiseen viestienkäsittelyyn
+  }
+
+  Future<void> _handleConnection(Socket socket) async {
+    final sockID = "${socket.remoteAddress.address}:${socket.remotePort}";
+    logi.traceMeIf(false, "[STCP/$sockID] New connection");
+
+    /* ------------------------------------------------------------------
+   * 0.  Buffered reader per socket
+   * ------------------------------------------------------------------ */
+    final reader = streamReaders.putIfAbsent(
+        socket,
+        () => CreatePaxsudosBufferedReaderFromSocket(
+              socket,
+              streamReaders,
+            ));
+
+    await theKeyExchangeProcess(socket, theCommon);
+
+    Uint8List? theAESKey = getAESKeyOfSocket(socket);
+
+    if (theAESKey == null) {
+      logi.traceMeIf(false, "[STCP/$sockID] No AES key!");
       return;
     }
 
-    //logi.traceMe("[STCP] =========================================");
-    //logi.traceMe("[STCP] ==== Handshake process ......");
-    //logi.traceMe("[STCP] =========================================");
-    // Listen for publickey
-    StreamSubscription<Uint8List>? subscription;
-    /*
-      * Serveri lähettää ekana oman public keyn, vastineeksi
-      * serverille pitää tulla clientin public key
-      * 
-      * Serveri laittaa yhteisen salaisuuden AES avaimeksi, HMAC SHA256-käsit-
-      * telyllä.
-      *
-      */
-    //logi.traceMe("[STCP] Sending my public key....");
-    this.theKeyExchangeProcess(theSocket);
+    /* ------------------------------------------------------------------
+     *  AES‑tilan pääsilmukka
+     * ------------------------------------------------------------------ */
+    try {
+      // Odota JOKO aesLoopin päättymistä TAI socket.done‑Futuren täyttymistä
+      await Future.any(
+          [handleAESMessagesInLoop(socket, reader, theAESKey), socket.done]);
+    } catch (e, st) {
+      logi.traceMeIf(false, "[STCP/$sockID] connection error → ${e}");
+      logi.traceTryCatch(e, theStack: st);
+    } finally {
+      // odota että OS sulkee yhteyden (EOF) ja siivoa resurssit
+      await socket.close();
+      reader.dispose();
+      streamReaders.remove(socket);
+      removeAESKeyOfSocket(socket);
+      logi.traceMeIf(false, "[STCP/$sockID] Connection closed");
+    }
+  }
 
-    subscription = theSocket.listen((theDataIn) async {
-      //logi.traceMe("[STCP] Got data, pubkey status: $gotClientPublicKey");
-      if (!gotClientPublicKey) {
-        bool okLen = theDataIn.length == 65;
-        //logi.traceIntList(
-        //    "[STCP] Got public key possibly from peer: $okLen", theDataIn);
-        if (okLen) {
-          theSharedSecret = this.thePublicKeyGot(theSocket, theDataIn);
-          if (theSharedSecret != null) {
-            myAesKey = theEC!.deriveSharedKeyBasedAESKey(theSharedSecret!);
-            if (myAesKey != null) {
-              setTheAesKey(theSocket, myAesKey!);
-              //    logi.traceIntList("[STCP] Got public key from client", myAesKey);
-              gotClientPublicKey = true;
-            }
-          }
+  /* Puhtaampi AES‑silmukka */
+  Future<void> handleAESMessagesInLoop(Socket socket,
+      PaxsudosBufferedStreamReader reader, Uint8List aesKey) async {
+    bool sockClosed = false;
+    final sockID = "${socket.remoteAddress.address}:${socket.remotePort}";
 
-          if (gotClientPublicKey == false) {
-            //logi.traceMe("[STCP] Re-Sending my public key....");
-            this.theKeyExchangeProcess(theSocket);
-          }
+    socket.done.then((_) {
+      sockClosed = true;
+      logi.traceMeIf(false, "[STCP/$sockID] Closing AES mode socket!");
+    });
+
+    try {
+      while (!sockClosed) {
+        final plain = await theCommon.stcp_recv_packet(reader,
+            aesKey: getAESKeyOfSocket(socket), theCommon: theCommon);
+
+        if (plain == null) {
+          if (sockClosed) break; // EOF
+          continue; // ei vielä kokonaista pakettia
         }
-      } else {
-        // Got public key!
-/*
-        logi.traceMe("[STCP] ==== AES Traffic processing ......");
-        logi.traceIntList(
-            "[STCP] ==== AES theSharedSecret set", theSharedSecret);
-        logi.traceIntList("[STCP] ==== AES key set", myAesKey);
-        logi.traceMe("[STCP] =========================================");
-        logi.traceIntList("[STCP] The AES traffic in", theDataIn);
-	*/
-        /*
-        * Lopuksi: Clientti hanskaa AES salattuna liikenteen välittämistä
-        * STCP-kerrokselle.
-        */
 
-        //logi.traceMe("[STCP] Calling the message handler..");
-        Uint8List? rv =
-            await this.theSecureMessageTransfer(theSocket, theDataIn);
-        //logi.traceIntList("[STCP] Called, returned", rv);
-
-        if (rv != null) {
-          //logi.traceMe("[STCP] sending returned....");
-          send_raw(theSocket, rv);
+        final reply = await theUnsecureMessageHandler(socket, plain);
+        if (reply != null) {
+          await theCommon.stcp_send_packet(socket, reply,
+              aesKey: getAESKeyOfSocket(socket), theCommon: theCommon);
         }
       }
-    });
+    } catch (e, st) {
+      logi.traceTryCatch(e, theStack: st);
+    }
   }
 
   Uint8List? getAESFromSocket(Socket theSock) {
-    String sharedKeysKey = this.getKeyStringFromSock(theSock);
-    Uint8List? tmpUI = theSharedKeys[sharedKeysKey];
+    return theSharedKeys[theSock];
+  }
 
-    //logi.traceIntList("[$sharedKeysKey] the Shared key", tmpUI);
-    if (tmpUI != null) {
-      Uint8List? myAesKey = theEC!.deriveSharedKeyBasedAESKey(tmpUI!);
-      //logi.traceIntList("[$sharedKeysKey] theAES key", myAesKey);
-      return myAesKey;
+  // Ei nätti mut joooh....
+  final Map<Socket, PaxsudosBufferedStreamReader> streamReaders = {};
+  final Map<Socket, StreamController<Uint8List>> socketControllers = {};
+
+  void disposeSocketReader(Socket socket) {
+    logi.traceMeIf(false, "Removing socket from readers..");
+    streamReaders.remove(socket)?.dispose();
+    socketControllers.remove(socket);
+  }
+
+  Future<Uint8List?> recv_raw(Socket socket,
+      {int? theLength,
+      int timeoutInSeconds = STCP_READ_TIMEOUT_IN_SECONDS}) async {
+    // Alustetaan buffered reader jos puuttuu
+    streamReaders[socket] ??=
+        CreatePaxsudosBufferedReaderFromSocket(socket, streamReaders);
+
+    // Poista reader kun socket sulkeutuu
+    socket.done.then((_) {
+      forceCloseSocket(socket);
+    });
+
+    final reader = streamReaders[socket]!;
+
+    try {
+      if (theLength != null) {
+        logi.traceMeIf(false, "Getting raw $theLength bytes");
+        final ret = await reader
+            .tryReadBytes(theLength)
+            .timeout(Duration(seconds: timeoutInSeconds));
+        if (ret == null || ret.isEmpty) return null;
+
+        logi.traceIntListIf(false, 
+            "recv_raw() received buffer", ret.sublist(0, min(ret.length, 64)));
+        logi.traceIntListIf(false, "RAW data read", ret, noStr: true);
+        return ret;
+      }
+
+      logi.traceMeIf(false, "Reading complete STCP packet...");
+
+      Uint8List? received = await readCompleteStcpPacket(reader);
+
+      if (received == null || received.isEmpty) {
+        logi.traceMeIf(false, "Received null (likely disconnect).");
+        return null;
+      }
+
+      final header = received.sublist(0, STCP_HEADER_TOTAL_SIZE);
+      logi.traceIntListIf(false, "Received header from client", header);
+      logi.traceIntListIf(false, "recv_raw() received buffer",
+          received.sublist(0, min(received.length, 64)));
+      return received;
+    } catch (err) {
+      logi.traceMeIf(false, "recv_raw error: $err");
+      return null;
     }
-    return null;
-  }
-
-  Future<Uint8List?> stcp_recv(Socket theSocket) async {
-    // await initialize_socket();
-    Uint8List? theAESKey = getAESFromSocket(theSocket);
-    //logi.traceIntList("the AES day at send", theAESKey);
-
-    Uint8List? encryptedIn = await this.recv_raw(theSocket);
-
-    Uint8List? theBytesOut = await theCommon.theSecureMessageTransferIncoming(
-        encryptedIn!, theAESKey!);
-
-    //logi.traceIntList("STCP/recv", theBytesOut);
-    return theBytesOut;
-  }
-
-  Future<void> stcp_send(Socket theSocket, Uint8List message) async {
-    // await initialize_socket();
-    Uint8List? theAESKey = getAESFromSocket(theSocket);
-    //logi.traceIntList("STCP/send/the AES day at send", theAESKey);
-    //logi.traceIntList("STCP/send/the message", message);
-
-    Uint8List? theBytesOut =
-        await theCommon.theSecureMessageTransferOutgoing(message, theAESKey!);
-    //logi.traceIntList("STCP/send/to wire:", theBytesOut);
-    send_raw(theSocket, message);
-  }
-
-  Future<void> send_raw(Socket theSocket, Uint8List message) async {
-    // await initialize_socket();
-    //logi.traceMe("Sending to $host:$port via socket $theSocket");
-
-    String HN = theSocket.remoteAddress.host;
-    int HP = theSocket.remotePort;
-
-    //logi.traceIntList("TCP/send to $HN:$HP", message);
-
-    //Socket.connect(host, port).then((theSck) {
-    theSocket.add(message);
-    //  theSck.close();
-    //});
-  }
-
-  Future<Uint8List?> recv_raw(Socket theSocket) async {
-    // await initialize_socket();
-
-    String HN = theSocket.address.host;
-    int HP = theSocket.port;
-    Uint8List? message = null;
-    //logi.traceMe("TCP/recv from target: $HN:$HP.....");
-    RawSocket rawSocket =
-        await RawSocket.connect(theSocket.address, theSocket.port);
-    message = await rawSocket.read(10240);
-    rawSocket.close();
-    //logi.traceIntList("TCP/recv ${message?.length}", message);
-    return message;
   }
 }

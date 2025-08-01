@@ -1,25 +1,19 @@
-name: stcp
+name: the_secure_comm
 description: A starting point for Dart libraries or applications.
 version: 1.0.0
-publish_to: none
 # repository: https://github.com/my_org/my_repo
 
 environment:
-  sdk: ^3.6.2
+  sdk: ^3.6.1
 
 # Add regular dependencies here.
 dependencies:
+  encrypt: ^5.0.3
   # path: ^1.8.0
-  basic_utils: ^5.7.0
   paxlog:
-    path: ../paxlog/
-  the_tcp_messaging:
-    path: ../the_tcp_messaging
-  the_secure_comm:
-    path: ../the_secure_comm
-  socket_io: ^1.0.1
-  socket_io_client: ^1.0.2
-  pointycastle: ^3.9.1
+    path: ../paxlog
+  utils:
+    path: ../utils
 
 dev_dependencies:
   lints: ^5.0.0

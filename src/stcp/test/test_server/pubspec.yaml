@@ -1,22 +1,23 @@
-name: stcp_testing_client
+name: test_server
 description: A sample command-line application with basic argument parsing.
 version: 0.0.1
+publish_to: none
 # repository: https://github.com/my_org/my_repo
 
 environment:
-  sdk: ^3.6.1
+  sdk: ^3.7.0
 
 # Add regular dependencies here.
 dependencies:
-  args: ^2.6.0
+  args: ^2.5.0
   paxlog:
-    path: /home/pomo/git/dart-packages/paxlog
-  utils:
-    path: /home/pomo/git/dart-packages/utils
+    path: ../../../paxlog/
+  the_tcp_messaging:
+    path: ../../../the_tcp_messaging
+  the_secure_comm:
+    path: ../../../the_secure_comm
   stcp:
-    path: /home/pomo/git/dart-packages/stcp/stcp
-  crc32_checksum: ^0.0.2
-  latlong2: ^0.9.1
+    path: ../../../stcp
 
 dev_dependencies:
   lints: ^5.0.0

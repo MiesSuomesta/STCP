@@ -1,0 +1,135 @@
+Secure TCP Protocol (STCP) – Commercial License Agreement
+Version 1.1 – 2025-10-12
+Copyright © 2021–2025 Lauri Jakku / Paxsudos IT
+Website: https://paxsudos.fi
+Email: licensing@paxsudos.fi
+
+───────────────────────────────────────────────────────────────
+1. DEFINITIONS
+───────────────────────────────────────────────────────────────
+“STCP” refers to the Secure TCP Protocol libraries, SDKs,
+headers, binaries, and related materials provided by Paxsudos IT.
+
+“Licensee” refers to the individual or company obtaining this license.
+
+“Device” means any hardware, embedded system, server, or virtual
+machine that includes or links to STCP as part of its functionality.
+
+“Developer Seat” means a developer with access to STCP source code
+or SDKs for integration, testing, or internal development.
+
+───────────────────────────────────────────────────────────────
+2. GRANT OF LICENSE
+───────────────────────────────────────────────────────────────
+Paxsudos IT grants the Licensee a non-exclusive, non-transferable
+license to:
+  a) use and integrate STCP in proprietary or closed-source products;
+  b) modify and build STCP internally;
+  c) distribute STCP as part of Licensee’s own software or hardware
+     products, subject to the fees and terms below.
+
+───────────────────────────────────────────────────────────────
+3. LICENSE STRUCTURE
+───────────────────────────────────────────────────────────────
+
+3.1 Developer License
+---------------------
+Each developer using STCP SDK or source code must hold an active
+Developer License (“seat”).
+
+  • Annual fee per developer: 300 EUR / year
+  • Includes access to SDK updates, patches, documentation,
+    and limited email support.
+  • Valid for one (1) year and renews automatically unless terminated.
+
+3.2 Device / Distribution License (Royalty)
+-------------------------------------------
+For every device shipped or deployed that includes STCP, Licensee
+shall pay a royalty fee based on volume:
+
+    Tier 1 : 1 – 1 000 units → 2.00 EUR per device
+    Tier 2 : 1 001 – 10 000 units → 1.50 EUR per device
+    Tier 3 : over 10 000 units → 1.00 EUR per device
+
+  • Minimum annual royalty: 5 000 EUR per legal entity.
+  • Royalties are payable quarterly based on shipped units.
+  • Royalty caps may be negotiated for large volumes (>100 000 units).
+
+3.3 Internal Use Exemption
+--------------------------
+If STCP is used only for internal company systems or testing
+(no distribution or sale), no per-device fee applies.
+Only Developer License fees are required.
+
+───────────────────────────────────────────────────────────────
+4. TERM AND TERMINATION
+───────────────────────────────────────────────────────────────
+This license remains valid while all applicable fees are paid and
+Licensee complies with the terms herein.
+
+Any of the following constitutes immediate termination:
+  • non-payment,
+  • reverse-engineering, tampering, or bypassing license checks,
+  • breach of confidentiality or redistribution terms.
+
+Upon termination, Licensee must stop distributing products that
+contain STCP and remove the software from its systems.
+
+───────────────────────────────────────────────────────────────
+5. AUDIT AND REPORTING
+───────────────────────────────────────────────────────────────
+Licensee shall maintain accurate records of distributed devices
+for at least three (3) years and provide annual shipment reports.
+Paxsudos IT may request reasonable audit verification if necessary.
+
+───────────────────────────────────────────────────────────────
+6. SUPPORT AND MAINTENANCE
+───────────────────────────────────────────────────────────────
+Developer License includes:
+  • SDK and patch updates,
+  • documentation and integration guides,
+  • security fixes for current release cycle.
+
+Premium or on-site support may be purchased separately.
+
+───────────────────────────────────────────────────────────────
+7. INTELLECTUAL PROPERTY AND CONFIDENTIALITY
+───────────────────────────────────────────────────────────────
+STCP remains the intellectual property of Paxsudos IT.
+No transfer of ownership is implied.
+
+Licensee may not disclose STCP source code or license keys except
+as required for internal development or compliance.
+
+───────────────────────────────────────────────────────────────
+8. WARRANTY DISCLAIMER AND LIMITATION OF LIABILITY
+───────────────────────────────────────────────────────────────
+STCP is provided “as is” without warranty of any kind.
+Paxsudos IT is not liable for any indirect, incidental, or
+consequential damages resulting from its use.
+
+───────────────────────────────────────────────────────────────
+9. GOVERNING LAW
+───────────────────────────────────────────────────────────────
+This agreement is governed by the laws of Finland.
+Disputes shall be resolved in the District Court of Oulu,
+unless otherwise agreed in writing.
+
+───────────────────────────────────────────────────────────────
+10. CONTACT
+───────────────────────────────────────────────────────────────
+Paxsudos IT
+Email: licensing@paxsudos.fi
+Website: https://paxsudos.fi
+
+───────────────────────────────────────────────────────────────
+SUMMARY OF FEES
+───────────────────────────────────────────────────────────────
+Developer License: 300 EUR / year per developer
+Device Royalty:
+  • Tier 1: 2.00 EUR/device
+  • Tier 2: 1.50 EUR/device
+  • Tier 3: 1.00 EUR/device
+Minimum annual royalty: 5 000 EUR
+Royalty caps and enterprise discounts available on request.
+───────────────────────────────────────────────────────────────

@@ -17,6 +17,18 @@ Traditional TLS (Transport Layer Security) provides encryption on top of TCP, bu
 
 STCP (Secure TCP) eliminates all that complexity by providing fully automatic encryption with zero configuration. 
 
+# Quick compison TLS vs. STCP
+
+| Feature                | TLS                       | STCP            |
+| ---------------------- | ------------------------- | --------------- |
+| Certificates           | Required (CA, key, chain) | Not needed      |
+| Key management         | Manual                    | Fully automatic |
+| Configuration          | Complex                   | Zero-config     |
+| Compatibility          | Over TCP                  | TCP replacement |
+| Per-message encryption | No                        | Yes             |
+| MITM protection        | Partial (CA-based)        | Complete        |
+| External dependencies  | Yes                       | None            |
+
 # Zero Configuration, Maximum Security
 
 STCP provides end-to-end encryption automatically.

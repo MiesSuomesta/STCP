@@ -1,5 +1,5 @@
 # STCP
-Secure TCP protocol with AES security layer.
+Secure TCP protocol with AES security layer. 
 
 # STCP packet format
 

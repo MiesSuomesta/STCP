@@ -15,13 +15,12 @@ Outgoing: Generate random IV-vector of 16/24/32 bytes and apply to outgoint TCP 
 
 Traditional TLS (Transport Layer Security) provides encryption on top of TCP, but it requires significant manual setup — certificates, key management, configuration, and often separate libraries or integrations per application.
 
-STCP (Secure TCP) eliminates all that complexity by providing fully automatic encryption with zero configuration. It replaces TCP transparently and secures every connection by default.
+STCP (Secure TCP) eliminates all that complexity by providing fully automatic encryption with zero configuration. 
 
 # Zero Configuration, Maximum Security
 
 STCP provides end-to-end encryption automatically.
 No certificates, no configuration files, no setup steps.
-When STCP is enabled, all TCP connections instantly become secure — without any changes to application code.
 
 # Fully Automatic Key Management
 

@@ -1,0 +1,3 @@
+0x00000000	stcp_proto_register	stcp_rust	EXPORT_SYMBOL_GPL	
+0x00000000	stcp_proto_unregister	stcp_rust	EXPORT_SYMBOL_GPL	
+0x00000000	stcp_kgetrandom	stcp_rust	EXPORT_SYMBOL_GPL	

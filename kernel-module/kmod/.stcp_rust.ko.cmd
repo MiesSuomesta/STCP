@@ -1,0 +1,1 @@
+savedcmd_stcp_rust.ko := ld -r -m elf_x86_64 -z noexecstack --no-warn-rwx-segments --build-id=sha1  -T /usr/src/linux-headers-6.18.0-rc1-lja-moduuli-devaus-2025-10-31-115938/scripts/module.lds -o stcp_rust.ko stcp_rust.o stcp_rust.mod.o .module-common.o

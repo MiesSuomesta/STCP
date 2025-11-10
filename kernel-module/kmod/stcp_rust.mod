@@ -1,0 +1,11 @@
+./the_rust_implementation.o
+./rust_log_with_printk.o
+./the_context.o
+./proto.o
+./operations.o
+./lifecycle.o
+./sock_glue.o
+./helpers.o
+./rust_alloc.o
+./ffi_rand.o
+./state.o

@@ -1,0 +1,8 @@
+# Manuaalinen files, joka kopioidaan build hakemiston juureen
+TOPDIR := /home/pomo/kernel-git/stcp/kernel
+MFDIR := $(TOPDIR)/
+
+# Tuo tulee settingsseistä, includataan kbuild makefile.
+include ../Makefile.common
+include ../kmod/Makefile
+

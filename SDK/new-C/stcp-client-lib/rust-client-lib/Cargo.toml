@@ -1,0 +1,32 @@
+[package]
+name = "stcpclientlib" 
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+stcpdefines = { workspace = true }
+stcptypes = { workspace = true }
+debug = { workspace = true }
+stcpthreads = { workspace = true }
+base64 = { workspace = true }
+hex = { workspace = true }
+aes-gcm = { workspace = true }
+aes ={ workspace = true }
+aead = { workspace = true }
+heapless = { workspace = true }
+spin = { workspace = true }
+stcpcrypto = { workspace = true }
+iowrapper = { workspace = true }
+utils = { workspace = true }
+
+[lib]
+name = "stcpclientlib" 
+path = "src/lib.rs"
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []

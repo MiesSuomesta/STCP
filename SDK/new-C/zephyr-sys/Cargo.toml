@@ -1,0 +1,24 @@
+[package]
+name = "zephyrsys"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stcpdefines = { workspace = true }
+stcptypes = { workspace = true }
+stcpcrypto = { workspace = true }
+debug = { workspace = true }
+globals = { workspace = true }
+
+[lib]
+name = "zephyrsys"
+path = "src/mod.rs"
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []
+

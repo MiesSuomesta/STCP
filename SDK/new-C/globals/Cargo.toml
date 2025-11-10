@@ -1,0 +1,17 @@
+[package]
+name = "globals"
+version = "0.1.0"
+edition = "2021"
+
+
+[lib]
+name = "globals"
+path = "src/mod.rs"
+crate-type = ["rlib"]
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []

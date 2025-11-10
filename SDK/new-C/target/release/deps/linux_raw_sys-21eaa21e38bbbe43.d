@@ -1,0 +1,11 @@
+/home/pomo/git/github/STCP/SDK/new-C/target/release/deps/linux_raw_sys-21eaa21e38bbbe43.d: /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/lib.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/elf.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/errno.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/general.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/ioctl.rs
+
+/home/pomo/git/github/STCP/SDK/new-C/target/release/deps/liblinux_raw_sys-21eaa21e38bbbe43.rlib: /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/lib.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/elf.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/errno.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/general.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/ioctl.rs
+
+/home/pomo/git/github/STCP/SDK/new-C/target/release/deps/liblinux_raw_sys-21eaa21e38bbbe43.rmeta: /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/lib.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/elf.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/errno.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/general.rs /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/ioctl.rs
+
+/home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/lib.rs:
+/home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/elf.rs:
+/home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/errno.rs:
+/home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/general.rs:
+/home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/linux-raw-sys-0.9.4/src/x86_64/ioctl.rs:

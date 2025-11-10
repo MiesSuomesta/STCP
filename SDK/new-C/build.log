@@ -1,0 +1,448 @@
+🔧 Settingup toolchain variables with PROJECT_ROOT as /home/pomo/git/github/STCP/SDK/new-C ...
+🔧 Asennettu toolchain muuttujat OK
+🚀 ================================================================================================
+   STCP SDK: Full rebuild stared at ma 30.6.2025 12.46.35 +0300
+   ================================================================================================
+📁 Project root: /home/pomo/git/github/STCP/SDK/new-C
+🧹 ================================================================================================
+   Cleaning everything + lock reset
+   ================================================================================================
+🔁 Cleaning all .....
+     Removed 946 files, 309.1MiB total
+🔁 Cleaning all: Targets....
+🔁 Cleaning all: .cargo dirs....
+🔁 Cleaning all: .lock files ....
+📦 ================================================================================================
+   Building crate stcpclientlib .................
+   ================================================================================================
+    Updating crates.io index
+     Locking 128 packages to latest compatible versions
+      Adding base64 v0.21.7 (available: v0.22.1)
+      Adding cbindgen v0.26.0 (available: v0.29.0)
+      Adding getrandom v0.2.16 (available: v0.3.3)
+      Adding heapless v0.7.17 (available: v0.8.0)
+      Adding rand_core v0.6.4 (available: v0.9.3)
+      Adding spin v0.9.8 (available: v0.10.0)
+   Compiling libc v0.2.174
+   Compiling cfg-if v1.0.1
+   Compiling zeroize v1.8.1
+   Compiling version_check v0.9.5
+   Compiling typenum v1.18.0
+   Compiling subtle v2.6.1
+   Compiling generic-array v0.14.7
+   Compiling autocfg v1.5.0
+   Compiling const-oid v0.9.6
+   Compiling base64ct v1.8.0
+   Compiling semver v1.0.26
+   Compiling cpufeatures v0.2.17
+   Compiling base16ct v0.2.0
+   Compiling pem-rfc7468 v0.7.0
+   Compiling getrandom v0.2.16
+   Compiling der v0.7.10
+   Compiling rand_core v0.6.4
+   Compiling ff v0.13.1
+   Compiling proc-macro2 v1.0.95
+   Compiling crypto-common v0.1.6
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling digest v0.10.7
+   Compiling crypto-bigint v0.5.5
+   Compiling group v0.13.0
+   Compiling hmac v0.12.1
+   Compiling hkdf v0.12.4
+   Compiling lock_api v0.4.13
+   Compiling unicode-ident v1.0.18
+   Compiling rustc_version v0.4.1
+   Compiling spki v0.7.3
+   Compiling pkcs8 v0.10.2
+   Compiling sec1 v0.7.3
+   Compiling elliptic-curve v0.13.8
+   Compiling cipher v0.4.4
+   Compiling universal-hash v0.5.1
+   Compiling getrandom v0.3.3
+   Compiling zerocopy v0.8.26
+   Compiling scopeguard v1.2.0
+   Compiling opaque-debug v0.3.1
+   Compiling polyval v0.6.2
+   Compiling quote v1.0.40
+   Compiling heapless v0.7.17
+   Compiling rfc6979 v0.4.0
+   Compiling signature v2.2.0
+   Compiling byteorder v1.5.0
+   Compiling ecdsa v0.16.9
+   Compiling spin v0.9.8
+   Compiling hash32 v0.2.1
+   Compiling ghash v0.5.1
+   Compiling ctr v0.9.2
+   Compiling aes v0.8.4
+   Compiling primeorder v0.13.6
+   Compiling sha2 v0.10.9
+   Compiling aead v0.5.2
+   Compiling stable_deref_trait v1.2.0
+   Compiling p256 v0.13.2
+   Compiling aes-gcm v0.10.3
+   Compiling rand_core v0.9.3
+   Compiling ppv-lite86 v0.2.21
+   Compiling syn v2.0.104
+   Compiling dlmalloc v0.2.9
+   Compiling globals v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/globals)
+   Compiling serde v1.0.219
+   Compiling hex v0.4.3
+   Compiling base64 v0.21.7
+   Compiling rand_chacha v0.9.0
+   Compiling indexmap v1.9.3
+   Compiling rustix v1.0.7
+   Compiling stcpdefines v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/stcp-defines)
+warning: constant `STCP_IPv4_PACKET_PAYLOAD_MAX_SIZE` should have an upper case name
+ --> stcp-defines/src/defines.rs:3:11
+  |
+3 | pub const STCP_IPv4_PACKET_PAYLOAD_MAX_SIZE: usize = (1024 * 64) - 1;
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case (notice the capitalization): `STCP_IPV4_PACKET_PAYLOAD_MAX_SIZE`
+  |
+  = note: `#[warn(non_upper_case_globals)]` on by default
+
+warning: constant `STCP_IPv4_PACKET_HEADERS_MAX_SIZE` should have an upper case name
+ --> stcp-defines/src/defines.rs:4:11
+  |
+4 | pub const STCP_IPv4_PACKET_HEADERS_MAX_SIZE: usize = 60; // 60 bytes
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case (notice the capitalization): `STCP_IPV4_PACKET_HEADERS_MAX_SIZE`
+
+warning: constant `STCP_IPv4_PACKET_MAX_SIZE` should have an upper case name
+ --> stcp-defines/src/defines.rs:5:11
+  |
+5 | pub const STCP_IPv4_PACKET_MAX_SIZE: usize = STCP_IPv4_PACKET_PAYLOAD_MAX_SIZE - STCP_IPv4_PACKET_HEADERS_MAX_SIZE;
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case (notice the capitalization): `STCP_IPV4_PACKET_MAX_SIZE`
+
+warning: `stcpdefines` (lib) generated 3 warnings
+   Compiling stcptypes v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/stcp-types)
+   Compiling rand v0.9.1
+   Compiling serde_json v1.0.140
+   Compiling os_str_bytes v6.6.1
+   Compiling hashbrown v0.12.3
+   Compiling bitflags v2.9.1
+   Compiling linux-raw-sys v0.9.4
+   Compiling syn v1.0.109
+   Compiling stcpcrypto v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/stcp-crypto)
+warning: unused import: `SecretKey`
+ --> stcp-crypto/src/stcp_elliptic_codec.rs:6:12
+  |
+6 | use p256::{SecretKey, PublicKey, EncodedPoint};
+  |            ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `p256::ecdh::SharedSecret`
+ --> stcp-crypto/src/stcp_elliptic_codec.rs:7:5
+  |
+7 | use p256::ecdh::SharedSecret;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> stcp-crypto/src/aes_lib.rs:3:5
+  |
+3 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `stcptypes::types::*`
+ --> stcp-crypto/src/aes_lib.rs:8:5
+  |
+8 | use stcptypes::types::*;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `stcptypes::types::*`
+ --> stcp-crypto/src/crypto.rs:3:5
+  |
+3 | use stcptypes::types::*;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `rng`
+  --> stcp-crypto/src/stcp_elliptic_codec.rs:39:17
+   |
+39 |         let mut rng = OsRng;
+   |                 ^^^ help: if this is intentional, prefix it with an underscore: `_rng`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: variable does not need to be mutable
+  --> stcp-crypto/src/stcp_elliptic_codec.rs:39:13
+   |
+39 |         let mut rng = OsRng;
+   |             ----^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unnecessary `unsafe` block
+  --> stcp-crypto/src/random.rs:16:31
+   |
+13 |         unsafe {
+   |         ------ because it's nested under this `unsafe` block
+...
+16 |                 *ptr.add(i) = unsafe { zephyr_rand_byte() };  // korvaa Zephyr-funktiolla
+   |                               ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` on by default
+
+warning: unnecessary `unsafe` block
+  --> stcp-crypto/src/random.rs:27:31
+   |
+24 |         unsafe {
+   |         ------ because it's nested under this `unsafe` block
+...
+27 |                 *ptr.add(i) = unsafe { zephyr_rand_byte() };
+   |                               ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+  --> stcp-crypto/src/random.rs:56:27
+   |
+54 |     unsafe {
+   |     ------ because it's nested under this `unsafe` block
+55 |         for i in 0..len {
+56 |             *buf.add(i) = unsafe { zephyr_rand_byte() }; // korvaa oikealla Zephyr-funktiolla
+   |                           ^^^^^^ unnecessary `unsafe` block
+
+warning: method `New` should have a snake case name
+  --> stcp-crypto/src/stcp_elliptic_codec.rs:38:12
+   |
+38 |     pub fn New() -> Self {
+   |            ^^^ help: convert the identifier to snake case: `new`
+   |
+   = note: `#[warn(non_snake_case)]` on by default
+
+   Compiling clap_lex v0.2.4
+   Compiling atty v0.2.14
+   Compiling serde_derive v1.0.219
+   Compiling ryu v1.0.20
+warning: `stcpcrypto` (lib) generated 11 warnings (run `cargo fix --lib -p stcpcrypto` to apply 6 suggestions)
+   Compiling strsim v0.10.0
+   Compiling debug v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/debug)
+warning: unused import: `alloc::format`
+ --> debug/src/mod.rs:3:5
+  |
+3 | use alloc::format;
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `debug` (lib) generated 1 warning (run `cargo fix --lib -p debug` to apply 1 suggestion)
+   Compiling bitflags v1.3.2
+   Compiling fastrand v2.3.0
+   Compiling memchr v2.7.5
+   Compiling once_cell v1.21.3
+   Compiling textwrap v0.16.2
+   Compiling termcolor v1.4.1
+   Compiling itoa v1.0.15
+   Compiling cbindgen v0.26.0
+   Compiling clap v3.2.25
+   Compiling tempfile v3.20.0
+   Compiling zephyrsys v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/zephyr-sys)
+warning: unexpected `cfg` condition value: `bindgen`
+ --> zephyr-sys/src/mod.rs:2:7
+  |
+2 | #[cfg(feature = "bindgen")] // sallii tämän vain jos käytät build.rs
+  |       ^^^^^^^^^^---------
+  |                 |
+  |                 help: there is a expected value with a similar name: `"cbindgen"`
+  |
+  = note: expected values for `feature` are: `cbindgen`, `default`, `linux`, `std`, and `zephyr`
+  = help: consider adding `bindgen` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `bindgen`
+ --> zephyr-sys/src/mod.rs:5:11
+  |
+5 | #[cfg(not(feature = "bindgen"))]
+  |           ^^^^^^^^^^---------
+  |                     |
+  |                     help: there is a expected value with a similar name: `"cbindgen"`
+  |
+  = note: expected values for `feature` are: `cbindgen`, `default`, `linux`, `std`, and `zephyr`
+  = help: consider adding `bindgen` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: type `socklen_t` should have an upper camel case name
+ --> zephyr-sys/src/mod.rs:8:14
+  |
+8 |     pub type socklen_t = u32;
+  |              ^^^^^^^^^ help: convert the identifier to upper camel case: `SocklenT`
+  |
+  = note: `#[warn(non_camel_case_types)]` on by default
+
+warning: `zephyrsys` (lib) generated 3 warnings
+   Compiling shlex v1.3.0
+   Compiling log v0.4.27
+   Compiling heck v0.4.1
+   Compiling utils v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/utils)
+   Compiling iowrapper v0.1.0 (/home/pomo/git/github/STCP/SDK/new-C/io-wrapper)
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `std`
+ --> io-wrapper/src/listener/linux.rs:1:5
+  |
+1 | use std::net::{TcpListener, TcpStream};
+  |     ^^^ use of unresolved module or unlinked crate `std`
+  |
+  = help: if you wanted to use a crate named `std`, use `cargo add std` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `std`
+ --> io-wrapper/src/listener/linux.rs:2:5
+  |
+2 | use std::io::{Read, Write};
+  |     ^^^ use of unresolved module or unlinked crate `std`
+  |
+  = help: if you wanted to use a crate named `std`, use `cargo add std` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `std`
+ --> io-wrapper/src/listener/linux.rs:4:5
+  |
+4 | use std::os::fd::AsRawFd;
+  |     ^^^ use of unresolved module or unlinked crate `std`
+  |
+  = help: if you wanted to use a crate named `std`, use `cargo add std` to add it to your `Cargo.toml`
+
+error: cannot find macro `dbg` in this scope
+  --> io-wrapper/src/stream/linux.rs:44:5
+   |
+44 |                 dbg!("Unable to connect: {:?}", e);
+   |                 ^^^
+   |
+help: consider importing this macro
+   |
+2  + use debug::dbg;
+   |
+
+warning: unused import: `alloc::boxed::Box`
+ --> io-wrapper/src/types.rs:3:5
+  |
+3 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `core::ffi::c_int`
+ --> io-wrapper/src/stream/linux.rs:2:5
+  |
+2 | use core::ffi::c_int;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> io-wrapper/src/stream/linux.rs:6:5
+  |
+6 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::format`
+ --> io-wrapper/src/stream/linux.rs:7:5
+  |
+7 | use alloc::format;
+  |     ^^^^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> io-wrapper/src/handshake.rs:5:5
+  |
+5 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::cmp::min`
+ --> io-wrapper/src/handshake.rs:7:5
+  |
+7 | use core::cmp::min;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `core::fmt::Write`
+ --> io-wrapper/src/handshake.rs:9:5
+  |
+9 | use core::fmt::Write;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `IpAddr` and `SocketAddr`
+  --> io-wrapper/src/handshake.rs:11:17
+   |
+11 | use core::net::{IpAddr, SocketAddr};
+   |                 ^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `crate::listener::StcpListener`
+  --> io-wrapper/src/handshake.rs:19:5
+   |
+19 | use crate::listener::StcpListener;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: crate-level attribute should be in the root module
+ --> io-wrapper/src/handshake.rs:1:35
+  |
+1 | #![cfg_attr(not(feature = "std"), no_std)]
+  |                                   ^^^^^^
+  |
+  = note: `#[warn(unused_attributes)]` on by default
+
+warning: unused variable: `sav6`
+  --> io-wrapper/src/stream/linux.rs:25:18
+   |
+25 |         SocketAddr::V6(sav6) => {
+   |                        ^^^^ help: if this is intentional, prefix it with an underscore: `_sav6`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `buffer`
+  --> io-wrapper/src/handshake.rs:66:17
+   |
+66 |         let mut buffer = [0; STCP_IPv4_PACKET_MAX_SIZE];
+   |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `e`
+  --> io-wrapper/src/handshake.rs:78:21
+   |
+78 |                 Err(e) => {
+   |                     ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: variable does not need to be mutable
+  --> io-wrapper/src/handshake.rs:66:13
+   |
+66 |         let mut buffer = [0; STCP_IPv4_PACKET_MAX_SIZE];
+   |             ----^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `buffer`
+   --> io-wrapper/src/handshake.rs:117:17
+    |
+117 |         let mut buffer = [0; STCP_IPv4_PACKET_MAX_SIZE];
+    |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `e`
+   --> io-wrapper/src/handshake.rs:131:21
+    |
+131 |                 Err(e) => {
+    |                     ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: variable does not need to be mutable
+   --> io-wrapper/src/handshake.rs:117:13
+    |
+117 |         let mut buffer = [0; STCP_IPv4_PACKET_MAX_SIZE];
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+For more information about this error, try `rustc --explain E0433`.
+warning: `iowrapper` (lib) generated 17 warnings
+error: could not compile `iowrapper` (lib) due to 4 previous errors; 17 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+💥 ================================================================================================
+   BANG! Soething went wrong!
+   ================================================================================================
+🚀 ================================================================================================
+   STCP SDK: Full rebuild stared at ma 30.6.2025 12.46.35 +0300
+   ================================================================================================
+📁 Project root: /home/pomo/git/github/STCP/SDK/new-C
+🧹 ================================================================================================
+   Cleaning everything + lock reset
+   ================================================================================================
+🔁 Cleaning all .....
+🔁 Cleaning all: Targets....
+🔁 Cleaning all: .cargo dirs....
+🔁 Cleaning all: .lock files ....
+📦 ================================================================================================
+   Building crate stcpclientlib .................
+   ================================================================================================

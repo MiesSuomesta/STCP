@@ -1,0 +1,26 @@
+[package]
+name = "the_rust_implementation"
+version = "0.1.0"
+edition = "2021"
+license = "GPL or Paxsudos IT's license"
+authors = ["Lauri Jakku / Paxsudos IT <lauri.jakku@paxsudos.fi>"]
+
+#[features]
+#default = ["kernel"]
+#kernel = []
+
+[lib]
+crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+#stcp_core = { workspace = true }
+stcp_core = { path = "../stcp_core" }
+
+[profile.dev]
+panic = "abort"
+lto = false
+
+[profile.release]
+panic = "abort"
+lto = false
+

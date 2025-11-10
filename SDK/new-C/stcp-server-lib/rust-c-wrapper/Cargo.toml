@@ -1,0 +1,30 @@
+[package]
+name = "stcp_server_cwrapper_lib"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+stcpserverlib = { workspace = true }
+stcpdefines = { workspace = true }
+stcptypes = { workspace = true }
+stcpcrypto = { workspace = true }
+iowrapper = { workspace = true }
+debug = { workspace = true }
+
+[lib]
+name = "stcp_server_cwrapper_lib"
+path = "src/lib.rs"
+crate-type = ["rlib", "staticlib"]
+
+
+[build-dependencies]
+cbindgen = "0.26"
+cc = "1.0"
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []

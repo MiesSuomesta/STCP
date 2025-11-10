@@ -1,0 +1,12 @@
+[package]
+name = "stcp_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+#EI TÄTÄ crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+aes-gcm = { version = "0.10.3", default-features = false, features = ["aes"] }
+x25519-dalek = { version = "2.0.1", default-features = false }
+rand_core = { version = "0.6", default-features = false }

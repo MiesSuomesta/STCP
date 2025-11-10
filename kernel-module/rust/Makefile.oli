@@ -1,0 +1,41 @@
+# ==============================
+#  Simple Rust -> kernel object
+# ==============================
+
+RUST_TOOLCHAIN  ?= nightly
+CARGO           ?= cargo
+RUST_TARGET     ?= x86_64-unknown-linux-gnu
+RUST_PROFILE    ?= release
+
+# Rust build flags
+RUSTFLAGS := -C panic=abort -C relocation-model=static
+export RUSTFLAGS
+
+# Polut
+SRC_DIR := $(abspath $(CURDIR))
+TARGET_DIR := $(SRC_DIR)/target/$(RUST_TARGET)/$(RUST_PROFILE)
+
+# Lopullinen tulos (staattinen lib ja .o)
+LIB := $(TARGET_DIR)/libthe_stcp.a
+OBJ := $(SRC_DIR)/the_stcp.o
+
+# Build-komento
+CARGO_BUILD_CMD = $(CARGO) +$(RUST_TOOLCHAIN) build --release --target $(RUST_TARGET) -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem
+
+.PHONY: all clean
+
+all: $(OBJ)
+	@echo "[OK] Kernel Rust object ready: $(OBJ)"
+
+$(LIB):
+	@echo "[RUST] Building static library..."
+	$(CARGO_BUILD_CMD)
+
+$(OBJ): $(LIB)
+	@echo "[LD] Creating single object..."
+	ld -r -m elf_x86_64 -o $(OBJ) $(LIB)
+
+clean:
+	@echo "[CLEAN] Removing build artifacts..."
+	rm -rf target $(OBJ)
+

@@ -1,75 +1,65 @@
 # STCP
-Secure TCP protocol with AES security layer. 
 
-# STCP packet format
+STCP (Secure Transport Channel Protocol) is a lightweight, kernel-friendly
+encrypted transport protocol designed to provide:
 
-Packet format over standard TCP packet-payload: [ 16/24/32 bytes of AES IV key ] + [ the AES-encrypted payload ]
+- Authenticated encryption by default
+- Zero runtime configuration for applications
+- Simple integration path for kernel and userspace implementations
+- Compatibility with existing TCP-based infrastructure (when used as a wrapper)
 
-# STCP Packet handling
+This document describes the on-the-wire framing and cryptographic model used
+by the current STCP implementation.
 
-Incoming: fetch the IV-vector of 16/24/32 bytes from incoming packet -> use it and predefined AES key to decrypt package, prior to handing the TCP-packet to message handler.
+> Note: This is an RFC-level specification for review and experimentation.
+> Wire details may be adjusted based on feedback from the networking and
+> Rust-for-Linux communities.
 
-Outgoing: Generate random IV-vector of 16/24/32 bytes and apply to outgoint TCP packet -> use it and predefined AES key to encrypt package, prior to handing the TCP-packet to sending the message.
+---
 
-# Rationale: Why STCP is Better Than TLS
+## 1. High-Level Overview
 
-Traditional TLS (Transport Layer Security) provides encryption on top of TCP, but it requires significant manual setup — certificates, key management, configuration, and often separate libraries or integrations per application.
+STCP provides an encrypted, authenticated byte-stream between two endpoints.
 
-STCP (Secure TCP) eliminates all that complexity by providing fully automatic encryption with zero configuration. 
+Key properties:
 
-# Quick compison TLS vs. STCP
+- Uses modern AEAD: **AES-256-GCM**
+- Ephemeral key agreement per connection
+- Per-record nonces (no nonce reuse)
+- Authenticated encryption (integrity + authenticity)
+- No X.509 / CA dependency by default
 
-| Feature                | TLS                       | STCP            |
-| ---------------------- | ------------------------- | --------------- |
-| Certificates           | Required (CA, key, chain) | Not needed      |
-| Key management         | Manual                    | Fully automatic |
-| Configuration          | Complex                   | Zero-config     |
-| Compatibility          | Over TCP                  | TCP replacement |
-| Per-message encryption | No                        | Yes             |
-| MITM protection        | Partial (CA-based)        | Complete        |
-| External dependencies  | Yes                       | None            |
+STCP can be implemented:
 
-# Zero Configuration, Maximum Security
+- as its own kernel protocol (e.g. `IPPROTO_STCP`), or
+- as a secure framing layer over an existing TCP connection.
 
-STCP provides end-to-end encryption automatically.
-No certificates, no configuration files, no setup steps.
+This spec focuses on the **framing and crypto**, independent of transport.
 
-# Fully Automatic Key Management
+---
 
-TLS requires manually issued X.509 certificates and trusted CAs.
-STCP manages all keys dynamically and ephemerally:
+## 2. Handshake
 
-Each connection creates its own one-time encryption key.
+Each STCP connection starts with a handshake that establishes a shared
+session key for AES-256-GCM.
 
-Keys are exchanged securely without any third-party authority.
+### 2.1. Key Agreement
 
-Keys are destroyed immediately when the connection ends.
+The reference implementation uses:
 
-This means no key renewal, no certificate expiration, and no leaks to worry about.
+- X25519 (or equivalent modern ECDH) for ephemeral key exchange
+- HKDF-SHA256 for key derivation
 
-# No Dependence on Certificate Authorities
+Outline:
 
-TLS relies on external Certificate Authorities (CAs) for trust.
-If a CA is compromised, the entire security model collapses.
+1. Client and server exchange ephemeral public keys.
+2. Both sides compute a shared secret via ECDH.
+3. A session key is derived:
 
-STCP is self-contained and trustless — the two endpoints negotiate their encryption keys directly.
-No third parties, no external dependencies, no fake certificates.
+   ```text
+   session_key = HKDF-SHA256(
+       input_key_material = ecdh_shared_secret,
+       salt               = handshake_nonce_or_random,
+       info               = "STCP-AES-256-GCM v1"
+   )
 
-# Per-Message Encryption for Total Privacy
-
-While TLS typically uses one session key per connection, STCP goes further:
-every single message is encrypted with its own unique key.
-
-This makes passive traffic analysis and replay attacks practically impossible.
-Even if one message were somehow compromised, others remain completely secure.
-
-# No Configuration Errors
-
-Most real-world security issues stem from misconfiguration, not protocol flaws — weak cipher suites, expired certificates, or missing hostname verification.
-STCP eliminates that entire class of problems.
-There is simply nothing to misconfigure.
-
-# Built-In Protection Against MITM Attacks
-
-Because STCP uses ephemeral keys and authenticated encryption for each exchange, Man-In-The-Middle attacks are mathematically infeasible.
-If the handshake is intercepted, the connection fails silently — not insecurely.

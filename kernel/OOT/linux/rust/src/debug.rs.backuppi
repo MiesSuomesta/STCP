@@ -1,0 +1,252 @@
+#![allow(dead_code)]
+
+use core::ffi::c_char;
+use core::ffi::c_int;
+use core::fmt::{self, Write};
+
+use crate::abi::stcp_rust_kernel_printk;
+
+/// Kuinka iso puskuri per logirivi.
+/// 4 kB riittää hyvin, lopusta leikataan pois.
+const STCP_LOG_BUF: usize = 1024 * 1;
+
+/// Logitasot – varalla tulevaa käyttöä varten.
+#[repr(i32)]
+#[derive(Copy, Clone, Debug)]
+pub enum LogLevel {
+    Emerg   = 0,
+    Alert   = 1,
+    Crit    = 2,
+    Err     = 3,
+    Warn    = 4,
+    Notice  = 5,
+    Info    = 6,
+    Debug   = 7,
+}
+
+pub struct KernelBuf {
+    buf: [u8; STCP_LOG_BUF],
+    pos: usize,
+}
+
+impl KernelBuf {
+    pub fn new() -> Self {
+        Self {
+            buf: [0; STCP_LOG_BUF],
+            pos: 0,
+        }
+    }
+
+    pub fn as_c_str(&self) -> (*const core::ffi::c_char, usize) {
+        // varmistetaan nollatermi
+        let mut end = self.pos;
+        if end >= STCP_LOG_BUF {
+            end = STCP_LOG_BUF - 1;
+        }
+        // varmuuden vuoksi
+        // (joskus voit lisätä tähän eksplisiittisen buf[end] = 0, jos printk vaatii)
+        (self.buf.as_ptr() as *const _, end)
+    }
+}
+
+impl core::fmt::Write for KernelBuf {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        let bytes = s.as_bytes();
+        let free  = STCP_LOG_BUF.saturating_sub(self.pos);
+        if free == 0 {
+            return Ok(());
+        }
+
+        let n = core::cmp::min(bytes.len(), free);
+        self.buf[self.pos..self.pos + n].copy_from_slice(&bytes[..n]);
+        self.pos += n;
+        Ok(())
+    }
+}
+
+/// Jos joskus haluat viedä logitason C-puolelle, lisää se tähän.
+/// Nyt taso vain “tippuu pois”, mutta rajapinta on valmiina.
+pub fn stcp_log_fmt_level(level: LogLevel, args: fmt::Arguments<'_>) {
+    let mut kbuf = KernelBuf::new();
+
+    // fmt::write on täysin safe; enintään se kutsuu meidän write_str:iä.
+    let _ = fmt::write(&mut kbuf, args);
+
+    let c_level = level as c_int;
+    
+    let (c_str, _len) = kbuf.as_c_str();
+    unsafe {
+        // Oletus: C-puolella signatuuri on:
+        //   void stcp_rust_kernel_printk(const char *msg);
+        //
+        // Jos siellä on lisäparametreja (esim. logitaso), lisää/korjaa tähän.
+        stcp_rust_kernel_printk(c_level, c_str as *const c_char);
+    }
+}
+
+//
+// ==========================================================
+//  HexDump & AsciiDump – täysin turvallinen versio
+// ==========================================================
+//
+
+/// ASCII-dumppi debugiin.
+/// Tulostaa tavut ASCII-merkeiksi, välilyönnit ok,
+/// tulostaa pisteen jos ei graafinen merkki.
+pub struct AsciiDump<'a>(pub &'a [u8]);
+
+impl<'a> fmt::Display for AsciiDump<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let bytes = self.0;
+
+        for (i, b) in bytes.iter().enumerate() {
+            let mut ch = *b as char;
+
+            if *b != 32 {
+                if !ch.is_ascii_graphic() {
+                    ch = '.';
+                }
+            }
+
+            write!(f, "{}", ch)?;
+
+            // väli vain jos ei viimeinen
+            if i + 1 < bytes.len() {
+                f.write_str(" ")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Hexdumppi tyyliin AA 0F F1 ...
+/// EI koske loggerin puskurirakenteeseen.
+/// Formatter hoitaa itse write_str()-kutsut turvallisesti.
+pub struct HexDump<'a>(pub &'a [u8]);
+
+impl<'a> fmt::Display for HexDump<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let bytes = self.0;
+
+        for (i, b) in bytes.iter().enumerate() {
+            write!(f, "{:02X}", b)?;
+
+            if i + 1 < bytes.len() {
+                f.write_str(" ")?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+
+/// Perusdebug-makro: ei sessiota tms.
+#[macro_export]
+macro_rules! stcp_dbg {
+    ($($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt(
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): {msg}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                msg  = core::format_args!($($arg)*),
+            )
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_dump {
+    ($info:expr, $buf:expr) => {
+        $crate::debug::stcp_log_fmt(
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): DUMP[ {info} ]: {len} bytes: {dump} // {ascii}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                info = $info,
+                len  = ($buf).len(),
+                dump = $crate::debug::HexDump($buf),
+                ascii = $crate::debug::AsciiDump($buf),
+            )
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_dump_sess {
+    ($sess:expr, $buf:expr) => {
+        $crate::debug::stcp_log_fmt(
+            $crate::debug::LogLevel::Debug,
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): Session[{sess:p}]: {len} bytes: {dump} // {ascii}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                sess = $sess,
+                len  = ($buf).len(),
+                dump = $crate::debug::HexDump($buf),
+                ascii = $crate::debug::AsciiDump($buf),
+            )
+        );
+    };
+}
+
+
+/// Sessio + transport -spesiaali.
+/// Käyttää paikallisia muuttujia `sess` ja `transport` (kuten sulla aiemmin).
+#[macro_export]
+macro_rules! stcp_sess_transp {
+    ($sess:expr, $transp:expr, $($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt(
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): Session[{sess:p}//{transp:p}]: {msg}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                sess = $sess,
+                transp = $transp,
+                msg  = core::format_args!($($arg)*),
+            )
+        );
+    };
+}
+
+/// Pelkkä sessio-debug, jos haluat käyttää sellaista.
+/// (Ei haittaa vaikka ei olisi käytössä – dead_code on sallittu.)
+#[macro_export]
+macro_rules! stcp_sess_dbg {
+    ($sess:expr, $($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt(
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): Session[{sess:p}]: {msg}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                sess = $sess,
+                msg  = core::format_args!($($arg)*),
+            )
+        );
+    };
+}
+
+/// Worker + transport -debug, pohjana siitä versiosta jonka lähetit.
+#[macro_export]
+macro_rules! stcp_worker_dbg {
+    ($worker:expr, $transp:expr, $($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt(
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): Worker[{worker:p}//{transp:p}]: {msg}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                worker = $worker,
+                transp = $transp,
+                msg  = core::format_args!($($arg)*),
+            )
+        );
+    };
+}

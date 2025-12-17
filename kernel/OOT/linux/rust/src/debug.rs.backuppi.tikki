@@ -1,0 +1,251 @@
+#![allow(dead_code)]
+
+use core::ffi::c_char;
+use core::fmt::{self, Write};
+
+use crate::abi::stcp_rust_kernel_printk;
+
+/// Kuinka iso puskuri per logirivi.
+/// Tämä on stackilla, EI heapilla, eikä tämä saa koskaan ylittää tätä.
+const STCP_LOG_BUF: usize = 512;
+
+/// Kernel-logitasot – sovitettu printk-tasoihin.
+#[repr(i32)]
+#[derive(Copy, Clone, Debug)]
+pub enum LogLevel {
+    Emerg   = 0,
+    Alert   = 1,
+    Crit    = 2,
+    Err     = 3,
+    Warn    = 4,
+    Notice  = 5,
+    Info    = 6,
+    Debug   = 7,
+}
+
+/// Yksinkertainen stack-puskuri, johon fmt kirjoittaa.
+/// Ei käytä Veciä, ei RangeFrom-sliceja, ei mitään dynaamista.
+pub struct KernelBuf {
+    buf: [u8; STCP_LOG_BUF],
+    pos: usize,
+}
+
+impl KernelBuf {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self {
+            buf: [0; STCP_LOG_BUF],
+            pos: 0,
+        }
+    }
+
+    /// Varmistaa että puskurin lopussa on nollaterminointi ja palauttaa C-string -pointterin.
+    #[inline(always)]
+    pub fn as_c_str(&mut self) -> *const c_char {
+        // Jos pos on jo lopussa, pakotetaan viimeinen tavua nollaksi.
+        if self.pos >= STCP_LOG_BUF {
+            self.buf[STCP_LOG_BUF - 1] = 0;
+        } else {
+            self.buf[self.pos] = 0;
+        }
+        self.buf.as_ptr() as *const c_char
+    }
+}
+
+impl Write for KernelBuf {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        let bytes = s.as_bytes();
+
+        // Kuinka paljon tilaa on jäljellä (jätetään 1 tavu nollaterminointia varten)
+        let free = STCP_LOG_BUF.saturating_sub(self.pos + 1);
+        if free == 0 {
+            return Ok(());
+        }
+
+        let n = core::cmp::min(bytes.len(), free);
+
+        // Turvallinen copy, ei RangeFrom / index_mut -kikkailuja.
+        let dst = &mut self.buf[self.pos..self.pos + n];
+        dst.copy_from_slice(&bytes[..n]);
+        self.pos += n;
+
+        Ok(())
+    }
+
+    fn write_char(&mut self, c: char) -> fmt::Result {
+        let mut tmp = [0u8; 4];
+        let s = c.encode_utf8(&mut tmp);
+        self.write_str(s)
+    }
+}
+
+/// Päälogifunktio: rakentaa rivin KernelBufiin ja kutsuu printk-wrapperia.
+///
+/// Tämä EI saa panikoida eikä kaataa kerneliä – kaikki Resultit ignoorataan.
+pub fn stcp_log_fmt_level(level: LogLevel, args: fmt::Arguments<'_>) {
+    let mut buf = KernelBuf::new();
+
+    // Lisätään pieni prefixi, että erottaa logit dmesgissä helposti.
+    let _ = write!(&mut buf, "stcp/RUST: ");
+    let _ = buf.write_fmt(args);
+    let _ = buf.write_char('\n');
+
+    // Printataan kerneliin.
+    unsafe {
+        // MUOKKAA TÄMÄ riviksi joka vastaa sun abi-moduulia
+        // Esim: stcp_rust_kernel_printk(level as i32, buf.as_c_str());
+        stcp_rust_kernel_printk(level as i32, buf.as_c_str());
+    }
+}
+
+/// Yleislogi – voit käyttää suoraan jos haluat kontrolloida logitasoa.
+pub fn stcp_log(level: LogLevel, args: fmt::Arguments<'_>) {
+    stcp_log_fmt_level(level, args);
+}
+
+/// Sokeria: debug-tason logi.
+pub fn stcp_debug(args: fmt::Arguments<'_>) {
+    stcp_log_fmt_level(LogLevel::Debug, args);
+}
+
+/// Hex + ASCII -dumppi (hexdump-tyyliin) annetusta bufferista.
+///
+/// - 16 tavua per rivi
+/// - vasemmalla offset
+/// - keskellä hexit
+/// - oikealla ASCII (tulostuvat merkit, muuten '.')
+pub fn stcp_dump_hex_ascii(level: LogLevel, prefix: &str, data: &[u8]) {
+    let mut offset = 0usize;
+
+    while offset < data.len() {
+        let end = core::cmp::min(offset + 16, data.len());
+        let chunk = &data[offset..end];
+
+        let mut buf = KernelBuf::new();
+
+        // Offset + prefix
+        let _ = write!(&mut buf, "{}{:04x}: ", prefix, offset);
+
+        // Hex-osa: 16 tavua, täytetään tyhjillä jos ei riitä
+        for i in 0..16 {
+            if offset + i < data.len() {
+                let b = data[offset + i];
+                let _ = write!(&mut buf, "{:02x} ", b);
+            } else {
+                let _ = buf.write_str("   ");
+            }
+        }
+
+        // ASCII-erotin
+        let _ = buf.write_str(" |");
+
+        // ASCII-osa
+        for &b in chunk {
+            // Näytetään tulostettavat ASCII:t + välilyönti, muu '.'.
+            let ch = if (b >= 0x20 && b <= 0x7e) { b as char } else { '.' };
+            let _ = buf.write_char(ch);
+        }
+
+        let _ = buf.write_str("|\n");
+
+        unsafe {
+            stcp_rust_kernel_printk(level as i32, buf.as_c_str());
+        }
+
+        offset += 16;
+    }
+}
+
+// ===== Makrot =====
+
+#[macro_export]
+macro_rules! stcp_log {
+    ($lvl:expr, $($arg:tt)+) => {
+        $crate::debug::stcp_log_fmt_level($lvl, core::format_args!($($arg)+));
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_dbg {
+    ($($arg:tt)+) => {
+        $crate::debug::stcp_log_fmt_level($crate::debug::LogLevel::Debug, core::format_args!($($arg)+));
+    };
+}
+
+/// Hex-dumppi vapaalla tasolla:
+/stcp_dump!(LogLevel::Debug, "RX: ", &buf[..len]);
+#[macro_export]
+macro_rules! stcp_dump {
+    ($prefix:expr, $data:expr) => {{
+        $crate::debug::stcp_dump_hex_ascii($crate::debug::LogLevel::Debug, $prefix, $data);
+    }};
+}
+
+/// Worker + transport -debug, pohjana siitä versiosta jonka lähetit.
+#[macro_export]
+macro_rules! stcp_worker_dbg {
+    ($worker:expr, $transp:expr, $($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt_level(
+            $crate::debug::LogLevel::Debug,
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): Worker[{worker:p}//{transp:p}]: {msg}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                worker = $worker,
+                transp = $transp,
+                msg  = core::format_args!($($arg)*),
+            )
+        );
+    };
+}
+
+/// Worker + transport -debug, pohjana siitä versiosta jonka lähetit.
+#[macro_export]
+macro_rules! stcp_sess_transp {
+    ($sess:expr, $transp:expr, $($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt_level(
+            $crate::debug::LogLevel::Debug,
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): Session[{sess:p}//{transp:p}]: {msg}",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                sess = $sess,
+                transp = $transp,
+                msg  = core::format_args!($($arg)*),
+            )
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_dump_sess {
+    ($sess:expr, $buf:expr) => {{
+        // 1. Luo prefix-buf
+        let mut __prefix = $crate::debug::KernelBuf::new();
+
+        // 2. Kirjoita siihen format_args! turvallisesti
+        let _ = core::fmt::Write::write_fmt(
+            &mut __prefix,
+            core::format_args!(
+                "stcp/RUST {file}:{line} {func}(): Session[{sess:p}]: {len} bytes",
+                file = core::file!(),
+                line = core::line!(),
+                func = core::module_path!(),
+                sess = $sess,
+                len  = ($buf).len(),
+            )
+        );
+
+        // 3. Muuta se valmiiksi prefixiksi
+        let __prefix_cstr = __prefix.as_c_str();
+
+        // 4. Kutsu dumppia
+        $crate::debug::stcp_dump_hex_ascii(
+            $crate::debug::LogLevel::Debug,
+            unsafe { core::ffi::CStr::from_ptr(__prefix_cstr).to_str().unwrap_or("<?>") },
+            $buf,
+        );
+    }};
+}

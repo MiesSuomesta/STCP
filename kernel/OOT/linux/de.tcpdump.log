@@ -1,0 +1,36 @@
+tcpdump: listening on lo, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+16:37:15.026325 IP (tos 0x0, ttl 64, id 2718, offset 0, flags [DF], proto TCP (6), length 60)
+    127.0.0.1.57332 > 127.0.0.1.5300: Flags [S], cksum 0xfe30 (incorrect -> 0xc6a6), seq 812260832, win 65495, options [mss 65495,sackOK,TS val 1027410216 ecr 0,nop,wscale 10], length 0
+	0x0000:  4500 003c 0a9e 4000 4006 321c 7f00 0001  E..<..@.@.2.....
+	0x0010:  7f00 0001 dff4 14b4 306a 1de0 0000 0000  ........0j......
+	0x0020:  a002 ffd7 fe30 0000 0204 ffd7 0402 080a  .....0..........
+	0x0030:  3d3d 0928 0000 0000 0103 030a            ==.(........
+16:37:15.026347 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    127.0.0.1.5300 > 127.0.0.1.57332: Flags [S.], cksum 0xfe30 (incorrect -> 0x957b), seq 1066117941, ack 812260833, win 65483, options [mss 65495,sackOK,TS val 1027410216 ecr 1027410216,nop,wscale 10], length 0
+	0x0000:  4500 003c 0000 4000 4006 3cba 7f00 0001  E..<..@.@.<.....
+	0x0010:  7f00 0001 14b4 dff4 3f8b ab35 306a 1de1  ........?..50j..
+	0x0020:  a012 ffcb fe30 0000 0204 ffd7 0402 080a  .....0..........
+	0x0030:  3d3d 0928 3d3d 0928 0103 030a            ==.(==.(....
+16:37:15.026558 IP (tos 0x0, ttl 64, id 2719, offset 0, flags [DF], proto TCP (6), length 52)
+    127.0.0.1.57332 > 127.0.0.1.5300: Flags [.], cksum 0xfe28 (incorrect -> 0xbdfa), seq 1, ack 1, win 64, options [nop,nop,TS val 1027410216 ecr 1027410216], length 0
+	0x0000:  4500 0034 0a9f 4000 4006 3223 7f00 0001  E..4..@.@.2#....
+	0x0010:  7f00 0001 dff4 14b4 306a 1de1 3f8b ab36  ........0j..?..6
+	0x0020:  8010 0040 fe28 0000 0101 080a 3d3d 0928  ...@.(......==.(
+	0x0030:  3d3d 0928                                ==.(
+16:37:25.027277 IP (tos 0x0, ttl 64, id 2720, offset 0, flags [DF], proto TCP (6), length 76)
+    127.0.0.1.57332 > 127.0.0.1.5300: Flags [P.], cksum 0xfe40 (incorrect -> 0xf2ff), seq 1:25, ack 1, win 64, options [nop,nop,TS val 1027420217 ecr 1027410216], length 24
+	0x0000:  4500 004c 0aa0 4000 4006 320a 7f00 0001  E..L..@.@.2.....
+	0x0010:  7f00 0001 dff4 14b4 306a 1de1 3f8b ab36  ........0j..?..6
+	0x0020:  8018 0040 fe40 0000 0101 080a 3d3d 3039  ...@.@......==09
+	0x0030:  3d3d 0928 4845 4c4c 4f5f 4652 4f4d 5f50  ==.(HELLO_FROM_P
+	0x0040:  5954 484f 4e5f 434c 4945 4e54            YTHON_CLIENT
+16:37:25.027347 IP (tos 0x0, ttl 64, id 32005, offset 0, flags [DF], proto TCP (6), length 52)
+    127.0.0.1.5300 > 127.0.0.1.57332: Flags [.], cksum 0xfe28 (incorrect -> 0x6fc0), seq 1, ack 25, win 64, options [nop,nop,TS val 1027420217 ecr 1027420217], length 0
+	0x0000:  4500 0034 7d05 4000 4006 bfbc 7f00 0001  E..4}.@.@.......
+	0x0010:  7f00 0001 14b4 dff4 3f8b ab36 306a 1df9  ........?..60j..
+	0x0020:  8010 0040 fe28 0000 0101 080a 3d3d 3039  ...@.(......==09
+	0x0030:  3d3d 3039                                ==09
+
+5 packets captured
+18 packets received by filter
+0 packets dropped by kernel

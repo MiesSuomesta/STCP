@@ -220,3 +220,6 @@ Ciphertext + Tag | 9b8b4d8e2a7c937112b6769b08c2dbe0e034f19d49dfc39f7f585b5a3bb04
 Use this vector to verify cross-compatibility between  
 kernel-space and userspace implementations.
 
+## Notes:
+
+  [11.11.2025, 18:14]  Legacy code dropped from sources under kernel-module/kmod/

@@ -1,0 +1,1144 @@
+Makefile:125: warning: overriding recipe for target 'commit'
+/home/pomo/kernel-git/uusi/Makefile.commit:28: warning: ignoring old recipe for target 'commit'
+Hakemistot luotu..
+Build makefile made ...
+# 1) stcp-core
+cd rust && \
+  cargo +nightly \
+    -Z build-std=alloc,core,compiler_builtins \
+    -Z build-std-features=compiler-builtins-mem \
+    build \
+      --target mun.json \
+      --release \
+      --config 'build.rustflags=["-C","panic=abort","-C","relocation-model=static","-C","code-model=kernel","-C","embed-bitcode=no","-C","lto=no"]'
+   Compiling the_stcp_kernel_module v0.1.0 (/home/pomo/kernel-git/uusi/rust)
+warning: unused import: `c_char`
+ --> src/abi.rs:4:25
+  |
+4 | use core::ffi::{c_void, c_char, c_int};
+  |                         ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StcpEcdhSecret`
+ --> src/crypto.rs:5:9
+  |
+5 |         StcpEcdhSecret,
+  |         ^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+  --> src/crypto.rs:10:5
+   |
+10 | use alloc::boxed::Box;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> src/helpers.rs:9:5
+  |
+9 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `core::mem::size_of`
+  --> src/helpers.rs:10:5
+   |
+10 | use core::mem::size_of;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `HandshakeStatus`, `STCP_ECDH_PRIV_LEN`, `STCP_ECDH_PUB_XY_LEN`, `STCP_ECDH_SHARED_LEN`, `StcpEcdhPubKey`, and `StcpEcdhSecret`
+  --> src/session_handler.rs:7:9
+   |
+ 7 |         HandshakeStatus,
+   |         ^^^^^^^^^^^^^^^
+ 8 |         StcpEcdhPubKey,
+   |         ^^^^^^^^^^^^^^
+ 9 |         StcpEcdhSecret,
+   |         ^^^^^^^^^^^^^^
+10 |         STCP_ECDH_PRIV_LEN,
+   |         ^^^^^^^^^^^^^^^^^^
+11 |         STCP_ECDH_PUB_XY_LEN,
+   |         ^^^^^^^^^^^^^^^^^^^^
+12 |         STCP_ECDH_SHARED_LEN,
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> src/session_handler.rs:23:5
+   |
+23 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> src/session_handler.rs:24:5
+   |
+24 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ffi::c_void`
+ --> src/stcp_handshake.rs:2:5
+  |
+2 | use core::ffi::c_void;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ptr::null`
+ --> src/stcp_handshake.rs:3:5
+  |
+3 | use core::ptr::null;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> src/stcp_handshake.rs:4:5
+  |
+4 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::mem::size_of`
+ --> src/stcp_handshake.rs:5:5
+  |
+5 | use core::mem::size_of;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::abi::stcp_crypto_compute_shared`
+ --> src/stcp_handshake.rs:7:5
+  |
+7 | use crate::abi::stcp_crypto_compute_shared;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `STCP_ECDH_PUB_XY_LEN` and `STCP_RECV_BLOCK`
+  --> src/stcp_handshake.rs:17:9
+   |
+17 |         STCP_ECDH_PUB_XY_LEN,
+   |         ^^^^^^^^^^^^^^^^^^^^
+18 |         STCP_RECV_BLOCK,
+   |         ^^^^^^^^^^^^^^^
+
+warning: unused imports: `get_session`, `tcp_peek_max`, `tcp_recv_exact`, `tcp_recv_once`, and `tcp_send_all`
+  --> src/stcp_handshake.rs:26:22
+   |
+26 | use crate::helpers::{tcp_send_all, tcp_recv_once, tcp_recv_exact, tcp_peek_max, get_session};
+   |                      ^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `crate::abi::stcp_exported_rust_ctx_alive_count`
+  --> src/stcp_handshake.rs:37:5
+   |
+37 | use crate::abi::stcp_exported_rust_ctx_alive_count;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_once`
+  --> src/stcp_handshake.rs:40:5
+   |
+40 | use crate::stcp_tcp_recv_once;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_send_all`
+  --> src/stcp_handshake.rs:41:5
+   |
+41 | use crate::stcp_tcp_send_all;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_until_buffer_full`
+  --> src/stcp_handshake.rs:44:5
+   |
+44 | use crate::stcp_tcp_recv_until_buffer_full;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_handshake.rs:161:8
+    |
+161 |     if (isDone) {
+    |        ^      ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+161 -     if (isDone) {
+161 +     if isDone {
+    |
+
+warning: unused imports: `STCP_RECV_BLOCK` and `STCP_TCP_RECV_NO_BLOCK`
+  --> src/stcp_message.rs:9:5
+   |
+ 9 |     STCP_RECV_BLOCK,
+   |     ^^^^^^^^^^^^^^^
+10 |     STCP_TCP_RECV_NO_BLOCK,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `tcp_peek_max`, `tcp_recv_exact`, `tcp_recv_once`, and `tcp_send_all`
+  --> src/stcp_message.rs:15:22
+   |
+15 | use crate::helpers::{tcp_send_all, tcp_recv_once, tcp_recv_exact, tcp_peek_max};
+   |                      ^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_once`
+  --> src/stcp_message.rs:18:5
+   |
+18 | use crate::stcp_tcp_recv_once;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_exact`
+  --> src/stcp_message.rs:20:5
+   |
+20 | use crate::stcp_tcp_recv_exact;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_peek_max`
+  --> src/stcp_message.rs:21:5
+   |
+21 | use crate::stcp_tcp_peek_max;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_until_buffer_full`
+  --> src/stcp_message.rs:22:5
+   |
+22 | use crate::stcp_tcp_recv_until_buffer_full;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_message.rs:125:8
+    |
+125 |     if (frameSizeFromData as usize != frameSizeFromHeader as usize) {
+    |        ^                                                          ^
+    |
+help: remove these parentheses
+    |
+125 -     if (frameSizeFromData as usize != frameSizeFromHeader as usize) {
+125 +     if frameSizeFromData as usize != frameSizeFromHeader as usize  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_message.rs:161:8
+    |
+161 |     if (dataLen < headerSize) {
+    |        ^                    ^
+    |
+help: remove these parentheses
+    |
+161 -     if (dataLen < headerSize) {
+161 +     if dataLen < headerSize  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_message.rs:172:8
+    |
+172 |     if (dataLen != (headerSize as usize + frameSize as usize)) {
+    |        ^                                                     ^
+    |
+help: remove these parentheses
+    |
+172 -     if (dataLen != (headerSize as usize + frameSize as usize)) {
+172 +     if dataLen != (headerSize as usize + frameSize as usize)  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_message.rs:196:8
+    |
+196 |     if (ln > output.len()) {
+    |        ^                 ^
+    |
+help: remove these parentheses
+    |
+196 -     if (ln > output.len()) {
+196 +     if ln > output.len()  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_message.rs:224:8
+    |
+224 |     if (hdr.tag != STCP_TAG_BYTES) {
+    |        ^                         ^
+    |
+help: remove these parentheses
+    |
+224 -     if (hdr.tag != STCP_TAG_BYTES) {
+224 +     if hdr.tag != STCP_TAG_BYTES  {
+    |
+
+warning: unused import: `core::slice`
+ --> src/stcp_protocol_functions.rs:4:5
+  |
+4 | use core::slice;
+  |     ^^^^^^^^^^^
+
+warning: unused import: `stcp_sess_transp`
+ --> src/stcp_protocol_functions.rs:5:51
+  |
+5 | use crate::{stcp_dbg, stcp_dump, stcp_worker_dbg, stcp_sess_transp};
+  |                                                   ^^^^^^^^^^^^^^^^
+
+warning: unused import: `HandshakeStatus`
+  --> src/stcp_protocol_functions.rs:23:9
+   |
+23 |         HandshakeStatus,
+   |         ^^^^^^^^^^^^^^^
+
+warning: unused imports: `get_session`, `tcp_recv_once`, and `tcp_send_all`
+  --> src/stcp_protocol_functions.rs:29:22
+   |
+29 | use crate::helpers::{tcp_recv_once, tcp_send_all, get_session};
+   |                      ^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused import: `stcp_end_of_life_for_sk`
+  --> src/stcp_protocol_functions.rs:30:18
+   |
+30 | use crate::abi::{stcp_end_of_life_for_sk};
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_send_all`
+  --> src/stcp_protocol_functions.rs:35:5
+   |
+35 | use crate::stcp_tcp_send_all;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_exact`
+  --> src/stcp_protocol_functions.rs:36:5
+   |
+36 | use crate::stcp_tcp_recv_exact;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_peek_max`
+  --> src/stcp_protocol_functions.rs:37:5
+   |
+37 | use crate::stcp_tcp_peek_max;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_until_buffer_full`
+  --> src/stcp_protocol_functions.rs:38:5
+   |
+38 | use crate::stcp_tcp_recv_until_buffer_full;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around `if` condition
+  --> src/stcp_protocol_functions.rs:96:8
+   |
+96 |     if (alive < 1) {
+   |        ^         ^
+   |
+help: remove these parentheses
+   |
+96 -     if (alive < 1) {
+96 +     if alive < 1 {
+   |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_protocol_functions.rs:130:6
+    |
+130 |   if (alive < 0) {
+    |      ^         ^
+    |
+help: remove these parentheses
+    |
+130 -   if (alive < 0) {
+130 +   if alive < 0 {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_protocol_functions.rs:151:6
+    |
+151 |   if (alive < 1) {
+    |      ^         ^
+    |
+help: remove these parentheses
+    |
+151 -   if (alive < 1) {
+151 +   if alive < 1 {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_protocol_functions.rs:180:8
+    |
+180 |     if (alive < 1) {
+    |        ^         ^
+    |
+help: remove these parentheses
+    |
+180 -     if (alive < 1) {
+180 +     if alive < 1 {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_protocol_functions.rs:251:8
+    |
+251 |     if (aesmode) {
+    |        ^       ^
+    |
+help: remove these parentheses
+    |
+251 -     if (aesmode) {
+251 +     if aesmode {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/stcp_protocol_functions.rs:307:8
+    |
+307 |     if (aesmode) {
+    |        ^       ^
+    |
+help: remove these parentheses
+    |
+307 -     if (aesmode) {
+307 +     if aesmode {
+    |
+
+warning: unused import: `core::ffi::c_int`
+ --> src/tcp_helper_macros.rs:3:5
+  |
+3 | use core::ffi::c_int;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Write as FmtWrite` and `self`
+ --> src/tcp_helper_macros.rs:4:17
+  |
+4 | use core::fmt::{self, Write as FmtWrite};
+  |                 ^^^^  ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::debug::*`
+ --> src/tcp_helper_macros.rs:5:5
+  |
+5 | use crate::debug::*;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> src/types.rs:1:5
+  |
+1 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> src/types.rs:3:5
+  |
+3 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `stcp_dump`
+ --> src/types.rs:5:23
+  |
+5 | use crate::{stcp_dbg, stcp_dump};
+  |                       ^^^^^^^^^
+
+warning: unused import: `crate::abi::*`
+ --> src/types.rs:8:5
+  |
+8 | use crate::abi::*;
+  |     ^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers::*`
+ --> src/types.rs:9:5
+  |
+9 | use crate::helpers::*;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around `if` condition
+   --> src/types.rs:124:12
+    |
+124 |         if (buffer.len() < headerSize) {
+    |            ^                         ^
+    |
+help: remove these parentheses
+    |
+124 -         if (buffer.len() < headerSize) {
+124 +         if buffer.len() < headerSize  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/types.rs:294:12
+    |
+294 |         if (buffer.len() < STCP_ECDH_PUB_LEN) {
+    |            ^                                ^
+    |
+help: remove these parentheses
+    |
+294 -         if (buffer.len() < STCP_ECDH_PUB_LEN) {
+294 +         if buffer.len() < STCP_ECDH_PUB_LEN  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/types.rs:348:12
+    |
+348 |         if (buffer.len() < STCP_ECDH_SHARED_LEN) {
+    |            ^                                   ^
+    |
+help: remove these parentheses
+    |
+348 -         if (buffer.len() < STCP_ECDH_SHARED_LEN) {
+348 +         if buffer.len() < STCP_ECDH_SHARED_LEN  {
+    |
+
+warning: unreachable expression
+   --> src/stcp_handshake.rs:428:3
+    |
+335 | /   match status {
+336 | |       HandshakeStatus::Init => {
+337 | |         stcp_dbg!("*S*");
+338 | |         stcp_dbg!("*S* Server STATE: Init");
+...   |
+427 | |     };
+    | |_____- any code following this `match` expression is unreachable, as all arms diverge
+428 |     0
+    |     ^ unreachable expression
+    |
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Write`
+ --> src/debug.rs:6:23
+  |
+6 | use core::fmt::{self, Write as FmtWrite};
+  |                       ^^^^^
+
+warning: variable does not need to be mutable
+  --> src/crypto.rs:26:11
+   |
+26 |       let mut pPubKey = &mut sess.public_key;
+   |           ----^^^^^^^
+   |           |
+   |           help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> src/crypto.rs:27:11
+   |
+27 |       let mut pPrivKey = &mut sess.private_key;
+   |           ----^^^^^^^^
+   |           |
+   |           help: remove this `mut`
+
+warning: value assigned to `ret` is never read
+  --> src/crypto.rs:24:26
+   |
+24 |       let mut ret: i32 = -22; // EINVAL
+   |                          ^^^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `ret` is never read
+  --> src/crypto.rs:56:28
+   |
+56 |         let mut ret: i32 = -22; // EINVAL
+   |                            ^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: unused variable: `level`
+  --> src/debug.rs:84:21
+   |
+84 | pub fn stcp_log_fmt(level: LogLevel, args: fmt::Arguments<'_>) {
+   |                     ^^^^^ help: if this is intentional, prefix it with an underscore: `_level`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `args`
+  --> src/debug.rs:84:38
+   |
+84 | pub fn stcp_log_fmt(level: LogLevel, args: fmt::Arguments<'_>) {
+   |                                      ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+
+warning: unused variable: `level`
+   --> src/debug.rs:103:21
+    |
+103 | pub fn stcp_log_str(level: LogLevel, msg: &str) {
+    |                     ^^^^^ help: if this is intentional, prefix it with an underscore: `_level`
+
+warning: unused variable: `msg`
+   --> src/debug.rs:103:38
+    |
+103 | pub fn stcp_log_str(level: LogLevel, msg: &str) {
+    |                                      ^^^ help: if this is intentional, prefix it with an underscore: `_msg`
+
+warning: variable does not need to be mutable
+  --> src/helpers.rs:20:13
+   |
+20 |         let mut ptr = unsafe { data.as_ptr().add(total) };
+   |             ----^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/helpers.rs:47:13
+   |
+47 |         let mut ptr = unsafe { buf.as_mut_ptr().add(total) };
+   |             ----^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/helpers.rs:72:9
+   |
+72 |     let mut total = 0usize;
+   |         ----^^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> src/helpers.rs:78:9
+   |
+78 |     let mut ptr = unsafe { buf.as_mut_ptr().add(total) };
+   |         ----^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/helpers.rs:104:13
+    |
+104 |         let mut ptr = unsafe { buf.as_mut_ptr().add(total) };
+    |             ----^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/helpers.rs:174:13
+    |
+174 |         let mut rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
+    |             ----^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/helpers.rs:184:13
+    |
+184 |         let mut rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
+    |             ----^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/helpers.rs:193:13
+    |
+193 |         let mut rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
+    |             ----^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `sess`
+  --> src/stcp_handshake.rs:90:5
+   |
+90 |     sess: *mut ProtoSession,
+   |     ^^^^ help: if this is intentional, prefix it with an underscore: `_sess`
+
+warning: unnecessary `unsafe` block
+   --> src/stcp_handshake.rs:158:18
+    |
+158 |     let isDone = unsafe { s.is_handshake(HandshakeStatus::Complete) };
+    |                  ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/stcp_handshake.rs:205:7
+    |
+205 |   let mut incoming_header = StcpMessageHeader::new();
+    |       ----^^^^^^^^^^^^^^^
+    |       |
+    |       help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/stcp_handshake.rs:206:7
+    |
+206 |   let mut incoming_pubkey = StcpEcdhPubKey::new();
+    |       ----^^^^^^^^^^^^^^^
+    |       |
+    |       help: remove this `mut`
+
+warning: unused variable: `s`
+   --> src/stcp_handshake.rs:184:7
+    |
+184 |   let s = unsafe { &mut *sess };
+    |       ^ help: if this is intentional, prefix it with an underscore: `_s`
+
+warning: unused variable: `sock`
+   --> src/stcp_handshake.rs:199:7
+    |
+199 |   let sock = transport as *mut kernel_socket;
+    |       ^^^^ help: if this is intentional, prefix it with an underscore: `_sock`
+
+warning: unused variable: `incoming_header`
+   --> src/stcp_handshake.rs:205:7
+    |
+205 |   let mut incoming_header = StcpMessageHeader::new();
+    |       ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_incoming_header`
+
+warning: unused variable: `incoming_pubkey`
+   --> src/stcp_handshake.rs:206:7
+    |
+206 |   let mut incoming_pubkey = StcpEcdhPubKey::new();
+    |       ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_incoming_pubkey`
+
+warning: unused variable: `other`
+   --> src/stcp_handshake.rs:284:7
+    |
+284 |       other => {
+    |       ^^^^^ help: if this is intentional, prefix it with an underscore: `_other`
+
+warning: unreachable pattern
+   --> src/stcp_handshake.rs:420:7
+    |
+420 |       other => {
+    |       ^^^^^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> src/stcp_handshake.rs:420:7
+    |
+336 |       HandshakeStatus::Init => {
+    |       --------------------- matches some of the same values
+...
+348 |       HandshakeStatus::Public => {
+    |       ----------------------- matches some of the same values
+...
+392 |       HandshakeStatus::Complete => {
+    |       ------------------------- matches some of the same values
+...
+402 |       HandshakeStatus::Aes => {
+    |       -------------------- matches some of the same values
+...
+420 |       other => {
+    |       ^^^^^ ...and 1 other patterns collectively make this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> src/stcp_handshake.rs:327:7
+    |
+327 |   let mut cp :i32 = 1;
+    |       ----^^
+    |       |
+    |       help: remove this `mut`
+
+warning: unused variable: `sock`
+   --> src/stcp_handshake.rs:323:7
+    |
+323 |   let sock = transport as *mut kernel_socket;
+    |       ^^^^ help: if this is intentional, prefix it with an underscore: `_sock`
+
+warning: unused variable: `cp`
+   --> src/stcp_handshake.rs:327:7
+    |
+327 |   let mut cp :i32 = 1;
+    |       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_cp`
+
+warning: unused variable: `other`
+   --> src/stcp_handshake.rs:420:7
+    |
+420 |       other => {
+    |       ^^^^^ help: if this is intentional, prefix it with an underscore: `_other`
+
+warning: variable does not need to be mutable
+   --> src/stcp_message.rs:103:9
+    |
+103 |     let mut header_bytes = &data[0..headerSize];
+    |         ----^^^^^^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: variable does not need to be mutable
+   --> src/stcp_message.rs:104:9
+    |
+104 |     let mut hdr = StcpMessageHeader::from_bytes_be(header_bytes);
+    |         ----^^^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `headerSize`
+   --> src/stcp_message.rs:118:9
+    |
+118 |     let headerSize = stcp_message_get_header_size_in_bytes();
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_headerSize`
+
+warning: unused variable: `frame_type`
+   --> src/stcp_message.rs:179:9
+    |
+179 |     let frame_type = header.msg_type;
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_frame_type`
+
+warning: variable does not need to be mutable
+  --> src/stcp_protocol_functions.rs:49:9
+   |
+49 |     let mut sess = sess_void_ptr as *mut ProtoSession;
+   |         ----^^^^
+   |         |
+   |         help: remove this `mut`
+
+warning: unnecessary `unsafe` block
+  --> src/stcp_protocol_functions.rs:67:21
+   |
+67 |     let transport = unsafe { s.transport as *mut kernel_socket };
+   |                     ^^^^^^ unnecessary `unsafe` block
+
+warning: value assigned to `ret` is never read
+  --> src/stcp_protocol_functions.rs:80:26
+   |
+80 |     let mut ret: c_int = 0;
+   |                          ^
+   |
+   = help: maybe it is overwritten before being read?
+
+warning: unused variable: `isServer`
+   --> src/stcp_protocol_functions.rs:113:9
+    |
+113 |     let isServer = s.get_is_server();
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_isServer`
+
+warning: value assigned to `status` is never read
+   --> src/stcp_protocol_functions.rs:114:22
+    |
+114 |     let mut status = s.get_status();
+    |                      ^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `ret` is never read
+   --> src/stcp_protocol_functions.rs:116:26
+    |
+116 |     let mut ret: c_int = 0;
+    |                          ^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unnecessary `unsafe` block
+   --> src/stcp_protocol_functions.rs:165:19
+    |
+165 |   let transport = unsafe { s.transport as *mut kernel_socket };
+    |                   ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> src/stcp_protocol_functions.rs:194:21
+    |
+194 |     let transport = unsafe { s.transport as *mut kernel_socket };
+    |                     ^^^^^^ unnecessary `unsafe` block
+
+warning: variable does not need to be mutable
+   --> src/stcp_protocol_functions.rs:286:9
+    |
+286 |     let mut s: &mut ProtoSession = unsafe { &mut *sess };
+    |         ----^
+    |         |
+    |         help: remove this `mut`
+
+warning: unused variable: `s`
+   --> src/stcp_protocol_functions.rs:355:9
+    |
+355 |     let s: &mut ProtoSession = unsafe { &mut *sess };
+    |         ^ help: if this is intentional, prefix it with an underscore: `_s`
+
+warning: value assigned to `i` is never read
+   --> src/types.rs:117:9
+    |
+117 |         i += 4;
+    |         ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `i` is never read
+   --> src/types.rs:166:9
+    |
+166 |         i += 4;
+    |         ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unnecessary `unsafe` block
+   --> src/types.rs:261:9
+    |
+261 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: variable does not need to be mutable
+   --> src/types.rs:269:17
+    |
+269 |             let mut out = Self {
+    |                 ----^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: unnecessary `unsafe` block
+   --> src/types.rs:324:9
+    |
+324 |         unsafe {
+    |         ^^^^^^ unnecessary `unsafe` block
+
+warning: variable `pPubKey` should have a snake case name
+  --> src/crypto.rs:26:15
+   |
+26 |       let mut pPubKey = &mut sess.public_key;
+   |               ^^^^^^^ help: convert the identifier to snake case: `p_pub_key`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `pPrivKey` should have a snake case name
+  --> src/crypto.rs:27:15
+   |
+27 |       let mut pPrivKey = &mut sess.private_key;
+   |               ^^^^^^^^ help: convert the identifier to snake case: `p_priv_key`
+
+warning: variable `thePKbytes` should have a snake case name
+  --> src/stcp_handshake.rs:76:13
+   |
+76 |     let mut thePKbytes = s.public_key.to_bytes_be();
+   |             ^^^^^^^^^^ help: convert the identifier to snake case: `the_pkbytes`
+
+warning: variable `isDone` should have a snake case name
+   --> src/stcp_handshake.rs:158:9
+    |
+158 |     let isDone = unsafe { s.is_handshake(HandshakeStatus::Complete) };
+    |         ^^^^^^ help: convert the identifier to snake case: `is_done`
+
+warning: variable `msgType` should have a snake case name
+  --> src/stcp_message.rs:28:35
+   |
+28 | pub fn stcp_message_create_header(msgType: StcpMsgType, plen: u32) -> StcpMessageHeader {
+   |                                   ^^^^^^^ help: convert the identifier to snake case: `msg_type`
+
+warning: variable `theHdr` should have a snake case name
+  --> src/stcp_message.rs:37:34
+   |
+37 | pub fn stcp_message_debug_header(theHdr: StcpMessageHeader) {
+   |                                  ^^^^^^ help: convert the identifier to snake case: `the_hdr`
+
+warning: variable `hrdSize` should have a snake case name
+  --> src/stcp_message.rs:61:9
+   |
+61 |     let hrdSize = size_of::<StcpMessageHeader>();
+   |         ^^^^^^^ help: convert the identifier to snake case: `hrd_size`
+
+warning: variable `payloadSize` should have a snake case name
+  --> src/stcp_message.rs:62:9
+   |
+62 |     let payloadSize = hrdSize + STCP_ECDH_PUB_LEN as usize;
+   |         ^^^^^^^^^^^ help: convert the identifier to snake case: `payload_size`
+
+warning: variable `headerSize` should have a snake case name
+  --> src/stcp_message.rs:68:9
+   |
+68 |     let headerSize = stcp_message_get_header_size_in_bytes();
+   |         ^^^^^^^^^^ help: convert the identifier to snake case: `header_size`
+
+warning: variable `dataLen` should have a snake case name
+  --> src/stcp_message.rs:69:9
+   |
+69 |     let dataLen = data.len();
+   |         ^^^^^^^ help: convert the identifier to snake case: `data_len`
+
+warning: variable `totalSize` should have a snake case name
+  --> src/stcp_message.rs:70:9
+   |
+70 |     let totalSize = headerSize + dataLen;
+   |         ^^^^^^^^^ help: convert the identifier to snake case: `total_size`
+
+warning: variable `headerRaw` should have a snake case name
+  --> src/stcp_message.rs:80:9
+   |
+80 |     let headerRaw = header.to_bytes_be();
+   |         ^^^^^^^^^ help: convert the identifier to snake case: `header_raw`
+
+warning: variable `headerSize` should have a snake case name
+  --> src/stcp_message.rs:94:9
+   |
+94 |     let headerSize = stcp_message_get_header_size_in_bytes();
+   |         ^^^^^^^^^^ help: convert the identifier to snake case: `header_size`
+
+warning: variable `headerSize` should have a snake case name
+   --> src/stcp_message.rs:118:9
+    |
+118 |     let headerSize = stcp_message_get_header_size_in_bytes();
+    |         ^^^^^^^^^^ help: convert the identifier to snake case: `header_size`
+
+warning: variable `neededFrameSize` should have a snake case name
+   --> src/stcp_message.rs:119:9
+    |
+119 |     let neededFrameSize = STCP_ECDH_PUB_LEN;
+    |         ^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `needed_frame_size`
+
+warning: variable `msgHdr` should have a snake case name
+   --> src/stcp_message.rs:121:14
+    |
+121 |     let (mut msgHdr, theFrame) = stcp_message_unpack_frame_from(data);
+    |              ^^^^^^ help: convert the identifier to snake case: `msg_hdr`
+
+warning: variable `theFrame` should have a snake case name
+   --> src/stcp_message.rs:121:22
+    |
+121 |     let (mut msgHdr, theFrame) = stcp_message_unpack_frame_from(data);
+    |                      ^^^^^^^^ help: convert the identifier to snake case: `the_frame`
+
+warning: variable `frameSizeFromHeader` should have a snake case name
+   --> src/stcp_message.rs:122:9
+    |
+122 |     let frameSizeFromHeader = msgHdr.msg_len;
+    |         ^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `frame_size_from_header`
+
+warning: variable `frameSizeFromData` should have a snake case name
+   --> src/stcp_message.rs:123:9
+    |
+123 |     let frameSizeFromData = theFrame.len();
+    |         ^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `frame_size_from_data`
+
+warning: variable `headerSize` should have a snake case name
+   --> src/stcp_message.rs:158:9
+    |
+158 |     let headerSize = stcp_message_get_header_size_in_bytes();
+    |         ^^^^^^^^^^ help: convert the identifier to snake case: `header_size`
+
+warning: variable `dataLen` should have a snake case name
+   --> src/stcp_message.rs:159:9
+    |
+159 |     let dataLen = data.len();
+    |         ^^^^^^^ help: convert the identifier to snake case: `data_len`
+
+warning: variable `frameSize` should have a snake case name
+   --> src/stcp_message.rs:170:9
+    |
+170 |     let frameSize = header.msg_len;
+    |         ^^^^^^^^^ help: convert the identifier to snake case: `frame_size`
+
+warning: variable `framePayloadIn` should have a snake case name
+   --> src/stcp_message.rs:208:36
+    |
+208 | pub fn stcp_message_frame_from_raw(framePayloadIn: &mut [u8]) -> 
+    |                                    ^^^^^^^^^^^^^^ help: convert the identifier to snake case: `frame_payload_in`
+
+warning: variable `hdrSize` should have a snake case name
+   --> src/stcp_message.rs:211:9
+    |
+211 |     let hdrSize = stcp_message_get_header_size_in_bytes();
+    |         ^^^^^^^ help: convert the identifier to snake case: `hdr_size`
+
+warning: variable `framePayloadInLen` should have a snake case name
+   --> src/stcp_message.rs:213:9
+    |
+213 |     let framePayloadInLen = framePayloadIn.len();
+    |         ^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `frame_payload_in_len`
+
+warning: variable `totalSizeFromHeader` should have a snake case name
+   --> src/stcp_message.rs:229:9
+    |
+229 |     let totalSizeFromHeader:usize = hdr.msg_len as usize;
+    |         ^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `total_size_from_header`
+
+warning: variable `payloadSize` should have a snake case name
+   --> src/stcp_message.rs:236:9
+    |
+236 |     let payloadSize = totalSizeFromHeader;
+    |         ^^^^^^^^^^^ help: convert the identifier to snake case: `payload_size`
+
+warning: variable `payloadData` should have a snake case name
+   --> src/stcp_message.rs:237:13
+    |
+237 |     let mut payloadData: Vec<u8> = Vec::with_capacity(payloadSize as usize);
+    |             ^^^^^^^^^^^ help: convert the identifier to snake case: `payload_data`
+
+warning: variable `endSourceIndex` should have a snake case name
+   --> src/stcp_message.rs:240:9
+    |
+240 |     let endSourceIndex = hdrSize as usize + payloadSize as usize;
+    |         ^^^^^^^^^^^^^^ help: convert the identifier to snake case: `end_source_index`
+
+warning: variable `payloadToSend` should have a snake case name
+   --> src/stcp_message.rs:247:108
+    |
+247 | pub fn stcp_message_send_frame(sess: *mut ProtoSession, transport: *mut kernel_socket, ftype: StcpMsgType, payloadToSend: &mut [u8]) -> i32 {
+    |                                                                                                            ^^^^^^^^^^^^^ help: convert the identifier to snake case: `payload_to_send`
+
+warning: variable `hdrBytes` should have a snake case name
+   --> src/stcp_message.rs:259:9
+    |
+259 |     let hdrBytes = hdr.to_bytes_be();
+    |         ^^^^^^^^ help: convert the identifier to snake case: `hdr_bytes`
+
+warning: variable `hdrBytesLen` should have a snake case name
+   --> src/stcp_message.rs:260:9
+    |
+260 |     let hdrBytesLen = hdrBytes.len();
+    |         ^^^^^^^^^^^ help: convert the identifier to snake case: `hdr_bytes_len`
+
+warning: variable `theFrameDataSize` should have a snake case name
+   --> src/stcp_message.rs:265:9
+    |
+265 |     let theFrameDataSize = payloadToSend.len() + hdrBytesLen;
+    |         ^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `the_frame_data_size`
+
+warning: variable `theFrameData` should have a snake case name
+   --> src/stcp_message.rs:266:13
+    |
+266 |     let mut theFrameData: Vec<u8> = Vec::with_capacity(theFrameDataSize as usize);
+    |             ^^^^^^^^^^^^ help: convert the identifier to snake case: `the_frame_data`
+
+warning: variable `isServer` should have a snake case name
+  --> src/stcp_protocol_functions.rs:78:9
+   |
+78 |     let isServer = s.get_is_server();
+   |         ^^^^^^^^ help: convert the identifier to snake case: `is_server`
+
+warning: variable `isServer` should have a snake case name
+   --> src/stcp_protocol_functions.rs:113:9
+    |
+113 |     let isServer = s.get_is_server();
+    |         ^^^^^^^^ help: convert the identifier to snake case: `is_server`
+
+warning: variable `headerSize` should have a snake case name
+  --> src/types.rs:98:13
+   |
+98 |         let headerSize = stcp_message_get_header_size_in_bytes();
+   |             ^^^^^^^^^^ help: convert the identifier to snake case: `header_size`
+
+warning: variable `headerSize` should have a snake case name
+   --> src/types.rs:123:13
+    |
+123 |         let headerSize = stcp_message_get_header_size_in_bytes();
+    |             ^^^^^^^^^^ help: convert the identifier to snake case: `header_size`
+
+warning: variable `gotVersion` should have a snake case name
+   --> src/types.rs:137:13
+    |
+137 |         let gotVersion = u32::from_be_bytes( buffer[i..i+4].try_into().unwrap() );
+    |             ^^^^^^^^^^ help: convert the identifier to snake case: `got_version`
+
+warning: variable `gotTag` should have a snake case name
+   --> src/types.rs:141:13
+    |
+141 |         let gotTag = u64::from_be_bytes( buffer[i..i+8].try_into().unwrap() );
+    |             ^^^^^^ help: convert the identifier to snake case: `got_tag`
+
+warning: variable `gotType` should have a snake case name
+   --> src/types.rs:151:13
+    |
+151 |         let gotType = match buffer[i] {
+    |             ^^^^^^^ help: convert the identifier to snake case: `got_type`
+
+warning: variable `gotLen` should have a snake case name
+   --> src/types.rs:165:13
+    |
+165 |         let gotLen = u32::from_be_bytes( buffer[i..i+4].try_into().unwrap() );
+    |             ^^^^^^ help: convert the identifier to snake case: `got_len`
+
+warning: variable `pIs_server` should have a snake case name
+   --> src/types.rs:196:16
+    |
+196 |     pub fn new(pIs_server:bool, pTransport: *mut kernel_socket) -> Self {
+    |                ^^^^^^^^^^ help: convert the identifier to snake case: `p_is_server`
+
+warning: variable `pTransport` should have a snake case name
+   --> src/types.rs:196:33
+    |
+196 |     pub fn new(pIs_server:bool, pTransport: *mut kernel_socket) -> Self {
+    |                                 ^^^^^^^^^^ help: convert the identifier to snake case: `p_transport`
+
+warning: variable `SEPK` should have a snake case name
+   --> src/types.rs:299:17
+    |
+299 |         let mut SEPK = StcpEcdhPubKey::new();
+    |                 ^^^^ help: convert the identifier to snake case: `sepk`
+
+warning: `the_stcp_kernel_module` (lib) generated 153 warnings (run `cargo fix --lib -p the_stcp_kernel_module` to apply 92 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.66s
+bash scripts/rust-ar-to-o.sh \
+  "rust/target/mun/release/libthe_stcp_kernel_module.a" \
+  "kmod/the_stcp_kernel_module.o" \
+  "kmod/.the_stcp_kernel_module.o.cmd"
+[stcp] Input:  rust/target/mun/release/libthe_stcp_kernel_module.a
+[stcp] Output: kmod/the_stcp_kernel_module.o
+[stcp] .cmd:   kmod/.the_stcp_kernel_module.o.cmd
+[stcp] nm:     nm
+[stcp] ld:     ld.bfd
+[stcp] --undefined opts:  --undefined=rust_exported_data_client_ready_worker --undefined=rust_exported_data_server_ready_worker --undefined=rust_exported_session_client_handshake --undefined=rust_exported_session_create --undefined=rust_exported_session_destroy --undefined=rust_exported_session_handshake_done --undefined=rust_exported_session_recvmsg --undefined=rust_exported_session_sendmsg --undefined=rust_exported_session_server_handshake  --undefined=stcp_module_rust_enter --undefined=stcp_module_rust_exit  --undefined=stcp_module_rust_enter --undefined=stcp_module_rust_exit  
+[stcp] Linking → ld.bfd --whole-archive -r -m elf_x86_64 --undefined=rust_exported_data_client_ready_worker --undefined=rust_exported_data_server_ready_worker --undefined=rust_exported_session_client_handshake --undefined=rust_exported_session_create --undefined=rust_exported_session_destroy --undefined=rust_exported_session_handshake_done --undefined=rust_exported_session_recvmsg --undefined=rust_exported_session_sendmsg --undefined=rust_exported_session_server_handshake --undefined=stcp_module_rust_enter --undefined=stcp_module_rust_exit --undefined=stcp_module_rust_enter --undefined=stcp_module_rust_exit -o kmod/the_stcp_kernel_module.o rust/target/mun/release/libthe_stcp_kernel_module.a
+[stcp] Done: kmod/the_stcp_kernel_module.o
+make -C "/lib/modules/6.18.0-rc2-lja-viimeisin-2025-11-25-180340/build" M="/home/pomo/kernel-git/uusi/kmod" KBUILD_SRC="/home/pomo/kernel-git/uusi/kmod" modules
+make[1]: Entering directory '/usr/src/linux-headers-6.18.0-rc2-lja-viimeisin-2025-11-25-180340'
+make[2]: Entering directory '/home/pomo/kernel-git/uusi/kmod'
+  CC [M]  init.o

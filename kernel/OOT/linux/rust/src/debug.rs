@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use core::ffi::c_int;
-use core::fmt::{self, Write as FmtWrite};
+use core::fmt::{self};
 
 unsafe extern "C" {
     fn stcp_rust_log(level: c_int, buf: *const u8, len: usize);
@@ -82,7 +82,8 @@ pub fn stcp_log_fmt(level: LogLevel, args: fmt::Arguments<'_>) {
 
 #[cfg(not(feature="stcp_debug"))]
 pub fn stcp_log_fmt(level: LogLevel, args: fmt::Arguments<'_>) {
- // NOP
+    let _ = level;
+    let _ = args;
 }
 
 
@@ -101,7 +102,8 @@ pub fn stcp_log_str(level: LogLevel, msg: &str) {
 
 #[cfg(not(feature="stcp_debug"))]
 pub fn stcp_log_str(level: LogLevel, msg: &str) {
- //NOP
+    let _ = level;
+    let _ = msg;
 }
 
 /// Yleislogi, ilman sessiota / sockia

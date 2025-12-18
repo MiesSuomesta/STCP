@@ -1,11 +1,4 @@
 
-use core::ffi::c_void;
-use core::ptr::null;
-use alloc::boxed::Box;
-use core::mem::size_of;
-
-use crate::abi::stcp_crypto_compute_shared;
-
 use crate::types::{
   //    ProtoOps,
         ProtoSession,
@@ -14,8 +7,6 @@ use crate::types::{
         StcpEcdhPubKey,
         StcpMessageHeader,
         STCP_ECDH_PUB_LEN,
-        STCP_ECDH_PUB_XY_LEN,
-        STCP_RECV_BLOCK,
         kernel_socket,
         STCP_TAG_BYTES,
         STCP_TCP_RECV_BLOCK,
@@ -23,7 +14,7 @@ use crate::types::{
     };
 
 
-use crate::helpers::{tcp_send_all, tcp_recv_once, tcp_recv_exact, tcp_peek_max, get_session};
+//use crate::helpers::{tcp_send_all, tcp_recv_once, tcp_recv_exact, tcp_peek_max, get_session};
 //use crate::tcp_io;
 //use alloc::boxed::Box;
 //use crate::stcp_handshake::{client_handshake, server_handshake};
@@ -34,14 +25,14 @@ use crate::stcp_message::*;
 use alloc::vec::Vec;
 use alloc::vec;
 
-use crate::abi::stcp_exported_rust_ctx_alive_count;
+//use crate::abi::stcp_exported_rust_ctx_alive_count;
 
 // TCP helpperi makrot
-use crate::stcp_tcp_recv_once;
-use crate::stcp_tcp_send_all;
+//use crate::stcp_tcp_recv_once;
+//use crate::stcp_tcp_send_all;
 use crate::stcp_tcp_recv_exact;
 use crate::stcp_tcp_peek_max;
-use crate::stcp_tcp_recv_until_buffer_full;
+//use crate::stcp_tcp_recv_until_buffer_full;
 
 /// Clientti handshake 
 
@@ -73,8 +64,8 @@ pub fn handshake_send_public_key(sess: *mut ProtoSession, transport: *mut kernel
       stcp_dbg!("Client Sending public key");   
     }
 
-    let mut thePKbytes = s.public_key.to_bytes_be();
-    let sent = stcp_message_send_frame(s, sock, StcpMsgType::Public, &mut thePKbytes);
+    let mut the_public_key_bytes = s.public_key.to_bytes_be();
+    let sent = stcp_message_send_frame(s, sock, StcpMsgType::Public, &mut the_public_key_bytes);
 
     if s.is_server {
       stcp_dbg!("Server Public key sent ret");   
@@ -87,7 +78,7 @@ pub fn handshake_send_public_key(sess: *mut ProtoSession, transport: *mut kernel
 
 #[inline(never)]
 pub fn handshake_recv_public_key(
-    sess: *mut ProtoSession,
+    _sess: *mut ProtoSession,
     transport: *mut kernel_socket,
     out_header: &mut StcpMessageHeader,
     out_pubkey: &mut StcpEcdhPubKey,
@@ -155,10 +146,10 @@ pub extern "C" fn rust_session_handshake_done(sess: *mut ProtoSession) -> i32 {
 
     let s = unsafe { &mut *sess };
 
-    let isDone = unsafe { s.is_handshake(HandshakeStatus::Complete) };
+    let is_done = s.is_handshake(HandshakeStatus::Complete);
     stcp_dbg!("Session is handshake done");   
 
-    if isDone {
+    if is_done {
        return 1;
     }
 
@@ -181,7 +172,6 @@ pub extern "C" fn rust_session_client_handshake(sess: *mut ProtoSession, transpo
 */
   stcp_dbg!("Client Worker Client handshake starting");   
   let sock = transport as *mut kernel_socket;
-  let s = unsafe { &mut *sess };
 
   if sess.is_null() {
     stcp_dbg!("Client Worker NO SESSION");   
@@ -196,14 +186,11 @@ pub extern "C" fn rust_session_client_handshake(sess: *mut ProtoSession, transpo
   }
 
   stcp_dbg!("Client Worker Checks passed starting");   
-  let sock = transport as *mut kernel_socket;
   let s = unsafe { &mut *sess };
   let status = s.get_status();
 
     // Generoi omat avaimet
   stcp_dbg!("Client Worker State machine: {}", status as i32);   
-  let mut incoming_header = StcpMessageHeader::new();
-  let mut incoming_pubkey = StcpEcdhPubKey::new();
 
   match status {
       HandshakeStatus::Init => {
@@ -269,6 +256,15 @@ pub extern "C" fn rust_session_client_handshake(sess: *mut ProtoSession, transpo
 
         s.set_status(HandshakeStatus::Aes);
         stcp_dbg!("Client Worker Hanshake complete");   
+        return 0;
+      }
+
+      HandshakeStatus::Aes => {
+        stcp_dbg!("***");
+        stcp_dbg!("*** Client STATE: AES");
+        stcp_dbg!("***");
+
+        stcp_dbg!("Client Worker AES MODE");   
         return 1;
       }
 
@@ -279,14 +275,6 @@ pub extern "C" fn rust_session_client_handshake(sess: *mut ProtoSession, transpo
 
         stcp_dbg!("Client Worker STATE Error");   
         return -5;
-      }
-
-      other => {
-        stcp_dbg!("***");
-        stcp_dbg!("*** Client STATE: Catch all");
-        stcp_dbg!("***");
-        stcp_dbg!("Client Worker STATE Catch all other no valid State");   
-        return -ECONNABORTED;
       }
     };
 }
@@ -320,11 +308,10 @@ pub extern "C" fn rust_session_server_handshake(sess: *mut ProtoSession, transpo
 
   stcp_dbg!("Server Server CP 2");   
 
-  let sock = transport as *mut kernel_socket;
+  //let sock = transport as *mut kernel_socket;
   let s = unsafe { &mut *sess };
 
 
-  let mut cp :i32 = 1;
   let status = s.get_status();
   stcp_dbg!("Server Server CP 3");   
 
@@ -388,22 +375,20 @@ pub extern "C" fn rust_session_server_handshake(sess: *mut ProtoSession, transpo
       }
 
       HandshakeStatus::Complete => {
-        stcp_dbg!("***");
-        stcp_dbg!("*** Server STATE: Handshake Complete");
-        stcp_dbg!("***");
+        stcp_dbg!("*S*");
+        stcp_dbg!("*S* Server STATE: Handshake Complete");
+        stcp_dbg!("*S*");
 
         s.set_status(HandshakeStatus::Aes);
         stcp_dbg!("Client Worker Hanshake complete");   
-        return 1;
+        return 0;
       }
 
       HandshakeStatus::Aes => {
-        stcp_dbg!("***");
-        stcp_dbg!("*** Server STATE: AES mode");
-        stcp_dbg!("***");
-
-        // Jos errori nii doppaa Error statukseen ja antaa virhekoodiksi EAGAIN
-        return 1;
+        stcp_dbg!("*S*");
+        stcp_dbg!("*S* Server STATE: AES mode");
+        stcp_dbg!("*S*");
+        return 1; // Marking complete => no worker resched after this point
       }
 
       HandshakeStatus::Error => {
@@ -414,14 +399,5 @@ pub extern "C" fn rust_session_server_handshake(sess: *mut ProtoSession, transpo
         stcp_dbg!("Client Worker STATE Error");   
         return -ECONNABORTED;
       }
-
-      other => {
-        stcp_dbg!("***");
-        stcp_dbg!("*** Server STATE: Catch all");
-        stcp_dbg!("***");
-        stcp_dbg!("Client Worker STATE Catch all other no valid State");   
-        return -ECONNABORTED;
-      }
     };
-  0
 }

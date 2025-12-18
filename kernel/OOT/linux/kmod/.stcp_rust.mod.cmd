@@ -1,0 +1,1 @@
+savedcmd_stcp_rust.mod := printf '%s\n'   init.o stcp_protocol.o stcp_proto_ops.o ffi_random.o lifespan.o proto_operations.o rust_alloc.o rust_log_with_printk.o stcp_kernel_crypto.o stcp_tcp_recv.o stcp_tcp_send.o handshake_worker.o stcp_misc.o the_stcp_struct.o the_stcp_kernel_module.o | awk '!x[$$0]++ { print("./"$$0) }' > stcp_rust.mod

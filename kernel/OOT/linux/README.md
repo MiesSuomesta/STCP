@@ -19,10 +19,16 @@ send()/recv() logic.
 
 ## Status
 
-**Status:** Production-ready core
+**Status:** Production-ready, optimized.
+
+**STCP release tag:** `stcp-release-18.12.2025`
 
 **Golden tag:** `GOLDEN-2025-12-17_165539`
 
 This tag marks the first version where handshake, encryption, and transparent
 send/recv operation are fully implemented and verified.
 
+## Performance
+STCP has been stress-tested under steady load and sustains up to ~245 MB/s
+of encrypted throughput with predictable sub-3 ms p99 latency.
+See docs/PERFORMANCE.md for full results.

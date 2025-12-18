@@ -158,7 +158,7 @@ pub extern "C" fn rust_session_handshake_done(sess: *mut ProtoSession) -> i32 {
     let isDone = unsafe { s.is_handshake(HandshakeStatus::Complete) };
     stcp_dbg!("Session is handshake done");   
 
-    if (isDone) {
+    if isDone {
        return 1;
     }
 
@@ -174,7 +174,7 @@ pub extern "C" fn rust_session_client_handshake(sess: *mut ProtoSession, transpo
 /*
   let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
   stcp_dbg!("There are alive instances");   
-  if (alive < 1) {
+  if alive < 1 {
     stcp_dbg!("Should not be alive anymore");   
     return -500;
   }
@@ -299,7 +299,7 @@ pub extern "C" fn rust_session_server_handshake(sess: *mut ProtoSession, transpo
 /*
   let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
   stcp_dbg!("There are alive instances");   
-  if (alive < 1) {
+  if alive < 1 {
     stcp_dbg!("Should not be alive anymore");   
     return -500;
   }

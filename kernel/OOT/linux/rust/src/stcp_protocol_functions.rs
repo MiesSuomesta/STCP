@@ -105,7 +105,7 @@ pub extern "C" fn rust_exported_data_client_ready_worker(sess_void_ptr: *mut c_v
 
     let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
     stcp_dbg!("There are {} alive instances", alive);   
-    if (alive < 1) {
+    if alive < 1 {
       return -500;
     }
 
@@ -147,7 +147,7 @@ pub extern "C" fn rust_exported_data_server_ready_worker(sess_void_ptr: *mut c_v
     // Check alive count
     let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
     stcp_dbg!("There are {} alive instances", alive);   
-    if (alive < 1) {
+    if alive < 1 {
       return -500;
     }
 
@@ -180,7 +180,7 @@ pub extern "C" fn rust_exported_session_create(out: *mut *mut c_void, transport:
   stcp_dbg!("SESSION/Checkpoint 1");
   // Check alive count
   let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-  if (alive < 0) {
+  if alive < 0 {
     stcp_dbg!("Module is not alive!");
     return -500;
   }
@@ -201,7 +201,7 @@ pub extern "C" fn rust_exported_session_create(out: *mut *mut c_void, transport:
 pub extern "C" fn rust_exported_session_client_handshake(sess_void_ptr: *mut c_void) -> c_int {
   // Check alive count
   let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-  if (alive < 1) {
+  if alive < 1 {
     return -500;
   }
 
@@ -230,7 +230,7 @@ pub extern "C" fn rust_exported_session_client_handshake(sess_void_ptr: *mut c_v
 pub extern "C" fn rust_exported_session_server_handshake(sess_void_ptr: *mut c_void) -> c_int {
     // Check alive count
     let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-    if (alive < 1) {
+    if alive < 1 {
       return -5;
     }
 
@@ -302,7 +302,7 @@ pub extern "C" fn rust_exported_session_sendmsg(sess_void_ptr: *const c_void,
 
     let aesmode = s.in_aes_mode();
 
-    if (aesmode) {
+    if aesmode {
       stcp_dbg!("In AES mode..");
       stcp_message_send_frame(sess, transport, StcpMsgType::Aes, buffer) as isize
     } else {
@@ -380,7 +380,7 @@ pub extern "C" fn rust_exported_session_destroy(sess_void_ptr: *mut c_void) -> i
 /*
     let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
     stcp_dbg!("There are alive instances");   
-    if (alive < 1) {
+    if alive < 1 {
       stcp_dbg!("Should not be alive anymore");   
       return -5;
     }

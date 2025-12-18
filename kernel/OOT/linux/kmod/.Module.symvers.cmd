@@ -1,0 +1,1 @@
+savedcmd_Module.symvers :=  /usr/src/linux-headers-6.18.0-rc2-lja-viimeisin-2025-11-25-180340/scripts/mod/modpost -M    -a      -o Module.symvers -n -T modules.order -i /usr/src/linux-headers-6.18.0-rc2-lja-viimeisin-2025-11-25-180340/Module.symvers -e 

@@ -19,7 +19,7 @@ banner() {
 
 sudo apt update || true
 banner "📦" "Installing essentials...."
-sudo apt install build-essential wget curl git cmake pkg-config libssl-dev rustup
+#sudo apt install build-essential wget curl git cmake pkg-config libssl-dev rustup
 banner "✅" "Installed essential: OK"
 
 export INSTALL_DIR="${PROJECT_ROOT}/tools/musl-cross-compiled-libs"
@@ -67,12 +67,12 @@ export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
 
 
 # Nightly + MUSL-target + build std
-banner "📦" "Installing rustup ${MUSL_HOST} toolchain for target ${MUSL_TARGET}"
-rustup uninstall nightly
-rustup install nightly
-rustup component add rust-src --toolchain nightly-${MUSL_HOST}
-rustup target add ${MUSL_TARGET} --toolchain nightly
-banner "✅" "Installed rustup ${MUSL_HOST} toolchain: OK for ${MUSL_TARGET} .."
+#banner "📦" "Installing rustup ${MUSL_HOST} toolchain for target ${MUSL_TARGET}"
+#rustup uninstall nightly
+#rustup install nightly
+#rustup component add rust-src --toolchain nightly-${MUSL_HOST}
+#rustup target add ${MUSL_TARGET} --toolchain nightly
+#banner "✅" "Installed rustup ${MUSL_HOST} toolchain: OK for ${MUSL_TARGET} .."
 
 # Asennetaan cbindgen isäntätoolchainilla
 banner "📦" "Installing cbindgen...."

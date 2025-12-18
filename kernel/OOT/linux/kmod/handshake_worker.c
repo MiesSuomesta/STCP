@@ -13,7 +13,6 @@
 #include <net/tcp.h>
 #include <linux/inet.h>
 
-#define DISABLE_DEBUG 1
 #include <stcp/debug.h>
 #include <stcp/proto_layer.h>   // Rust proto_ops API
 
@@ -152,13 +151,13 @@ void stcp_handshake_worker(struct work_struct *work)
     dwork = to_delayed_work(work);
     st = container_of(dwork, struct stcp_sock, handshake_work);
 
-    SDBG("HANDSHAKE WORKER START child_st=%px transport=%px",
-            st, st && st->transport);
-
     if (!st) {
         SDBG("Worker[%px//%px]: FAIL: No st!", work, st);
         return;
     }
+
+    SDBG("HANDSHAKE WORKER START child_st=%px transport=%px",
+            st, st->transport);
 
     clear_bit(STCP_STATUS_HS_QUEUED_BIT, &st->status);
 
@@ -173,14 +172,14 @@ void stcp_handshake_worker(struct work_struct *work)
     /* Tässä ei ole enää connectin lock_sock päällä */
     tmp = ((st->status & STCP_STATUS_HANDSHAKE_SERVER) > 0) ? "Server" : "Client";
 
-    SDBG("Worker/%s[%px//%px]: State: %u  sk: %px session: %px wq: %px",
+    SDBG("Worker/%s[%px//%px]: State: %ld  sk: %px session: %px wq: %px",
          tmp, work, st, st->status, st->sk, st->session, st->the_wq);
 
     st->is_server = (st->status & STCP_STATUS_HANDSHAKE_SERVER) > 0;
     SDBG("Is server? %d", st->is_server);
 
 #if STCP_SERVER_HANSHAKE_ENABLED
-    SDBG("Define STCP_SERVER_HANSHAKE_ENABLED active.. %px, %u", st, st ? st->status : 0);
+    SDBG("Define STCP_SERVER_HANSHAKE_ENABLED active.. %px, %ld", st, st->status);
     if (st->is_server) {
         SDBG("Starting server work, with st=%px sk=%px session=%px",
              st, st->sk, st->session);
@@ -203,7 +202,7 @@ void stcp_handshake_worker(struct work_struct *work)
 #endif
 
 #if STCP_CLIENT_HANSHAKE_ENABLED
-    SDBG("Define STCP_CLIENT_HANSHAKE_ENABLED active.. %px, %u", st, st ? st->status : 0);
+    SDBG("Define STCP_CLIENT_HANSHAKE_ENABLED active.. %px, %ld", st, st->status);
     if (!st->is_server) {
         SDBG("Starting client work, with st=%px sk=%px session=%px",
              st, st->sk, st->session);
@@ -259,7 +258,7 @@ void stcp_handshake_worker(struct work_struct *work)
 
         /* Tapetaan yhteys.. */
         if (st->sk) {
-            SDBG("Killing stcp sk socket %px", st->sk)
+            SDBG("Killing stcp sk socket %px", st->sk);
             st->sk->sk_err = EPROTO;
             sk_error_report(st->sk);
         }

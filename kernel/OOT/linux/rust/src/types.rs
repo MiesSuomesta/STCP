@@ -1,12 +1,8 @@
-use alloc::vec;
 use alloc::vec::Vec;
-use alloc::boxed::Box;
 
-use crate::{stcp_dbg, stcp_dump};
+use crate::{stcp_dbg /* , stcp_dump */ };
 
 use crate::stcp_message::{stcp_message_get_header_size_in_bytes};
-use crate::abi::*;
-use crate::helpers::*;
 
 #[repr(u8)]
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -30,7 +26,7 @@ impl HandshakeStatus {
         }
     }
 
-    pub fn nextStep(self) -> Option<Self> {
+    pub fn next_step(self) -> Option<Self> {
         match self {
             Self::Init      => Some(Self::Public),
             Self::Public    => Some(Self::Complete),
@@ -67,7 +63,7 @@ impl StcpMsgType {
         }
     }
 
-    pub fn nextStep(self) -> Option<Self> {
+    pub fn next_step(self) -> Option<Self> {
         match self {
             Self::Unknown => Some(Self::Error),
             Self::Error   => Some(Self::Public),
@@ -114,9 +110,9 @@ impl StcpMessageHeader {
     }
 
     pub fn to_bytes_be(&self) -> Vec<u8> {
-        let headerSize = stcp_message_get_header_size_in_bytes();
-        let mut buffer: Vec<u8> = Vec::with_capacity(headerSize);
-        buffer.resize(headerSize, 0);
+        let header_size = stcp_message_get_header_size_in_bytes();
+        let mut buffer: Vec<u8> = Vec::with_capacity(header_size);
+        buffer.resize(header_size, 0);
         let mut i: usize = 0;
 
         // Versio
@@ -133,14 +129,13 @@ impl StcpMessageHeader {
 
         // msg len
         buffer[i..i+4].copy_from_slice(&self.msg_len.to_be_bytes());
-        i += 4;
 
         buffer
     }
 
     pub fn from_bytes_be(buffer: &[u8]) -> StcpMessageHeader {
-        let headerSize = stcp_message_get_header_size_in_bytes();
-        if (buffer.len() < headerSize) {
+        let header_size = stcp_message_get_header_size_in_bytes();
+        if buffer.len() < header_size {
           stcp_dbg!("No enough data");   
             return StcpMessageHeader {
                                     version: 0,
@@ -153,11 +148,11 @@ impl StcpMessageHeader {
         let mut i: usize = 0;
 
         // Versio
-        let gotVersion = u32::from_be_bytes( buffer[i..i+4].try_into().unwrap() );
+        let got_version = u32::from_be_bytes( buffer[i..i+4].try_into().unwrap() );
         i += 4;
 
         // tag
-        let gotTag = u64::from_be_bytes( buffer[i..i+8].try_into().unwrap() );
+        let got_tag = u64::from_be_bytes( buffer[i..i+8].try_into().unwrap() );
         i += 8;
 
         // Msg type 
@@ -167,7 +162,7 @@ impl StcpMessageHeader {
             Public = 2,        // Public key
             Aes = 3,
         */
-        let gotType = match buffer[i] {
+        let got_type = match buffer[i] {
             // Mäppäys
             0 => StcpMsgType::Error,
             1 => StcpMsgType::Unknown,
@@ -181,14 +176,13 @@ impl StcpMessageHeader {
 
         // msg len
         // tag
-        let gotLen = u32::from_be_bytes( buffer[i..i+4].try_into().unwrap() );
-        i += 4;
-
+        let got_lenght = u32::from_be_bytes( buffer[i..i+4].try_into().unwrap() );
+        
         StcpMessageHeader {
-            version: gotVersion,
-            tag: gotTag,
-            msg_type: gotType,
-            msg_len: gotLen,
+            version: got_version,
+            tag: got_tag,
+            msg_type: got_type,
+            msg_len: got_lenght,
         }
     }
 
@@ -212,15 +206,15 @@ pub struct ProtoSession {
 
 impl ProtoSession {
 
-    pub fn new(pIs_server:bool, pTransport: *mut kernel_socket) -> Self {
+    pub fn new(p_server:bool, p_transport: *mut kernel_socket) -> Self {
         stcp_dbg!("ProtoSession/new: Start ...");
         let out = Self {
             private_key: StcpEcdhSecret::new(),
             shared_key:  StcpEcdhSecret::new(),
             public_key:  StcpEcdhPubKey::new(),
             status_raw: HandshakeStatus::Init.to_raw(),
-            is_server: pIs_server,
-            transport: pTransport,
+            is_server: p_server,
+            transport: p_transport,
         };
         stcp_dbg!("ProtoSession/new: end ...");
         out
@@ -277,22 +271,20 @@ pub struct StcpEcdhPubKey {
 impl StcpEcdhPubKey {
 
     pub fn new() -> Self {
-        unsafe {
-            stcp_dbg!("StcpEcdhPubKey/new_boxed: Start ...");
-            let mut xvec = Vec::with_capacity(STCP_ECDH_PUB_XY_LEN);
-                xvec.resize(STCP_ECDH_PUB_XY_LEN, 0);
+        stcp_dbg!("StcpEcdhPubKey/new_boxed: Start ...");
+        let mut xvec = Vec::with_capacity(STCP_ECDH_PUB_XY_LEN);
+            xvec.resize(STCP_ECDH_PUB_XY_LEN, 0);
 
-            let mut yvec = Vec::with_capacity(STCP_ECDH_PUB_XY_LEN);
-                yvec.resize(STCP_ECDH_PUB_XY_LEN, 0);
+        let mut yvec = Vec::with_capacity(STCP_ECDH_PUB_XY_LEN);
+            yvec.resize(STCP_ECDH_PUB_XY_LEN, 0);
 
-            let mut out = Self {
-                x: xvec[..STCP_ECDH_PUB_XY_LEN].try_into().unwrap(),
-                y: yvec[..STCP_ECDH_PUB_XY_LEN].try_into().unwrap(),
-            };
-            stcp_dbg!("StcpEcdhPubKey/new_boxed: End ...");
+        let out = Self {
+            x: xvec[..STCP_ECDH_PUB_XY_LEN].try_into().unwrap(),
+            y: yvec[..STCP_ECDH_PUB_XY_LEN].try_into().unwrap(),
+        };
+        stcp_dbg!("StcpEcdhPubKey/new_boxed: End ...");
 
-            out
-        }
+        out
     }
 
     pub fn to_bytes_be(&self) -> Vec<u8> {
@@ -310,21 +302,21 @@ impl StcpEcdhPubKey {
 
     pub fn from_bytes_be(buffer: &[u8]) -> StcpEcdhPubKey {
         stcp_dbg!("StcpEcdhPubKey/from_bytes_be: Start ...");
-        if (buffer.len() < STCP_ECDH_PUB_LEN) {
+        if buffer.len() < STCP_ECDH_PUB_LEN {
             stcp_dbg!("No enough data");   
             return StcpEcdhPubKey::new();
         }
 
-        let mut SEPK = StcpEcdhPubKey::new();
+        let mut sepk = StcpEcdhPubKey::new();
 
         // x & y
         for i in 0..STCP_ECDH_PUB_XY_LEN {
-            SEPK.x[i] = buffer[i];
-            SEPK.y[i] = buffer[STCP_ECDH_PUB_XY_LEN + i];
+            sepk.x[i] = buffer[i];
+            sepk.y[i] = buffer[STCP_ECDH_PUB_XY_LEN + i];
         }
         stcp_dbg!("StcpEcdhPubKey/from_bytes_be: End ...");
         
-        SEPK
+        sepk
     }
 
 }
@@ -340,18 +332,16 @@ pub struct StcpEcdhSecret {
 
 impl StcpEcdhSecret {
     pub fn new() -> Self {
-        unsafe {
-            stcp_dbg!("StcpEcdhSecret/new: Start ...");
-            let mut dvec = Vec::with_capacity(STCP_ECDH_PUB_XY_LEN);
-                    dvec.resize(STCP_ECDH_PUB_XY_LEN, 0);
+        stcp_dbg!("StcpEcdhSecret/new: Start ...");
+        let mut dvec = Vec::with_capacity(STCP_ECDH_PUB_XY_LEN);
+                dvec.resize(STCP_ECDH_PUB_XY_LEN, 0);
 
-            let out = Self {
-                data: dvec[..STCP_ECDH_PUB_XY_LEN].try_into().unwrap(),
-                len: 0,
-            };
-            stcp_dbg!("StcpEcdhSecret/new: End ...");
-            out
-        }
+        let out = Self {
+            data: dvec[..STCP_ECDH_PUB_XY_LEN].try_into().unwrap(),
+            len: 0,
+        };
+        stcp_dbg!("StcpEcdhSecret/new: End ...");
+        out
     }
 
     pub fn set_from_slice(&mut self, src: &[u8]) {
@@ -364,7 +354,7 @@ impl StcpEcdhSecret {
     pub fn from_bytes_be(buffer: &[u8]) -> StcpEcdhSecret {
         stcp_dbg!("StcpEcdhSecret/from_bytes_be: Start ...");
 
-        if (buffer.len() < STCP_ECDH_SHARED_LEN) {
+        if buffer.len() < STCP_ECDH_SHARED_LEN {
             stcp_dbg!("No enough data");   
             return StcpEcdhSecret::new();
         }

@@ -1,9 +1,5 @@
 #![allow(dead_code)]
 
-use core::ffi::c_int;
-use core::fmt::{self, Write as FmtWrite};
-use crate::debug::*;
-
 #[macro_export]
 macro_rules! stcp_tcp_op {
     ($op_name:expr, $call:expr) => {{

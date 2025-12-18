@@ -6,8 +6,6 @@ use crate::tcp_io;
 use crate::stcp_dbg;
 use crate::errorit::*;
 use alloc::vec::Vec;
-use alloc::vec;
-use core::mem::size_of;
 
 pub fn tcp_send_all(sock: *mut kernel_socket, data: &[u8]) -> isize {
 
@@ -17,7 +15,7 @@ pub fn tcp_send_all(sock: *mut kernel_socket, data: &[u8]) -> isize {
     let len = data.len();
 
     while total < len {
-        let mut ptr = unsafe { data.as_ptr().add(total) };
+        let ptr = unsafe { data.as_ptr().add(total) };
         let left = len - total;
 
         let n = unsafe { tcp_io::stcp_tcp_send(sock, ptr, left) };
@@ -44,7 +42,7 @@ pub fn tcp_recv_exact(sock: *mut kernel_socket, buf: &mut [u8], no_blocking: i32
     let len = buf.len();
 
     while total < len {
-        let mut ptr = unsafe { buf.as_mut_ptr().add(total) };
+        let ptr = unsafe { buf.as_mut_ptr().add(total) };
         let left = len - total;
 
         let mut recv_len: c_int = 0;
@@ -69,13 +67,13 @@ pub fn tcp_peek_max(sock: *mut kernel_socket, buf: &mut [u8], no_bloking: i32) -
 
   stcp_dbg!("TCP PEEK Sock Peeking traffic");   
 
-    let mut total = 0usize;
+    let total = 0usize;
     let len = buf.len();
     let flags: u32 = MSG_PEEK; // MSG_PEEK
 
     stcp_dbg!("TCP PEEK Sock Start to peek while");   
 
-    let mut ptr = unsafe { buf.as_mut_ptr().add(total) };
+    let ptr = unsafe { buf.as_mut_ptr().add(total) };
 
     let mut recv_len: c_int = 0;
     stcp_dbg!("TCP PEEK Sock Start to peek bytes max");   
@@ -101,7 +99,7 @@ pub fn tcp_recv_until_buffer_full(sock: *mut kernel_socket, buf: &mut [u8], no_b
     let max_len = buf.len();
 
     while total < max_len {
-        let mut ptr = unsafe { buf.as_mut_ptr().add(total) };
+        let ptr = unsafe { buf.as_mut_ptr().add(total) };
         let left = max_len - total;
 
         let mut recv_len: c_int = 0;
@@ -171,7 +169,7 @@ pub fn stcp_helper_get_ecdh_shared_key_new() -> Vec<u8> {
     unsafe {
         let keyp = stcp_misc_ecdh_shared_key_new();
         let keys = stcp_misc_ecdh_shared_key_size() as usize;
-        let mut rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
+        let rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
         rbuff
     }
 
@@ -181,7 +179,7 @@ pub fn stcp_helper_get_ecdh_public_key_new() -> Vec<u8> {
     unsafe {
         let keyp = stcp_misc_ecdh_public_key_new();
         let keys = stcp_misc_ecdh_public_key_size() as usize;
-        let mut rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
+        let rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
         rbuff
     }
 }
@@ -190,7 +188,7 @@ pub fn stcp_helper_get_ecdh_private_key_new() -> Vec<u8> {
     unsafe {
         let keyp = stcp_misc_ecdh_private_key_new();
         let keys = stcp_misc_ecdh_private_key_size() as usize;
-        let mut rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
+        let rbuff: Vec<u8> = stcp_helper_get_heap_alloc_from(keyp, keys);
         rbuff
     }
 }

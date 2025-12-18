@@ -1,8 +1,7 @@
 
 use core::ffi::c_void;
 use core::ffi::c_int;
-use core::slice;
-use crate::{stcp_dbg, stcp_dump, stcp_worker_dbg, stcp_sess_transp};
+use crate::{stcp_dbg, stcp_worker_dbg /* , stcp_dump, stcp_sess_transp */ };
 
 use crate::slice_helpers::{stcp_make_mut_slice, StcpError};
 use crate::session_handler::{rust_session_create, rust_session_destroy};
@@ -26,16 +25,16 @@ use crate::types::{
 
 use crate::errorit::*;
 
-use crate::helpers::{tcp_recv_once, tcp_send_all, get_session};
-use crate::abi::{stcp_end_of_life_for_sk};
+//use crate::helpers::{tcp_recv_once, tcp_send_all, get_session};
+//use crate::abi::{stcp_end_of_life_for_sk};
 use crate::abi::stcp_exported_rust_ctx_alive_count;
 
 // TCP helpperi makrot
-use crate::stcp_tcp_recv_once;
-use crate::stcp_tcp_send_all;
-use crate::stcp_tcp_recv_exact;
-use crate::stcp_tcp_peek_max;
-use crate::stcp_tcp_recv_until_buffer_full;
+//use crate::stcp_tcp_recv_once;
+//use crate::stcp_tcp_send_all;
+//use crate::stcp_tcp_recv_exact;
+//use crate::stcp_tcp_peek_max;
+//use crate::stcp_tcp_recv_until_buffer_full;
 
 pub const STCP_REASON_NEXT_STEP : i32 = 3;
 
@@ -52,7 +51,6 @@ pub extern "C" fn rust_exported_session_handshake_pump(sess: *mut ProtoSession, 
     return -EBADF;
   }
 
-  let sock = transport as *mut kernel_socket;
   let s = unsafe { &mut *sess };
 
   let server     = s.is_server;
@@ -63,9 +61,9 @@ pub extern "C" fn rust_exported_session_handshake_pump(sess: *mut ProtoSession, 
 
   if reason == STCP_REASON_NEXT_STEP {
     let now = status.to_raw();
-    let nxt = status.nextStep().unwrap();
+    let nxt = status.next_step().unwrap();
     s.set_status(nxt);
-    let mut retRWork = 0;
+    let rust_worker_return: i32;
 
 /*
     >0 = edistyi (state vaihtui / lähetti jotain / purki framia) → C saa schedulettaa heti uudestaan jos haluaa
@@ -74,13 +72,13 @@ pub extern "C" fn rust_exported_session_handshake_pump(sess: *mut ProtoSession, 
 */
     if server {
       stcp_dbg!("SERVER: Changing state from {} to {} ...", now, nxt.to_raw());
-      retRWork = rust_exported_data_server_ready_worker(sess_casted, transport_casted);
+      rust_worker_return = rust_exported_data_server_ready_worker(sess_casted, transport_casted);
     } else {
       stcp_dbg!("CLIENT: Changing state from {} to {} ...", now, nxt.to_raw());
-      retRWork = rust_exported_data_client_ready_worker(sess_casted, transport_casted);
+      rust_worker_return = rust_exported_data_client_ready_worker(sess_casted, transport_casted);
     }
 
-    return retRWork;
+    return rust_worker_return;
   }
 
   return 0; // ei edistystä, odottelee uutta herätettä
@@ -94,7 +92,7 @@ pub extern "C" fn rust_exported_session_handshake_done(sess_void_ptr: *mut c_voi
         return -EBADF;
     }
 
-    let mut sess = sess_void_ptr as *mut ProtoSession;
+    let sess = sess_void_ptr as *mut ProtoSession;
 
     rust_session_handshake_done(sess)
 }
@@ -118,7 +116,7 @@ pub extern "C" fn rust_exported_data_client_ready_worker(sess_void_ptr: *mut c_v
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
     let s: &mut ProtoSession = unsafe { &mut *sess };
 
-    let transport = unsafe { s.transport as *mut kernel_socket };
+    let transport = s.transport as *mut kernel_socket;
     
     stcp_dbg!("Worker Client Setting server false");   
     s.set_is_server(false);
@@ -129,10 +127,10 @@ pub extern "C" fn rust_exported_data_client_ready_worker(sess_void_ptr: *mut c_v
       return -EBADF;
     }
 
-    let isServer = s.get_is_server();
+    let is_server = s.get_is_server();
     let mut status = s.get_status();
-    let mut ret: c_int = 0;
-    stcp_worker_dbg!(sess, transport, "Is server: {}, Status: {:?}", isServer, status);
+    let ret: c_int;
+    stcp_worker_dbg!(sess, transport, "Is server: {}, Status: {:?}", is_server, status);
 
     stcp_worker_dbg!(sess, transport, "Client handshake, before status: {:?}", status as i32);
 
@@ -162,10 +160,10 @@ pub extern "C" fn rust_exported_data_server_ready_worker(sess_void_ptr: *mut c_v
     let transport = transport_void_ptr as *mut kernel_socket;
     s.set_is_server(true);
 
-    let isServer = s.get_is_server();
-    let mut status = s.get_status();
+    //let is_server = s.get_is_server();
+    let status: HandshakeStatus;
 
-    let mut ret: c_int = 0;
+    let ret: c_int;
 
     ret = rust_session_server_handshake(sess, transport);
     status = s.get_status();
@@ -215,7 +213,7 @@ pub extern "C" fn rust_exported_session_client_handshake(sess_void_ptr: *mut c_v
   // 2) Eksplisiittinen &mut-viite, EI generiikkaa
   let s: &mut ProtoSession = unsafe { &mut *sess };
 
-  let transport = unsafe { s.transport as *mut kernel_socket };
+  let transport = s.transport as *mut kernel_socket;
   if transport.is_null() {
     return -EBADF;
   }
@@ -244,7 +242,7 @@ pub extern "C" fn rust_exported_session_server_handshake(sess_void_ptr: *mut c_v
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
     let s: &mut ProtoSession = unsafe { &mut *sess };
 
-    let transport = unsafe { s.transport as *mut kernel_socket };
+    let transport = s.transport as *mut kernel_socket;
 
     // tämä on struct sock pointteri
     if transport.is_null() {
@@ -317,7 +315,7 @@ pub extern "C" fn rust_exported_session_recvmsg(
     transport_void_ptr: *mut c_void,
     buf_void_ptr: *mut c_void,
     len: usize,
-    no_blocking: i32,
+    _no_blocking: i32,
 ) -> isize {
     // 1) Rust-kontekstin elossaolo (ilman logeja)
     let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
@@ -337,9 +335,9 @@ pub extern "C" fn rust_exported_session_recvmsg(
     let sess = sess_void_ptr as *mut ProtoSession;
 
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
-    let mut s: &mut ProtoSession = unsafe { &mut *sess };
+    let s: &mut ProtoSession = unsafe { &mut *sess };
   
-    let sk = transport_void_ptr as *mut kernel_socket;
+    //let sk = transport_void_ptr as *mut kernel_socket;
 
     // 4) Castataan userlandin puskuri [u8]-sliceksi
     let cast_buffer = buf_void_ptr as *mut u8;
@@ -353,19 +351,19 @@ pub extern "C" fn rust_exported_session_recvmsg(
         }
     };
 
-    let (theHeader, thePayload, thePayloadSize) = stcp_message_frame_from_raw(buffer);
+    let (_the_header, the_payload, _the_payload_size) = stcp_message_frame_from_raw(buffer);
   
     if s.in_aes_mode() {
       stcp_dbg!("In AES mode...");
-      let n = core::cmp::min(thePayload.len(), buffer.len());
-      buffer[..n].copy_from_slice(&thePayload[..n]);
+      let n = core::cmp::min(the_payload.len(), buffer.len());
+      buffer[..n].copy_from_slice(&the_payload[..n]);
       stcp_dbg!("returning {} bytes", n);
 
       n as isize
     } else {
       stcp_dbg!("Not in AES mode.");
-      let n = core::cmp::min(thePayload.len(), buffer.len());
-      buffer[..n].copy_from_slice(&thePayload[..n]);
+      let n = core::cmp::min(the_payload.len(), buffer.len());
+      buffer[..n].copy_from_slice(&the_payload[..n]);
       stcp_dbg!("returning {} bytes", n);
 
       n as isize
@@ -393,7 +391,7 @@ pub extern "C" fn rust_exported_session_destroy(sess_void_ptr: *mut c_void) -> i
     let sess = sess_void_ptr as *mut ProtoSession;
 
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
-    let s: &mut ProtoSession = unsafe { &mut *sess };
+    //let s: &mut ProtoSession = unsafe { &mut *sess };
 
     rust_session_destroy(sess);
 

@@ -2,12 +2,10 @@
 use crate::types::{
         ProtoSession,
         StcpEcdhPubKey,
-        StcpEcdhSecret,
         STCP_ECDH_PUB_LEN,
     };
 
 use crate::abi;
-use alloc::boxed::Box;
 
 pub struct Crypto;
 use crate::stcp_dbg;
@@ -21,16 +19,16 @@ impl Crypto {
       stcp_dbg!("Lenghts set 0");   
 
       stcp_dbg!("Calling C keypair creation");   
-      let mut ret: i32 = -22; // EINVAL
+      let ret: i32; // EINVAL
 
-      let mut pPubKey = &mut sess.public_key;
-      let mut pPrivKey = &mut sess.private_key;
+      let the_public_key = &mut sess.public_key;
+      let the_private_key = &mut sess.private_key;
 
       unsafe {
 
         ret = abi::stcp_crypto_generate_keypair(
-          pPubKey,    // *mut StcpEcdhPubKey
-          pPrivKey,   // *mut StcpEcdhSecret
+          the_public_key,    // *mut StcpEcdhPubKey
+          the_private_key,   // *mut StcpEcdhSecret
         );
 
         stcp_dbg!("Called C keypair creation, ret {}", ret);   
@@ -53,7 +51,7 @@ impl Crypto {
         stcp_dbg!("Peer key prepared");   
 
         stcp_dbg!("Calling C shared key calc...");   
-        let mut ret: i32 = -22; // EINVAL
+        let ret: i32; // EINVAL
         unsafe {
             ret = abi::stcp_crypto_compute_shared(
                 &sess.private_key,   // *const StcpEcdhSecret

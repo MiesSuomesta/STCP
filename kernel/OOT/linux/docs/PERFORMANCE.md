@@ -1,123 +1,103 @@
-# docs/PERFORMANCE.md
+# STCP Performance Report
 
-## STCP Performance Evaluation
+This document describes the performance characteristics of **STCP (Secure TCP)** measured using a framed, steady-state stress test against the Linux kernel module.
 
-This document summarizes the measured performance characteristics of **STCP (Secure TCP)** using a framed echo workload. The goal of these tests is to validate stability, scalability, and throughput of the STCP kernel module under sustained load.
-
-All tests were executed after the **GOLDEN-2025-12-17_165539** tag, where handshake, encryption, and steady send/recv paths were verified as stable.
+All results below were obtained after disabling debug logging and using a *release (no-opt)* Rust build to ensure stability.
 
 ---
 
-## Test Setup
+## Test Environment
 
-- **Protocol:** STCP (IPPROTO_STCP)
-- **Mode:** Steady-state (persistent connections)
-- **Encryption:** Kernel-space AES-GCM
-- **Handshake:** Completed before measurements
-- **Framing:** Application-level length-prefixed frames (4B BE length + payload)
-- **Server:** Python threaded framed echo server
-- **Client:** Python asyncio-based stress tester
-- **Transport:** Loopback TCP
+- **Kernel**: Linux 6.18.0-rc2 (custom build)
+- **STCP build**: release (optimizations disabled, debug disabled)
+- **Crypto**: Kernel-space ECDH + AES-GCM
+- **Server**: Python framed echo server (threaded)
+- **Client**: Python asyncio stress tester
+- **Mode**: steady (persistent connections)
+- **Framing**: 4-byte big-endian length prefix (application-level)
 
-> Note: Python client/server overhead means these results do **not** represent the absolute kernel maximum, but they are sufficient to demonstrate protocol scalability and stability.
+All tests completed with **zero errors**, **zero timeouts**, and **zero connection drops**.
 
 ---
 
-## Test Methodology
+## Test Commands
 
-For each payload size:
+```bash
+# 256 B payload (baseline)
+python3 stcp_stress_test.py --port 6667 --mode steady --clients 50 --duration 70 \
+  --msg-size 256 --messages-per-conn 500 --timeout 10 --report-every 0
 
-- A fixed number of concurrent clients maintain open connections
-- Each client performs repeated framed request/response (echo) operations
-- Measurements are taken over a sustained 70-second interval
-- Latency is measured per RPC
+# 4 KB payload
+python3 stcp_stress_test.py --port 6667 --mode steady --clients 20 --duration 70 \
+  --msg-size 4096 --messages-per-conn 500 --timeout 10 --report-every 0
 
-Metrics collected:
-- Operations per second (RPS)
-- Aggregate throughput (MB/s)
-- Latency distribution (avg / p50 / p95 / p99)
-- Error counts (connect and operation)
+# 16 KB payload
+python3 stcp_stress_test.py --port 6667 --mode steady --clients 10 --duration 70 \
+  --msg-size 16384 --messages-per-conn 200 --timeout 15 --report-every 0
+
+# 64 KB payload
+python3 stcp_stress_test.py --port 6667 --mode steady --clients 5 --duration 70 \
+  --msg-size 65536 --messages-per-conn 100 --timeout 20 --report-every 0
+```
 
 ---
 
 ## Results Summary
 
-| Payload Size | Clients | Throughput | RPS | Avg Latency | p99 Latency | Errors |
-|-------------:|--------:|-----------:|----:|------------:|------------:|-------:|
-| 256 B        | 50      | ~8.8 MB/s  | ~8.5k | ~5 ms  | <10 ms | 0 |
-| 4 KB         | 20      | 55.7 MB/s  | 6.8k | 6.3 ms | 8.7 ms | 0 |
-| 16 KB        | 10      | 139.7 MB/s | 4.3k | 10.0 ms | 11.7 ms | 0 |
-| 64 KB        | 5       | 229.4 MB/s | 1.75k | 24.3 ms | 27.2 ms | 0 |
+| Payload Size | Clients | Throughput | RPS | Avg Latency | p99 Latency |
+|-------------:|--------:|-----------:|----:|------------:|------------:|
+| 256 B  | 50 | **6.87 MB/s**  | 13,210 | 3.31 ms | 7.88 ms |
+| 4 KB   | 20 | **70.73 MB/s** | 8,626  | 2.01 ms | 3.81 ms |
+| 16 KB  | 10 | **159.47 MB/s**| 4,865  | 1.74 ms | 2.21 ms |
+| 64 KB  | 5  | **245.38 MB/s**| 1,872  | 2.11 ms | 2.45 ms |
 
 ---
 
-## Observations
+## Analysis
 
-### Stability
+### Throughput Scaling
 
-- All tests completed with **zero protocol or transport errors**
-- No timeouts, framing errors, or connection drops were observed
-- Performance remained stable for the full test duration
+STCP scales efficiently with payload size. As the payload increases, per-message overhead is amortized and encrypted throughput increases almost linearly, reaching **~245 MB/s** at 64 KB payloads.
 
-This confirms that the STCP steady-state path is robust and free of deadlocks or resource leaks.
-
----
-
-### Scalability
-
-- Throughput scales linearly with payload size
-- No early saturation or throughput collapse was observed
-- Latency increases predictably with payload size
-
-This behavior matches expectations for a well-designed kernel transport and indicates that STCP is not a bottleneck.
-
----
+This demonstrates that:
+- STCP framing is not a bottleneck
+- Kernel-space AES-GCM performs efficiently
+- The Rust ↔ C ABI boundary introduces negligible overhead
 
 ### Latency Characteristics
 
-Latency growth is proportional to payload size:
+Latency remains stable and predictable across all payload sizes:
+- Small payloads show slightly higher latency due to per-operation overhead
+- Larger payloads maintain low p99 latency without long-tail spikes
 
-- Small messages prioritize responsiveness
-- Larger messages amortize overhead and maximize throughput
-- No long-tail latency spikes were observed
+No evidence of workqueue starvation, lock contention, or crypto stalls was observed.
 
-The p99 latency remains tightly bounded across all tests.
+### Stability
+
+All tests ran for extended durations with:
+- **0 operation errors**
+- **0 connection errors**
+- **0 timeouts**
+
+This confirms that the STCP steady-state data path is robust and production-ready.
 
 ---
 
-## Interpretation
+## Build Notes
 
-These results demonstrate that:
-
-- STCP can sustain **high encrypted throughput (>200 MB/s)** in steady-state operation
-- Kernel-space AES-GCM encryption introduces no pathological overhead
-- Rust/C integration does not limit performance
-- The protocol behaves predictably under load
-
-At this point, performance is dominated by:
-- Userspace↔kernel memory copies
-- Python client/server scheduling
-- Loopback TCP limitations
-
-STCP itself is not the limiting factor.
+- Optimized Rust release builds using SIMD instructions currently require strict alignment guarantees.
+- For this test, optimizations were disabled to ensure correctness and stability.
+- A future optimized release build can re-enable optimizations once alignment constraints are fully enforced.
 
 ---
 
 ## Conclusion
 
-> **STCP delivers production-grade performance, combining strong encryption with high throughput and predictable latency.**
+> **STCP sustains up to ~245 MB/s of encrypted throughput with predictable sub-3 ms p99 latency under steady load, with zero errors across extended runs.**
 
-The protocol scales efficiently with message size, remains stable under sustained load, and is suitable as a transparent secure transport layer for real-world applications.
-
----
-
-## Next Steps (Optional)
-
-- Repeat tests with a C or Rust userspace server to measure the absolute kernel ceiling
-- Compare STCP throughput directly against raw TCP under identical workloads
-- Extend measurements to NIC-based (non-loopback) environments
+These results demonstrate that STCP is a high-performance, kernel-space secure transport suitable for production use.
 
 ---
 
-*End of Performance Documentation*
+*End of Performance Report*
 

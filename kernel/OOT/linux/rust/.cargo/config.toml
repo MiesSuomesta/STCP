@@ -27,7 +27,7 @@ rustflags = [
 ]
 
 [profile.release]
-opt-level = 0
+opt-level = 1
 lto = true
 codegen-units = 1
 panic = "abort"

@@ -122,7 +122,7 @@ pub fn stcp_message_unpack_public_key_from(data: &[u8]) -> (StcpMessageHeader, S
     let frameSizeFromHeader = msgHdr.msg_len;
     let frameSizeFromData = theFrame.len();
 
-    if (frameSizeFromData as usize != frameSizeFromHeader as usize) {
+    if frameSizeFromData as usize != frameSizeFromHeader as usize {
       stcp_dbg!("ERROR Frame size header vs actual differs");   
         msgHdr.msg_type = StcpMsgType::Error;
       stcp_dbg!("Marked as error");   
@@ -158,7 +158,7 @@ pub fn stcp_message_unpack_frame_from(data: &[u8]) -> (StcpMessageHeader, Vec<u8
     let headerSize = stcp_message_get_header_size_in_bytes();
     let dataLen = data.len();
 
-    if (dataLen < headerSize) {
+    if dataLen < headerSize {
       stcp_dbg!("Not a frame");   
         let tmp = stcp_message_create_header(StcpMsgType::Error, 0);
         return ( tmp , Vec::with_capacity(0));
@@ -219,7 +219,7 @@ pub fn stcp_message_frame_from_raw(framePayloadIn: &[u8]) ->
     stcp_dbg!("From raw: Got header");   
     stcp_message_debug_header(hdr);
  
-    if (hdr.tag != STCP_TAG_BYTES) {
+    if hdr.tag != STCP_TAG_BYTES {
         stcp_dbg!("RECV FRAME: Receive error No valid TAG found");   
         return (stcp_message_create_header(StcpMsgType::Unknown, 0), Vec::with_capacity(0), -EAGAIN as isize);
     }

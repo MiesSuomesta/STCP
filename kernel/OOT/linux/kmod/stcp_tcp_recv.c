@@ -17,6 +17,9 @@
 #include <stcp/stcp_tcp_low_level_operations.h>
 #include <stcp/proto_layer.h>
 #include <stcp/stcp_socket_struct.h>
+
+#define TCP_DEBUG 0
+
 // rv > 0, bytet
 // rv < 0, errori
 ssize_t stcp_tcp_recv(
@@ -95,9 +98,11 @@ ssize_t stcp_tcp_recv(
         SDBG("Sock[%px] Message copying to userland: %d bytes...", sk, (int)ret);
         *recv_len = (int)ret;
 
+#if TCP_DEBUG
         pr_emerg(".----<[MESSAGE]>------------------------------------------------------------>\n");
         pr_emerg("|  ✅ Received data %d bytes ", (int)ret);
         pr_emerg("'----------------------------------------------------------------------'\n");
+#endif
 
     } else {
         if (ret == 0) {

@@ -19,6 +19,8 @@
 #include <stcp/stcp_socket_struct.h>
 #include <stcp/proto_layer.h>
 
+#define TCP_DEBUG 0
+
 ssize_t stcp_tcp_send(struct sock *sk, u8 *buf, size_t len)
 {
     SDBG("SEND sk=%px state=%d", sk, sk && sk->sk_state);
@@ -48,9 +50,11 @@ ssize_t stcp_tcp_send(struct sock *sk, u8 *buf, size_t len)
     /* kernel_sendmsg, puskee suoraan TCP:lle */
     sent = orginal_tcp_sendmsg(sk, &msg, len);
 
+#if TCP_DEBUG
     pr_emerg(".----<[MESSAGE]>------------------------------------------------------------>\n");
     pr_emerg("|  ✅ Sent data: %d bytes ", (int)sent);
     pr_emerg("'----------------------------------------------------------------------'\n");
+#endif
 
     return sent;    // >=0: tavujen määrä, <0: -errno
 }

@@ -88,7 +88,7 @@ rust-clean:
 
 kmod-release modules: make-build-makefile rust-build
 
-	$(MAKE) -C "$(KDIR)" M="$(KMOD_SRC)" KBUILD_SRC="$(KMOD_SRC)" modules
+	$(MAKE) -C "$(KDIR)" M="$(KMOD_SRC)" CFLAGS_MODULE="-DDISABLE_DEBUG -DSTCP_RELEASE" KBUILD_SRC="$(KMOD_SRC)" modules
 
 kmod: make-build-makefile rust-build-debug
 

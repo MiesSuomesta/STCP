@@ -59,10 +59,10 @@ void stcp_exported_rust_sockets_alive_get(void)
     // dump_stack();
 #endif
     atomic_inc(&stcp_sockets_alive);
-    pr_info("stcp: rust context get: Alive is now %u", 
+    SDBG("stcp: rust context get: Alive is now %u", 
         (u32)atomic_read(&stcp_sockets_alive));
 #else
-    pr_info("stcp: lifespan disabled"); 
+    SDBG("stcp: lifespan disabled"); 
 #endif
 }
 
@@ -80,10 +80,10 @@ void stcp_exported_rust_sockets_alive_put(void)
     } else {
         pr_err("stcp: rust context put: undeflow, not decrementing!");
     }
-    pr_info("stcp: rust context put: Alive is now %u",
+    SDBG("stcp: rust context put: Alive is now %u",
             (u32)atomic_read(&stcp_sockets_alive));
 #else
-    pr_info("stcp: lifespan disabled"); 
+    SDBG("stcp: lifespan disabled"); 
 #endif
 }
 
@@ -92,10 +92,10 @@ int stcp_exported_rust_ctx_alive_count(void)
 #if GOT_LIFE_SPAN_CHECKS
     unsigned int ret = (u32)atomic_read(&stcp_sockets_alive);
 
-    pr_info("stcp: Alive Rust contexts now: %u", ret);
+    SDBG("stcp: Alive Rust contexts now: %u", ret);
     return ret;
 #else
-    pr_info("stcp: lifespan disabled"); 
+    SDBG("stcp: lifespan disabled"); 
     return 0;
 #endif
 }

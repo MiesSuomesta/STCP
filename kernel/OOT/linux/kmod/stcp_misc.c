@@ -65,7 +65,9 @@ void stcp_misc_force_tcp_protocol(struct sock *sk, const char *where)
 #if ENABLE_PROTO_FORCING
     if (!sk) return;
     if (sk->sk_protocol != IPPROTO_TCP) {
+#ifndef STCP_RELEASE
         int old = sk->sk_protocol;
+#endif
         sk->sk_protocol = IPPROTO_TCP;
         SDBG("%s: forced sk_protocol %d -> %d", where, old, sk->sk_protocol);
     }
@@ -92,13 +94,16 @@ int is_handshake_in_progress(struct sock *sk) {
         return -EINVAL;
     }
 
-    int isPending  = (st->status & STCP_STATUS_HANDSHAKE_PENDING)  >  0;
     int isStarted  = (st->status & STCP_STATUS_HANDSHAKE_STARTED)  >  0;
     int isComplete = (st->status & STCP_STATUS_HANDSHAKE_COMPLETE) >  0;
+
+#ifndef STCP_RELEASE
+    int isPending  = (st->status & STCP_STATUS_HANDSHAKE_PENDING)  >  0;
     int isFailed   = (st->status & STCP_STATUS_HANDSHAKE_FAILED)   >  0;
 
     SDBG("HS/in progress: Pending: %d, Started: %d, Completed: %d, Failed: %d",
         isPending, isStarted, isComplete, isFailed);
+#endif
 
     if (isStarted) {
         if (!isComplete) {

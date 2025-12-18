@@ -47,11 +47,15 @@ MODULE_INFO(company, "Paxsudos IT");
 MODULE_INFO(product, "STCP Module for linux");
 MODULE_INFO(support, "info@paxsudos.fi");
 
+#define SHOW_BUILD_CONFIG 0
+
 static void stcp_kernel_banner(void)
 {
     pr_emerg(".----<[STCP by Paxsudos IT]>------------------------------------------------------------>\n");
     pr_emerg("|  ✅ STCP Initialised (Version %s), Protocol number %d\n", STCP_VERSION, IPPROTO_STCP);
     pr_emerg("|  🕓 Build at %s (%s)\n", STCP_BUILD_DATE, STCP_GIT_SHA);
+
+#if SHOW_BUILD_CONFIG
     pr_emerg("|     Config: ");
     pr_emerg("|        USE_OWN_SEND_MSG   : %s", onoff(USE_OWN_SEND_MSG));
     pr_emerg("|        USE_OWN_RECV_MSG   : %s", onoff(USE_OWN_RECV_MSG));
@@ -66,6 +70,8 @@ static void stcp_kernel_banner(void)
     pr_emerg("|        USE_OWN_ACCEPT     : %s", onoff(USE_OWN_ACCEPT));
     pr_emerg("|        USE_OWN_CONNECT    : %s", onoff(USE_OWN_CONNECT));
     pr_emerg("|        USE_OWN_RELEASE    : %s", onoff(USE_OWN_RELEASE));
+#endif
+
     pr_emerg("'----------------------------------------------------------------------'\n");
 }
 
@@ -92,7 +98,7 @@ void          (*orginal_tcp_destroy) (struct sock *sk);
 
 #ifndef STCP_LOG
 #define STCP_LOG(fmt, ...) \
-    pr_info("stcp[proto]: " fmt "\n", ##__VA_ARGS__)
+    SDBG("stcp[proto]: " fmt "\n", ##__VA_ARGS__)
 #endif
 
 
@@ -171,7 +177,7 @@ static int __init stcp_init(void)
 {
     int ret;
 
-    pr_info("stcp_c: module_init\n");
+    SDBG("stcp_c: module_init\n");
     
     ret = stcp_proto_register();
     if (ret) {
@@ -180,7 +186,7 @@ static int __init stcp_init(void)
         return ret;
     }
 
-    pr_info("stcp: calling module_rust_enter\n");
+    SDBG("stcp: calling module_rust_enter\n");
     stcp_module_rust_enter();
     set_rust_init_done(1);
 
@@ -192,7 +198,7 @@ static void __exit stcp_exit(void)
 {
     u32 live;
 
-    pr_info("stcp_c: module_exit -> unregister protosw\n");
+    SDBG("stcp_c: module_exit -> unregister protosw\n");
     stcp_proto_unregister();   // estää uudet socketit
 
     live = stcp_exported_rust_ctx_alive_count();

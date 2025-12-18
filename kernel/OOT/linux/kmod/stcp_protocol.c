@@ -64,13 +64,16 @@ void stcp_state_change(struct sock *sk)
 
     if (!st) return;
 
-    int pending = (st->status & STCP_STATUS_HANDSHAKE_PENDING) > 0;
     int started = (st->status & STCP_STATUS_HANDSHAKE_STARTED) > 0;
-    int tcp_ok = sk->sk_state == TCP_ESTABLISHED;
     int server = st->is_server;
+
+#ifndef STCP_RELEASE
+    int pending = (st->status & STCP_STATUS_HANDSHAKE_PENDING) > 0;
+    int tcp_ok = sk->sk_state == TCP_ESTABLISHED;
 
     SDBG("Sock[%px // %px] Status change to 0x%x // 0x%x .. Pending: %d Started: %d, TCP OK: %d, Server: %d", 
             sk, st, (unsigned int)sk->sk_state, (unsigned int)st->status, pending, started, tcp_ok, server);
+#endif
 
     if (!started) {
         SDBG("Sock[%px // %px] server: %d", sk, st, server);

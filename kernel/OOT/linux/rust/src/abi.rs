@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 #![allow(improper_ctypes)]
 
-use core::ffi::{c_void, c_char, c_int};
+use core::ffi::{c_void, c_int};
 use crate::types::{
         StcpEcdhPubKey,
         StcpEcdhSecret,

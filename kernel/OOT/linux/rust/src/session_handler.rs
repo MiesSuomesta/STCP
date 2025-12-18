@@ -4,12 +4,6 @@
 use crate::types::{
   //    ProtoOps,
         ProtoSession,
-        HandshakeStatus,
-        StcpEcdhPubKey,
-        StcpEcdhSecret,
-        STCP_ECDH_PRIV_LEN,
-        STCP_ECDH_PUB_XY_LEN,
-        STCP_ECDH_SHARED_LEN,
     };
     
 use crate::errorit::*;
@@ -20,8 +14,6 @@ use alloc::boxed::Box;
 //use crate::stcp_handshake::{client_handshake, server_handshake};
 //use crate::crypto::Crypto;
 
-use alloc::vec;
-use alloc::vec::Vec;
 
 use crate::types::{kernel_socket};
 use crate::stcp_dbg;

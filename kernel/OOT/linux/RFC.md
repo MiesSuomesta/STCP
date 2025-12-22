@@ -58,7 +58,7 @@ STCP is a TCP-like, connection-oriented transport protocol with the following ch
 - Encrypted payloads at the protocol level
 - No separate TLS session layered on top
 - Kernel-managed encryption and framing
-- Userspace sees plaintext only after successful authentication (depending on integration model)
+- Userspace sees plaintext only after successful authentication
 
 ---
 
@@ -66,17 +66,12 @@ STCP is a TCP-like, connection-oriented transport protocol with the following ch
 
 STCP performs a handshake at connection establishment:
 
-1. Exchange of public key material  
-2. Derivation of a shared secret  
-3. Transition to encrypted communication mode  
-4. Protocol consistency checks; failures are fatal  
-
-Handshake failures result in immediate connection teardown.
-
 ```
 INIT -> EXCHANGE_KEYS -> DERIVE_KEYS -> AES_MODE
    \-> FAIL (teardown)
 ```
+
+Handshake failures are fatal and result in immediate connection teardown.
 
 ---
 
@@ -90,78 +85,157 @@ All cryptographic operations are performed within the kernel module.
 
 ---
 
-## 7. Comparison With Existing Solutions
+## 7. Wire Format
+
+This section describes the on-the-wire framing used by STCP after the handshake has completed.
+The format is intentionally simple and explicit to ease kernel-level parsing and debugging.
+
+### 7.1 General Principles
+
+- All multi-byte integer fields are encoded in **big-endian** (network byte order).
+- There is **no plaintext data** after the handshake completes.
+- Each STCP record represents exactly one encrypted payload unit.
+- Record boundaries are explicit and length-prefixed.
+
+---
+
+### 7.2 STCP Record Layout (Encrypted Data)
+
+After the connection enters encrypted mode, all application data is transmitted as STCP records
+with the following structure:
+
+```
+0                   1                   2                   3
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Payload Length (64 bits)                   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                               |
+|                  Initialization Vector (IV)                   |
+|                          (fixed size)                          |
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                                                               |
+|                 Encrypted Payload (variable)                  |
+|                                                               |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+---
+
+### 7.3 Field Descriptions
+
+#### Payload Length (64 bits)
+
+- Unsigned 64-bit integer
+- Specifies the length of the encrypted payload in bytes
+- Does **not** include the length of the header or IV
+- Allows large payloads while remaining explicit
+
+#### Initialization Vector (IV)
+
+- Fixed-size per-record IV
+- Generated uniquely for each record
+- Used by the AEAD cipher (e.g., AES-GCM)
+- Transmitted in plaintext as part of the record header
+
+#### Encrypted Payload
+
+- Ciphertext produced by symmetric encryption
+- Authenticated using AEAD
+- Decryption failures are treated as fatal protocol errors
+
+---
+
+### 7.4 Authentication Tag
+
+- The authentication tag produced by the AEAD cipher is appended to the encrypted payload
+- Tag verification failure results in immediate connection teardown
+- No unauthenticated data is exposed to userspace
+
+---
+
+### 7.5 Handshake Message Framing
+
+Handshake messages are exchanged before encrypted mode is entered.
+These messages are protocol-internal and are **not** exposed to applications.
+
+Handshake messages are framed explicitly and processed only by the STCP state machine.
+The exact wire format of handshake messages is considered internal and subject to change
+while the protocol remains experimental.
+
+---
+
+### 7.6 Error Handling
+
+- Any framing, length, or authentication error is treated as a fatal protocol violation
+- There is no fallback to plaintext or partial recovery
+- Connections are closed immediately on error
+
+---
+
+## 8. Comparison With Existing Solutions
 
 ### TCP + TLS
-- Security layered on top of transport
+- Security layered above transport
 - Complex configuration and certificate management
 - Heavy user-space dependency
 
 ### QUIC
 - User-space protocol over UDP
-- Designed for Internet-scale web traffic
-- Requires congestion and reliability logic in user space
+- Designed for Internet-scale traffic
 
 ### STCP
-- Kernel-level transport with integrated cryptography
-- Minimal configuration surface
-- Intended for controlled or specialized environments
+- Kernel-level transport
+- Security integrated into protocol
+- Intended for controlled environments
 
 ---
 
-## 8. Use Cases
+## 9. Use Cases
 
 - Embedded and IoT systems
-- Industrial control or private networks
+- Industrial or private networks
 - Secure device-to-device communication
-- Kernel-space networking paths where user-space TLS is impractical
+- Kernel-space networking paths
 
 ---
 
-## 9. Non-Goals
+## 10. Non-Goals
 
-STCP does not aim to:
-- Replace TCP globally
-- Compete with TLS or QUIC for web traffic
-- Provide backward compatibility with existing TCP stacks
-- Act as an Internet-wide standard at this stage
+- Replacing TCP globally
+- Competing with TLS or QUIC for web traffic
+- Acting as an Internet-wide standard
 
 ---
 
-## 10. Security Considerations
+## 11. Security Considerations
 
-STCP has not undergone formal security review or cryptographic auditing. Security properties should be considered preliminary.
+STCP is experimental and has not undergone formal security review. Security claims should be considered preliminary.
 
 ---
 
-## 11. Current Status & Limitations
+## 12. Current Status & Limitations
 
-- Experimental Linux kernel module
+- Experimental kernel module
 - Not production-ready
-- APIs and protocol subject to change
-- Limited interoperability testing
+- Protocol and APIs subject to change
 
 ---
 
-## 12. Future Work
+## 13. Future Work
 
 - Formal protocol specification
-- Security review and threat model
-- Cryptographic agility
-- Embedded/RTOS implementations (e.g., Zephyr)
+- Security review
+- Embedded/RTOS implementations
 
 ---
 
-## 13. Discussion & Feedback Requested
+## 14. Discussion & Feedback Requested
 
-Feedback is requested on:
-- Motivation validity
-- Design trade-offs
-- Security assumptions
-- Kernel integration concerns
+Feedback is welcome on design trade-offs, wire format decisions, use cases, and kernel integration concerns.
 
 ---
 
-**Repository:** https://github.com/MiesSuomesta/STCP/new/main/kernel/OOT/linux
+**Repository:** https://github.com/MiesSuomesta/STCP/
 **Contact:** lja@lja.fi
-

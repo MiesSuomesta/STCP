@@ -226,7 +226,6 @@ STCP is experimental and has not undergone formal security review. Security clai
 ## 13. Future Work
 
 - Formal protocol specification
-- Security review
 - Embedded/RTOS implementations
 
 ---

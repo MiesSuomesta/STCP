@@ -87,3 +87,87 @@ All multi-byte fields in STCP are encoded in network byte order (big-endian).
 
 Each STCP record consists of the following components:
 
+```
+0                   1                   2                   3
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                    Payload Length (64-bit)                   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Initialization Vector (128-bit)       |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Encrypted Payload (variable)           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+---
+
+## 5. Cryptographic Handshake
+
+STCP uses an ephemeral Elliptic Curve Diffie-Hellman (ECDH) key exchange during
+connection establishment.
+
+### 5.1 Handshake Flow
+
+1. Client transmits its public key to the server.
+2. Server computes the shared secret and responds with its public key.
+3. Client computes the shared secret.
+4. Both endpoints transition to encrypted mode.
+
+After step 4, all subsequent communication MUST be encrypted.
+
+---
+
+## 6. State Machine
+
+The STCP connection state machine consists of the following states:
+
+- INIT
+- KEY_EXCHANGE
+- ENCRYPTED
+- ERROR
+- CLOSED
+
+Endpoints MUST NOT transmit application data outside the ENCRYPTED state.
+
+---
+
+## 7. Error Handling
+
+STCP implementations MUST immediately terminate the connection upon:
+
+- Invalid record formatting
+- Authentication failure
+- Decryption failure
+- Unexpected state transitions
+
+---
+
+## 8. Security Considerations
+
+STCP provides confidentiality and integrity for all transported data.
+Mandatory encryption prevents accidental plaintext exposure.
+
+Active MITM resistance depends on endpoint key authenticity, which is outside the
+scope of this document.
+
+---
+
+## 9. Deployment Considerations
+
+STCP may be implemented in kernel-space or user-space.
+Middleboxes that rely on transport-layer inspection may interfere with STCP connections.
+
+---
+
+## 10. IANA Considerations
+
+This document has no actions for IANA.
+
+---
+
+## 11. References
+
+RFC 2119 – Key words for use in RFCs to Indicate Requirement Levels  
+RFC 793 – Transmission Control Protocol  
+RFC 8446 – The Transport Layer Security (TLS) Protocol Version 1.3  
+RFC 9000 – QUIC: A UDP-Based Multiplexed and Secure Transport

@@ -17,7 +17,7 @@
 extern int           (*orginal_tcp_sendmsg)(struct sock *sk, struct msghdr *msg, size_t len);
 extern int           (*orginal_tcp_recvmsg)(struct sock *sk, struct msghdr *msg, size_t len, int flags, int *recv_len);
 extern int           (*orginal_tcp_listen) (struct socket *sk, int backlog);
-extern int           (*orginal_tcp_connect)(struct sock *sk, struct sockaddr *uaddr, int addr_len);
+extern int           (*orginal_tcp_connect)(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len);
 extern struct sock * (*orginal_tcp_accept) (struct sock *sk, struct proto_accept_arg *arg);
 extern int           (*orginal_tcp_bind)   (struct sock *sk, struct sockaddr *uaddr, int addr_len);
 extern void          (*orginal_tcp_destroy) (struct sock *sk);

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+(
+	mkdir kernel
+	cd kernel
+	echo "Setting up rust..."
+	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+	rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
+
+	echo "Setting up rust-for-linux @ $(pwd)"
+	git clone https://github.com/Rust-for-Linux/linux.git rfl-linux
+	paxnote "RUST" "Kernel clone done.."
+
+	sudo apt install build-essential
+	sudo apt install flex
+	sudo apt install bison gawk
+	sudo apt install bindgen debhelper-compat libdw-dev:native libelf-dev:native libssl-dev:native libssl-dev
+
+
+	(
+		cd rfl-linux
+		make LLVM=1 rustavailable 2>&1 | sed 's,^,Rust status: ,' || exit 1
+		echo "Configuring kernel...."
+		# Options to enable or fail
+
+		for opt in RUST RUST_KERNEL PRINTK_CALLER X86_VERBOSE_BOOTUP
+		do
+			scripts/config --enable $opt || echo "Configuration of $opt failed!"
+		done
+
+		scripts/config --set-str SYSTEM_TRUSTED_KEYS ""
+		scripts/config --set-str SYSTEM_REVOCATION_KEYS ""
+	)
+
+)

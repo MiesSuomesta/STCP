@@ -37,7 +37,7 @@ clean-build: rust-clean
 	@rm -rf build/
 	@echo "Build cleaned..."
 
-.PHONY: the-rust
+.PHONY: the-rust rust-build-debug target
 
 
 rust-build: make-build-makefile
@@ -45,16 +45,21 @@ RUST_TOOLCHAIN ?= +nightly
 
 RUST_TARGET_JSON := mun.json
 RUST_TARGET_DIR  := mun
-RUSTFLAGS_CFG    := 'build.rustflags=["-C","panic=abort","-C","relocation-model=static","-C","code-model=kernel","-C","embed-bitcode=no","-C","lto=no"]'
+RUSTFLAGS_CFG := 'build.rustflags=["-C","panic=abort","-C","relocation-model=static","-C","code-model=kernel","-C","embed-bitcode=no","-C","lto=no","-C","target-cpu=x86-64","-C","target-feature=-fma,-fma4,-avx,-avx2"]'
+
+CARGO_OPTS      := -Z build-std=core,alloc,compiler_builtins \
+                   -Z build-std-features=compiler-builtins-mem,no-asm
+
+# Orggis
+
+# RUSTFLAGS_CFG    := 'build.rustflags=["-C","panic=abort","-C","relocation-model=static","-C","code-model=kernel","-C","embed-bitcode=no","-C","lto=no"]'
 
 RUST_OPTS        := +nightly
 
 rust-build:
 	# 1) stcp-core
 	cd rust && \
-	  cargo $(RUST_OPTS) \
-	    -Z build-std=alloc,core,compiler_builtins \
-	    -Z build-std-features=compiler-builtins-mem \
+	  cargo $(RUST_OPTS) $(CARGO_OPTS) \
 	    build \
 	      --target $(RUST_TARGET_JSON) \
 	      --release \
@@ -68,9 +73,7 @@ rust-build:
 rust-build-debug:
 	# 1) stcp-core
 	cd rust && \
-	  cargo $(RUST_OPTS) \
-	    -Z build-std=alloc,core,compiler_builtins \
-	    -Z build-std-features=compiler-builtins-mem \
+	  cargo $(RUST_OPTS) $(CARGO_OPTS) \
 	    build \
 	      --features stcp_debug
 	      --target $(RUST_TARGET_JSON) \
@@ -92,7 +95,8 @@ kmod-release modules: make-build-makefile rust-build
 
 kmod: make-build-makefile rust-build-debug
 
-	$(MAKE) -C "$(KDIR)" M="$(KMOD_SRC)" KBUILD_SRC="$(KMOD_SRC)" modules
+	$(MAKE) -C "$(KDIR)" M="$(KMOD_SRC)" SKIP_STACK_VALIDATION=1 \
+		  CFLAGS_MODULE="-DDISABLE_DEBUG -DSTCP_RELEASE" KBUILD_SRC="$(KMOD_SRC)" modules
 
 all: rust-build kmod-release modinfo
 debug: rust-build kmod modinfo

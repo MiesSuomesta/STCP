@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use core::ffi::c_int;
-use core::fmt::{self};
+use core::fmt::{self, Write};
 
 unsafe extern "C" {
     fn stcp_rust_log(level: c_int, buf: *const u8, len: usize);
@@ -37,7 +37,7 @@ struct KernelLogBuf {
 #[cfg(feature="stcp_debug")]
 impl KernelLogBuf {
     fn new() -> Self {
-        let mut v = alloc::vec::Vec::with_capacity(STCP_LOG_BUF);
+        let v = alloc::vec::Vec::with_capacity(STCP_LOG_BUF);
         KernelLogBuf { buf: v }
     }
 
@@ -48,7 +48,7 @@ impl KernelLogBuf {
 }
 
 #[cfg(feature="stcp_debug")]
-impl FmtWrite for KernelLogBuf {
+impl Write for KernelLogBuf {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let bytes = s.as_bytes();
         let space_left = STCP_LOG_BUF.saturating_sub(self.buf.len());

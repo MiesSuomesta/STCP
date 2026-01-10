@@ -16,7 +16,7 @@ void                stcp_state_change(struct sock *sk);
 int                 stcp_init_sock(struct sock *sk);
 struct stcp_sock *  stcp_attach(struct sock *sk);
 void                stcp_state_change(struct sock *sk);
-int                 stcp_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len);
+int                 stcp_connect(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len);
 struct sock *       stcp_accept(struct sock *sk, struct proto_accept_arg *arg);
 
 int                 stcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len);
@@ -81,7 +81,7 @@ void stcp_state_change(struct sock *sk)
     }
 }
 
-int stcp_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int stcp_connect(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
     int ret;
     struct stcp_sock *st;

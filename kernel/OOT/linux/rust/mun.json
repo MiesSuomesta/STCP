@@ -27,7 +27,7 @@
   "requires-uwtable": false,
   "default-uwtable": false,
 
-  "features": "-mmx,+sse,+sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2",
+  "features": "-mmx,+sse,+sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2,-fma",
   "max-atomic-width": 64,
 
   "no-default-libraries": true,

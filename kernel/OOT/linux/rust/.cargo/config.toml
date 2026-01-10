@@ -24,6 +24,8 @@ rustflags = [
     "-Ctarget-feature=-sse4.2",
     "-Ctarget-feature=-avx",
     "-Ctarget-feature=-avx2",
+    "-Ctarget-feature=-fma",
+    "-Ctarget-feature=-fma4",
 ]
 
 [profile.release]
@@ -32,3 +34,5 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
+#[patch.crates-io]
+#compiler_builtins = { path = "vendor/compiler_builtins" }

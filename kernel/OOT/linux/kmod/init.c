@@ -91,7 +91,7 @@ inline void set_rust_init_done(int v) {
 
 int           (*orginal_tcp_sendmsg)(struct sock *sk, struct msghdr *msg, size_t len);
 int           (*orginal_tcp_recvmsg)(struct sock *sk, struct msghdr *msg, size_t len, int flags, int *recv_len);
-int           (*orginal_tcp_connect)(struct sock *sk, struct sockaddr *uaddr, int addr_len);
+int           (*orginal_tcp_connect)(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len);
 struct sock * (*orginal_tcp_accept) (struct sock *sk, struct proto_accept_arg *arg);
 int           (*orginal_tcp_bind)   (struct sock *sk, struct sockaddr *uaddr, int addr_len);
 void          (*orginal_tcp_destroy) (struct sock *sk);

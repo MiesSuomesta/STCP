@@ -36,6 +36,8 @@ pub const EPIPE:        i32 = 32;
 pub const EDOM:         i32 = 33;
 pub const ERANGE:       i32 = 34;
 
+pub const EMSGSIZE:     i32 = 90;
+pub const EPROTO:       i32 = 71;
 
 pub const ENOTCONN:     i32 = 107;
 pub const ECONNRESET:   i32 = 104;

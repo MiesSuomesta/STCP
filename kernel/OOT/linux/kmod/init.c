@@ -16,6 +16,7 @@
 #include <linux/inet.h>
 
 #include <stcp/lifespan.h>   // stcp_ctx_get/put/live_count jos sulla on tämä
+#include <stcp/stcp_misc.h>
 #include <stcp/proto_operations.h>
 #include <stcp/handshake_worker.h>
 #include <stcp/stcp_proto_ops.h>
@@ -47,7 +48,7 @@ MODULE_INFO(company, "Paxsudos IT");
 MODULE_INFO(product, "STCP Module for linux");
 MODULE_INFO(support, "info@paxsudos.fi");
 
-#define SHOW_BUILD_CONFIG 0
+#define SHOW_BUILD_CONFIG 1
 
 static void stcp_kernel_banner(void)
 {
@@ -55,21 +56,39 @@ static void stcp_kernel_banner(void)
     pr_emerg("|  ✅ STCP Initialised (Version %s), Protocol number %d\n", STCP_VERSION, IPPROTO_STCP);
     pr_emerg("|  🕓 Build at %s (%s)\n", STCP_BUILD_DATE, STCP_GIT_SHA);
 
+#if ENABLE_RATELIMIT_PRINTK
+    pr_emerg("|  ✅ STCP RateLimit ON\n");
+#else
+    pr_emerg("|  ✅ STCP RateLimit OFF\n");
+#endif
+
 #if SHOW_BUILD_CONFIG
     pr_emerg("|     Config: ");
-    pr_emerg("|        USE_OWN_SEND_MSG   : %s", onoff(USE_OWN_SEND_MSG));
-    pr_emerg("|        USE_OWN_RECV_MSG   : %s", onoff(USE_OWN_RECV_MSG));
-    pr_emerg("|        USE_OWN_DESTROY    : %s", onoff(USE_OWN_DESTROY));
-    pr_emerg("|        FORCE_TCP_PROTO    : %s", onoff(FORCE_TCP_PROTO));
-    pr_emerg("|        USE_OWN_PROT_OPTS  : %s", onoff(USE_OWN_PROT_OPTS));
-    pr_emerg("|        USE_OWN_SOCK_OPTS  : %s", onoff(USE_OWN_SOCK_OPTS));
+    pr_emerg("|        USE_OWN_SEND_MSG                : %s", onoff(USE_OWN_SEND_MSG));
+    pr_emerg("|        USE_OWN_RECV_MSG                : %s", onoff(USE_OWN_RECV_MSG));
+    pr_emerg("|        USE_OWN_DESTROY                 : %s", onoff(USE_OWN_DESTROY));
+    pr_emerg("|        FORCE_TCP_PROTO                 : %s", onoff(FORCE_TCP_PROTO));
+    pr_emerg("|        USE_OWN_PROT_OPTS               : %s", onoff(USE_OWN_PROT_OPTS));
+    pr_emerg("|        USE_OWN_SOCK_OPTS               : %s", onoff(USE_OWN_SOCK_OPTS));
     pr_emerg("|");
     pr_emerg("|     Callback config: ");
-    pr_emerg("|        USE_OWN_BIND       : %s", onoff(USE_OWN_BIND));
-    pr_emerg("|        USE_OWN_LISTEN     : %s", onoff(USE_OWN_LISTEN));
-    pr_emerg("|        USE_OWN_ACCEPT     : %s", onoff(USE_OWN_ACCEPT));
-    pr_emerg("|        USE_OWN_CONNECT    : %s", onoff(USE_OWN_CONNECT));
-    pr_emerg("|        USE_OWN_RELEASE    : %s", onoff(USE_OWN_RELEASE));
+    pr_emerg("|        USE_OWN_BIND                    : %s", onoff(USE_OWN_BIND));
+    pr_emerg("|        USE_OWN_LISTEN                  : %s", onoff(USE_OWN_LISTEN));
+    pr_emerg("|        USE_OWN_ACCEPT                  : %s", onoff(USE_OWN_ACCEPT));
+    pr_emerg("|        USE_OWN_CONNECT                 : %s", onoff(USE_OWN_CONNECT));
+    pr_emerg("|        USE_OWN_RELEASE                 : %s", onoff(USE_OWN_RELEASE));
+    pr_emerg("|");
+    pr_emerg("|     Timeout config: ");
+    pr_emerg("|        Wait for TCP Established        : %d ms", STCP_WAIT_FOR_TCP_ESTABLISHED_MSEC);
+    pr_emerg("|        Wait for HS Complete            : %d ms", STCP_WAIT_FOR_HANDSHAKE_TO_COMPLETE_MSEC);
+    pr_emerg("|");
+    pr_emerg("|     Misc config: ");
+    pr_emerg("|        MAX Pumps                       : %d", STCP_HANDSHAKE_STATUS_MAX_PUMPS);
+    pr_emerg("|        WANR ON Magic failure           : %s", onoff(WARN_ON_MAGIC_FAILURE));
+    pr_emerg("|        Wait for Connection Establish   : %s", onoff(STCP_WAIT_FOR_CONNECTION_ESTABLISHED_AT_IO));
+    pr_emerg("|        Socket IO: Bypass everything    : %s", onoff(STCP_SOCKET_BYPASS_ALL_IO));
+
+    
 #endif
 
     pr_emerg("'----------------------------------------------------------------------'\n");
@@ -108,7 +127,9 @@ void          (*orginal_tcp_destroy) (struct sock *sk);
  * “TCP wrapper” joka käyttää samaa protoa, mutta eri proto_opsia.
  */
 extern struct proto_ops stcp_stream_ops;
+#if USE_OWN_PROT_OPTS
 extern struct proto stcp_prot;
+#endif 
 
 struct inet_protosw stcp_inet_protosw = {
     .type     = SOCK_STREAM,
@@ -143,23 +164,36 @@ static int stcp_proto_register(void)
 
     // tämä on vaarallinen?
 
+    /* Rekisteröidään uusi protosw AF_INETiin (IPPROTO_STCP) */
+    STCP_LOG("Doing stcp setup for socket operations...");
+    stcp_socket_ops_setup(&stcp_stream_ops);
+
+#if USE_OWN_SOCK_OPTS
+    STCP_LOG("INIT: STCP socket ops: bind=%px listen=%px connect=%px accept=%px release=%px owner=%px\n",
+        stcp_stream_ops.bind, stcp_stream_ops.listen, stcp_stream_ops.connect,
+        stcp_stream_ops.accept, stcp_stream_ops.release, stcp_stream_ops.owner);
+#endif
+
+
     int reg = stcp_proto_setup();
     if (reg< 0) {
         STCP_LOG("Protocol setup failed! (%d)", reg);
         return reg;
     }
     
-    /* Rekisteröidään uusi protosw AF_INETiin (IPPROTO_STCP) */
     STCP_LOG("Registering stcp...");
     inet_register_protosw(&stcp_inet_protosw);
+
 
     STCP_LOG("INIT: STCP Registered: protosw prot=%px ops=%px proto=%d\n",
         stcp_inet_protosw.prot, stcp_inet_protosw.ops, stcp_inet_protosw.protocol);
 
+#if USE_OWN_PROT_OPTS
     STCP_LOG("INIT: stcp_prot=%px name=%s owner=%px sendmsg=%px recvmsg=%px\n",
         &stcp_prot, stcp_prot.name, stcp_prot.owner,
         stcp_prot.sendmsg, stcp_prot.recvmsg);
-
+#endif
+        
     STCP_LOG("stcp_proto_register: registered AF_INET, proto=%d (IPPROTO_STCP)",
              IPPROTO_STCP);
     return 0;

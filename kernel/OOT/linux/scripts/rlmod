@@ -1,24 +1,19 @@
 #!/bin/bash
 MOD=stcp_rust
 
-echo "Waiting for module '$MOD' refcount to drop to zero..."
+msg() {
+	echo "[$(date)] $*" | sudo tee /dev/kmsg 
+	pncnote "$(hostname) module reload" "$*"
+}
 
-while true; do
-    line=$(lsmod | awk -v m="$MOD" '$1==m {print $3}')
-    if [ -z "$line" ]; then
-        echo "Module not loaded anymore."
-        break
-    fi
-
-    if [ "$line" -eq 0 ]; then
-        echo "Refcount is zero, reloading module..."
-        break
-    fi
-
-    echo "Module still in use ($line), waiting 5 seconds..."
-    sleep 5
-done
-
-echo "Reloading module..."
+msg "Reloading STCP module..."
 rmmod "$MOD"
 insmod ./kmod/stcp_rust.ko
+msg "Reloaded STCP module..."
+
+#msg "Rearmign netconsole..."
+#DN=$(dirname "$0")
+#sudo bash "$DN/enable-netconsole.sh"
+
+#msg "Rearmed netconsole..."
+

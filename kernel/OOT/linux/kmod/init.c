@@ -25,15 +25,15 @@
 #include <stcp/tcp_callbacks.h>
 
 #ifndef STCP_BUILD_DATE
-#define STCP_BUILD_DATE "unknown"
+#define STCP_BUILD_DATE "nodate"
 #endif
 
 #ifndef STCP_GIT_SHA
-#define STCP_GIT_SHA "unknown"
+#define STCP_GIT_SHA "nogit"
 #endif
 
 #ifndef STCP_VERSION
-#define STCP_VERSION "0.0.1-beta"
+#define STCP_VERSION "0.0.1"
 #endif 
 
 
@@ -41,14 +41,14 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lauri Jakku / Paxsudos IT <lauri.jakku@paxsudos.fi>");
 MODULE_DESCRIPTION("STCP: SecureTCP, drop in replacement for TCP socket");
 
-MODULE_VERSION(STCP_VERSION "-" STCP_GIT_SHA "-" STCP_BUILD_DATE);
+MODULE_VERSION(STCP_VERSION "+" STCP_GIT_SHA "." STCP_BUILD_DATE);
 MODULE_ALIAS_NETPROTO(IPPROTO_STCP);
 MODULE_SOFTDEP("pre: tcp ecdh");
 MODULE_INFO(company, "Paxsudos IT");
 MODULE_INFO(product, "STCP Module for linux");
 MODULE_INFO(support, "info@paxsudos.fi");
 
-#define SHOW_BUILD_CONFIG 1
+#define SHOW_BUILD_CONFIG 0
 
 static void stcp_kernel_banner(void)
 {
@@ -56,10 +56,12 @@ static void stcp_kernel_banner(void)
     pr_emerg("|  ✅ STCP Initialised (Version %s), Protocol number %d\n", STCP_VERSION, IPPROTO_STCP);
     pr_emerg("|  🕓 Build at %s (%s)\n", STCP_BUILD_DATE, STCP_GIT_SHA);
 
-#if ENABLE_RATELIMIT_PRINTK
+#if SHOW_BUILD_CONFIG
+#  if ENABLE_RATELIMIT_PRINTK
     pr_emerg("|  ✅ STCP RateLimit ON\n");
-#else
+#  else
     pr_emerg("|  ✅ STCP RateLimit OFF\n");
+#  endif
 #endif
 
 #if SHOW_BUILD_CONFIG

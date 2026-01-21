@@ -28,7 +28,7 @@
 
 
 
-int stcp_queue_work_for_stcp_hanshake(struct stcp_sock *st, unsigned int delayMS, int reason);
+int stcp_rust_queue_work_for_stcp_hanshake(struct stcp_sock *st, unsigned int delayMS, int reason);
 int stcp_work_queue_init(void);
 void stcp_handshake_worker(struct work_struct *work);
 int destroy_the_work_queue(struct stcp_sock *st);

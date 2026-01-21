@@ -1,241 +1,248 @@
 #!/usr/bin/env python3
-import argparse
 import asyncio
-import os
-import signal
-import statistics
-import struct
-import sys
+import argparse
+import socket
 import time
-from dataclasses import dataclass, field
-from typing import List, Optional
+import json
+import errno
+import struct
+from dataclasses import dataclass
+from typing import Optional
 
-def now_ns() -> int:
-    return time.perf_counter_ns()
+IPPROTO_STCP = 253
+MAX_FRAME = 32 * 1024 * 1024
 
-def fmt_num(n: float) -> str:
-    if n >= 1e9:  return f"{n/1e9:.2f}G"
-    if n >= 1e6:  return f"{n/1e6:.2f}M"
-    if n >= 1e3:  return f"{n/1e3:.2f}k"
-    return f"{n:.0f}"
-
-def percentile(values: List[float], p: float) -> float:
-    if not values:
-        return float("nan")
-    vs = sorted(values)
-    k = (len(vs) - 1) * p
-    f = int(k)
-    c = min(f + 1, len(vs) - 1)
-    if f == c:
-        return vs[f]
-    return vs[f] + (vs[c] - vs[f]) * (k - f)
 
 @dataclass
 class Stats:
     connects: int = 0
+    sends: int = 0
+    recvs: int = 0
+    errors: int = 0
     connect_errors: int = 0
-    ops: int = 0
-    op_errors: int = 0
-    bytes_sent: int = 0
-    bytes_recv: int = 0
-    lat_ms: List[float] = field(default_factory=list)
-    first_error: Optional[str] = None
+    send_errors: int = 0
+    recv_errors: int = 0
+    last_error: Optional[str] = None
 
-    def note_error(self, msg: str, connect: bool = False) -> None:
-        if self.first_error is None:
-            self.first_error = msg
+    def note_error(self, msg: str, connect=False, send=False, recv=False):
+        self.errors += 1
+        self.last_error = msg
         if connect:
             self.connect_errors += 1
-        else:
-            self.op_errors += 1
+        if send:
+            self.send_errors += 1
+        if recv:
+            self.recv_errors += 1
 
-def summarize(stats: Stats, started_ns: int) -> str:
-    dur_s = (now_ns() - started_ns) / 1e9
-    rps = stats.ops / dur_s if dur_s > 0 else 0.0
-    bps = (stats.bytes_sent + stats.bytes_recv) / dur_s if dur_s > 0 else 0.0
 
-    lat = stats.lat_ms
-    lat_avg = statistics.mean(lat) if lat else float("nan")
-    p50 = percentile(lat, 0.50) if lat else float("nan")
-    p95 = percentile(lat, 0.95) if lat else float("nan")
-    p99 = percentile(lat, 0.99) if lat else float("nan")
+def normalize_ipv4(host: str) -> str:
+    socket.inet_aton(host)
+    return host
 
-    return (
-        f"duration={dur_s:.2f}s  "
-        f"connects={stats.connects}  connect_err={stats.connect_errors}  "
-        f"ops={stats.ops}  op_err={stats.op_errors}  "
-        f"rps={rps:.1f}  throughput={fmt_num(bps)}/s  "
-        f"lat_ms(avg/p50/p95/p99)={lat_avg:.3f}/{p50:.3f}/{p95:.3f}/{p99:.3f}"
-    )
 
-async def read_exact(reader: asyncio.StreamReader, n: int, timeout: float) -> bytes:
-    buf = b""
+def make_sock(proto: int) -> socket.socket:
+    if proto == IPPROTO_STCP:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, IPPROTO_STCP)
+    else:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setblocking(False)
+    return s
+
+
+async def sock_connect_no_gai(sock: socket.socket, addr, timeout: float) -> None:
+    loop = asyncio.get_running_loop()
+
+    err = sock.connect_ex(addr)
+    if err == 0:
+        return
+    if err not in (errno.EINPROGRESS, errno.EALREADY, errno.EWOULDBLOCK):
+        raise OSError(err, errno.errorcode.get(err, "connect_ex"))
+
+    fut = loop.create_future()
+
+    def writable():
+        try:
+            e = sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+            if e == 0:
+                if not fut.done():
+                    fut.set_result(None)
+            else:
+                if not fut.done():
+                    fut.set_exception(OSError(e, errno.errorcode.get(e, "SO_ERROR")))
+        finally:
+            loop.remove_writer(sock.fileno())
+
+    loop.add_writer(sock.fileno(), writable)
+    try:
+        await asyncio.wait_for(fut, timeout)
+    finally:
+        loop.remove_writer(sock.fileno())
+
+
+async def sock_recv_exact(loop: asyncio.AbstractEventLoop, sock: socket.socket, n: int, timeout: float) -> bytes:
+    buf = bytearray()
     while len(buf) < n:
-        chunk = await asyncio.wait_for(reader.read(n - len(buf)), timeout=timeout)
+        chunk = await asyncio.wait_for(loop.sock_recv(sock, n - len(buf)), timeout)
         if not chunk:
-            raise ConnectionError("EOF")
+            raise ConnectionError("peer closed")
         buf += chunk
-    return buf
+    return bytes(buf)
 
-async def rpc(writer: asyncio.StreamWriter, reader: asyncio.StreamReader, payload: bytes, timeout: float) -> bytes:
-    # App-level framing: 4B BE length + payload
-    writer.write(struct.pack("!I", len(payload)) + payload)
-    await asyncio.wait_for(writer.drain(), timeout=timeout)
-    hdr = await read_exact(reader, 4, timeout)
+
+async def open_sock_connected(host, port, proto, timeout):
+    ip = normalize_ipv4(host)
+    sock = make_sock(proto)
+    await sock_connect_no_gai(sock, (ip, port), timeout)
+    return sock
+
+
+def frame_payload(payload: bytes) -> bytes:
+    ln = len(payload)
+    if ln > MAX_FRAME:
+        raise ValueError(f"payload too big: {ln}")
+    return struct.pack("!I", ln) + payload
+
+
+async def recv_frame(loop: asyncio.AbstractEventLoop, sock: socket.socket, timeout: float) -> bytes:
+    hdr = await sock_recv_exact(loop, sock, 4, timeout)
     (ln,) = struct.unpack("!I", hdr)
-    if ln > 32 * 1024 * 1024:
-        raise ValueError(f"response too big: {ln}")
-    return await read_exact(reader, ln, timeout)
+    if ln > MAX_FRAME:
+        raise ValueError(f"frame too big: {ln}")
+    data = await sock_recv_exact(loop, sock, ln, timeout)
+    return data
 
-async def churn_worker(wid: int, host: str, port: int, duration_s: float,
-                       msg_size: int, timeout: float, stats: Stats,
-                       stop_event: asyncio.Event) -> None:
-    end_t = time.monotonic() + duration_s
-    while time.monotonic() < end_t and not stop_event.is_set():
+
+async def steady_worker(wid, host, port, proto, payload, timeout, framed: bool, stats: Stats):
+    loop = asyncio.get_running_loop()
+    try:
+        stats.connects += 1
+        sock = await open_sock_connected(host, port, proto, timeout)
+    except Exception as e:
+        stats.note_error(f"[steady {wid}] connect failed: {e!r}", connect=True)
+        print(f"[STEADY CONNECT FAIL] {e!r}", flush=True)
+        return
+
+    try:
+        if framed:
+            out = frame_payload(payload)
+            while True:
+                stats.sends += 1
+                await asyncio.wait_for(loop.sock_sendall(sock, out), timeout)
+                _ = await recv_frame(loop, sock, timeout)
+                stats.recvs += 1
+        else:
+            while True:
+                stats.sends += 1
+                await asyncio.wait_for(loop.sock_sendall(sock, payload), timeout)
+                await sock_recv_exact(loop, sock, len(payload), timeout)
+                stats.recvs += 1
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        stats.note_error(f"[steady {wid}] io failed: {e!r}", send=True, recv=True)
+        print(f"[STEADY IO FAIL] {e!r}", flush=True)
+    finally:
+        sock.close()
+
+
+async def churn_worker(wid, host, port, proto, payload, timeout, messages_per_conn, framed: bool, stats: Stats):
+    loop = asyncio.get_running_loop()
+    out = frame_payload(payload) if framed else payload
+
+    while True:
         try:
             stats.connects += 1
-            reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=timeout)
+            sock = await open_sock_connected(host, port, proto, timeout)
         except Exception as e:
-            stats.note_error(f"[worker {wid}] connect failed: {e!r}", connect=True)
+            stats.note_error(f"[churn {wid}] connect failed: {e!r}", connect=True)
+            print(f"[CHURN CONNECT FAIL] {e!r}", flush=True)
+            await asyncio.sleep(0.01)
             continue
 
         try:
-            payload = os.urandom(msg_size)
-            t0 = now_ns()
-            resp = await rpc(writer, reader, payload, timeout)
-            dt_ms = (now_ns() - t0) / 1e6
-
-            stats.bytes_sent += (4 + len(payload))
-            stats.bytes_recv += (4 + len(resp))
-            stats.lat_ms.append(dt_ms)
-            stats.ops += 1
-
-            if resp != payload:
-                raise AssertionError(f"echo verify failed: resp_len={len(resp)}")
-
-        except Exception as e:
-            stats.note_error(f"[worker {wid}] op failed: {e!r}", connect=False)
-        finally:
-            try:
-                writer.close()
-                await writer.wait_closed()
-            except Exception:
-                pass
-
-async def steady_worker(wid: int, host: str, port: int, duration_s: float,
-                        msg_size: int, messages_per_conn: int, timeout: float,
-                        stats: Stats, stop_event: asyncio.Event) -> None:
-    try:
-        stats.connects += 1
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(host, port), timeout=timeout)
-    except Exception as e:
-        stats.note_error(f"[worker {wid}] connect failed: {e!r}", connect=True)
-        return
-
-    end_t = time.monotonic() + duration_s
-    try:
-        while time.monotonic() < end_t and not stop_event.is_set():
             for _ in range(messages_per_conn):
-                if time.monotonic() >= end_t or stop_event.is_set():
-                    break
-                payload = os.urandom(msg_size)
-                t0 = now_ns()
-                resp = await rpc(writer, reader, payload, timeout)
-                dt_ms = (now_ns() - t0) / 1e6
+                stats.sends += 1
+                await asyncio.wait_for(loop.sock_sendall(sock, out), timeout)
+                if framed:
+                    _ = await recv_frame(loop, sock, timeout)
+                else:
+                    await sock_recv_exact(loop, sock, len(payload), timeout)
+                stats.recvs += 1
+        except asyncio.CancelledError:
+            sock.close()
+            raise
+        except Exception as e:
+            stats.note_error(f"[churn {wid}] io failed: {e!r}", send=True, recv=True)
+            print(f"[CHURN IO FAIL] {e!r}", flush=True)
+        finally:
+            sock.close()
 
-                stats.bytes_sent += (4 + len(payload))
-                stats.bytes_recv += (4 + len(resp))
-                stats.lat_ms.append(dt_ms)
-                stats.ops += 1
 
-                if resp != payload:
-                    raise AssertionError(f"echo verify failed: resp_len={len(resp)}")
-    except Exception as e:
-        stats.note_error(f"[worker {wid}] op failed: {e!r}", connect=False)
-    finally:
-        try:
-            writer.close()
-            await writer.wait_closed()
-        except Exception:
-            pass
+async def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--host", required=True)
+    ap.add_argument("--port", type=int, required=True)
+    ap.add_argument("--proto", type=int, default=6)
+    ap.add_argument("--mode", choices=["steady", "churn"], required=True)
+    ap.add_argument("--clients", type=int, default=1)
+    ap.add_argument("--duration", type=int, default=30)
+    ap.add_argument("--msg-size", type=int, default=256)
+    ap.add_argument("--messages-per-conn", type=int, default=1)
+    ap.add_argument("--timeout", type=float, default=10.0)
+    ap.add_argument("--report-every", type=int, default=5)
+    ap.add_argument("--summary-json", action="store_true")
+    ap.add_argument("--summary-json-file")
 
-async def reporter(stats: Stats, every_s: float, stop_event: asyncio.Event) -> None:
-    last_ops = 0
-    last_bytes = 0
-    last_t = time.monotonic()
-    while not stop_event.is_set():
-        await asyncio.sleep(every_s)
-        t = time.monotonic()
-        dt = t - last_t
-        ops = stats.ops - last_ops
-        byt = (stats.bytes_sent + stats.bytes_recv) - last_bytes
+    framing = ap.add_mutually_exclusive_group()
+    framing.add_argument("--framed", action="store_true", help="Use 4B length + payload framing (default)")
+    framing.add_argument("--raw", action="store_true", help="Send/recv raw bytes only (no framing)")
 
-        last_ops = stats.ops
-        last_bytes = stats.bytes_sent + stats.bytes_recv
-        last_t = t
+    args = ap.parse_args()
 
-        rps = ops / dt if dt > 0 else 0.0
-        bps = byt / dt if dt > 0 else 0.0
-        print(f"[{time.strftime('%H:%M:%S')}] rps={rps:.1f} throughput={fmt_num(bps)}/s  total_ops={stats.ops}  err={stats.op_errors}+{stats.connect_errors}")
+    try:
+        normalize_ipv4(args.host)
+    except Exception:
+        raise SystemExit("ERROR: --host must be numeric IPv4 (e.g. 192.168.1.21)")
 
-async def run(args) -> int:
+    framed = not args.raw
+    payload = b"x" * args.msg_size
     stats = Stats()
-    started_ns = now_ns()
-    stop_event = asyncio.Event()
-
-    def on_stop():
-        stop_event.set()
-
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
-            loop.add_signal_handler(sig, on_stop)
-        except NotImplementedError:
-            pass
 
     tasks = []
-    if args.report_every > 0:
-        tasks.append(asyncio.create_task(reporter(stats, args.report_every, stop_event)))
-
     for i in range(args.clients):
-        if args.mode == "churn":
+        if args.mode == "steady":
             tasks.append(asyncio.create_task(
-                churn_worker(i, args.host, args.port, args.duration, args.msg_size, args.timeout, stats, stop_event)
+                steady_worker(i, args.host, args.port, args.proto, payload, args.timeout, framed, stats)
             ))
         else:
             tasks.append(asyncio.create_task(
-                steady_worker(i, args.host, args.port, args.duration, args.msg_size, args.messages_per_conn, args.timeout, stats, stop_event)
+                churn_worker(i, args.host, args.port, args.proto, payload, args.timeout, args.messages_per_conn, framed, stats)
             ))
 
+    start = time.time()
+    last_sends = 0
+
     try:
-        await asyncio.wait_for(asyncio.gather(*tasks), timeout=args.duration + 10.0)
-    except asyncio.TimeoutError:
-        stop_event.set()
+        while time.time() - start < args.duration:
+            await asyncio.sleep(args.report_every)
+            sends_now = stats.sends - last_sends
+            last_sends = stats.sends
+            print(
+                f"rps={sends_now/args.report_every:.1f} "
+                f"connects={stats.connects} sends={stats.sends} "
+                f"recvs={stats.recvs} errors={stats.errors} "
+                f"(connect={stats.connect_errors} send={stats.send_errors} recv={stats.recv_errors})",
+                flush=True,
+            )
+    finally:
+        for t in tasks:
+            t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
 
-    print("\n=== SUMMARY ===")
-    print(summarize(stats, started_ns))
-    if stats.first_error:
-        print(f"first_error={stats.first_error}")
-        return 2
-    return 0
+    if args.summary_json and args.summary_json_file:
+        with open(args.summary_json_file, "w") as f:
+            json.dump(stats.__dict__, f, indent=2)
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="STCP framed stress test client (asyncio).")
-    p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, required=True)
-    p.add_argument("--mode", choices=["churn", "steady"], default="steady")
-    p.add_argument("--clients", type=int, default=50)
-    p.add_argument("--duration", type=float, default=30.0)
-    p.add_argument("--msg-size", type=int, default=256)
-    p.add_argument("--messages-per-conn", type=int, default=200)
-    p.add_argument("--timeout", type=float, default=5.0)
-    p.add_argument("--report-every", type=float, default=1.0)
-    return p.parse_args()
 
 if __name__ == "__main__":
-    args = parse_args()
-    try:
-        sys.exit(asyncio.run(run(args)))
-    except KeyboardInterrupt:
-        sys.exit(130)
-
+    asyncio.run(main())

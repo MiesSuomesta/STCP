@@ -17,8 +17,9 @@
 #include <stcp/stcp_tcp_low_level_operations.h>
 #include <stcp/proto_layer.h>
 #include <stcp/stcp_socket_struct.h>
+#include <stcp/stcp_proto_ops_helpers.h>
 
-#define TCP_DEBUG 0
+#define TCP_DEBUG 1
 
 // rv > 0, bytet
 // rv < 0, errori
@@ -34,14 +35,24 @@ ssize_t stcp_tcp_recv(
 
     struct stcp_sock *st = stcp_struct_get_st_from_sk(sk);
     if (!st || !st->session)
-        return -ENOTCONN;
+        return -EINVAL;
+
+    DEBUG_INCOMING_STCP_STATUS(st);
 
     if (!sk) {
         pr_err("stcp_tcp_recv: sk == NULL\n");
         return -EINVAL;
     }
+ 
 
     SDBG("IO/RECV: sk=%px protocol=%d prot=%px", sk, (int)sk->sk_protocol, sk->sk_prot);
+
+    if (!test_bit(STCP_FLAG_HS_COMPLETE_BIT, &st->flags) &&
+        !test_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags)) {
+        SDBG("Not doing anything...");
+        return -EAGAIN; /* tai -EPROTO */
+    }
+
 
     if (!buf) {
         pr_err("stcp_tcp_recv: buf == NULL\n");
@@ -85,7 +96,7 @@ ssize_t stcp_tcp_recv(
     msg.msg_namelen    = 0;
     msg.msg_control    = NULL;
     msg.msg_controllen = 0;
-    msg.msg_flags      = 0 | flags;
+    msg.msg_flags      = flags;
 
     iov_iter_kvec(&msg.msg_iter, READ, &iov, 1, len);
 
@@ -99,9 +110,9 @@ ssize_t stcp_tcp_recv(
         *recv_len = (int)ret;
 
 #if TCP_DEBUG
-        pr_emerg(".----<[MESSAGE]>------------------------------------------------------------>\n");
-        pr_emerg("|  ✅ Received data %d bytes ", (int)ret);
-        pr_emerg("'----------------------------------------------------------------------'\n");
+        pr_emerg_ratelimited(".----<[MESSAGE]>------------------------------------------------------------>\n");
+        pr_emerg_ratelimited("|  ✅ Received data %d bytes ", (int)ret);
+        pr_emerg_ratelimited("'----------------------------------------------------------------------'\n");
 #endif
 
     } else {

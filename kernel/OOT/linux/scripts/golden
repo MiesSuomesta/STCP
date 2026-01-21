@@ -2,7 +2,7 @@
 make superclean
 make modinfo
 read -p "paina enter"
-git add -A
+git add .
 git commit
 
 TS=$(date +"GOLDEN-%Y-%m-%d_%H%M%S" )

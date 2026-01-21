@@ -70,12 +70,19 @@ UNDEF_OPTS_STCP_PROTO_OPS="$(
     | awk '/[[:space:]]stcp_proto_/ { printf "--undefined=%s ", $3 }'
 )"
 
+UNDEF_OPTS_STCP_STATE="$(
+  "${NM_BIN}" -g --defined-only "$IN" \
+    | awk '/[[:space:]]stcp_state_/ { printf "--undefined=%s ", $3 }'
+)"
 
-echo "[stcp] --undefined opts: ${UNDEF_OPTS_RUST_GLUE} ${UNDEF_OPTS_RUST_EXPORTS} ${UNDEF_OPTS_STCP} ${UNDEF_OPTS_STCP_MODULE} ${UNDEF_OPTS_STCP_EXPORTS}"
+
+echo "[stcp] --undefined opts: ${UNDEF_OPTS_RUST_GLUE} ${UNDEF_OPTS_RUST_EXPORTS} ${UNDEF_OPTS_STCP} ${UNDEF_OPTS_STCP_MODULE} ${UNDEF_OPTS_STCP_EXPORTS} ${UNDEF_OPTS_STCP_STATE}"
 
 # Varsinainen linkkauskomento (kirjoitetaan myös .cmd:iin)
 LD_CMD=( "${LD_BIN}" --whole-archive -r -m elf_x86_64 \
-	${UNDEF_OPTS_RUST_GLUE} ${UNDEF_OPTS_RUST_EXPORTS} ${UNDEF_OPTS_STCP} ${UNDEF_OPTS_STCP_MODULE} ${UNDEF_OPTS_STCP_EXPORTS} ${UNDEF_OPTS_STCP_PROTO_OPS} \
+	${UNDEF_OPTS_RUST_GLUE} ${UNDEF_OPTS_RUST_EXPORTS} ${UNDEF_OPTS_STCP} \
+        ${UNDEF_OPTS_STCP_MODULE} ${UNDEF_OPTS_STCP_EXPORTS} \
+        ${UNDEF_OPTS_STCP_PROTO_OPS} ${UNDEF_OPTS_STCP_STATE} \
 	 -o "$OUT" "$IN" )
 
 echo "[stcp] Linking → ${LD_CMD[*]}"

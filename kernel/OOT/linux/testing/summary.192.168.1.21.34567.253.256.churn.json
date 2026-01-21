@@ -1,0 +1,10 @@
+{
+  "connects": 50,
+  "sends": 178255982,
+  "recvs": 178255932,
+  "errors": 0,
+  "connect_errors": 0,
+  "send_errors": 0,
+  "recv_errors": 0,
+  "last_error": null
+}

@@ -9,7 +9,7 @@
 #include <linux/tcp.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
-
+#include <stcp/proto_layer.h>
 
 #define STCP_ECDH_PUB_LEN       64
 #define STCP_ECDH_PUB_XY_LEN    32
@@ -42,7 +42,17 @@ int stcp_misc_ecdh_shared_key_size(void);
 
 void stcp_misc_ecdh_key_free(void *pFreePtr);
 
-void stcp_misc_force_tcp_protocol(struct sock *sk, const char *where);
-inline int stcp_swap_proto(struct sock *sk, int newp);
+struct stcp_sock; 
 
+int stcp_proto_setup(void);
+int is_stcp_magic_ok(struct stcp_sock* st);
 int is_handshake_in_progress(struct sock *sk);
+
+void stcp_struct_session_destroy_request(struct stcp_sock *st, int reason);
+void stcp_struct_destroy_workfn(struct work_struct *work);
+
+
+inline int stcp_state_is_handshake_complete(struct stcp_sock *st);
+inline void stcp_hs_mark_complete(struct stcp_sock *st);
+inline void stcp_state_restore_data_ready_hook(struct stcp_sock *st);
+inline int stcp_state_try_start_handshake(struct stcp_sock *st, int server_side);

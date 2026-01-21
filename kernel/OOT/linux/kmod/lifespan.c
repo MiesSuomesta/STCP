@@ -19,10 +19,13 @@
 #include <stcp/stcp_socket_struct.h>
 #include <stcp/rust_exported_functions.h>
 #include <stcp/proto_operations.h>
-
-#define GOT_LIFE_SPAN_CHECKS 4
 #include <stcp/lifespan.h>
-                
+
+#if USE_ALIVE_CONTEXT_COUNTERS
+#define GOT_LIFE_SPAN_CHECKS 4
+#else
+#define GOT_LIFE_SPAN_CHECKS 0
+#endif
 int stcp_end_of_life_for_sk(void *skvp, int err) {
 
     struct sock *sk = (struct sock *)skvp;

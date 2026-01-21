@@ -8,9 +8,10 @@
 #
 
 # Säädä nämä omalle puullesi sopiviksi
-KDIR="/home/pomo/theKerneli/kuuminHotti-RFL"      # kernel-lähteet, missä scripts/ ja vmlinux
+KDIR="/home/pomo/stcp/kernel/sources/theMasterLinux"      # kernel-lähteet, missä scripts/ ja vmlinux
 VMLINUX="$KDIR/vmlinux"                       # debugattu vmlinux
-MODDIR="/lib/modules/$(uname -r)"             # moduulit (voi olla myös oma build-kansio)
+#MODDIR="/lib/modules/$(uname -r)"             # moduulit (voi olla myös oma build-kansio)
+MODDIR="/home/pomo/stcp/kernel/OOT/linux/kmod/"             # moduulit (voi olla myös oma build-kansio)
 
 DECODE="$KDIR/scripts/decode_stacktrace.sh"
 
@@ -38,4 +39,4 @@ fi
 #   vmlinux    – symbolit
 #   MODDIR     – moduulikansiot
 #   (lisäksi voi antaa lisää moduulikansioita, jos käytät omaa buildiasemaa)
-"$DECODE" "$VMLINUX" "$MODDIR" /home/pomo/dev/kmod/  < "$INPUT"
+"$DECODE" "$VMLINUX" "$MODDIR" /home/pomo/stcp/kernel/OOT/linux/kmod  < "$INPUT"

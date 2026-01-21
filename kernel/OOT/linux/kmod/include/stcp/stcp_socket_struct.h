@@ -12,7 +12,8 @@
 
 struct stcp_sock *       stcp_struct_alloc_st(void);
 void                     stcp_struct_free_st(struct stcp_sock *st);
-void                     stcp_detach_from_sock(struct stcp_sock *st);
+void                     stcp_detach_from_st(struct stcp_sock *st);
+void                     stcp_detach_from_sk(struct sock *sk);
 
 int                      stcp_struct_attach_st_to_socket(struct stcp_sock *st, struct socket *sock);
 int                      stcp_struct_attach_st_to_sk(struct stcp_sock *st, struct sock *sk);
@@ -24,3 +25,7 @@ inline struct stcp_sock *stcp_struct_get_st_from_sk_for_destroy(struct sock *sk)
 
 inline struct stcp_sock *stcp_struct_get_or_alloc_st_from_sk(struct sock *sk);
 inline struct stcp_sock *stcp_struct_get_or_alloc_st_from_socket(struct socket *sock);
+
+void stcp_struct_free_rcu_cb(struct rcu_head *h);
+inline void stcp_struct_put_st(struct stcp_sock *st);
+inline struct stcp_sock *stcp_detach_once(struct sock *sk);

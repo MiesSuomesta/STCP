@@ -13,9 +13,9 @@
 #define IPPROTO_STCP 253
 #endif
 
-int stcp_proto_socket_ops_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+int stcp_proto_socket_ops_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len);
 int stcp_proto_socket_ops_listen(struct socket *sock, int backlog);
-int stcp_proto_socket_ops_connect(struct socket *sock, struct sockaddr *uaddr, int addr_len, int flags);
+int stcp_proto_socket_ops_connect(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len, int flags);
 int stcp_proto_socket_ops_accept(struct socket *sock, struct socket *newsock, struct proto_accept_arg *arg);
 int stcp_proto_socket_ops_release(struct socket *sock);
 
@@ -35,7 +35,7 @@ int stcp_proto_socket_ops_release(struct socket *sock);
 #include <stcp/stcp_proto_ops.h>
 
 /* ========== BIND ========== */
-int stcp_proto_socket_ops_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
+int stcp_proto_socket_ops_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len);
 
 /* ========== LISTEN ========== */
 int stcp_proto_socket_ops_listen(struct socket *sock, int backlog);
@@ -44,7 +44,10 @@ int stcp_proto_socket_ops_listen(struct socket *sock, int backlog);
 int stcp_proto_socket_ops_accept(struct socket *sock, struct socket *newsock, struct proto_accept_arg *arg);
 
 /* ========== CONNECT ========== */
-int stcp_proto_socket_ops_connect(struct socket *sock, struct sockaddr *uaddr, int addr_len, int flags);
+int stcp_proto_socket_ops_connect(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len, int flags);
 
 /* ========== RELEASE ========== */
 int stcp_proto_socket_ops_release(struct socket *sock);
+
+// Setuppi inittiä varten
+void stcp_socket_ops_setup(struct proto_ops *theOps);

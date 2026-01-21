@@ -14,12 +14,14 @@
 #include <linux/inet.h>
 
 #include <stcp/debug.h>
+#include <stcp/settings.h>
 #include <stcp/proto_layer.h>   // Rust proto_ops API
 
 #include <stcp/stcp_socket_struct.h>
 #include <stcp/rust_exported_functions.h>
 #include <stcp/proto_operations.h>
 #include <stcp/handshake_worker.h>
+#include <stcp/state.h>
 
 #define STCP_WORKER_AGAIN_DELAY_IN_MS   1000
 
@@ -27,98 +29,144 @@
 #define STCP_CLIENT_HANSHAKE_ENABLED 1
 #define STCP_ALIVE_CHECKS            0
 
-
-static int stcp_handshake_pump(void *sess, void *transport /* struct sock* */, int reason) {
-
-    // RUST Call
+/*
+ * ============================================================
+ */
+static int stcp_handshake_pump(void *sess, void *transport /* struct sock* */, int reason)
+{
     int ret = rust_exported_session_handshake_pump(sess, transport, reason);
     SDBG("Called rust, got: %d", ret);
-
     return ret;
 }
 
 /*
  * Queue handshake work for given stcp_sock.
- * - Tarkistaa että Rust-konteksti on elossa
  * - Ei queuea jos EXIT_MODE on päällä
- * - Varmistaa että the_wq on olemassa
+ * - Varmistaa että workqueue on olemassa
+ * - Idempotent HS_QUEUED bitillä (st->flags)
  */
-int stcp_queue_work_for_stcp_hanshake(struct stcp_sock *st, unsigned int delayMS, int reason)
+int stcp_rust_queue_work_for_stcp_hanshake(struct stcp_sock *st,
+                                           unsigned int delayMS,
+                                           int reason)
 {
+    if (!st)
+        return -EBADF;
 
-#if STCP_ALIVE_CHECKS
-    int alive;
-
-    alive = stcp_exported_rust_ctx_alive_count();
-    if (alive < 1) {
-        SDBG("WARNING: Called when not alive!, stcp_sock: %px", st);
-        return -500;
-    }
-#endif
-
-    SDBG("Worker Queue: %px, delay: %d ms", st, delayMS);
-
-
-    if (!st) {
-        SDBG("Worker: No st!");
+    if (!is_stcp_magic_ok(st)) {
+        SDBG("Magic check fails..");
         return -EBADF;
     }
 
-    /* Jos soketti on merkitty exit-tilaan, ei enää queuea */
-    if ((st->status & STCP_STATUS_HANDSHAKE_EXIT_MODE) > 0) {
-        SDBG("STCP socket %px marked to be in exit mode, not queuing work.", st);
+    if (test_bit(STCP_FLAG_HS_COMPLETE_BIT, &st->flags)) {
+        SDBG("Tried to enqueue after HS DONE (st: %px)", st);
+        return 0;
+    }
 
-        if (st->the_wq) {
-            SDBG("STCP socket %px work queue emptied & destroyed..", st);
-            cancel_delayed_work_sync(&st->handshake_work);
-            destroy_workqueue(st->the_wq);
-            st->the_wq = NULL;
+    if (test_bit(STCP_FLAG_SOCKET_DESTROY_QUEUED_BIT, &st->flags)) {
+        SDBG("Tried to enqueue after destroy queued (st: %px)", st);
+        return -ESHUTDOWN;
+    }
+
+    if (test_bit(STCP_FLAG_SOCKET_DETACHED_BIT, &st->flags)) {
+        SDBG("Tried to enqueue after detach as been done (st: %px)", st);
+        return -ESHUTDOWN;
+    }
+    
+#if 0
+# if STCP_ALIVE_CHECKS
+    {
+        int alive = stcp_exported_rust_ctx_alive_count();
+        if (alive < 1) {
+            SDBG("WARNING: Called when not alive!, stcp_sock: %px", st);
+            return -500;
         }
+    }
+# endif
+#endif
 
-        SDBG("STCP socket %px, work request cleaned", st);
+    /* Älä queuea jos ei enää elossa */
+    if (unlikely(READ_ONCE(st->magic) != STCP_MAGIC_ALIVE))
+        return -ESHUTDOWN;
+
+    /* Exit-mode: älä queuea */
+    if (unlikely(test_bit(STCP_FLAG_HS_EXIT_MODE_BIT, &st->flags))) {
+        clear_bit(STCP_FLAG_HS_QUEUED_BIT, &st->flags);
         return -ECANCELED;
     }
 
-    if (!st->the_wq) {
-        SDBG("Worker: No queue!");
-        return -EBADF;
+    /* Workqueue pitää olla olemassa */
+    if (unlikely(!READ_ONCE(st->the_wq))) {
+        clear_bit(STCP_FLAG_HS_QUEUED_BIT, &st->flags);
+        return -ESHUTDOWN;
     }
 
     st->hs_result = reason;
 
-    if (test_and_set_bit(STCP_STATUS_HS_QUEUED_BIT, &st->status)) {
-        SDBG("Already queued work for %px", st);
+    /* Idempotent: jos jo queued -> done */
+    if (test_and_set_bit(STCP_FLAG_HS_QUEUED_BIT, &st->flags))
+        return -EALREADY;
+
+    /* Vielä viimeinen varmistus raceen: wq ei saa kadota juuri tässä */
+    if (unlikely(!READ_ONCE(st->the_wq) ||
+                 READ_ONCE(st->magic) != STCP_MAGIC_ALIVE)) {
+        clear_bit(STCP_FLAG_HS_QUEUED_BIT, &st->flags);
+        return -ESHUTDOWN;
+    }
+
+    SDBG("Worker[%px] queue handshake work (in %u ms) reason=%d", st, delayMS, reason);
+
+    if (!refcount_inc_not_zero(&st->refcnt))
+        return -ESHUTDOWN;
+
+    if (!queue_delayed_work(READ_ONCE(st->the_wq),
+                            &st->handshake_work,
+                            msecs_to_jiffies(delayMS))) {
+        /* Ei queued (oli jo jonossa tms) => vapauta bittilippu */
+        clear_bit(STCP_FLAG_HS_QUEUED_BIT, &st->flags);
+        stcp_struct_put_st(st);   /* queue epäonnistui */
         return -EALREADY;
     }
 
-    SDBG("Worker[%px] Adding work to queue (resched in %u ms)...", st, delayMS);
-    queue_delayed_work(st->the_wq,
-                       &st->handshake_work,
-                       msecs_to_jiffies(delayMS));
     return 0;
 }
 
 /*
  * Destroy workqueue for given stcp_sock.
+ *
+ * HUOM:
+ * - Tämä on vaarallinen kutsua worker-kontekstissa jos wq on per-socket.
+ * - Parempi: älä destroyä workerissa; tee cancel + exitmode, ja destroy detach/destroy-polussa.
  */
 int destroy_the_work_queue(struct stcp_sock *st)
 {
-    if (!st) {
-        SDBG("Worker: No st!");
+    struct workqueue_struct *wq;
+
+    if (!st)
+        return -EBADF;
+
+    if (!is_stcp_magic_ok(st)) {
+        SDBG("Magic check fails..");
         return -EBADF;
     }
 
-    if (!st->the_wq) {
-        SDBG("Worker: No WQ!");
-        return -EBADF;
-    }
+    set_bit(STCP_FLAG_HS_EXIT_MODE_BIT, &st->flags);
 
-    SDBG("Cancel work for %px", st);
+    wq = xchg(&st->the_wq, NULL);
+    if (!wq)
+        return 0;
+
     cancel_delayed_work_sync(&st->handshake_work);
-    destroy_workqueue(st->the_wq);
-    st->the_wq = NULL;
 
-    SDBG("Worker: Queue destroyed....");
+    /*
+     * Jos haluat pitää vanhan käytöksen, voit palauttaa nämä,
+     * mutta huomioi deadlock-riski jos tätä kutsutaan workerista:
+     *
+     * flush_workqueue(wq);
+     * destroy_workqueue(wq);
+     */
+    flush_workqueue(wq);
+    destroy_workqueue(wq);
+
     return 0;
 }
 
@@ -126,7 +174,6 @@ int destroy_the_work_queue(struct stcp_sock *st)
  * Handshake worker:
  *  - Ajetaan stcp_session_wq-workqueuessa
  *  - Hoitaa sekä client- että server-handshaken
- *  - Ei pidä isoja puskureita stackilla (vain muutama pieni lokaali)
  */
 void stcp_handshake_worker(struct work_struct *work)
 {
@@ -136,18 +183,17 @@ void stcp_handshake_worker(struct work_struct *work)
     int ret = 0;
 
     SDBG("Worker: Woken up.");
-    int alive = stcp_exported_rust_ctx_alive_count();
-    if (alive < 1) {
-        SDBG("Worker: Rust ctx not alive, work=%px", work);
-        return;
-    }
 
     if (!work) {
         SDBG("Worker: No work!");
         return;
     }
 
-    SDBG("Worker: CP 1");
+    if (!is_rust_init_done()) {
+        SDBG("Worker: Rust init not done, work=%px", work);
+        return;
+    }
+
     dwork = to_delayed_work(work);
     st = container_of(dwork, struct stcp_sock, handshake_work);
 
@@ -156,30 +202,45 @@ void stcp_handshake_worker(struct work_struct *work)
         return;
     }
 
+    DEBUG_INCOMING_STCP_STATUS(st);
+
+    if (stcp_state_is_handshake_complete(st) > 0) {
+        SDBG("Tried to do handshake work after HS DONE (st: %px)", st);
+        stcp_struct_put_st(st);   /* queue epäonnistui */
+        return;
+    }
+
+    if (!is_stcp_magic_ok(st)) {
+        SDBG("Worker[%px//%px]: FAIL: Magic failure!", work, st);
+        stcp_struct_put_st(st);   /* queue epäonnistui */
+        return;
+    }
+
     SDBG("HANDSHAKE WORKER START child_st=%px transport=%px",
-            st, st->transport);
+         st, st->transport);
 
-    clear_bit(STCP_STATUS_HS_QUEUED_BIT, &st->status);
+    /* Nyt kun worker on käynnissä, queued-bit alas */
+    clear_bit(STCP_FLAG_HS_QUEUED_BIT, &st->flags);
 
-    if (st->status & STCP_STATUS_HANDSHAKE_EXIT_MODE)
+    if (test_bit(STCP_FLAG_HS_EXIT_MODE_BIT, &st->flags)) {
+        stcp_struct_put_st(st);   /* queue epäonnistui */
         return;
-
-    if (!is_rust_init_done()) {
-        SDBG("Rust no initialised..");        
+    }
+    if (unlikely(READ_ONCE(st->magic) != STCP_MAGIC_ALIVE)) {
+        stcp_struct_put_st(st);   /* queue epäonnistui */
         return;
-    } 
+    }
 
     /* Tässä ei ole enää connectin lock_sock päällä */
-    tmp = ((st->status & STCP_STATUS_HANDSHAKE_SERVER) > 0) ? "Server" : "Client";
+    tmp = test_bit(STCP_FLAG_HS_SERVER_BIT, &st->flags) ? "Server" : "Client";
 
-    SDBG("Worker/%s[%px//%px]: State: %ld  sk: %px session: %px wq: %px",
-         tmp, work, st, st->status, st->sk, st->session, st->the_wq);
+    SDBG("Worker/%s[%px//%px]: sk=%px session=%px wq=%px flags=%lx status=%d flags=%ld",
+         tmp, work, st, st->sk, st->session, st->the_wq, st->flags, st->handshake_status, st->flags);
 
-    st->is_server = (st->status & STCP_STATUS_HANDSHAKE_SERVER) > 0;
+    st->is_server = test_bit(STCP_FLAG_HS_SERVER_BIT, &st->flags);
     SDBG("Is server? %d", st->is_server);
 
 #if STCP_SERVER_HANSHAKE_ENABLED
-    SDBG("Define STCP_SERVER_HANSHAKE_ENABLED active.. %px, %ld", st, st->status);
     if (st->is_server) {
         SDBG("Starting server work, with st=%px sk=%px session=%px",
              st, st->sk, st->session);
@@ -192,17 +253,19 @@ void stcp_handshake_worker(struct work_struct *work)
             ret = -EBADMSG;
         } else {
             SDBG("HANDSHAKE START: Starting server worker...");
+            // Marking internal ...
+            set_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags);
             ret = rust_exported_data_server_ready_worker(
                       (void *)st->session,
                       (void *)st->sk);
+            clear_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags);
         }
     }
-#else
-    SDBG("Server handshake disabled");
 #endif
 
+
+
 #if STCP_CLIENT_HANSHAKE_ENABLED
-    SDBG("Define STCP_CLIENT_HANSHAKE_ENABLED active.. %px, %ld", st, st->status);
     if (!st->is_server) {
         SDBG("Starting client work, with st=%px sk=%px session=%px",
              st, st->sk, st->session);
@@ -215,54 +278,78 @@ void stcp_handshake_worker(struct work_struct *work)
             ret = -EBADMSG;
         } else {
             SDBG("HANDSHAKE START: Starting client work...");
+            // Marking internal ...
+            set_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags);
             ret = rust_exported_data_client_ready_worker(
                       (void *)st->session,
                       (void *)st->sk);
+            clear_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags);
         }
     }
-#else
-    SDBG("Client handshake disabled");
 #endif
 
     SDBG("Worker/%s[%px//%px]: Work complete: %d", tmp, work, st, ret);
 
-    ret = stcp_handshake_pump((void *)st->session, (void *)st->sk, st->hs_result);
+    /* pump */
+    if (st->pump_counter++ < STCP_HANDSHAKE_STATUS_MAX_PUMPS) {
+        set_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags);
+        ret = stcp_handshake_pump((void *)st->session, (void *)st->sk, st->hs_result);
+        clear_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags);
+    } else {
+        stcp_state_hanshake_mark_failed(st, -EPROTO);
+    }
 
     /*
      * Edistystä → resched uusiksi
      */
-
     if (ret > 0) {
-        SDBG("Got progress, rescheduling (%d ms until next wakeup) ....", 
-            STCP_WORKER_AGAIN_DELAY_IN_MS);
-
-        stcp_queue_work_for_stcp_hanshake(st, 
-            STCP_WORKER_AGAIN_DELAY_IN_MS, HS_PUMP_REASON_NEXT_STEP );
-
-    } else if (ret == 0) {
-        SDBG("Worker[%px//%px]: Handshake had no progress, waiting data ready...", work, st);
-    } else if (ret < 0) {
-        // Lippuja 
-        st->status  = STCP_STATUS_HANDSHAKE_FAILED;
-        st->status |= STCP_STATUS_HANDSHAKE_EXIT_MODE;
-        st->status |= STCP_STATUS_SOCKET_FATAL_ERROR;
-
-        st->hs_result = ret;
-        complete_all(&st->hs_done);
-        SDBG("Comleted hs_done");
-
-        SDBG("Worker[%px//%px]: Handshake failed, marking error to socket %px",
-             work, st, st->sk);
-
-        destroy_the_work_queue(st);
-
-        /* Tapetaan yhteys.. */
-        if (st->sk) {
-            SDBG("Killing stcp sk socket %px", st->sk);
-            st->sk->sk_err = EPROTO;
-            sk_error_report(st->sk);
-        }
+        SDBG("Got progress, rescheduling (%d ms until next wakeup) ....",
+             STCP_WORKER_AGAIN_DELAY_IN_MS);
+        stcp_rust_queue_work_for_stcp_hanshake(
+            st,
+            STCP_WORKER_AGAIN_DELAY_IN_MS,
+            HS_PUMP_REASON_NEXT_STEP);
+        stcp_struct_put_st(st);   /* queue epäonnistui */
+        return;
     }
+
+    // Handshake returnaa nollan JOS Complete,
+    // ret > 0 : HS on käynnissä, vaihtoi tilaa
+    // ret < 0 : HW failasi
+    st->hs_result = ret;
+    if (ret == 0) {
+        SDBG("Worker[%px//%px]: Handshake DONE!", work, st);
+        stcp_state_hanshake_mark_complete(st);
+        stcp_struct_put_st(st);   /* queue epäonnistui */
+        return;
+    }
+
+    /* ret < 0 : fail */
+    SDBG("Worker[%px//%px]: Handshake FAILED ret=%d", work, st, ret);
+
+    stcp_state_hanshake_mark_failed(st, -EPROTO);
+    stcp_log_st_fields("Handshake failed", st, st->sk);
+
+    SDBG("Worker[%px//%px]: Handshake failed, marking error to socket %px",
+         work, st, st->sk);
+
+    /*
+     * HUOM: älä välttämättä destroyä wq:ta workerista (deadlock riski).
+     * Jos haluat pitää per-socket wq:n, parempi on:
+     *  - aseta EXIT_MODE
+     *  - cancel_delayed_work_sync tehdään destroy-polussa
+     *
+     * Tässä jätetään vanha kutsu pois. (Jos haluat, voit palauttaa.)
+     */
+    /* destroy_the_work_queue(st); */
+
+    /* Tapetaan yhteys.. */
+    if (st->sk) {
+        SDBG("Killing stcp sk socket %px", st->sk);
+        st->sk->sk_err = EPROTO;
+        sk_error_report(st->sk);
+    }
+    stcp_struct_put_st(st);   /* queue epäonnistui */
 }
 
 void stcp_handshake_start(struct stcp_sock *st, int server_side)
@@ -272,19 +359,35 @@ void stcp_handshake_start(struct stcp_sock *st, int server_side)
     if (!st)
         return;
 
-    /* estä tuplakäynnistys */
-    if (st->status & STCP_STATUS_HANDSHAKE_PENDING)
+    if (!is_stcp_magic_ok(st)) {
+        SDBG("HS Start: Magic failure!");
+        return;
+    }
+
+    /* estä tuplakäynnistys ATOMISESTI */
+    if (test_and_set_bit(STCP_FLAG_HS_STARTED_BIT, &st->flags))
         return;
 
-    if (server_side)
-        st->status |= STCP_STATUS_HANDSHAKE_SERVER;
-    else
-        st->status |= STCP_STATUS_HANDSHAKE_CLIENT;
+    if (test_bit(STCP_FLAG_HS_COMPLETE_BIT, &st->flags))
+        return;
+    if (test_bit(STCP_FLAG_HS_FAILED_BIT, &st->flags))
+        return;
+    if (test_bit(STCP_FLAG_HS_EXIT_MODE_BIT, &st->flags))
+        return;
 
-    st->status |= STCP_STATUS_HANDSHAKE_PENDING;
+    if (server_side) {
+        set_bit(STCP_FLAG_HS_SERVER_BIT, &st->flags);
+        clear_bit(STCP_FLAG_HS_CLIENT_BIT, &st->flags);
+    } else {
+        set_bit(STCP_FLAG_HS_CLIENT_BIT, &st->flags);
+        clear_bit(STCP_FLAG_HS_SERVER_BIT, &st->flags);
+    }
 
     SDBG("HS: start queued st=%px sk=%px role=%s",
          st, st->sk, server_side ? "server" : "client");
 
-    stcp_queue_work_for_stcp_hanshake(st, 0, HS_PUMP_REASON_MANUAL);
+    int ret = stcp_rust_queue_work_for_stcp_hanshake(st, 5, HS_PUMP_REASON_MANUAL);
+    SDBG("HS: start queued st=%px sk=%px role=%s, queue ret: %d",
+         st, st->sk, server_side ? "server" : "client", ret);
+
 }

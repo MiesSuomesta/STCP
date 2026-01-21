@@ -8,22 +8,28 @@
                        
 #include <stcp/rust_log_with_printk.h>
 #include <stcp/debug.h>
+#include <stcp/settings.h>
+
 
 // Aikaväli & Purskauksen määrä
 #define CUT_OFF_TIME_IN_SECONDS 5
 #define BURST_MESSAGE_COUNT     50
 
+#if ENABLE_RATELIMIT_PRINTK
 DEFINE_RATELIMIT_STATE(stcp_ratelimit_state,
                        CUT_OFF_TIME_IN_SECONDS * HZ,   /* aikaväli: 5 s */
                        BURST_MESSAGE_COUNT);      /* burst: 50 viestiä / 5 s */
+#endif
 
 void stcp_rust_log(int level, const char *buf, size_t len)
 {
     // Check ratelimitter
+#if ENABLE_RATELIMIT_PRINTK
     if (! __ratelimit(&stcp_ratelimit_state) ) {
         // Ratelimit hit!
         return ;
     }
+#endif
 
     static const char *lvl[] = {
         "??",   // 0

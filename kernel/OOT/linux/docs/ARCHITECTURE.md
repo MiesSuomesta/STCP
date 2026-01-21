@@ -2,6 +2,11 @@
 
 ## Overview
 
+STCP is an overlay over TCP.
+TCP owns lifecycle, STCP owns payload.
+Never swap sk->sk_prot.
+Never attach to LISTEN sockets.
+
 STCP operates as a TCP-compatible protocol implemented as a Linux kernel module.
 It intercepts socket operations and transparently adds secure handshake and
 encryption before data enters the TCP stack.

@@ -1,0 +1,500 @@
+[  396.232928][ T6583] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8d50f24e0980
+[  396.232931][ T6583] R13: 0000000000000007 R14: 0000000000000000 R15: 0000000000000001
+[  396.232934][ T6583] FS:  0000766c53ff76c0(0000) GS:ffff8d55b4f11000(0000) knlGS:0000000000000000
+[  396.232938][ T6583] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  396.232941][ T6583] CR2: 000075b0ec061128 CR3: 0000000264951000 CR4: 00000000000006f0
+[  396.232944][ T6583] Call Trace:
+[  396.232947][ T6583]  <TASK>
+[  396.232951][ T6583]  stcp_destroy+0x42/0x16b [stcp_rust]
+[  396.233097][ T6583]  inet_csk_destroy_sock+0x55/0x150
+[  396.233104][ T6583]  __tcp_close+0x361/0x490
+[  396.233109][ T6583]  tcp_close+0x24/0xa0
+[  396.233113][ T6583]  inet_release+0x44/0x90
+[  396.233118][ T6583]  stcp_proto_socket_ops_release+0x74/0x90 [stcp_rust]
+[  396.233264][ T6583]  __sock_release+0x40/0xb0
+[  396.233269][ T6583]  sock_close+0x15/0x30
+[  396.233273][ T6583]  __fput+0xed/0x2d0
+[  396.233278][ T6583]  fput_close_sync+0x3d/0xa0
+[  396.233282][ T6583]  __x64_sys_close+0x3e/0x90
+[  396.233286][ T6583]  x64_sys_call+0x17a4/0x2360
+[  396.233291][ T6583]  do_syscall_64+0x81/0x500
+[  396.233295][ T6583]  ? apparmor_socket_recvmsg+0x25/0x40
+[  396.233299][ T6583]  ? security_socket_recvmsg+0x70/0x1e0
+[  396.233305][ T6583]  ? sock_recvmsg+0xc6/0xf0
+[  396.233310][ T6583]  ? __sys_recvfrom+0x15b/0x180
+[  396.233316][ T6583]  ? __x64_sys_recvfrom+0x24/0x40
+[  396.233321][ T6583]  ? x64_sys_call+0x1cdb/0x2360
+[  396.233325][ T6583]  ? do_syscall_64+0xbf/0x500
+[  396.233329][ T6583]  ? __x64_sys_write+0x19/0x30
+[  396.233333][ T6583]  ? x64_sys_call+0x79/0x2360
+[  396.233337][ T6583]  ? do_syscall_64+0xbf/0x500
+[  396.233342][ T6583]  ? count_memcg_events+0xf0/0x1c0
+[  396.233347][ T6583]  ? handle_mm_fault+0x1e8/0x2f0
+[  396.233352][ T6583]  ? do_user_addr_fault+0x2f8/0x830
+[  396.233356][ T6583]  ? irqentry_exit+0xb2/0x600
+[  396.233361][ T6583]  ? exc_page_fault+0x90/0x1b0
+[  396.233365][ T6583]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+[  396.233369][ T6583] RIP: 0033:0x766ce9aaafe2
+[  396.233373][ T6583] Code: 08 0f 85 71 3a ff ff 49 89 fb 48 89 f0 48 89 d7 48 89 ce 4c 89 c2 4d 89 ca 4c 8b 44 24 08 4c 8b 4c 24 10 4c 89 5c 24 08 0f 05 <c3> 66 2e 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66
+[  396.233378][ T6583] RSP: 002b:0000766c53ff6b08 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[  396.233382][ T6583] RAX: ffffffffffffffda RBX: 0000766c53ff76c0 RCX: 0000766ce9aaafe2
+[  396.233386][ T6583] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000033
+[  396.233389][ T6583] RBP: 0000766c53ff6b30 R08: 0000000000000000 R09: 0000000000000000
+[  396.233392][ T6583] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000033
+[  396.233395][ T6583] R13: 000000000d05d1e0 R14: 0000766ce84572f8 R15: 0000000000000000
+[  396.233400][ T6583]  </TASK>
+[  396.233403][ T6583] ---[ end trace 0000000000000000 ]---
+[  396.233407][ T6583] stcp stcp_protocol.c:256 [stcp_destroy]: Got st: 0000000000000000
+[  396.234113][ T6582] stcp stcp_protocol.c:209 [stcp_recvmsg]: LJA: Recvmsg 1
+[  396.234123][ T6582] stcp stcp_protocol.c:214 [stcp_recvmsg]: LJA: Recvmsg 2
+[  396.234132][ T6582] stcp stcp_protocol.c:217 [stcp_recvmsg]: LJA: Recvmsg: INTERNAL_IO -> original
+[  396.234168][ T6582] stcp stcp_proto_ops.c:190 [stcp_proto_socket_ops_release]: RELEASE sock=ffff8d50807f1040 sk=ffff8d50f24e1300 st=ffff8d5053bdd200
+[  396.234175][ T6582] stcp the_stcp_struct.c:257 [stcp_struct_free_st]: Magic check fails => NOT freeing!
+[  396.234204][    C1] stcp stcp_protocol.c:251 [stcp_destroy]: Got sk: ffff8d50f24e3900
+[  396.234209][    C1] stcp the_stcp_struct.c:60 [stcp_struct_get_st_from_sk]: Has not STCP_MAGIC_ALIVE
+[  396.234243][    C1] ------------[ cut here ]------------
+[  396.234246][    C1] WARNING: the_stcp_struct.c:63 at stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust], CPU#1: python3/6582
+[  396.234404][    C1] Modules linked in: stcp_rust(OE) netconsole xt_conntrack xt_MASQUERADE bridge stp llc xfrm_user xfrm_algo xt_set ip_set nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_addrtype nft_compat x_tables nf_tables snd_seq_dummy snd_hrtimer rpcsec_gss_krb5 auth_rpcgss nfsv4 nfs lockd grace netfs overlay qrtr sunrpc binfmt_misc nls_iso8859_1 nouveau edac_mce_amd snd_hda_codec_nvhdmi snd_hda_codec_hdmi snd_hda_codec_via kvm_amd snd_hda_codec_generic snd_hda_intel ccp snd_hda_codec snd_hda_core kvm snd_intel_dspcfg mxm_wmi snd_intel_sdw_acpi drm_gpuvm snd_hwdep gpu_sched drm_ttm_helper snd_pcm ttm irqbypass drm_exec snd_seq_midi drm_display_helper cp210x snd_seq_midi_event cec usbserial rc_core snd_rawmidi i2c_algo_bit snd_seq input_leds joydev video snd_seq_device snd_timer asus_atk0110 i2c_piix4 k10temp snd i2c_smbus soundcore wmi_bmof mac_hid sch_fq_codel msr parport_pc ppdev lp parport efi_pstore nfnetlink dmi_sysfs autofs4 hid_generic usbhid hid firewire_ohci pata_acpi psmouse serio_raw
+[  396.234476][    C1]  firewire_core r8169 ahci crc_itu_t pata_atiixp libahci realtek wmi [last unloaded: stcp_rust(OE)]
+[  396.234493][    C1] CPU: 1 UID: 0 PID: 6582 Comm: python3 Tainted: G        W  OE       6.19.0-rc5-paxsudos-stcp-00002-gb71e635feefc-dirty #3 PREEMPT(voluntary) 
+[  396.234499][    C1] Tainted: [W]=WARN, [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+[  396.234502][    C1] Hardware name: System manufacturer System Product Name/M4A785TD-V EVO, BIOS 2105    07/23/2010
+[  396.234505][    C1] RIP: 0010:stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust]
+[  396.234658][    C1] Code: c1 e8 ad 57 21 e7 e9 81 fe ff ff 48 c7 c1 90 26 4d c1 ba 38 00 00 00 48 c7 c6 ee 28 4d c1 48 c7 c7 30 de 4d c1 e8 89 57 21 e7 <0f> 0b 31 c0 e9 83 d5 ff ff 48 c7 c1 90 26 4d c1 ba 3c 00 00 00 48
+[  396.234662][    C1] RSP: 0018:ffffd4ddc0118a00 EFLAGS: 00010246
+[  396.234667][    C1] RAX: 0000000000000050 RBX: ffff8d50f24e3900 RCX: 0000000000000000
+[  396.234671][    C1] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+[  396.234674][    C1] RBP: ffffd4ddc0118a00 R08: 0000000000000000 R09: 0000000000000000
+[  396.234677][    C1] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8d50f24e3900
+[  396.234681][    C1] R13: 0000000000000000 R14: ffff8d50482db820 R15: ffffd4ddc0118c18
+[  396.234686][    C1] FS:  0000766c547f86c0(0000) GS:ffff8d55b4f11000(0000) knlGS:0000000000000000
+[  396.234690][    C1] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  396.234694][    C1] CR2: 000075b0ec0620e8 CR3: 0000000264951000 CR4: 00000000000006f0
+[  396.234697][    C1] Call Trace:
+[  396.234701][    C1]  <IRQ>
+[  396.234706][    C1]  stcp_destroy+0x42/0x16b [stcp_rust]
+[  396.234857][    C1]  inet_csk_destroy_sock+0x55/0x150
+[  396.234864][    C1]  tcp_done+0xc3/0x130
+[  396.234868][    C1]  tcp_done_with_error+0x20/0x50
+[  396.234873][    C1]  tcp_reset+0x5a/0xd0
+[  396.234878][    C1]  tcp_validate_incoming+0x320/0x7e0
+[  396.234903][    C1]  ? __pfx_read_tsc+0x10/0x10
+[  396.234909][    C1]  ? ktime_get+0x41/0x100
+[  396.234915][    C1]  tcp_rcv_state_process+0x507/0x1460
+[  396.234922][    C1]  ? security_sock_rcv_skb+0x5b/0x170
+[  396.234928][    C1]  ? sk_filter_trim_cap+0x217/0x3a0
+[  396.234935][    C1]  tcp_v4_do_rcv+0xe2/0x2d0
+[  396.234940][    C1]  tcp_v4_rcv+0xe86/0x1680
+[  396.234946][    C1]  ? raw_local_deliver+0xd3/0x2c0
+[  396.234952][    C1]  ip_protocol_deliver_rcu+0x3c/0x220
+[  396.234959][    C1]  ip_local_deliver_finish+0x86/0x110
+[  396.234964][    C1]  ip_local_deliver+0x68/0x100
+[  396.234969][    C1]  ? __pfx_ip_local_deliver_finish+0x10/0x10
+[  396.234974][    C1]  ip_rcv+0x186/0x1a0
+[  396.234979][    C1]  ? __pfx_ip_rcv_finish+0x10/0x10
+[  396.234984][    C1]  __netif_receive_skb_one_core+0x8d/0xa0
+[  396.234990][    C1]  __netif_receive_skb+0x15/0x60
+[  396.234995][    C1]  process_backlog+0x90/0x160
+[  396.235001][    C1]  __napi_poll+0x32/0x1d0
+[  396.235006][    C1]  net_rx_action+0x1b0/0x3d0
+[  396.235013][    C1]  handle_softirqs+0xe7/0x340
+[  396.235019][    C1]  __do_softirq+0x10/0x18
+[  396.235024][    C1]  do_softirq.part.0+0x3f/0x80
+[  396.235030][    C1]  </IRQ>
+[  396.235032][    C1]  <TASK>
+[  396.235036][    C1]  __local_bh_enable_ip+0x6a/0x70
+[  396.235040][    C1]  __dev_queue_xmit+0x1d2/0x10a0
+[  396.235047][    C1]  ? hash_conntrack_raw+0x7c/0x110 [nf_conntrack]
+[  396.235073][    C1]  ip_finish_output2+0x28c/0x570
+[  396.235079][    C1]  __ip_finish_output+0xba/0x190
+[  396.235083][    C1]  ip_finish_output+0x2b/0x140
+[  396.235087][    C1]  ip_output+0x63/0x120
+[  396.235092][    C1]  ? __pfx_ip_finish_output+0x10/0x10
+[  396.235096][    C1]  __ip_queue_xmit+0x3ce/0x560
+[  396.235101][    C1]  ip_queue_xmit+0x15/0x30
+[  396.235105][    C1]  __tcp_transmit_skb+0xb1c/0xfa0
+[  396.235113][    C1]  tcp_send_active_reset+0x105/0x1c0
+[  396.235118][    C1]  __tcp_close+0x143/0x490
+[  396.235124][    C1]  tcp_close+0x24/0xa0
+[  396.235129][    C1]  inet_release+0x44/0x90
+[  396.235135][    C1]  stcp_proto_socket_ops_release+0x74/0x90 [stcp_rust]
+[  396.235301][    C1]  __sock_release+0x40/0xb0
+[  396.235307][    C1]  sock_close+0x15/0x30
+[  396.235311][    C1]  __fput+0xed/0x2d0
+[  396.235316][    C1]  fput_close_sync+0x3d/0xa0
+[  396.235321][    C1]  __x64_sys_close+0x3e/0x90
+[  396.235326][    C1]  x64_sys_call+0x17a4/0x2360
+[  396.235331][    C1]  do_syscall_64+0x81/0x500
+[  396.235337][    C1]  ? x64_sys_call+0xb6e/0x2360
+[  396.235342][    C1]  ? do_syscall_64+0xbf/0x500
+[  396.235346][    C1]  ? exc_page_fault+0x90/0x1b0
+[  396.235352][    C1]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+[  396.235357][    C1] RIP: 0033:0x766ce9aaafe2
+[  396.235362][    C1] Code: 08 0f 85 71 3a ff ff 49 89 fb 48 89 f0 48 89 d7 48 89 ce 4c 89 c2 4d 89 ca 4c 8b 44 24 08 4c 8b 4c 24 10 4c 89 5c 24 08 0f 05 <c3> 66 2e 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66
+[  396.235367][    C1] RSP: 002b:0000766c547f7b08 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[  396.235372][    C1] RAX: ffffffffffffffda RBX: 0000766c547f86c0 RCX: 0000766ce9aaafe2
+[  396.235376][    C1] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000030
+[  396.235379][    C1] RBP: 0000766c547f7b30 R08: 0000000000000000 R09: 0000000000000000
+[  396.235383][    C1] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000030
+[  396.235386][    C1] R13: 000000000d05ccf0 R14: 0000766ce845b2f8 R15: 0000000000000000
+[  396.235391][    C1]  </TASK>
+[  396.235395][    C1] ---[ end trace 0000000000000000 ]---
+[  396.235399][    C1] stcp stcp_protocol.c:256 [stcp_destroy]: Got st: 0000000000000000
+[  396.235449][ T6582] stcp stcp_protocol.c:251 [stcp_destroy]: Got sk: ffff8d50f24e1300
+[  396.235454][ T6582] stcp the_stcp_struct.c:56 [stcp_struct_get_st_from_sk]: Has DEADBEEF
+[  396.235504][ T6582] ------------[ cut here ]------------
+[  396.235507][ T6582] WARNING: the_stcp_struct.c:63 at stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust], CPU#1: python3/6582
+[  396.235661][ T6582] Modules linked in: stcp_rust(OE) netconsole xt_conntrack xt_MASQUERADE bridge stp llc xfrm_user xfrm_algo xt_set ip_set nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_addrtype nft_compat x_tables nf_tables snd_seq_dummy snd_hrtimer rpcsec_gss_krb5 auth_rpcgss nfsv4 nfs lockd grace netfs overlay qrtr sunrpc binfmt_misc nls_iso8859_1 nouveau edac_mce_amd snd_hda_codec_nvhdmi snd_hda_codec_hdmi snd_hda_codec_via kvm_amd snd_hda_codec_generic snd_hda_intel ccp snd_hda_codec snd_hda_core kvm snd_intel_dspcfg mxm_wmi snd_intel_sdw_acpi drm_gpuvm snd_hwdep gpu_sched drm_ttm_helper snd_pcm ttm irqbypass drm_exec snd_seq_midi drm_display_helper cp210x snd_seq_midi_event cec usbserial rc_core snd_rawmidi i2c_algo_bit snd_seq input_leds joydev video snd_seq_device snd_timer asus_atk0110 i2c_piix4 k10temp snd i2c_smbus soundcore wmi_bmof mac_hid sch_fq_codel msr parport_pc ppdev lp parport efi_pstore nfnetlink dmi_sysfs autofs4 hid_generic usbhid hid firewire_ohci pata_acpi psmouse serio_raw
+[  396.235740][ T6582]  firewire_core r8169 ahci crc_itu_t pata_atiixp libahci realtek wmi [last unloaded: stcp_rust(OE)]
+[  396.235759][ T6582] CPU: 1 UID: 0 PID: 6582 Comm: python3 Tainted: G        W  OE       6.19.0-rc5-paxsudos-stcp-00002-gb71e635feefc-dirty #3 PREEMPT(voluntary) 
+[  396.235764][ T6582] Tainted: [W]=WARN, [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+[  396.235768][ T6582] Hardware name: System manufacturer System Product Name/M4A785TD-V EVO, BIOS 2105    07/23/2010
+[  396.235772][ T6582] RIP: 0010:stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust]
+[  396.235935][ T6582] Code: c1 e8 ad 57 21 e7 e9 81 fe ff ff 48 c7 c1 90 26 4d c1 ba 38 00 00 00 48 c7 c6 ee 28 4d c1 48 c7 c7 30 de 4d c1 e8 89 57 21 e7 <0f> 0b 31 c0 e9 83 d5 ff ff 48 c7 c1 90 26 4d c1 ba 3c 00 00 00 48
+[  396.235940][ T6582] RSP: 0018:ffffd4ddc9a5fd50 EFLAGS: 00010246
+[  396.235944][ T6582] RAX: 0000000000000044 RBX: ffff8d50f24e1300 RCX: 0000000000000000
+[  396.235947][ T6582] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+[  396.235951][ T6582] RBP: ffffd4ddc9a5fd50 R08: 0000000000000000 R09: 0000000000000000
+[  396.235955][ T6582] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8d50f24e1300
+[  396.235958][ T6582] R13: 0000000000000007 R14: 0000000000000000 R15: 0000000000000001
+[  396.235962][ T6582] FS:  0000766c547f86c0(0000) GS:ffff8d55b4f11000(0000) knlGS:0000000000000000
+[  396.235966][ T6582] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  396.235970][ T6582] CR2: 000075b0ec0620e8 CR3: 0000000264951000 CR4: 00000000000006f0
+[  396.235974][ T6582] Call Trace:
+[  396.235978][ T6582]  <TASK>
+[  396.235983][ T6582]  stcp_destroy+0x42/0x16b [stcp_rust]
+[  396.236134][ T6582]  inet_csk_destroy_sock+0x55/0x150
+[  396.236141][ T6582]  __tcp_close+0x361/0x490
+[  396.236147][ T6582]  tcp_close+0x24/0xa0
+[  396.236152][ T6582]  inet_release+0x44/0x90
+[  396.236158][ T6582]  stcp_proto_socket_ops_release+0x74/0x90 [stcp_rust]
+[  396.236305][ T6582]  __sock_release+0x40/0xb0
+[  396.236311][ T6582]  sock_close+0x15/0x30
+[  396.236315][ T6582]  __fput+0xed/0x2d0
+[  396.236320][ T6582]  fput_close_sync+0x3d/0xa0
+[  396.236326][ T6582]  __x64_sys_close+0x3e/0x90
+[  396.236331][ T6582]  x64_sys_call+0x17a4/0x2360
+[  396.236336][ T6582]  do_syscall_64+0x81/0x500
+[  396.236340][ T6582]  ? x64_sys_call+0xb6e/0x2360
+[  396.236345][ T6582]  ? do_syscall_64+0xbf/0x500
+[  396.236349][ T6582]  ? exc_page_fault+0x90/0x1b0
+[  396.236355][ T6582]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+[  396.236360][ T6582] RIP: 0033:0x766ce9aaafe2
+[  396.236365][ T6582] Code: 08 0f 85 71 3a ff ff 49 89 fb 48 89 f0 48 89 d7 48 89 ce 4c 89 c2 4d 89 ca 4c 8b 44 24 08 4c 8b 4c 24 10 4c 89 5c 24 08 0f 05 <c3> 66 2e 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66
+[  396.236370][ T6582] RSP: 002b:0000766c547f7b08 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[  396.236374][ T6582] RAX: ffffffffffffffda RBX: 0000766c547f86c0 RCX: 0000766ce9aaafe2
+[  396.236378][ T6582] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000030
+[  396.236381][ T6582] RBP: 0000766c547f7b30 R08: 0000000000000000 R09: 0000000000000000
+[  396.236385][ T6582] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000030
+[  396.236388][ T6582] R13: 000000000d05ccf0 R14: 0000766ce845b2f8 R15: 0000000000000000
+[  396.236393][ T6582]  </TASK>
+[  396.236397][ T6582] ---[ end trace 0000000000000000 ]---
+[  396.236401][ T6582] stcp stcp_protocol.c:256 [stcp_destroy]: Got st: 0000000000000000
+[  396.237923][ T6586] stcp stcp_protocol.c:209 [stcp_recvmsg]: LJA: Recvmsg 1
+[  396.237942][ T6586] stcp stcp_protocol.c:214 [stcp_recvmsg]: LJA: Recvmsg 2
+[  396.237946][ T6586] stcp stcp_protocol.c:217 [stcp_recvmsg]: LJA: Recvmsg: INTERNAL_IO -> original
+[  396.238005][ T6586] stcp stcp_proto_ops.c:190 [stcp_proto_socket_ops_release]: RELEASE sock=ffff8d50807f3740 sk=ffff8d50f24e2f80 st=ffff8d5053bdd200
+[  396.238013][ T6586] stcp the_stcp_struct.c:257 [stcp_struct_free_st]: Magic check fails => NOT freeing!
+[  396.238068][    C2] stcp stcp_protocol.c:251 [stcp_destroy]: Got sk: ffff8d50f24e5f00
+[  396.238074][    C2] stcp the_stcp_struct.c:60 [stcp_struct_get_st_from_sk]: Has not STCP_MAGIC_ALIVE
+[  396.238137][    C2] ------------[ cut here ]------------
+[  396.238141][    C2] WARNING: the_stcp_struct.c:63 at stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust], CPU#2: python3/6586
+[  396.238402][    C2] Modules linked in: stcp_rust(OE) netconsole xt_conntrack xt_MASQUERADE bridge stp llc xfrm_user xfrm_algo xt_set ip_set nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_addrtype nft_compat x_tables nf_tables snd_seq_dummy snd_hrtimer rpcsec_gss_krb5 auth_rpcgss nfsv4 nfs lockd grace netfs overlay qrtr sunrpc binfmt_misc nls_iso8859_1 nouveau edac_mce_amd snd_hda_codec_nvhdmi snd_hda_codec_hdmi snd_hda_codec_via kvm_amd snd_hda_codec_generic snd_hda_intel ccp snd_hda_codec snd_hda_core kvm snd_intel_dspcfg mxm_wmi snd_intel_sdw_acpi drm_gpuvm snd_hwdep gpu_sched drm_ttm_helper snd_pcm ttm irqbypass drm_exec snd_seq_midi drm_display_helper cp210x snd_seq_midi_event cec usbserial rc_core snd_rawmidi i2c_algo_bit snd_seq input_leds joydev video snd_seq_device snd_timer asus_atk0110 i2c_piix4 k10temp snd i2c_smbus soundcore wmi_bmof mac_hid sch_fq_codel msr parport_pc ppdev lp parport efi_pstore nfnetlink dmi_sysfs autofs4 hid_generic usbhid hid firewire_ohci pata_acpi psmouse serio_raw
+[  396.238494][    C2]  firewire_core r8169 ahci crc_itu_t pata_atiixp libahci realtek wmi [last unloaded: stcp_rust(OE)]
+[  396.238515][    C2] CPU: 2 UID: 0 PID: 6586 Comm: python3 Tainted: G        W  OE       6.19.0-rc5-paxsudos-stcp-00002-gb71e635feefc-dirty #3 PREEMPT(voluntary) 
+[  396.238522][    C2] Tainted: [W]=WARN, [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+[  396.238525][    C2] Hardware name: System manufacturer System Product Name/M4A785TD-V EVO, BIOS 2105    07/23/2010
+[  396.238530][    C2] RIP: 0010:stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust]
+[  396.238687][    C2] Code: c1 e8 ad 57 21 e7 e9 81 fe ff ff 48 c7 c1 90 26 4d c1 ba 38 00 00 00 48 c7 c6 ee 28 4d c1 48 c7 c7 30 de 4d c1 e8 89 57 21 e7 <0f> 0b 31 c0 e9 83 d5 ff ff 48 c7 c1 90 26 4d c1 ba 3c 00 00 00 48
+[  396.238692][    C2] RSP: 0018:ffffd4ddc014ca00 EFLAGS: 00010246
+[  396.238696][    C2] RAX: 0000000000000050 RBX: ffff8d50f24e5f00 RCX: 0000000000000000
+[  396.238700][    C2] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+[  396.238704][    C2] RBP: ffffd4ddc014ca00 R08: 0000000000000000 R09: 0000000000000000
+[  396.238708][    C2] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8d50f24e5f00
+[  396.238711][    C2] R13: 0000000000000000 R14: ffff8d510812cee0 R15: ffffd4ddc014cc18
+[  396.238716][    C2] FS:  0000766c527f46c0(0000) GS:ffff8d55b4f91000(0000) knlGS:0000000000000000
+[  396.238720][    C2] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  396.238724][    C2] CR2: 0000769a542626a8 CR3: 0000000264951000 CR4: 00000000000006f0
+[  396.238729][    C2] Call Trace:
+[  396.238734][    C2]  <IRQ>
+[  396.238741][    C2]  stcp_destroy+0x42/0x16b [stcp_rust]
+[  396.238912][    C2]  inet_csk_destroy_sock+0x55/0x150
+[  396.238920][    C2]  tcp_done+0xc3/0x130
+[  396.238925][    C2]  tcp_done_with_error+0x20/0x50
+[  396.238931][    C2]  tcp_reset+0x5a/0xd0
+[  396.238936][    C2]  tcp_validate_incoming+0x320/0x7e0
+[  396.238941][    C2]  ? __pfx_read_tsc+0x10/0x10
+[  396.238947][    C2]  ? ktime_get+0x41/0x100
+[  396.238953][    C2]  tcp_rcv_state_process+0x507/0x1460
+[  396.238958][    C2]  ? security_sock_rcv_skb+0x5b/0x170
+[  396.238966][    C2]  ? sk_filter_trim_cap+0x217/0x3a0
+[  396.238974][    C2]  tcp_v4_do_rcv+0xe2/0x2d0
+[  396.238980][    C2]  tcp_v4_rcv+0xe86/0x1680
+[  396.238985][    C2]  ? raw_local_deliver+0xd3/0x2c0
+[  396.238992][    C2]  ip_protocol_deliver_rcu+0x3c/0x220
+[  396.238999][    C2]  ip_local_deliver_finish+0x86/0x110
+[  396.239004][    C2]  ip_local_deliver+0x68/0x100
+[  396.239010][    C2]  ? __pfx_ip_local_deliver_finish+0x10/0x10
+[  396.239015][    C2]  ip_rcv+0x186/0x1a0
+[  396.239021][    C2]  ? __pfx_ip_rcv_finish+0x10/0x10
+[  396.239026][    C2]  __netif_receive_skb_one_core+0x8d/0xa0
+[  396.239034][    C2]  __netif_receive_skb+0x15/0x60
+[  396.239039][    C2]  process_backlog+0x90/0x160
+[  396.239045][    C2]  __napi_poll+0x32/0x1d0
+[  396.239050][    C2]  net_rx_action+0x1b0/0x3d0
+[  396.239056][    C2]  ? swake_up_one+0x5f/0x80
+[  396.239064][    C2]  handle_softirqs+0xe7/0x340
+[  396.239070][    C2]  __do_softirq+0x10/0x18
+[  396.239076][    C2]  do_softirq.part.0+0x3f/0x80
+[  396.239083][    C2]  </IRQ>
+[  396.239086][    C2]  <TASK>
+[  396.239089][    C2]  __local_bh_enable_ip+0x6a/0x70
+[  396.239095][    C2]  __dev_queue_xmit+0x1d2/0x10a0
+[  396.239102][    C2]  ? hash_conntrack_raw+0x7c/0x110 [nf_conntrack]
+[  396.239134][    C2]  ip_finish_output2+0x28c/0x570
+[  396.239141][    C2]  __ip_finish_output+0xba/0x190
+[  396.239145][    C2]  ip_finish_output+0x2b/0x140
+[  396.239150][    C2]  ip_output+0x63/0x120
+[  396.239155][    C2]  ? __pfx_ip_finish_output+0x10/0x10
+[  396.239159][    C2]  __ip_queue_xmit+0x3ce/0x560
+[  396.239165][    C2]  ip_queue_xmit+0x15/0x30
+[  396.239170][    C2]  __tcp_transmit_skb+0xb1c/0xfa0
+[  396.239179][    C2]  tcp_send_active_reset+0x105/0x1c0
+[  396.239185][    C2]  __tcp_close+0x143/0x490
+[  396.239193][    C2]  tcp_close+0x24/0xa0
+[  396.239198][    C2]  inet_release+0x44/0x90
+[  396.239204][    C2]  stcp_proto_socket_ops_release+0x74/0x90 [stcp_rust]
+[  396.239364][    C2]  __sock_release+0x40/0xb0
+[  396.239371][    C2]  sock_close+0x15/0x30
+[  396.239375][    C2]  __fput+0xed/0x2d0
+[  396.239381][    C2]  fput_close_sync+0x3d/0xa0
+[  396.239387][    C2]  __x64_sys_close+0x3e/0x90
+[  396.239393][    C2]  x64_sys_call+0x17a4/0x2360
+[  396.239399][    C2]  do_syscall_64+0x81/0x500
+[  396.239406][    C2]  ? __pfx_flush_tlb_func+0x10/0x10
+[  396.239413][    C2]  ? __flush_smp_call_function_queue+0xa1/0x430
+[  396.239419][    C2]  ? do_syscall_64+0xbf/0x500
+[  396.239424][    C2]  ? irqentry_exit+0xb2/0x600
+[  396.239431][    C2]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+[  396.239437][    C2] RIP: 0033:0x766ce9aaafe2
+[  396.239442][    C2] Code: 08 0f 85 71 3a ff ff 49 89 fb 48 89 f0 48 89 d7 48 89 ce 4c 89 c2 4d 89 ca 4c 8b 44 24 08 4c 8b 4c 24 10 4c 89 5c 24 08 0f 05 <c3> 66 2e 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66
+[  396.239447][    C2] RSP: 002b:0000766c527f3b08 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[  396.239452][    C2] RAX: ffffffffffffffda RBX: 0000766c527f46c0 RCX: 0000766ce9aaafe2
+[  396.239456][    C2] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000035
+[  396.239460][    C2] RBP: 0000766c527f3b30 R08: 0000000000000000 R09: 0000000000000000
+[  396.239464][    C2] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000035
+[  396.239468][    C2] R13: 000000000d05e070 R14: 0000766ce844b2f8 R15: 0000000000000000
+[  396.239474][    C2]  </TASK>
+[  396.239478][    C2] ---[ end trace 0000000000000000 ]---
+[  396.239483][    C2] stcp stcp_protocol.c:256 [stcp_destroy]: Got st: 0000000000000000
+[  396.239535][ T6586] stcp stcp_protocol.c:251 [stcp_destroy]: Got sk: ffff8d50f24e2f80
+[  396.239540][ T6586] stcp the_stcp_struct.c:56 [stcp_struct_get_st_from_sk]: Has DEADBEEF
+[  396.239560][ T6587] stcp stcp_protocol.c:209 [stcp_recvmsg]: LJA: Recvmsg 1
+[  396.239581][ T6587] stcp stcp_protocol.c:214 [stcp_recvmsg]: LJA: Recvmsg 2
+[  396.239588][ T6587] stcp stcp_protocol.c:217 [stcp_recvmsg]: LJA: Recvmsg: INTERNAL_IO -> original
+[  396.239604][ T6586] ------------[ cut here ]------------
+[  396.239644][ T6587] stcp stcp_proto_ops.c:190 [stcp_proto_socket_ops_release]: RELEASE sock=ffff8d50807f23c0 sk=ffff8d50f24e4c00 st=ffff8d5053bdd200
+[  396.239653][ T6587] stcp the_stcp_struct.c:257 [stcp_struct_free_st]: Magic check fails => NOT freeing!
+[  396.239609][ T6586] WARNING: the_stcp_struct.c:63 at stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust], CPU#2: python3/6586
+[  396.239709][    C1] stcp stcp_protocol.c:251 [stcp_destroy]: Got sk: ffff8d50f24e5580
+[  396.239712][    C1] stcp the_stcp_struct.c:60 [stcp_struct_get_st_from_sk]: Has not STCP_MAGIC_ALIVE
+[  396.239737][    C1] ------------[ cut here ]------------
+[  396.239780][ T6586] Modules linked in: stcp_rust(OE) netconsole xt_conntrack xt_MASQUERADE bridge stp llc xfrm_user xfrm_algo xt_set ip_set nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_addrtype nft_compat x_tables nf_tables snd_seq_dummy snd_hrtimer rpcsec_gss_krb5 auth_rpcgss nfsv4 nfs lockd grace netfs overlay qrtr sunrpc binfmt_misc nls_iso8859_1 nouveau edac_mce_amd snd_hda_codec_nvhdmi snd_hda_codec_hdmi snd_hda_codec_via kvm_amd snd_hda_codec_generic snd_hda_intel ccp snd_hda_codec snd_hda_core kvm snd_intel_dspcfg mxm_wmi snd_intel_sdw_acpi drm_gpuvm snd_hwdep gpu_sched drm_ttm_helper snd_pcm ttm irqbypass drm_exec snd_seq_midi drm_display_helper cp210x snd_seq_midi_event cec usbserial rc_core snd_rawmidi i2c_algo_bit snd_seq input_leds joydev video snd_seq_device snd_timer asus_atk0110 i2c_piix4 k10temp snd i2c_smbus soundcore wmi_bmof mac_hid sch_fq_codel msr parport_pc ppdev lp parport efi_pstore nfnetlink dmi_sysfs autofs4 hid_generic usbhid hid firewire_ohci pata_acpi psmouse serio_raw
+[  396.239869][ T6586]  firewire_core r8169 ahci crc_itu_t pata_atiixp libahci realtek wmi
+[  396.239738][    C1] WARNING: the_stcp_struct.c:63 at stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust], CPU#1: python3/6587
+[  396.239907][ T6586]  [last unloaded: stcp_rust(OE)]
+[  396.239912][ T6586] CPU: 2 UID: 0 PID: 6586 Comm: python3 Tainted: G        W  OE       6.19.0-rc5-paxsudos-stcp-00002-gb71e635feefc-dirty #3 PREEMPT(voluntary) 
+[  396.239916][ T6586] Tainted: [W]=WARN, [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+[  396.239917][ T6586] Hardware name: System manufacturer System Product Name/M4A785TD-V EVO, BIOS 2105    07/23/2010
+[  396.239920][ T6586] RIP: 0010:stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust]
+[  396.240007][    C1] Modules linked in: stcp_rust(OE) netconsole xt_conntrack xt_MASQUERADE bridge stp llc xfrm_user xfrm_algo xt_set ip_set nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_addrtype nft_compat x_tables nf_tables snd_seq_dummy snd_hrtimer rpcsec_gss_krb5 auth_rpcgss nfsv4 nfs lockd grace netfs overlay qrtr sunrpc binfmt_misc nls_iso8859_1 nouveau edac_mce_amd snd_hda_codec_nvhdmi snd_hda_codec_hdmi snd_hda_codec_via kvm_amd snd_hda_codec_generic snd_hda_intel ccp snd_hda_codec snd_hda_core kvm snd_intel_dspcfg mxm_wmi snd_intel_sdw_acpi drm_gpuvm snd_hwdep gpu_sched drm_ttm_helper snd_pcm ttm irqbypass drm_exec snd_seq_midi drm_display_helper cp210x snd_seq_midi_event cec usbserial rc_core snd_rawmidi i2c_algo_bit snd_seq input_leds joydev video snd_seq_device snd_timer asus_atk0110 i2c_piix4 k10temp snd i2c_smbus soundcore wmi_bmof mac_hid
+[  396.240071][ T6586] Code: c1 e8 ad 57 21 e7 e9 81 fe ff ff 48 c7 c1 90 26 4d c1 ba 38 00 00 00 48 c7 c6 ee 28 4d c1 48 c7 c7 30 de 4d c1 e8 89 57 21 e7 <0f> 0b 31 c0 e9 83 d5 ff ff 48 c7 c1 90 26 4d c1 ba 3c 00 00 00 48
+[  396.240074][ T6586] RSP: 0018:ffffd4ddc9a87d00 EFLAGS: 00010246
+[  396.240076][ T6586] RAX: 0000000000000044 RBX: ffff8d50f24e2f80 RCX: 0000000000000000
+[  396.240079][    C1]  sch_fq_codel
+[  396.240081][ T6586] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+[  396.240083][ T6586] RBP: ffffd4ddc9a87d00 R08: 0000000000000000 R09: 0000000000000000
+[  396.240085][    C1]  msr
+[  396.240086][ T6586] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8d50f24e2f80
+[  396.240089][    C1]  parport_pc ppdev lp
+[  396.240094][ T6586] R13: 0000000000000007 R14: 0000000000000000 R15: 0000000000000001
+[  396.240096][ T6586] FS:  0000766c527f46c0(0000) GS:ffff8d55b4f91000(0000) knlGS:0000000000000000
+[  396.240098][ T6586] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  396.240100][ T6586] CR2: 0000769a542626a8 CR3: 0000000264951000 CR4: 00000000000006f0
+[  396.240102][    C1]  parport
+[  396.240104][ T6586] Call Trace:
+[  396.240106][ T6586]  <TASK>
+[  396.240127][    C1]  efi_pstore nfnetlink dmi_sysfs autofs4 hid_generic usbhid hid firewire_ohci pata_acpi psmouse serio_raw firewire_core r8169 ahci crc_itu_t pata_atiixp libahci realtek wmi [last unloaded: stcp_rust(OE)]
+[  396.240148][    C1] CPU: 1 UID: 0 PID: 6587 Comm: python3 Tainted: G        W  OE       6.19.0-rc5-paxsudos-stcp-00002-gb71e635feefc-dirty #3 PREEMPT(voluntary) 
+[  396.240156][    C1] Tainted: [W]=WARN, [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+[  396.240159][    C1] Hardware name: System manufacturer System Product Name/M4A785TD-V EVO, BIOS 2105    07/23/2010
+[  396.240109][ T6586]  stcp_destroy+0x42/0x16b [stcp_rust]
+[  396.240164][    C1] RIP: 0010:stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust]
+[  396.240262][ T6586]  inet_csk_destroy_sock+0x55/0x150
+[  396.240268][ T6586]  __tcp_close+0x361/0x490
+[  396.240273][ T6586]  tcp_close+0x24/0xa0
+[  396.240275][ T6586]  inet_release+0x44/0x90
+[  396.240331][    C1] Code: c1 e8 ad 57 21 e7 e9 81 fe ff ff 48 c7 c1 90 26 4d c1 ba 38 00 00 00 48 c7 c6 ee 28 4d c1 48 c7 c7 30 de 4d c1 e8 89 57 21 e7 <0f> 0b 31 c0 e9 83 d5 ff ff 48 c7 c1 90 26 4d c1 ba 3c 00 00 00 48
+[  396.240336][    C1] RSP: 0018:ffffd4ddc0118a00 EFLAGS: 00010246
+[  396.240340][    C1] RAX: 0000000000000050 RBX: ffff8d50f24e5580 RCX: 0000000000000000
+[  396.240344][    C1] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+[  396.240347][    C1] RBP: ffffd4ddc0118a00 R08: 0000000000000000 R09: 0000000000000000
+[  396.240351][    C1] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8d50f24e5580
+[  396.240278][ T6586]  stcp_proto_socket_ops_release+0x74/0x90 [stcp_rust]
+[  396.240355][    C1] R13: 0000000000000000 R14: ffff8d51a4cfa220 R15: ffffd4ddc0118c18
+[  396.240358][    C1] FS:  0000766c51ff36c0(0000) GS:ffff8d55b4f11000(0000) knlGS:0000000000000000
+[  396.240360][    C1] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  396.240361][    C1] CR2: 000075b0ec0620e8 CR3: 0000000264951000 CR4: 00000000000006f0
+[  396.240363][    C1] Call Trace:
+[  396.240365][    C1]  <IRQ>
+[  396.240368][    C1]  stcp_destroy+0x42/0x16b [stcp_rust]
+[  396.240445][ T6586]  __sock_release+0x40/0xb0
+[  396.240448][ T6586]  sock_close+0x15/0x30
+[  396.240451][ T6586]  __fput+0xed/0x2d0
+[  396.240454][ T6586]  fput_close_sync+0x3d/0xa0
+[  396.240457][ T6586]  __x64_sys_close+0x3e/0x90
+[  396.240460][ T6586]  x64_sys_call+0x17a4/0x2360
+[  396.240463][ T6586]  do_syscall_64+0x81/0x500
+[  396.240466][ T6586]  ? __pfx_flush_tlb_func+0x10/0x10
+[  396.240470][ T6586]  ? __flush_smp_call_function_queue+0xa1/0x430
+[  396.240473][ T6586]  ? do_syscall_64+0xbf/0x500
+[  396.240475][ T6586]  ? irqentry_exit+0xb2/0x600
+[  396.240479][ T6586]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+[  396.240481][ T6586] RIP: 0033:0x766ce9aaafe2
+[  396.240484][ T6586] Code: 08 0f 85 71 3a ff ff 49 89 fb 48 89 f0 48 89 d7 48 89 ce 4c 89 c2 4d 89 ca 4c 8b 44 24 08 4c 8b 4c 24 10 4c 89 5c 24 08 0f 05 <c3> 66 2e 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66
+[  396.240486][ T6586] RSP: 002b:0000766c527f3b08 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[  396.240488][ T6586] RAX: ffffffffffffffda RBX: 0000766c527f46c0 RCX: 0000766ce9aaafe2
+[  396.240490][ T6586] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000035
+[  396.240491][ T6586] RBP: 0000766c527f3b30 R08: 0000000000000000 R09: 0000000000000000
+[  396.240492][ T6586] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000035
+[  396.240493][ T6586] R13: 000000000d05e070 R14: 0000766ce844b2f8 R15: 0000000000000000
+[  396.240496][ T6586]  </TASK>
+[  396.240498][ T6586] ---[ end trace 0000000000000000 ]---
+[  396.240500][ T6586] stcp stcp_protocol.c:256 [stcp_destroy]: Got st: 0000000000000000
+[  396.240570][    C1]  inet_csk_destroy_sock+0x55/0x150
+[  396.240577][    C1]  tcp_done+0xc3/0x130
+[  396.240582][    C1]  tcp_done_with_error+0x20/0x50
+[  396.240588][    C1]  tcp_reset+0x5a/0xd0
+[  396.240592][    C1]  tcp_validate_incoming+0x320/0x7e0
+[  396.240597][    C1]  ? __pfx_read_tsc+0x10/0x10
+[  396.240603][    C1]  ? ktime_get+0x41/0x100
+[  396.240609][    C1]  tcp_rcv_state_process+0x507/0x1460
+[  396.240614][    C1]  ? security_sock_rcv_skb+0x5b/0x170
+[  396.240622][    C1]  ? sk_filter_trim_cap+0x217/0x3a0
+[  396.240629][    C1]  tcp_v4_do_rcv+0xe2/0x2d0
+[  396.240634][    C1]  tcp_v4_rcv+0xe86/0x1680
+[  396.240641][    C1]  ? raw_local_deliver+0xd3/0x2c0
+[  396.240646][    C1]  ip_protocol_deliver_rcu+0x3c/0x220
+[  396.240653][    C1]  ip_local_deliver_finish+0x86/0x110
+[  396.240658][    C1]  ip_local_deliver+0x68/0x100
+[  396.240664][    C1]  ? __pfx_ip_local_deliver_finish+0x10/0x10
+[  396.240669][    C1]  ip_rcv+0x186/0x1a0
+[  396.240674][    C1]  ? __pfx_ip_rcv_finish+0x10/0x10
+[  396.240680][    C1]  __netif_receive_skb_one_core+0x8d/0xa0
+[  396.240687][    C1]  __netif_receive_skb+0x15/0x60
+[  396.240692][    C1]  process_backlog+0x90/0x160
+[  396.240704][    C1]  __napi_poll+0x32/0x1d0
+[  396.240709][    C1]  net_rx_action+0x1b0/0x3d0
+[  396.240716][    C1]  handle_softirqs+0xe7/0x340
+[  396.240722][    C1]  __do_softirq+0x10/0x18
+[  396.240727][    C1]  do_softirq.part.0+0x3f/0x80
+[  396.240734][    C1]  </IRQ>
+[  396.240737][    C1]  <TASK>
+[  396.240740][    C1]  __local_bh_enable_ip+0x6a/0x70
+[  396.240745][    C1]  __dev_queue_xmit+0x1d2/0x10a0
+[  396.240751][    C1]  ? hash_conntrack_raw+0x7c/0x110 [nf_conntrack]
+[  396.240784][    C1]  ip_finish_output2+0x28c/0x570
+[  396.240791][    C1]  __ip_finish_output+0xba/0x190
+[  396.240795][    C1]  ip_finish_output+0x2b/0x140
+[  396.240799][    C1]  ip_output+0x63/0x120
+[  396.240803][    C1]  ? __pfx_ip_finish_output+0x10/0x10
+[  396.240808][    C1]  __ip_queue_xmit+0x3ce/0x560
+[  396.240814][    C1]  ip_queue_xmit+0x15/0x30
+[  396.240819][    C1]  __tcp_transmit_skb+0xb1c/0xfa0
+[  396.240825][    C1]  tcp_send_active_reset+0x105/0x1c0
+[  396.240832][    C1]  __tcp_close+0x143/0x490
+[  396.240839][    C1]  tcp_close+0x24/0xa0
+[  396.240844][    C1]  inet_release+0x44/0x90
+[  396.240848][    C1]  stcp_proto_socket_ops_release+0x74/0x90 [stcp_rust]
+[  396.241011][    C1]  __sock_release+0x40/0xb0
+[  396.241016][    C1]  sock_close+0x15/0x30
+[  396.241021][    C1]  __fput+0xed/0x2d0
+[  396.241025][    C1]  fput_close_sync+0x3d/0xa0
+[  396.241030][    C1]  __x64_sys_close+0x3e/0x90
+[  396.241034][    C1]  x64_sys_call+0x17a4/0x2360
+[  396.241039][    C1]  do_syscall_64+0x81/0x500
+[  396.241044][    C1]  ? __sys_recvfrom+0x15b/0x180
+[  396.241051][    C1]  ? rtl8169_poll+0x49a/0x530 [r8169]
+[  396.241064][    C1]  ? __napi_poll+0x32/0x1d0
+[  396.241069][    C1]  ? skb_defer_free_flush+0xa2/0xd0
+[  396.241074][    C1]  ? net_rx_action+0x12e/0x3d0
+[  396.241081][    C1]  ? handle_softirqs+0xe7/0x340
+[  396.241085][    C1]  ? irqentry_exit+0xb2/0x600
+[  396.241089][    C1]  ? common_interrupt+0x64/0xe0
+[  396.241095][    C1]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+[  396.241099][    C1] RIP: 0033:0x766ce9aaafe2
+[  396.241103][    C1] Code: 08 0f 85 71 3a ff ff 49 89 fb 48 89 f0 48 89 d7 48 89 ce 4c 89 c2 4d 89 ca 4c 8b 44 24 08 4c 8b 4c 24 10 4c 89 5c 24 08 0f 05 <c3> 66 2e 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66
+[  396.241112][    C1] RSP: 002b:0000766c51ff2b08 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[  396.241117][    C1] RAX: ffffffffffffffda RBX: 0000766c51ff36c0 RCX: 0000766ce9aaafe2
+[  396.241120][    C1] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000036
+[  396.241123][    C1] RBP: 0000766c51ff2b30 R08: 0000000000000000 R09: 0000000000000000
+[  396.241126][    C1] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000036
+[  396.241129][    C1] R13: 000000000d05e520 R14: 0000766ce84472f8 R15: 0000000000000000
+[  396.241134][    C1]  </TASK>
+[  396.241138][    C1] ---[ end trace 0000000000000000 ]---
+[  396.241141][    C1] stcp stcp_protocol.c:256 [stcp_destroy]: Got st: 0000000000000000
+[  396.241213][ T6587] stcp stcp_protocol.c:251 [stcp_destroy]: Got sk: ffff8d50f24e4c00
+[  396.241218][ T6587] stcp the_stcp_struct.c:56 [stcp_struct_get_st_from_sk]: Has DEADBEEF
+[  396.241256][ T6587] ------------[ cut here ]------------
+[  396.241259][ T6587] WARNING: the_stcp_struct.c:63 at stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust], CPU#1: python3/6587
+[  396.241411][ T6587] Modules linked in: stcp_rust(OE) netconsole xt_conntrack xt_MASQUERADE bridge stp llc xfrm_user xfrm_algo xt_set ip_set nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_addrtype nft_compat x_tables nf_tables snd_seq_dummy snd_hrtimer rpcsec_gss_krb5 auth_rpcgss nfsv4 nfs lockd grace netfs overlay qrtr sunrpc binfmt_misc nls_iso8859_1 nouveau edac_mce_amd snd_hda_codec_nvhdmi snd_hda_codec_hdmi snd_hda_codec_via kvm_amd snd_hda_codec_generic snd_hda_intel ccp snd_hda_codec snd_hda_core kvm snd_intel_dspcfg mxm_wmi snd_intel_sdw_acpi drm_gpuvm snd_hwdep gpu_sched drm_ttm_helper snd_pcm ttm irqbypass drm_exec snd_seq_midi drm_display_helper cp210x snd_seq_midi_event cec usbserial rc_core snd_rawmidi i2c_algo_bit snd_seq input_leds joydev video snd_seq_device snd_timer asus_atk0110 i2c_piix4 k10temp snd i2c_smbus soundcore wmi_bmof mac_hid sch_fq_codel msr parport_pc ppdev lp parport efi_pstore nfnetlink dmi_sysfs autofs4 hid_generic usbhid hid firewire_ohci pata_acpi psmouse serio_raw
+[  396.241485][ T6587]  firewire_core r8169 ahci crc_itu_t pata_atiixp libahci realtek wmi [last unloaded: stcp_rust(OE)]
+[  396.241502][ T6587] CPU: 1 UID: 0 PID: 6587 Comm: python3 Tainted: G        W  OE       6.19.0-rc5-paxsudos-stcp-00002-gb71e635feefc-dirty #3 PREEMPT(voluntary) 
+[  396.241508][ T6587] Tainted: [W]=WARN, [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+[  396.241511][ T6587] Hardware name: System manufacturer System Product Name/M4A785TD-V EVO, BIOS 2105    07/23/2010
+[  396.241514][ T6587] RIP: 0010:stcp_struct_get_st_from_sk.cold+0x1f/0x49 [stcp_rust]
+[  396.241662][ T6587] Code: c1 e8 ad 57 21 e7 e9 81 fe ff ff 48 c7 c1 90 26 4d c1 ba 38 00 00 00 48 c7 c6 ee 28 4d c1 48 c7 c7 30 de 4d c1 e8 89 57 21 e7 <0f> 0b 31 c0 e9 83 d5 ff ff 48 c7 c1 90 26 4d c1 ba 3c 00 00 00 48
+[  396.241667][ T6587] RSP: 0018:ffffd4ddc9a8fa40 EFLAGS: 00010246
+[  396.241671][ T6587] RAX: 0000000000000044 RBX: ffff8d50f24e4c00 RCX: 0000000000000000
+[  396.241674][ T6587] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+[  396.241677][ T6587] RBP: ffffd4ddc9a8fa40 R08: 0000000000000000 R09: 0000000000000000
+[  396.241680][ T6587] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8d50f24e4c00
+[  396.241684][ T6587] R13: 0000000000000007 R14: 0000000000000000 R15: 0000000000000001
+[  396.241687][ T6587] FS:  0000766c51ff36c0(0000) GS:ffff8d55b4f11000(0000) knlGS:0000000000000000
+[  396.241690][ T6587] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  396.241694][ T6587] CR2: 000075b0ec0620e8 CR3: 0000000264951000 CR4: 00000000000006f0
+[  396.241697][ T6587] Call Trace:
+[  396.241700][ T6587]  <TASK>
+[  396.241704][ T6587]  stcp_destroy+0x42/0x16b [stcp_rust]
+[  396.241851][ T6587]  inet_csk_destroy_sock+0x55/0x150
+[  396.241856][ T6587]  __tcp_close+0x361/0x490
+[  396.241862][ T6587]  tcp_close+0x24/0xa0
+[  396.241866][ T6587]  inet_release+0x44/0x90
+[  396.241871][ T6587]  stcp_proto_socket_ops_release+0x74/0x90 [stcp_rust]
+[  396.242026][ T6587]  __sock_release+0x40/0xb0
+[  396.242032][ T6587]  sock_close+0x15/0x30
+[  396.242036][ T6587]  __fput+0xed/0x2d0
+[  396.242041][ T6587]  fput_close_sync+0x3d/0xa0
+[  396.242046][ T6587]  __x64_sys_close+0x3e/0x90
+[  396.242050][ T6587]  x64_sys_call+0x17a4/0x2360
+[  396.242054][ T6587]  do_syscall_64+0x81/0x500
+[  396.242059][ T6587]  ? __sys_recvfrom+0x15b/0x180
+[  396.242065][ T6587]  ? rtl8169_poll+0x49a/0x530 [r8169]
+[  396.242075][ T6587]  ? __napi_poll+0x32/0x1d0
+[  396.242080][ T6587]  ? skb_defer_free_flush+0xa2/0xd0
+[  396.242085][ T6587]  ? net_rx_action+0x12e/0x3d0
+[  396.242091][ T6587]  ? handle_softirqs+0xe7/0x340
+[  396.242096][ T6587]  ? irqentry_exit+0xb2/0x600
+[  396.242100][ T6587]  ? common_interrupt+0x64/0xe0
+[  396.242106][ T6587]  entry_SYSCALL_64_after_hwframe+0x76/0x7e
+[  396.242110][ T6587] RIP: 0033:0x766ce9aaafe2
+[  396.242115][ T6587] Code: 08 0f 85 71 3a ff ff 49 89 fb 48 89 f0 48 89 d7 48 89 ce 4c 89 c2 4d 89 ca 4c 8b 44 24 08 4c 8b 4c 24 10 4c 89 5c 24 08 0f 05 <c3> 66 2e 0f 1f 84 00 00 00 00 00 66 2e 0f 1f 84 00 00 00 00 00 66
+[  396.242119][ T6587] RSP: 002b:0000766c51ff2b08 EFLAGS: 00000246 ORIG_RAX: 0000000000000003
+[  396.242124][ T6587] RAX: ffffffffffffffda RBX: 0000766c51ff36c0 RCX: 0000766ce9aaafe2
+[  396.242127][ T6587] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000036
+[  396.242130][ T6587] RBP: 0000766c51ff2b30 R08: 0000000000000000 R09: 0000000000000000
+[  396.242134][ T6587] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000036
+[  396.242137][ T6587] R13: 000000000d05e520 R14: 0000766ce84472f8 R15: 0000000000000000
+[  396.242142][ T6587]  </TASK>
+[  396.242145][ T6587] ---[ end trace 0000000000000000 ]---
+[  396.242148][ T6587] stcp stcp_protocol.c:256 [stcp_destroy]: Got st: 0000000000000000

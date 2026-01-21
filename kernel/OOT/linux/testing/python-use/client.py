@@ -1,137 +1,105 @@
 #!/usr/bin/env python3
-import secrets
-import string
+import argparse
+import os
+import signal
 import socket
 import sys
 import time
-from cryptography.hazmat.primitives.asymmetric import x25519
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-SERVER_HOST = "127.0.0.1"
-SERVER_PORT = 2525
-STCP_PROTO = 253
-handshake_done = False
-
-HS1 = b"STCP_HS1|"
-HS2 = b"STCP_HS2|"
-
-# Private key
-MY_PRIKEY = x25519.X25519PrivateKey.generate()
-
-# Public key bytes (32 B)
-MY_PUBKEY = MY_PRIKEY.public_key().public_bytes(
-    encoding=serialization.Encoding.Raw,
-    format=serialization.PublicFormat.Raw
-)
-
-HS1 = b"STCP_HS1|"
-HS2 = b"STCP_HS2|"
-
-AESHDR = b"STCP_AES|"
-
-HS1OUT = HS1 + MY_PUBKEY
-
-def derive_aes_key(shared: bytes) -> bytes:
-    # 32 bytes = AES-256 key
-    hkdf = HKDF(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=None,                 # ok testipenkissä; myöhemmin mieluummin salt/nonce
-        info=b"STCP-AESGCM-v1",    # tärkeä: domain separation
-    )
-    return hkdf.derive(shared)
-
-def aes_encrypt(key: bytes, plaintext: bytes) -> bytes:
-    aes = AESGCM(key)
-    nonce = secrets.token_bytes(12)  # AES-GCM standard nonce
-    ct = aes.encrypt(nonce, plaintext, None)  # AAD=None
-    return nonce + ct
-
-def aes_decrypt(key: bytes, packet: bytes) -> bytes:
-    if len(packet) < 12 + 16:
-        raise ValueError("packet too short")
-    nonce = packet[:12]
-    ct = packet[12:]
-    aes = AESGCM(key)
-    return aes.decrypt(nonce, ct, None)
 
 
-def random_string(length=32):
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
+def log(msg: str) -> None:
+    ts = time.strftime("%H:%M:%S")
+    print(f"[CLIENT {ts}] {msg}", flush=True)
 
-if len(sys.argv) > 1:
-    SERVER_PORT = int(sys.argv[1])
-    
-if len(sys.argv) > 2:
-    STCP_PROTO = int(sys.argv[2])
 
-def main():
-    print(f"[CLIENT] Luodaan STCP-soketti proto={STCP_PROTO}")
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, STCP_PROTO)
-    peer_pub = ""
-    shared_key = ""
+def make_client_socket(proto: int, timeout: float) -> socket.socket:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto)
+    s.settimeout(timeout)
+    return s
 
+
+def run_app_only(host: str, port: int, proto: int, timeout: float, payload: bytes, expect_echo: bool) -> int:
+    s = make_client_socket(proto, timeout)
     try:
-        print(f"[CLIENT] Yhdistetään {SERVER_HOST}:{SERVER_PORT} ...")
-        s.connect((SERVER_HOST, SERVER_PORT))
-        print("[CLIENT] Yhdistetty!")
-
-        # Testaa että non-blocking handshake toimii: pieni sleep
-        time.sleep(10)
-
-        # Lähetä testidataa (jos Rust-puoli ei vielä vaadi mitään erityistä formaattia)
-        msg = HS1 + MY_PUBKEY
-        print(f"[CLIENT] Lähetetään {len(msg)} tavua: {msg!r}")
-        sent = s.send(msg)
-        print(f"[CLIENT] send() palautti {sent}")
-
-        server_pubkey = ""
-        # Yritä lukea jotain takaisin (tämä voi blokata jos serveri ei vastaa)
-        try:
-            s.settimeout(30.0)
-            print(f"[CLIENT] recv() timeout 30 sec")
-            data = s.recv(128)
-            print(f"[CLIENT] recv() -> {len(data)} tavua: {data!r}")
-
-            if data.startswith(HS2):
-                dlen = len(HS2)
-                server_pubkey = data[dlen:]
-                print(f"[CLIENT] RECV public key from server: -> {len(server_pubkey)} tavua: {server_pubkey.hex()}")
-            else:
-                raise OSError(f"Handshake failed: expected {HS2!r}, got {data!r}")
-
-            peer_pub = x25519.X25519PublicKey.from_public_bytes(server_pubkey)
-            shared_key = MY_PRIKEY.exchange(peer_pub)
-            print(f"[CLIENT] HS Shared {shared_key.hex()}")            
-            print(f"[CLIENT] Handshake ok.")            
-
-        except socket.timeout:
-            print("[CLIENT] recv timeout – ei vastausta (ok, jos serveri ei vielä lähetä mitään)")
-
-        theAesKey = derive_aes_key(shared_key)
-
-        msg = b"TERVEISIA PYTHONI ASIAKKAALTA"
-        aesmsg = AESHDR + aes_encrypt(theAesKey, msg)
-        print(f"[CLIENT] Lähetetään {len(aesmsg)} tavua: {aesmsg.hex()}")
-        sent = s.send(aesmsg)
-        print(f"[CLIENT] send() palautti {sent}")
-
-        s.settimeout(30.0)
-        print(f"[CLIENT] recv() timeout 30 sec")
-
+        log(f"connect {host}:{port} proto={proto}")
+        s.connect((host, port))
+        log(f"send {len(payload)} bytes: {payload!r}")
+        s.sendall(payload)
         data = s.recv(4096)
-        print(f"[CLIENT] recv() -> {len(data)} tavua: {data!r}")
+        log(f"recv {len(data)} bytes: {data!r}")
 
+        if expect_echo:
+            expected = b"OK:" + payload
+            if data != expected:
+                log(f"ERROR: unexpected reply, expected {expected!r}")
+                return 2
+        else:
+            if not data.startswith(b"OK"):
+                log("ERROR: reply doesn't start with OK")
+                return 2
+
+        return 0
+
+    except socket.timeout:
+        log("ERROR: timeout")
+        return 3
+    except ConnectionRefusedError:
+        log("ERROR: connection refused")
+        return 4
+    except ConnectionResetError:
+        log("ERROR: connection reset")
+        return 5
     except OSError as e:
-        print(f"[CLIENT] Virhe socket-operaatiossa: {e}", file=sys.stderr)
+        log(f"ERROR: socket error: {e!r}")
+        return 6
     finally:
-        print("[CLIENT] Suljetaan soketti.")
-        s.close()
-        print("[CLIENT] Done.")
+        try:
+            s.close()
+        except Exception:
+            pass
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="STCP client test (app-only).")
+    ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--port", type=int, default=2225)
+    ap.add_argument("--proto", type=int, default=253)
+    ap.add_argument("--timeout", type=float, default=30.0)
+    ap.add_argument("--mode", choices=["app"], default="app")
+    ap.add_argument("--payload", default="hello-from-client", help="Payload string to send.")
+    ap.add_argument("--loops", type=int, default=1, help="How many times to connect/send/recv.")
+    ap.add_argument("--sleep", type=float, default=0.0, help="Sleep between loops.")
+    ap.add_argument("--expect-echo", action="store_true",
+                    help="Expect server reply to be exactly OK:<payload>.")
+    ap.add_argument("--kill-server-after", type=float, default=None,
+                    help="After N seconds, SIGKILL all python3 processes (kill test).")
+    args = ap.parse_args()
+
+    payload = args.payload.encode("utf-8", errors="replace")
+
+    if args.kill_server_after is not None:
+        # Brutal kill test for teardown
+        def killer():
+            time.sleep(args.kill_server_after)
+            log(f"SIGKILL python3 (kill-server-after={args.kill_server_after})")
+            os.system("sudo pkill -9 -f python3")
+
+        import threading
+        threading.Thread(target=killer, daemon=True).start()
+
+    rc = 0
+    for i in range(args.loops):
+        log(f"loop {i+1}/{args.loops}")
+        rc = run_app_only(args.host, args.port, args.proto, args.timeout, payload, args.expect_echo)
+        if rc != 0:
+            log(f"FAILED on loop {i+1} rc={rc}")
+            return rc
+        if args.sleep > 0:
+            time.sleep(args.sleep)
+
+    log("OK")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

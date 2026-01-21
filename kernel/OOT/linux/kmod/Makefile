@@ -12,7 +12,10 @@ obj-m += stcp_rust.o
 #		stcp_rust_func_debug.o
 
 stcp_rust-y := \
+                debug.o \
+                state.o \
                 init.o \
+                stcp_proto_ops_helpers.o \
                 stcp_protocol.o \
                 stcp_proto_ops.o \
                 ffi_random.o \

@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+host=${1:-nas}
+port=${2:-12345}
+proto=${3:-253}
+size=${4:-256}
+
+myname=$(basename "$0")
+
+klog() {
+    local level="${1:-6}"
+    shift || true
+    echo "<$level>$*" > /dev/kmsg
+}
+
+msg() {
+	klog 6 "$*"
+        echo "[$myname @ $(date)] $*"
+}
+
+
+
+python3 stcp_stress_test.py --host $host --port $port --mode steady --report-every 5 \
+          --summary-json --summary-json-file summary.$host.$port.$proto.$size.churn.json \
+          --clients 50 --duration $((60*60*12)) --msg-size $size --messages-per-conn 500 --timeout 50 \
+          --proto $proto  2>&1 \
+                | while read -r LN; do
+                     msg "$LN" 
+                  done;
+

@@ -18,16 +18,27 @@
 #include <stcp/stcp_tcp_low_level_operations.h>
 #include <stcp/stcp_socket_struct.h>
 #include <stcp/proto_layer.h>
+#include <stcp/stcp_proto_ops_helpers.h>
 
-#define TCP_DEBUG 0
+// RUSTISTA KUTSUTAAN .. EI C Puolelta!
+#define TCP_DEBUG 1
 
 ssize_t stcp_tcp_send(struct sock *sk, u8 *buf, size_t len)
 {
+   
     SDBG("SEND sk=%px state=%d", sk, sk && sk->sk_state);
 
     struct stcp_sock *st = stcp_struct_get_st_from_sk(sk);
     if (!st || !st->session)
-        return -ENOTCONN;
+        return -EINVAL;
+
+    DEBUG_INCOMING_STCP_STATUS(st);
+
+    if (!test_bit(STCP_FLAG_HS_COMPLETE_BIT, &st->flags) &&
+        !test_bit(STCP_FLAG_INTERNAL_IO_BIT, &st->flags)) {
+        SDBG("Not doing anything...");
+        return -EAGAIN; /* tai -EPROTO */
+    }
 
     struct kvec iov;
     struct msghdr msg = {0};
@@ -51,9 +62,9 @@ ssize_t stcp_tcp_send(struct sock *sk, u8 *buf, size_t len)
     sent = orginal_tcp_sendmsg(sk, &msg, len);
 
 #if TCP_DEBUG
-    pr_emerg(".----<[MESSAGE]>------------------------------------------------------------>\n");
-    pr_emerg("|  ✅ Sent data: %d bytes ", (int)sent);
-    pr_emerg("'----------------------------------------------------------------------'\n");
+    pr_emerg_ratelimited(".----<[MESSAGE]>------------------------------------------------------------>\n");
+    pr_emerg_ratelimited("|  ✅ Sent data: %d bytes ", (int)sent);
+    pr_emerg_ratelimited("'----------------------------------------------------------------------'\n");
 #endif
 
     return sent;    // >=0: tavujen määrä, <0: -errno

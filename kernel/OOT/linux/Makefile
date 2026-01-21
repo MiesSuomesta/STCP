@@ -4,7 +4,7 @@ V:=1
 TOPDIR := $(abspath $(CURDIR))
 include $(TOPDIR)/Makefile.commit
 include $(TOPDIR)/Makefile.common
-
+RATELIMIT := 1
 .PHONY: kmod kmod-release modules all clean kclean superclean mkdirs make-build-makefile git-commit-when-no-errors make-cmd rust-build-debug kmod-debug modinfo golden test logs
 
 test:
@@ -91,12 +91,11 @@ rust-clean:
 
 kmod-release modules: make-build-makefile rust-build
 
-	$(MAKE) -C "$(KDIR)" M="$(KMOD_SRC)" CFLAGS_MODULE="-DDISABLE_DEBUG -DSTCP_RELEASE" KBUILD_SRC="$(KMOD_SRC)" modules
+	$(MAKE) -C "$(KDIR)" M="$(KMOD_SRC)" CFLAGS_MODULE="-DUSE_RATE_LIMIT=1 -DDISABLE_DEBUG -DSTCP_RELEASE" KBUILD_SRC="$(KMOD_SRC)" modules
 
 kmod: make-build-makefile rust-build-debug
-
 	$(MAKE) -C "$(KDIR)" M="$(KMOD_SRC)" SKIP_STACK_VALIDATION=1 \
-		  CFLAGS_MODULE="-DDISABLE_DEBUG -DSTCP_RELEASE" KBUILD_SRC="$(KMOD_SRC)" modules
+		  CFLAGS_MODULE="-DUSE_RATE_LIMIT=0"  KBUILD_SRC="$(KMOD_SRC)" modules
 
 all: rust-build kmod-release modinfo
 debug: rust-build kmod modinfo

@@ -212,6 +212,12 @@ pub fn stcp_message_frame_from_raw(frame_payload_in: &[u8]) ->
       return (stcp_message_create_header(StcpMsgType::Unknown, 0), Vec::with_capacity(0), -EAGAIN as isize);
     }
 
+    let needed = header_size_in_bytes + frame_payload_in_len;
+
+    if frame_payload_in_len < needed {
+      return (stcp_message_create_header(StcpMsgType::Unknown, 0), Vec::with_capacity(0), -EAGAIN as isize);
+    }
+
     let hdr: StcpMessageHeader = stcp_message_form_a_header_from_data(&frame_payload_in);
   
     stcp_dbg!("From raw: Got header");   

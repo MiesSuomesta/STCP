@@ -1,0 +1,881 @@
+===== CONTEXT around line 1 =====
+[to tammi 15 13:49:32 2026] [   T8691] printk: legacy console [netcon0] disabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local port 6665
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote port 6666
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:49:32 2026] [   T8695] printk: legacy console [netcon0] enabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: network logging started
+[to tammi 15 13:50:00 2026] [   T8713] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:00 2026] [   T8713] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:00 2026] [   T8720] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: network logging started
+===== CONTEXT around line 9 =====
+[to tammi 15 13:49:32 2026] [   T8691] printk: legacy console [netcon0] disabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local port 6665
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote port 6666
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:49:32 2026] [   T8695] printk: legacy console [netcon0] enabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: network logging started
+[to tammi 15 13:50:00 2026] [   T8713] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:00 2026] [   T8713] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:00 2026] [   T8720] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: network logging started
+[to tammi 15 13:50:25 2026] [   T8731] NETCONSOLE TEST OK
+[to tammi 15 13:50:26 2026] [   T8742] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:26 2026] [   T8742] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+===== CONTEXT around line 11 =====
+[to tammi 15 13:49:32 2026] [   T8691] printk: legacy console [netcon0] disabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local port 6665
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote port 6666
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:49:32 2026] [   T8695] printk: legacy console [netcon0] enabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: network logging started
+[to tammi 15 13:50:00 2026] [   T8713] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:00 2026] [   T8713] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:00 2026] [   T8720] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: network logging started
+[to tammi 15 13:50:25 2026] [   T8731] NETCONSOLE TEST OK
+[to tammi 15 13:50:26 2026] [   T8742] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:26 2026] [   T8742] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+===== CONTEXT around line 20 =====
+[to tammi 15 13:49:32 2026] [   T8691] printk: legacy console [netcon0] disabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local port 6665
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote port 6666
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:49:32 2026] [   T8695] printk: legacy console [netcon0] enabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: network logging started
+[to tammi 15 13:50:00 2026] [   T8713] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:00 2026] [   T8713] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:00 2026] [   T8720] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: network logging started
+[to tammi 15 13:50:25 2026] [   T8731] NETCONSOLE TEST OK
+[to tammi 15 13:50:26 2026] [   T8742] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:26 2026] [   T8742] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:26 2026] [   T8746] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: network logging started
+[to tammi 15 13:51:39 2026] [   T8773] printk: legacy console [netcon0] disabled
+[to tammi 15 13:51:39 2026] [   T8773] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local port 6665
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+===== CONTEXT around line 23 =====
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote port 6666
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:49:32 2026] [   T8695] printk: legacy console [netcon0] enabled
+[to tammi 15 13:49:32 2026] [   T8695] netconsole: network logging started
+[to tammi 15 13:50:00 2026] [   T8713] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:00 2026] [   T8713] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:00 2026] [   T8720] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: network logging started
+[to tammi 15 13:50:25 2026] [   T8731] NETCONSOLE TEST OK
+[to tammi 15 13:50:26 2026] [   T8742] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:26 2026] [   T8742] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:26 2026] [   T8746] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: network logging started
+[to tammi 15 13:51:39 2026] [   T8773] printk: legacy console [netcon0] disabled
+[to tammi 15 13:51:39 2026] [   T8773] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local port 6665
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:51:39 2026] [   T8777] printk: legacy console [netcon0] enabled
+===== CONTEXT around line 32 =====
+[to tammi 15 13:50:00 2026] [   T8713] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:00 2026] [   T8720] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: network logging started
+[to tammi 15 13:50:25 2026] [   T8731] NETCONSOLE TEST OK
+[to tammi 15 13:50:26 2026] [   T8742] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:26 2026] [   T8742] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:26 2026] [   T8746] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: network logging started
+[to tammi 15 13:51:39 2026] [   T8773] printk: legacy console [netcon0] disabled
+[to tammi 15 13:51:39 2026] [   T8773] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local port 6665
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:51:39 2026] [   T8777] printk: legacy console [netcon0] enabled
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8802] printk: legacy console [netcon0] disabled
+[to tammi 15 13:52:16 2026] [   T8802] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local port 6665
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote port 6666
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+===== CONTEXT around line 34 =====
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:00 2026] [   T8720] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:00 2026] [   T8720] netconsole: network logging started
+[to tammi 15 13:50:25 2026] [   T8731] NETCONSOLE TEST OK
+[to tammi 15 13:50:26 2026] [   T8742] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:26 2026] [   T8742] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:26 2026] [   T8746] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: network logging started
+[to tammi 15 13:51:39 2026] [   T8773] printk: legacy console [netcon0] disabled
+[to tammi 15 13:51:39 2026] [   T8773] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local port 6665
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:51:39 2026] [   T8777] printk: legacy console [netcon0] enabled
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8802] printk: legacy console [netcon0] disabled
+[to tammi 15 13:52:16 2026] [   T8802] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local port 6665
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote port 6666
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:52:16 2026] [   T8806] printk: legacy console [netcon0] enabled
+===== CONTEXT around line 43 =====
+[to tammi 15 13:50:26 2026] [   T8742] printk: legacy console [netcon0] disabled
+[to tammi 15 13:50:26 2026] [   T8742] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:26 2026] [   T8746] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: network logging started
+[to tammi 15 13:51:39 2026] [   T8773] printk: legacy console [netcon0] disabled
+[to tammi 15 13:51:39 2026] [   T8773] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local port 6665
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:51:39 2026] [   T8777] printk: legacy console [netcon0] enabled
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8802] printk: legacy console [netcon0] disabled
+[to tammi 15 13:52:16 2026] [   T8802] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local port 6665
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote port 6666
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:52:16 2026] [   T8806] printk: legacy console [netcon0] enabled
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8812] NETCONSOLE ARMED
+[to tammi 15 13:52:16 2026] [   T8817] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:15 2026] [   T8842] printk: legacy console [netcon0] disabled
+[to tammi 15 13:53:15 2026] [   T8842] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local port 6665
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+===== CONTEXT around line 45 =====
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local port 6665
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote port 6666
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:50:26 2026] [   T8746] printk: legacy console [netcon0] enabled
+[to tammi 15 13:50:26 2026] [   T8746] netconsole: network logging started
+[to tammi 15 13:51:39 2026] [   T8773] printk: legacy console [netcon0] disabled
+[to tammi 15 13:51:39 2026] [   T8773] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local port 6665
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:51:39 2026] [   T8777] printk: legacy console [netcon0] enabled
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8802] printk: legacy console [netcon0] disabled
+[to tammi 15 13:52:16 2026] [   T8802] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local port 6665
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote port 6666
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:52:16 2026] [   T8806] printk: legacy console [netcon0] enabled
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8812] NETCONSOLE ARMED
+[to tammi 15 13:52:16 2026] [   T8817] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:15 2026] [   T8842] printk: legacy console [netcon0] disabled
+[to tammi 15 13:53:15 2026] [   T8842] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local port 6665
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote port 6666
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote IPv4 address 192.168.1.100
+===== CONTEXT around line 54 =====
+[to tammi 15 13:51:39 2026] [   T8773] printk: legacy console [netcon0] disabled
+[to tammi 15 13:51:39 2026] [   T8773] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local port 6665
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:51:39 2026] [   T8777] printk: legacy console [netcon0] enabled
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8802] printk: legacy console [netcon0] disabled
+[to tammi 15 13:52:16 2026] [   T8802] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local port 6665
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote port 6666
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:52:16 2026] [   T8806] printk: legacy console [netcon0] enabled
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8812] NETCONSOLE ARMED
+[to tammi 15 13:52:16 2026] [   T8817] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:15 2026] [   T8842] printk: legacy console [netcon0] disabled
+[to tammi 15 13:53:15 2026] [   T8842] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local port 6665
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote port 6666
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:53:15 2026] [   T8846] printk: legacy console [netcon0] enabled
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: network logging started
+[to tammi 15 13:53:15 2026] [   T8856] NETCONSOLE ARMED
+[to tammi 15 13:53:15 2026] [   T8861] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:27 2026] [   T8865] faaffaa
+[to tammi 15 13:54:04 2026] [   T8908] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:04 2026] [   T8908] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local port 6665
+===== CONTEXT around line 58 =====
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote port 6666
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:51:39 2026] [   T8777] printk: legacy console [netcon0] enabled
+[to tammi 15 13:51:39 2026] [   T8777] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8802] printk: legacy console [netcon0] disabled
+[to tammi 15 13:52:16 2026] [   T8802] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local port 6665
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote port 6666
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:52:16 2026] [   T8806] printk: legacy console [netcon0] enabled
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8812] NETCONSOLE ARMED
+[to tammi 15 13:52:16 2026] [   T8817] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:15 2026] [   T8842] printk: legacy console [netcon0] disabled
+[to tammi 15 13:53:15 2026] [   T8842] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local port 6665
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote port 6666
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:53:15 2026] [   T8846] printk: legacy console [netcon0] enabled
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: network logging started
+[to tammi 15 13:53:15 2026] [   T8856] NETCONSOLE ARMED
+[to tammi 15 13:53:15 2026] [   T8861] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:27 2026] [   T8865] faaffaa
+[to tammi 15 13:54:04 2026] [   T8908] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:04 2026] [   T8908] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote port 6666
+===== CONTEXT around line 67 =====
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local port 6665
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote port 6666
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:52:16 2026] [   T8806] printk: legacy console [netcon0] enabled
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8812] NETCONSOLE ARMED
+[to tammi 15 13:52:16 2026] [   T8817] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:15 2026] [   T8842] printk: legacy console [netcon0] disabled
+[to tammi 15 13:53:15 2026] [   T8842] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local port 6665
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote port 6666
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:53:15 2026] [   T8846] printk: legacy console [netcon0] enabled
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: network logging started
+[to tammi 15 13:53:15 2026] [   T8856] NETCONSOLE ARMED
+[to tammi 15 13:53:15 2026] [   T8861] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:27 2026] [   T8865] faaffaa
+[to tammi 15 13:54:04 2026] [   T8908] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:04 2026] [   T8908] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:04 2026] [   T8909] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 13:54:04 2026] [   T8909] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: network logging started
+[to tammi 15 13:54:04 2026] [   T8911] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 13:54:04 2026] [   T8912] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 13:54:04 2026] [   T8912] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+===== CONTEXT around line 72 =====
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:52:16 2026] [   T8806] printk: legacy console [netcon0] enabled
+[to tammi 15 13:52:16 2026] [   T8806] netconsole: network logging started
+[to tammi 15 13:52:16 2026] [   T8812] NETCONSOLE ARMED
+[to tammi 15 13:52:16 2026] [   T8817] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:15 2026] [   T8842] printk: legacy console [netcon0] disabled
+[to tammi 15 13:53:15 2026] [   T8842] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local port 6665
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote port 6666
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:53:15 2026] [   T8846] printk: legacy console [netcon0] enabled
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: network logging started
+[to tammi 15 13:53:15 2026] [   T8856] NETCONSOLE ARMED
+[to tammi 15 13:53:15 2026] [   T8861] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:27 2026] [   T8865] faaffaa
+[to tammi 15 13:54:04 2026] [   T8908] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:04 2026] [   T8908] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:04 2026] [   T8909] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 13:54:04 2026] [   T8909] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: network logging started
+[to tammi 15 13:54:04 2026] [   T8911] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 13:54:04 2026] [   T8912] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 13:54:04 2026] [   T8912] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 13:54:04 2026] [   T8912] |  🕓 Build at 2026-01-15 11:37:57 UTC (b5f0b615e3)
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP RateLimit OFF
+[to tammi 15 13:54:04 2026] [   T8912] '----------------------------------------------------------------------'
+[to tammi 15 13:54:16 2026] [   T8937] printk: legacy console [netcon0] disabled
+===== CONTEXT around line 83 =====
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote port 6666
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:53:15 2026] [   T8846] printk: legacy console [netcon0] enabled
+[to tammi 15 13:53:15 2026] [   T8846] netconsole: network logging started
+[to tammi 15 13:53:15 2026] [   T8856] NETCONSOLE ARMED
+[to tammi 15 13:53:15 2026] [   T8861] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:53:27 2026] [   T8865] faaffaa
+[to tammi 15 13:54:04 2026] [   T8908] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:04 2026] [   T8908] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:04 2026] [   T8909] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 13:54:04 2026] [   T8909] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: network logging started
+[to tammi 15 13:54:04 2026] [   T8911] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 13:54:04 2026] [   T8912] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 13:54:04 2026] [   T8912] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 13:54:04 2026] [   T8912] |  🕓 Build at 2026-01-15 11:37:57 UTC (b5f0b615e3)
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP RateLimit OFF
+[to tammi 15 13:54:04 2026] [   T8912] '----------------------------------------------------------------------'
+[to tammi 15 13:54:16 2026] [   T8937] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:16 2026] [   T8941] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: network logging started
+[to tammi 15 13:54:16 2026] [   T8951] NETCONSOLE ARMED
+[to tammi 15 13:54:16 2026] [   T8956] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+===== CONTEXT around line 92 =====
+[to tammi 15 13:54:04 2026] [   T8908] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:04 2026] [   T8908] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:04 2026] [   T8909] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 13:54:04 2026] [   T8909] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: network logging started
+[to tammi 15 13:54:04 2026] [   T8911] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 13:54:04 2026] [   T8912] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 13:54:04 2026] [   T8912] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 13:54:04 2026] [   T8912] |  🕓 Build at 2026-01-15 11:37:57 UTC (b5f0b615e3)
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP RateLimit OFF
+[to tammi 15 13:54:04 2026] [   T8912] '----------------------------------------------------------------------'
+[to tammi 15 13:54:16 2026] [   T8937] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:16 2026] [   T8941] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: network logging started
+[to tammi 15 13:54:16 2026] [   T8951] NETCONSOLE ARMED
+[to tammi 15 13:54:16 2026] [   T8956] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:54:32 2026] [   T8969] aergaeg
+[to tammi 15 14:00:45 2026] [   T9138] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:01:59 2026] [   T9917] printk: legacy console [netcon0] disabled
+[to tammi 15 14:01:59 2026] [   T9917] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local port 6665
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote port 6666
+===== CONTEXT around line 100 =====
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:04 2026] [   T8909] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 13:54:04 2026] [   T8909] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:04 2026] [   T8909] netconsole: network logging started
+[to tammi 15 13:54:04 2026] [   T8911] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 13:54:04 2026] [   T8912] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 13:54:04 2026] [   T8912] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 13:54:04 2026] [   T8912] |  🕓 Build at 2026-01-15 11:37:57 UTC (b5f0b615e3)
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP RateLimit OFF
+[to tammi 15 13:54:04 2026] [   T8912] '----------------------------------------------------------------------'
+[to tammi 15 13:54:16 2026] [   T8937] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:16 2026] [   T8941] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: network logging started
+[to tammi 15 13:54:16 2026] [   T8951] NETCONSOLE ARMED
+[to tammi 15 13:54:16 2026] [   T8956] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:54:32 2026] [   T8969] aergaeg
+[to tammi 15 14:00:45 2026] [   T9138] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:01:59 2026] [   T9917] printk: legacy console [netcon0] disabled
+[to tammi 15 14:01:59 2026] [   T9917] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local port 6665
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote port 6666
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:01:59 2026] [   T9919] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:01:59 2026] [   T9919] printk: legacy console [netcon0] enabled
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: network logging started
+[to tammi 15 14:01:59 2026] [   T9921] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:01:59 2026] [   T9921] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+===== CONTEXT around line 106 =====
+[to tammi 15 13:54:04 2026] [   T8912] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 13:54:04 2026] [   T8912] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 13:54:04 2026] [   T8912] |  🕓 Build at 2026-01-15 11:37:57 UTC (b5f0b615e3)
+[to tammi 15 13:54:04 2026] [   T8912] |  ✅ STCP RateLimit OFF
+[to tammi 15 13:54:04 2026] [   T8912] '----------------------------------------------------------------------'
+[to tammi 15 13:54:16 2026] [   T8937] printk: legacy console [netcon0] disabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local port 6665
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: interface name 'enp2s0'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:16 2026] [   T8941] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: network logging started
+[to tammi 15 13:54:16 2026] [   T8951] NETCONSOLE ARMED
+[to tammi 15 13:54:16 2026] [   T8956] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:54:32 2026] [   T8969] aergaeg
+[to tammi 15 14:00:45 2026] [   T9138] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:01:59 2026] [   T9917] printk: legacy console [netcon0] disabled
+[to tammi 15 14:01:59 2026] [   T9917] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local port 6665
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote port 6666
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:01:59 2026] [   T9919] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:01:59 2026] [   T9919] printk: legacy console [netcon0] enabled
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: network logging started
+[to tammi 15 14:01:59 2026] [   T9921] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:01:59 2026] [   T9921] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:01:59 2026] [   T9921] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:01:59 2026] [   T9921] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:01:59 2026] [   T9921] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:01:59 2026] [   T9921] '----------------------------------------------------------------------'
+[to tammi 15 14:02:39 2026] [     T44] audit: type=1400 audit(1768478559.307:364): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:44 2026] [     T44] audit: type=1400 audit(1768478564.366:365): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+===== CONTEXT around line 117 =====
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote port 6666
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 13:54:16 2026] [   T8941] printk: legacy console [netcon0] enabled
+[to tammi 15 13:54:16 2026] [   T8941] netconsole: network logging started
+[to tammi 15 13:54:16 2026] [   T8951] NETCONSOLE ARMED
+[to tammi 15 13:54:16 2026] [   T8956] NETCONSOLE PRINTK RATELIMITS DISABLED @ devaus
+[to tammi 15 13:54:32 2026] [   T8969] aergaeg
+[to tammi 15 14:00:45 2026] [   T9138] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:01:59 2026] [   T9917] printk: legacy console [netcon0] disabled
+[to tammi 15 14:01:59 2026] [   T9917] netconsole: network logging stopped on interface enp2s0 as it unregistered
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local port 6665
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote port 6666
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:01:59 2026] [   T9919] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:01:59 2026] [   T9919] printk: legacy console [netcon0] enabled
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: network logging started
+[to tammi 15 14:01:59 2026] [   T9921] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:01:59 2026] [   T9921] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:01:59 2026] [   T9921] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:01:59 2026] [   T9921] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:01:59 2026] [   T9921] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:01:59 2026] [   T9921] '----------------------------------------------------------------------'
+[to tammi 15 14:02:39 2026] [     T44] audit: type=1400 audit(1768478559.307:364): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:44 2026] [     T44] audit: type=1400 audit(1768478564.366:365): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:49 2026] [     T44] audit: type=1400 audit(1768478569.439:366): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:54 2026] [     T44] audit: type=1400 audit(1768478574.454:367): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:59 2026] [     T44] audit: type=1400 audit(1768478579.538:368): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:04 2026] [     T44] audit: type=1400 audit(1768478584.552:369): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:09 2026] [     T44] audit: type=1400 audit(1768478589.586:370): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:23 2026] [     T44] audit: type=1400 audit(1768478603.100:371): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:28 2026] [     T44] audit: type=1400 audit(1768478608.105:372): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:33 2026] [     T44] audit: type=1400 audit(1768478613.130:373): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:38 2026] [     T44] audit: type=1400 audit(1768478618.172:374): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:43 2026] [     T44] audit: type=1400 audit(1768478623.173:375): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:59 2026] [   T9962] printk: legacy console [netcon0] disabled
+===== CONTEXT around line 137 =====
+[to tammi 15 14:01:59 2026] [   T9919] printk: legacy console [netcon0] enabled
+[to tammi 15 14:01:59 2026] [   T9919] netconsole: network logging started
+[to tammi 15 14:01:59 2026] [   T9921] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:01:59 2026] [   T9921] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:01:59 2026] [   T9921] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:01:59 2026] [   T9921] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:01:59 2026] [   T9921] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:01:59 2026] [   T9921] '----------------------------------------------------------------------'
+[to tammi 15 14:02:39 2026] [     T44] audit: type=1400 audit(1768478559.307:364): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:44 2026] [     T44] audit: type=1400 audit(1768478564.366:365): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:49 2026] [     T44] audit: type=1400 audit(1768478569.439:366): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:54 2026] [     T44] audit: type=1400 audit(1768478574.454:367): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:59 2026] [     T44] audit: type=1400 audit(1768478579.538:368): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:04 2026] [     T44] audit: type=1400 audit(1768478584.552:369): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:09 2026] [     T44] audit: type=1400 audit(1768478589.586:370): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:23 2026] [     T44] audit: type=1400 audit(1768478603.100:371): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:28 2026] [     T44] audit: type=1400 audit(1768478608.105:372): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:33 2026] [     T44] audit: type=1400 audit(1768478613.130:373): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:38 2026] [     T44] audit: type=1400 audit(1768478618.172:374): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:43 2026] [     T44] audit: type=1400 audit(1768478623.173:375): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:59 2026] [   T9962] printk: legacy console [netcon0] disabled
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local port 6665
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote port 6666
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:03:59 2026] [   T9963] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:03:59 2026] [   T9963] printk: legacy console [netcon0] enabled
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: network logging started
+[to tammi 15 14:03:59 2026] [   T9965] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:03:59 2026] [   T9966] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:03:59 2026] [   T9966] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:03:59 2026] [   T9966] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:03:59 2026] [   T9966] '----------------------------------------------------------------------'
+[to tammi 15 14:03:59 2026] [     T44] audit: type=1400 audit(1768478639.591:376): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:12 2026] [   T9979] printk: legacy console [netcon0] disabled
+===== CONTEXT around line 147 =====
+[to tammi 15 14:02:49 2026] [     T44] audit: type=1400 audit(1768478569.439:366): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:54 2026] [     T44] audit: type=1400 audit(1768478574.454:367): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:02:59 2026] [     T44] audit: type=1400 audit(1768478579.538:368): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:04 2026] [     T44] audit: type=1400 audit(1768478584.552:369): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:09 2026] [     T44] audit: type=1400 audit(1768478589.586:370): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:23 2026] [     T44] audit: type=1400 audit(1768478603.100:371): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:28 2026] [     T44] audit: type=1400 audit(1768478608.105:372): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:33 2026] [     T44] audit: type=1400 audit(1768478613.130:373): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:38 2026] [     T44] audit: type=1400 audit(1768478618.172:374): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:43 2026] [     T44] audit: type=1400 audit(1768478623.173:375): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:03:59 2026] [   T9962] printk: legacy console [netcon0] disabled
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local port 6665
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote port 6666
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:03:59 2026] [   T9963] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:03:59 2026] [   T9963] printk: legacy console [netcon0] enabled
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: network logging started
+[to tammi 15 14:03:59 2026] [   T9965] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:03:59 2026] [   T9966] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:03:59 2026] [   T9966] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:03:59 2026] [   T9966] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:03:59 2026] [   T9966] '----------------------------------------------------------------------'
+[to tammi 15 14:03:59 2026] [     T44] audit: type=1400 audit(1768478639.591:376): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:12 2026] [   T9979] printk: legacy console [netcon0] disabled
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local port 6665
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote port 6666
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:04:12 2026] [   T9981] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:04:12 2026] [   T9981] printk: legacy console [netcon0] enabled
+===== CONTEXT around line 157 =====
+[to tammi 15 14:03:59 2026] [   T9962] printk: legacy console [netcon0] disabled
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local port 6665
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote port 6666
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:03:59 2026] [   T9963] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:03:59 2026] [   T9963] printk: legacy console [netcon0] enabled
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: network logging started
+[to tammi 15 14:03:59 2026] [   T9965] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:03:59 2026] [   T9966] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:03:59 2026] [   T9966] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:03:59 2026] [   T9966] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:03:59 2026] [   T9966] '----------------------------------------------------------------------'
+[to tammi 15 14:03:59 2026] [     T44] audit: type=1400 audit(1768478639.591:376): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:12 2026] [   T9979] printk: legacy console [netcon0] disabled
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local port 6665
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote port 6666
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:04:12 2026] [   T9981] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:04:12 2026] [   T9981] printk: legacy console [netcon0] enabled
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: network logging started
+[to tammi 15 14:04:12 2026] [   T9982] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:04:12 2026] [   T9983] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:04:12 2026] [   T9983] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:04:12 2026] [   T9983] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:04:12 2026] [   T9983] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:04:12 2026] [   T9983] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:04:12 2026] [   T9983] '----------------------------------------------------------------------'
+[to tammi 15 14:04:23 2026] [     T44] audit: type=1400 audit(1768478663.371:377): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:28 2026] [     T44] audit: type=1400 audit(1768478668.372:378): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+===== CONTEXT around line 167 =====
+[to tammi 15 14:03:59 2026] [   T9963] printk: legacy console [netcon0] enabled
+[to tammi 15 14:03:59 2026] [   T9963] netconsole: network logging started
+[to tammi 15 14:03:59 2026] [   T9965] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:03:59 2026] [   T9966] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:03:59 2026] [   T9966] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:03:59 2026] [   T9966] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:03:59 2026] [   T9966] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:03:59 2026] [   T9966] '----------------------------------------------------------------------'
+[to tammi 15 14:03:59 2026] [     T44] audit: type=1400 audit(1768478639.591:376): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:12 2026] [   T9979] printk: legacy console [netcon0] disabled
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local port 6665
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local IPv4 address 192.168.1.21
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: interface name 'enp4s0f0'
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: local ethernet address 'ff:ff:ff:ff:ff:ff'
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote port 6666
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote IPv4 address 192.168.1.100
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: netconsole: remote ethernet address 90:1b:0e:10:ae:43
+[to tammi 15 14:04:12 2026] [   T9981] netpoll: netconsole: enp4s0f0 doesn't exist, aborting
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: Not enabling netconsole for cmdline0. Netpoll setup failed
+[to tammi 15 14:04:12 2026] [   T9981] printk: legacy console [netcon0] enabled
+[to tammi 15 14:04:12 2026] [   T9981] netconsole: network logging started
+[to tammi 15 14:04:12 2026] [   T9982] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:11 the_stcp_kernel_module::module_handlers(): STCP rust module exit
+[to tammi 15 14:04:12 2026] [   T9983] stcp/RUST[DBG]: stcp/RUST src/module_handlers.rs:6 the_stcp_kernel_module::module_handlers(): STCP rust module enter
+[to tammi 15 14:04:12 2026] [   T9983] .----<[STCP by Paxsudos IT]>------------------------------------------------------------>
+[to tammi 15 14:04:12 2026] [   T9983] |  ✅ STCP Initialised (Version 0.0.1-beta), Protocol number 253
+[to tammi 15 14:04:12 2026] [   T9983] |  🕓 Build at 2026-01-15 12:01:29 UTC (b5f0b615e3)
+[to tammi 15 14:04:12 2026] [   T9983] |  ✅ STCP RateLimit OFF
+[to tammi 15 14:04:12 2026] [   T9983] '----------------------------------------------------------------------'
+[to tammi 15 14:04:23 2026] [     T44] audit: type=1400 audit(1768478663.371:377): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:28 2026] [     T44] audit: type=1400 audit(1768478668.372:378): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:33 2026] [     T44] audit: type=1400 audit(1768478673.373:379): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:38 2026] [     T44] audit: type=1400 audit(1768478678.462:380): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:43 2026] [     T44] audit: type=1400 audit(1768478683.491:381): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:04:48 2026] [     T44] audit: type=1400 audit(1768478688.492:382): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:05:04 2026] [     T44] audit: type=1400 audit(1768478704.591:383): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:05:09 2026] [     T44] audit: type=1400 audit(1768478709.631:384): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:05:14 2026] [     T44] audit: type=1400 audit(1768478714.640:385): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:05:19 2026] [     T44] audit: type=1400 audit(1768478719.700:386): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:05:24 2026] [     T44] audit: type=1400 audit(1768478724.716:387): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0
+[to tammi 15 14:05:29 2026] [     T44] audit: type=1400 audit(1768478729.724:388): apparmor="DENIED" operation="open" class="file" profile="snap.firefox.firefox" name="/proc/pressure/memory" pid=4112 comm="MemoryPoller" requested_mask="r" denied_mask="r" fsuid=2003 ouid=0

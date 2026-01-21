@@ -21,9 +21,14 @@ use crate::types::{
         kernel_socket,
         HandshakeStatus,
         StcpMsgType,
+        StcpMessageHeader,
+        STCP_TAG_BYTES,
     };
 
 use crate::errorit::*;
+
+
+use crate::tcp_io::stcp_tcp_recv;
 
 //use crate::helpers::{tcp_recv_once, tcp_send_all, get_session};
 //use crate::abi::{stcp_end_of_life_for_sk};
@@ -313,63 +318,51 @@ pub extern "C" fn rust_exported_session_sendmsg(sess_void_ptr: *const c_void,
 pub extern "C" fn rust_exported_session_recvmsg(
     sess_void_ptr: *mut c_void,
     transport_void_ptr: *mut c_void,
-    buf_void_ptr: *mut c_void,
-    len: usize,
-    _no_blocking: i32,
+    out_buf_void_ptr: *mut c_void,
+    out_maxlen: usize,
+    non_blocking: i32,
 ) -> isize {
-    // 1) Rust-kontekstin elossaolo (ilman logeja)
-    let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-    if alive < 1 {
-        // ei pitäisi tapahtua, mutta palataan siististi
-        return -5;
-    }
-
-    // 2) Perus null-tarkistukset
-    if sess_void_ptr.is_null() || transport_void_ptr.is_null() || buf_void_ptr.is_null() {
+    if sess_void_ptr.is_null() || transport_void_ptr.is_null() || out_buf_void_ptr.is_null() {
         return -EBADF as isize;
     }
 
-    // 3) Tyypitys – pidetään nämä mahdollisimman yksinkertaisina
-
-    // 1) Raaka pointteri sessioon
-    let sess = sess_void_ptr as *mut ProtoSession;
-
-    // 2) Eksplisiittinen &mut-viite, EI generiikkaa
-    let s: &mut ProtoSession = unsafe { &mut *sess };
-  
-    //let sk = transport_void_ptr as *mut kernel_socket;
-
-    // 4) Castataan userlandin puskuri [u8]-sliceksi
-    let cast_buffer = buf_void_ptr as *mut u8;
-    let buffer: &mut [u8] = match stcp_make_mut_slice(cast_buffer, len, len) {
-        Ok(buf) => buf,
-        Err(e) => {
-            match e {
-                StcpError::NullPointer => return -EBADF as isize,
-                StcpError::LengthTooBig { .. } => return -EINVAL as isize,
-            }
-        }
+    let sock = transport_void_ptr as *mut kernel_socket;
+    let out = out_buf_void_ptr as *mut u8;
+    let out_slice = match stcp_make_mut_slice(out, out_maxlen, out_maxlen) {
+        Ok(s) => s,
+        Err(_) => return -EINVAL as isize,
     };
 
-    let (_the_header, the_payload, _the_payload_size) = stcp_message_frame_from_raw(buffer);
-  
-    if s.in_aes_mode() {
-      stcp_dbg!("In AES mode...");
-      let n = core::cmp::min(the_payload.len(), buffer.len());
-      buffer[..n].copy_from_slice(&the_payload[..n]);
-      stcp_dbg!("returning {} bytes", n);
+    let hdr_sz = stcp_message_get_header_size_in_bytes();
+    let mut hdr_buf = [0u8; 32]; // varmista >= header size
+    if hdr_sz > hdr_buf.len() { return -EINVAL as isize; }
 
-      n as isize
-    } else {
-      stcp_dbg!("Not in AES mode.");
-      let n = core::cmp::min(the_payload.len(), buffer.len());
-      buffer[..n].copy_from_slice(&the_payload[..n]);
-      stcp_dbg!("returning {} bytes", n);
+    let mut got: c_int = 0;
 
-      n as isize
-    }
+    // 1) read header
+    let r1 = unsafe { stcp_tcp_recv(sock, hdr_buf.as_mut_ptr(), hdr_sz, non_blocking, 0, &mut got) };
+    if r1 < 0 { return r1; }
+    if got as usize != hdr_sz { return -EAGAIN as isize; } // tai -EMSGSIZE / partial handling
 
+    let hdr = StcpMessageHeader::from_bytes_be(&hdr_buf[..hdr_sz]);
+    if hdr.tag != STCP_TAG_BYTES { return -EPROTO as isize; }
 
+    let pay_len = hdr.msg_len as usize;
+
+    // 2) sanity
+    if pay_len > (1024*1024) { return -EMSGSIZE as isize; } // järkevä yläraja
+
+    // 3) read payload
+    let mut payload = alloc::vec![0u8; pay_len];
+    got = 0;
+    let r2 = unsafe { stcp_tcp_recv(sock, payload.as_mut_ptr(), pay_len, non_blocking, 0, &mut got) };
+    if r2 < 0 { return r2; }
+    if got as usize != pay_len { return -EAGAIN as isize; }
+
+    // 4) copy to user out buffer (truncate or error)
+    let n = core::cmp::min(pay_len, out_slice.len());
+    out_slice[..n].copy_from_slice(&payload[..n]);
+    return n as isize;
 }
 
 #[unsafe(no_mangle)]

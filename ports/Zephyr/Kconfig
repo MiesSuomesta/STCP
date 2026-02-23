@@ -1,0 +1,12 @@
+menu "STCP options"
+
+source "Kconfig"
+
+config STCP_TRANSPORT_LTE
+    bool "Enable STCP LTE transport"
+    default y
+    depends on NET_SOCKETS   # esimerkki: riippuvuudet kernelistä
+    help
+      Enable LTE transport backend for STCP on Zephyr / nRF9161.
+
+endmenu

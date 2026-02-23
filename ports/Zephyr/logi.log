@@ -1,0 +1,4712 @@
+   Compiling compiler_builtins v0.1.160 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+   Compiling core v0.0.0 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)
+   Compiling typenum v1.19.0
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling alloc v0.0.0 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+   Compiling subtle v2.6.1
+   Compiling cfg-if v1.0.4
+   Compiling opaque-debug v0.3.1
+   Compiling byteorder v1.5.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling cipher v0.4.4
+   Compiling digest v0.10.7
+   Compiling polyval v0.6.2
+   Compiling hmac v0.12.1
+   Compiling sha2 v0.10.9
+   Compiling ctr v0.9.2
+   Compiling ghash v0.5.1
+   Compiling aes v0.8.4
+   Compiling hkdf v0.12.4
+   Compiling aes-gcm v0.10.3
+   Compiling the_stcp_kernel_module v0.1.0 (/home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust)
+warning: unused import: `crate::proto_session::ProtoSession`
+ --> src/aes.rs:8:5
+  |
+8 | use crate::proto_session::ProtoSession;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `core::panic::Location`
+ --> src/debug.rs:4:5
+  |
+4 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes::StcpAesCodec`
+  --> src/stcp_handshake.rs:12:5
+   |
+12 | use crate::aes::StcpAesCodec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers::stcp_sleep_msec`
+  --> src/stcp_handshake.rs:23:5
+   |
+23 | use crate::helpers::stcp_sleep_msec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+  --> src/stcp_message.rs:12:5
+   |
+12 | use crate::aes;
+   |     ^^^^^^^^^^
+
+warning: unused import: `crate::types::STCP_MAX_TCP_PAYLOAD_SIZE`
+  --> src/stcp_protocol_functions.rs:14:5
+   |
+14 | use crate::types::STCP_MAX_TCP_PAYLOAD_SIZE;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `STCP_TAG_BYTES`
+  --> src/stcp_protocol_functions.rs:26:9
+   |
+26 |         STCP_TAG_BYTES,
+   |         ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_recv`
+  --> src/stcp_protocol_functions.rs:32:5
+   |
+32 | use crate::tcp_io::stcp_tcp_recv;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> src/slice_helpers.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> src/tcp_helper_macros.rs:2:5
+  |
+2 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> src/tcp_io.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_dbg`
+ --> src/types.rs:8:5
+  |
+8 | use crate::stcp_dbg;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+ --> src/types.rs:9:5
+  |
+9 | use crate::aes;
+  |     ^^^^^^^^^^
+
+warning: unused import: `crate::aes::StcpAesCodec`
+  --> src/types.rs:10:5
+   |
+10 | use crate::aes::StcpAesCodec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> src/types.rs:11:5
+   |
+11 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::session_handler::rust_session_destroy`
+  --> src/types.rs:12:5
+   |
+12 | use crate::session_handler::rust_session_destroy;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::slice_helpers::StcpError`
+  --> src/types.rs:13:5
+   |
+13 | use crate::slice_helpers::StcpError;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session::ProtoSession`
+  --> src/types.rs:14:5
+   |
+14 | use crate::proto_session::ProtoSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ffi::c_int`
+ --> src/proto_session.rs:3:5
+  |
+3 | use core::ffi::c_int;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ffi::c_void`
+ --> src/proto_session.rs:4:5
+  |
+4 | use core::ffi::c_void;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_recv`
+ --> src/proto_session.rs:5:5
+  |
+5 | use crate::tcp_io::stcp_tcp_recv;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+ --> src/proto_session.rs:6:5
+  |
+6 | use alloc::vec;
+  |     ^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+ --> src/proto_session.rs:7:5
+  |
+7 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+ --> src/proto_session.rs:9:5
+  |
+9 | use crate::aes;
+  |     ^^^^^^^^^^
+
+warning: unused import: `crate::session_handler::rust_session_destroy`
+  --> src/proto_session.rs:12:5
+   |
+12 | use crate::session_handler::rust_session_destroy;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `#[track_caller]` attribute cannot be used on macro defs
+   --> src/debug.rs:141:1
+    |
+141 | #[track_caller]
+    | ^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = help: `#[track_caller]` can only be applied to functions
+    = note: `#[warn(unused_attributes)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:19:7
+    |
+ 19 |       stcp_dbg!("Starting keypair generation");   
+    |       ---------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:19:7
+    |
+ 19 |       stcp_dbg!("Starting keypair generation");   
+    |       ---------------------------------------- in this macro invocation
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:20:7
+    |
+ 20 |       stcp_dbg!("Sess ptr inside generate_keypair: {:?}", sess as *mut _);
+    |       ------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:20:7
+    |
+ 20 |       stcp_dbg!("Sess ptr inside generate_keypair: {:?}", sess as *mut _);
+    |       ------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:23:7
+    |
+ 23 |       stcp_dbg!("Lenghts set 0");   
+    |       -------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:23:7
+    |
+ 23 |       stcp_dbg!("Lenghts set 0");   
+    |       -------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:25:7
+    |
+ 25 |       stcp_dbg!("Calling C keypair creation");   
+    |       --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:25:7
+    |
+ 25 |       stcp_dbg!("Calling C keypair creation");   
+    |       --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:30:7
+    |
+ 30 |       stcp_dbg!("sizeof pubkey {}", core::mem::size_of::<StcpEcdhPubKey>());
+    |       --------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:30:7
+    |
+ 30 |       stcp_dbg!("sizeof pubkey {}", core::mem::size_of::<StcpEcdhPubKey>());
+    |       --------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:31:7
+    |
+ 31 |       stcp_dbg!("sizeof secret {}", core::mem::size_of::<StcpEcdhSecret>());
+    |       --------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:31:7
+    |
+ 31 |       stcp_dbg!("sizeof secret {}", core::mem::size_of::<StcpEcdhSecret>());
+    |       --------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:40:9
+    |
+ 40 |         stcp_dbg!("Called C keypair creation, ret {}", ret);   
+    |         --------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:40:9
+    |
+ 40 |         stcp_dbg!("Called C keypair creation, ret {}", ret);   
+    |         --------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:50:9
+    |
+ 50 |         stcp_dbg!("Starting to create shared key");   
+    |         ------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:50:9
+    |
+ 50 |         stcp_dbg!("Starting to create shared key");   
+    |         ------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:57:9
+    |
+ 57 |         stcp_dbg!("Peer key prepared");   
+    |         ------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:57:9
+    |
+ 57 |         stcp_dbg!("Peer key prepared");   
+    |         ------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:59:9
+    |
+ 59 |         stcp_dbg!("Calling C shared key calc...");   
+    |         ----------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:59:9
+    |
+ 59 |         stcp_dbg!("Calling C shared key calc...");   
+    |         ----------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:68:9
+    |
+ 68 |         stcp_dbg!("Called C shared key calc, ret {}", ret);   
+    |         -------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/crypto.rs:68:9
+    |
+ 68 |         stcp_dbg!("Called C shared key calc, ret {}", ret);   
+    |         -------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:29:3
+    |
+ 29 |   stcp_dbg!("TCP SEND Sock Sending {:?}", data.len());   
+    |   --------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:29:3
+    |
+ 29 |   stcp_dbg!("TCP SEND Sock Sending {:?}", data.len());   
+    |   --------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:40:13
+    |
+ 40 |             stcp_dbg!("TCP SEND Sock Error while sending ret");   
+    |             -------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:40:13
+    |
+ 40 |             stcp_dbg!("TCP SEND Sock Error while sending ret");   
+    |             -------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:44:13
+    |
+ 44 |             stcp_dbg!("TCP SEND Sock Got none");   
+    |             ----------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:44:13
+    |
+ 44 |             stcp_dbg!("TCP SEND Sock Got none");   
+    |             ----------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:50:5
+    |
+ 50 |     stcp_dbg!("TCP SEND Done, {} bytes sent.", total);   
+    |     ------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:50:5
+    |
+ 50 |     stcp_dbg!("TCP SEND Done, {} bytes sent.", total);   
+    |     ------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:56:3
+    |
+ 56 |   stcp_dbg!("TCP RECV Sock Receiving");   
+    |   ------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:56:3
+    |
+ 56 |   stcp_dbg!("TCP RECV Sock Receiving");   
+    |   ------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:68:13
+    |
+ 68 |             stcp_dbg!("TCP RECV Sock peer error");   
+    |             ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:68:13
+    |
+ 68 |             stcp_dbg!("TCP RECV Sock peer error");   
+    |             ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:73:13
+    |
+ 73 |             stcp_dbg!("TCP RECV Sock peer closed received bytes");   
+    |             ----------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:73:13
+    |
+ 73 |             stcp_dbg!("TCP RECV Sock peer closed received bytes");   
+    |             ----------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:79:5
+    |
+ 79 |     stcp_dbg!("TCP RECV Done, {} bytes recvd.", total);   
+    |     -------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:79:5
+    |
+ 79 |     stcp_dbg!("TCP RECV Done, {} bytes recvd.", total);   
+    |     -------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:85:3
+    |
+ 85 |   stcp_dbg!("TCP PEEK Sock Peeking traffic");   
+    |   ------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:85:3
+    |
+ 85 |   stcp_dbg!("TCP PEEK Sock Peeking traffic");   
+    |   ------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:94:5
+    |
+ 94 |     stcp_dbg!("TCP PEEK Sock Start to peek while, flags: {}", flags);   
+    |     ---------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:94:5
+    |
+ 94 |     stcp_dbg!("TCP PEEK Sock Start to peek while, flags: {}", flags);   
+    |     ---------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:99:5
+    |
+ 99 |     stcp_dbg!("TCP PEEK Sock Start to peek bytes max");   
+    |     -------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:99:5
+    |
+ 99 |     stcp_dbg!("TCP PEEK Sock Start to peek bytes max");   
+    |     -------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:101:5
+    |
+101 |     stcp_dbg!("STCP TCP recv returned {}", n);
+    |     ----------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:101:5
+    |
+101 |     stcp_dbg!("STCP TCP recv returned {}", n);
+    |     ----------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:104:9
+    |
+104 |         stcp_dbg!("TCP PEEK Sock peer error");   
+    |         ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:104:9
+    |
+104 |         stcp_dbg!("TCP PEEK Sock peer error");   
+    |         ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:108:9
+    |
+108 |         stcp_dbg!("TCP PEEK Sock peer closed received bytes");   
+    |         ----------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:108:9
+    |
+108 |         stcp_dbg!("TCP PEEK Sock peer closed received bytes");   
+    |         ----------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:111:5
+    |
+111 |     stcp_dbg!("TCP PEEK Sock Received {} bytes", n);   
+    |     ----------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:111:5
+    |
+111 |     stcp_dbg!("TCP PEEK Sock Received {} bytes", n);   
+    |     ----------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:117:3
+    |
+117 |   stcp_dbg!("TCP RECV Sock Buffer bytes");   
+    |   --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:117:3
+    |
+117 |   stcp_dbg!("TCP RECV Sock Buffer bytes");   
+    |   --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:138:3
+    |
+138 |   stcp_dbg!("TCP RECV Sock Received bytes");   
+    |   ----------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:138:3
+    |
+138 |   stcp_dbg!("TCP RECV Sock Received bytes");   
+    |   ----------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:145:3
+    |
+145 |   stcp_dbg!("TCP RECV Sock once");   
+    |   ------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:145:3
+    |
+145 |   stcp_dbg!("TCP RECV Sock once");   
+    |   ------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:148:3
+    |
+148 |   stcp_dbg!("TCP RECV Sock Received");   
+    |   ----------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/helpers.rs:148:3
+    |
+148 |   stcp_dbg!("TCP RECV Sock Received");   
+    |   ----------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:20:5
+    |
+ 20 |     stcp_dbg!("SESSION/CREATE start");
+    |     --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:20:5
+    |
+ 20 |     stcp_dbg!("SESSION/CREATE start");
+    |     --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:32:5
+    |
+ 32 |     stcp_dbg!("SESSION/CREATE OK");
+    |     ------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:32:5
+    |
+ 32 |     stcp_dbg!("SESSION/CREATE OK");
+    |     ------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:43:5
+    |
+ 43 |     stcp_dbg!("RUST Session destroy: {:?}", sess);
+    |     --------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:43:5
+    |
+ 43 |     stcp_dbg!("RUST Session destroy: {:?}", sess);
+    |     --------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:57:5
+    |
+ 57 |     stcp_dbg!("======================= SESSION {:?} RESET ==============================", sess);   
+    |     -------------------------------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:57:5
+    |
+ 57 |     stcp_dbg!("======================= SESSION {:?} RESET ==============================", sess);   
+    |     -------------------------------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:59:5
+    |
+ 59 |     stcp_dbg!("=================== SESSION RESET COMPLETE =========================");   
+    |     --------------------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/session_handler.rs:59:5
+    |
+ 59 |     stcp_dbg!("=================== SESSION RESET COMPLETE =========================");   
+    |     --------------------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:41:7
+    |
+ 41 |       stcp_dbg!("Server Generate keys");   
+    |       --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:41:7
+    |
+ 41 |       stcp_dbg!("Server Generate keys");   
+    |       --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:43:7
+    |
+ 43 |       stcp_dbg!("Client Generate keys");   
+    |       --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:43:7
+    |
+ 43 |       stcp_dbg!("Client Generate keys");   
+    |       --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:57:7
+    |
+ 57 |       stcp_dbg!("Server Sending public key");   
+    |       -------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:57:7
+    |
+ 57 |       stcp_dbg!("Server Sending public key");   
+    |       -------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:59:7
+    |
+ 59 |       stcp_dbg!("Client Sending public key");   
+    |       -------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:59:7
+    |
+ 59 |       stcp_dbg!("Client Sending public key");   
+    |       -------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:64:5
+    |
+ 64 |     stcp_dbg!("Sending stuff: {}", the_public_key_bytes.len());
+    |     ---------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:64:5
+    |
+ 64 |     stcp_dbg!("Sending stuff: {}", the_public_key_bytes.len());
+    |     ---------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:67:5
+    |
+ 67 |     stcp_dbg!("Public key sent: {:?}, {:?}", sent, the_public_key_bytes.len());   
+    |     -------------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:67:5
+    |
+ 67 |     stcp_dbg!("Public key sent: {:?}, {:?}", sent, the_public_key_bytes.len());   
+    |     -------------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:70:7
+    |
+ 70 |       stcp_dbg!("Server Public key sent ret");   
+    |       --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:70:7
+    |
+ 70 |       stcp_dbg!("Server Public key sent ret");   
+    |       --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:72:7
+    |
+ 72 |       stcp_dbg!("Client Public key sent ret");   
+    |       --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:72:7
+    |
+ 72 |       stcp_dbg!("Client Public key sent ret");   
+    |       --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:90:3
+    |
+ 90 |   stcp_dbg!("RECV PUB KEY: Read header ret: {}", rc1);
+    |   --------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:90:3
+    |
+ 90 |   stcp_dbg!("RECV PUB KEY: Read header ret: {}", rc1);
+    |   --------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:99:3
+    |
+ 99 |   stcp_dbg!("RECV PUB KEY: Recv PK: payload_len {}, expected {}", payload_len, STCP_ECDH_PUB_LEN);
+    |   ----------------------------------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:99:3
+    |
+ 99 |   stcp_dbg!("RECV PUB KEY: Recv PK: payload_len {}, expected {}", payload_len, STCP_ECDH_PUB_LEN);
+    |   ----------------------------------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:101:7
+    |
+101 |       stcp_dbg!("RECV PUB KEY: Recv PK: invalid payload_len {}, expected {}", payload_len, STCP_ECDH_PUB_LEN);
+    |       ------------------------------------------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:101:7
+    |
+101 |       stcp_dbg!("RECV PUB KEY: Recv PK: invalid payload_len {}, expected {}", payload_len, STCP_ECDH_PUB_LEN);
+    |       ------------------------------------------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:106:3
+    |
+106 |   stcp_dbg!("RECV PUB KEY: Recv/PK payload: {:?}", pubkey_buf);
+    |   ------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:106:3
+    |
+106 |   stcp_dbg!("RECV PUB KEY: Recv/PK payload: {:?}", pubkey_buf);
+    |   ------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:107:3
+    |
+107 |   stcp_dbg!("RECV PUB KEY: Recv/PK payload len: {:?}", pubkey_buf.len());
+    |   ---------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:107:3
+    |
+107 |   stcp_dbg!("RECV PUB KEY: Recv/PK payload len: {:?}", pubkey_buf.len());
+    |   ---------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:126:3
+    |
+126 |   stcp_dbg!("========================================================");   
+    |   --------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:126:3
+    |
+126 |   stcp_dbg!("========================================================");   
+    |   --------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:127:3
+    |
+127 |   stcp_dbg!("=== START ==============================================");   
+    |   --------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:127:3
+    |
+127 |   stcp_dbg!("=== START ==============================================");   
+    |   --------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:128:3
+    |
+128 |   stcp_dbg!("========================================================");   
+    |   --------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:128:3
+    |
+128 |   stcp_dbg!("========================================================");   
+    |   --------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:129:3
+    |
+129 |   stcp_dbg!("LTE HS Starting");   
+    |   ---------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:129:3
+    |
+129 |   stcp_dbg!("LTE HS Starting");   
+    |   ---------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:130:3
+    |
+130 |   stcp_dbg!("LTE HS Starting");   
+    |   ---------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:130:3
+    |
+130 |   stcp_dbg!("LTE HS Starting");   
+    |   ---------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:132:3
+    |
+132 |   stcp_dbg!("LTE Client handshake starting");   
+    |   ------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:132:3
+    |
+132 |   stcp_dbg!("LTE Client handshake starting");   
+    |   ------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:136:5
+    |
+136 |     stcp_dbg!("Client Worker NO SESSION");   
+    |     ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:136:5
+    |
+136 |     stcp_dbg!("Client Worker NO SESSION");   
+    |     ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:140:3
+    |
+140 |   stcp_dbg!("Client Worker Server CP 1");   
+    |   -------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:140:3
+    |
+140 |   stcp_dbg!("Client Worker Server CP 1");   
+    |   -------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:143:5
+    |
+143 |     stcp_dbg!("Client Worker NO transport");   
+    |     --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:143:5
+    |
+143 |     stcp_dbg!("Client Worker NO transport");   
+    |     --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:147:3
+    |
+147 |   stcp_dbg!("Client Worker Checks passed starting");   
+    |   ------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:147:3
+    |
+147 |   stcp_dbg!("Client Worker Checks passed starting");   
+    |   ------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:151:3
+    |
+151 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:151:3
+    |
+151 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:152:3
+    |
+152 |   stcp_dbg!("*C* Client STATE: Init");
+    |   ----------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:152:3
+    |
+152 |   stcp_dbg!("*C* Client STATE: Init");
+    |   ----------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:153:3
+    |
+153 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:153:3
+    |
+153 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:155:3
+    |
+155 |   stcp_dbg!("=C= Generated Keys... ret: {}", ret_gen);
+    |   --------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:155:3
+    |
+155 |   stcp_dbg!("=C= Generated Keys... ret: {}", ret_gen);
+    |   --------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:158:3
+    |
+158 |   stcp_dbg!("=C= Sent public key... ret: {}", ret_pub);
+    |   ---------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:158:3
+    |
+158 |   stcp_dbg!("=C= Sent public key... ret: {}", ret_pub);
+    |   ---------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:163:3
+    |
+163 |   stcp_dbg!("=C= Status set to Public");
+    |   ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:163:3
+    |
+163 |   stcp_dbg!("=C= Status set to Public");
+    |   ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:165:3
+    |
+165 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:165:3
+    |
+165 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:166:3
+    |
+166 |   stcp_dbg!("*C* Client STATE: Public");
+    |   ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:166:3
+    |
+166 |   stcp_dbg!("*C* Client STATE: Public");
+    |   ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:167:3
+    |
+167 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:167:3
+    |
+167 |   stcp_dbg!("*C*");
+    |   ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:174:3
+    |
+174 |   stcp_dbg!("=C= Receiving of peer public key returned: {}", ret_recv);   
+    |   -------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:174:3
+    |
+174 |   stcp_dbg!("=C= Receiving of peer public key returned: {}", ret_recv);   
+    |   -------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:195:3
+    |
+195 |   stcp_dbg!("=C= Shared key calculation returned: {}", ret_shared);   
+    |   ---------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:195:3
+    |
+195 |   stcp_dbg!("=C= Shared key calculation returned: {}", ret_shared);   
+    |   ---------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:199:3
+    |
+199 |   stcp_dbg!("=C= Client Worker Hanshake complete");   
+    |   ------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:199:3
+    |
+199 |   stcp_dbg!("=C= Client Worker Hanshake complete");   
+    |   ------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:202:3
+    |
+202 |   stcp_dbg!("***");
+    |   ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:202:3
+    |
+202 |   stcp_dbg!("***");
+    |   ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:203:3
+    |
+203 |   stcp_dbg!("*** Client STATE: Complete");
+    |   --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:203:3
+    |
+203 |   stcp_dbg!("*** Client STATE: Complete");
+    |   --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:204:3
+    |
+204 |   stcp_dbg!("***");
+    |   ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:204:3
+    |
+204 |   stcp_dbg!("***");
+    |   ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `skBytes`
+   --> src/stcp_handshake.rs:208:7
+    |
+208 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_skBytes`
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:211:3
+    |
+211 |   stcp_dbg!("Client Worker Hanshake complete => AES MODE");   
+    |   -------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:211:3
+    |
+211 |   stcp_dbg!("Client Worker Hanshake complete => AES MODE");   
+    |   -------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:218:3
+    |
+218 |   stcp_dbg!("Client Starting");   
+    |   ---------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:218:3
+    |
+218 |   stcp_dbg!("Client Starting");   
+    |   ---------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:228:3
+    |
+228 |   stcp_dbg!("Client Worker Client handshake starting");   
+    |   ---------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:228:3
+    |
+228 |   stcp_dbg!("Client Worker Client handshake starting");   
+    |   ---------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:232:5
+    |
+232 |     stcp_dbg!("Client Worker NO SESSION");   
+    |     ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:232:5
+    |
+232 |     stcp_dbg!("Client Worker NO SESSION");   
+    |     ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:236:3
+    |
+236 |   stcp_dbg!("Client Worker Server CP 1");   
+    |   -------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:236:3
+    |
+236 |   stcp_dbg!("Client Worker Server CP 1");   
+    |   -------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:239:5
+    |
+239 |     stcp_dbg!("Client Worker NO transport");   
+    |     --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:239:5
+    |
+239 |     stcp_dbg!("Client Worker NO transport");   
+    |     --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:243:3
+    |
+243 |   stcp_dbg!("Client Worker Checks passed starting");   
+    |   ------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:243:3
+    |
+243 |   stcp_dbg!("Client Worker Checks passed starting");   
+    |   ------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:248:3
+    |
+248 |   stcp_dbg!("Client Worker State machine: {}", status as i32);   
+    |   ----------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:248:3
+    |
+248 |   stcp_dbg!("Client Worker State machine: {}", status as i32);   
+    |   ----------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:252:9
+    |
+252 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:252:9
+    |
+252 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:253:9
+    |
+253 |         stcp_dbg!("*C* Client STATE: Init");
+    |         ----------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:253:9
+    |
+253 |         stcp_dbg!("*C* Client STATE: Init");
+    |         ----------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:254:9
+    |
+254 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:254:9
+    |
+254 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:256:9
+    |
+256 |         stcp_dbg!("=C= Generated Keys... ret: {}", ret_gen);
+    |         --------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:256:9
+    |
+256 |         stcp_dbg!("=C= Generated Keys... ret: {}", ret_gen);
+    |         --------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:259:9
+    |
+259 |         stcp_dbg!("=C= Sent public key... ret: {}", ret_pub);
+    |         ---------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:259:9
+    |
+259 |         stcp_dbg!("=C= Sent public key... ret: {}", ret_pub);
+    |         ---------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:262:9
+    |
+262 |         stcp_dbg!("=C= Status set to Public");
+    |         ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:262:9
+    |
+262 |         stcp_dbg!("=C= Status set to Public");
+    |         ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:267:9
+    |
+267 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:267:9
+    |
+267 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:268:9
+    |
+268 |         stcp_dbg!("*C* Client STATE: Public");
+    |         ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:268:9
+    |
+268 |         stcp_dbg!("*C* Client STATE: Public");
+    |         ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:269:9
+    |
+269 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:269:9
+    |
+269 |         stcp_dbg!("*C*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:274:9
+    |
+274 |         stcp_dbg!("=C= Receiving of peer public key returned: {}", ret_recv);   
+    |         -------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:274:9
+    |
+274 |         stcp_dbg!("=C= Receiving of peer public key returned: {}", ret_recv);   
+    |         -------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:287:13
+    |
+287 |             stcp_dbg!("=C= ERROR: Expected Public frame, got {}", incoming_header.msg_type.to_raw());
+    |             ---------------------------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:287:13
+    |
+287 |             stcp_dbg!("=C= ERROR: Expected Public frame, got {}", incoming_header.msg_type.to_raw());
+    |             ---------------------------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:290:11
+    |
+290 |           stcp_dbg!("=C= Incoming header OK (public)");
+    |           -------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:290:11
+    |
+290 |           stcp_dbg!("=C= Incoming header OK (public)");
+    |           -------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:302:9
+    |
+302 |         stcp_dbg!("=C= Shared key calculation returned: {}", ret_shared);   
+    |         ---------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:302:9
+    |
+302 |         stcp_dbg!("=C= Shared key calculation returned: {}", ret_shared);   
+    |         ---------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:305:9
+    |
+305 |         stcp_dbg!("=C= Client Worker Hanshake complete");   
+    |         ------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:305:9
+    |
+305 |         stcp_dbg!("=C= Client Worker Hanshake complete");   
+    |         ------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:310:9
+    |
+310 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:310:9
+    |
+310 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:311:9
+    |
+311 |         stcp_dbg!("*** Client STATE: Complete");
+    |         --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:311:9
+    |
+311 |         stcp_dbg!("*** Client STATE: Complete");
+    |         --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:312:9
+    |
+312 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:312:9
+    |
+312 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:315:9
+    |
+315 |         stcp_dbg!("Client Worker Hanshake complete => AES MODE");   
+    |         -------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:315:9
+    |
+315 |         stcp_dbg!("Client Worker Hanshake complete => AES MODE");   
+    |         -------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:320:9
+    |
+320 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:320:9
+    |
+320 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:321:9
+    |
+321 |         stcp_dbg!("*** Client STATE: AES");
+    |         ---------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:321:9
+    |
+321 |         stcp_dbg!("*** Client STATE: AES");
+    |         ---------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:322:9
+    |
+322 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:322:9
+    |
+322 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:324:9
+    |
+324 |         stcp_dbg!("Client Worker AES MODE");   
+    |         ----------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:324:9
+    |
+324 |         stcp_dbg!("Client Worker AES MODE");   
+    |         ----------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:329:9
+    |
+329 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:329:9
+    |
+329 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:330:9
+    |
+330 |         stcp_dbg!("*** Client STATE: Error");
+    |         ------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:330:9
+    |
+330 |         stcp_dbg!("*** Client STATE: Error");
+    |         ------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:331:9
+    |
+331 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:331:9
+    |
+331 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:333:9
+    |
+333 |         stcp_dbg!("Client Worker STATE Error");   
+    |         -------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:333:9
+    |
+333 |         stcp_dbg!("Client Worker STATE Error");   
+    |         -------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:343:3
+    |
+343 |   stcp_dbg!("Server Starting");   
+    |   ---------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:343:3
+    |
+343 |   stcp_dbg!("Server Starting");   
+    |   ---------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:354:5
+    |
+354 |     stcp_dbg!("Server NO SESSION");   
+    |     ------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:354:5
+    |
+354 |     stcp_dbg!("Server NO SESSION");   
+    |     ------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:358:3
+    |
+358 |   stcp_dbg!("Server Server CP 1");   
+    |   ------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:358:3
+    |
+358 |   stcp_dbg!("Server Server CP 1");   
+    |   ------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:361:5
+    |
+361 |     stcp_dbg!("Server NO transport");   
+    |     -------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:361:5
+    |
+361 |     stcp_dbg!("Server NO transport");   
+    |     -------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:366:3
+    |
+366 |   stcp_dbg!("Server Server CP 2");   
+    |   ------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:366:3
+    |
+366 |   stcp_dbg!("Server Server CP 2");   
+    |   ------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:373:3
+    |
+373 |   stcp_dbg!("Server Server CP 3");   
+    |   ------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:373:3
+    |
+373 |   stcp_dbg!("Server Server CP 3");   
+    |   ------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:375:3
+    |
+375 |   stcp_dbg!("Server Worker State machine: {}", status as i32);   
+    |   ----------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:375:3
+    |
+375 |   stcp_dbg!("Server Worker State machine: {}", status as i32);   
+    |   ----------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:380:9
+    |
+380 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:380:9
+    |
+380 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:381:9
+    |
+381 |         stcp_dbg!("*S* Server STATE: Init");
+    |         ----------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:381:9
+    |
+381 |         stcp_dbg!("*S* Server STATE: Init");
+    |         ----------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:382:9
+    |
+382 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:382:9
+    |
+382 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:384:9
+    |
+384 |         stcp_dbg!("=S= Generated Keys... ret: {}", ret_gen);
+    |         --------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:384:9
+    |
+384 |         stcp_dbg!("=S= Generated Keys... ret: {}", ret_gen);
+    |         --------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:387:9
+    |
+387 |         stcp_dbg!("=S= Status set to Public");
+    |         ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:387:9
+    |
+387 |         stcp_dbg!("=S= Status set to Public");
+    |         ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:392:9
+    |
+392 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:392:9
+    |
+392 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:393:9
+    |
+393 |         stcp_dbg!("*S* Server STATE: Public");
+    |         ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:393:9
+    |
+393 |         stcp_dbg!("*S* Server STATE: Public");
+    |         ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:394:9
+    |
+394 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:394:9
+    |
+394 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:397:9
+    |
+397 |         stcp_dbg!("=S= Receiving of peer public key returned: {}", ret_recv);   
+    |         -------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:397:9
+    |
+397 |         stcp_dbg!("=S= Receiving of peer public key returned: {}", ret_recv);   
+    |         -------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:417:9
+    |
+417 |         stcp_dbg!("=S= Shared key calculation returned: {}", ret_shared);   
+    |         ---------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:417:9
+    |
+417 |         stcp_dbg!("=S= Shared key calculation returned: {}", ret_shared);   
+    |         ---------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:420:9
+    |
+420 |         stcp_dbg!("=S= Sent public key... ret: {}", ret_pub);
+    |         ---------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:420:9
+    |
+420 |         stcp_dbg!("=S= Sent public key... ret: {}", ret_pub);
+    |         ---------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:424:9
+    |
+424 |         stcp_dbg!("=S= Server Worker Hanshake complete");   
+    |         ------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:424:9
+    |
+424 |         stcp_dbg!("=S= Server Worker Hanshake complete");   
+    |         ------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:429:9
+    |
+429 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:429:9
+    |
+429 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:430:9
+    |
+430 |         stcp_dbg!("*S* Server STATE: Handshake Complete");
+    |         ------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:430:9
+    |
+430 |         stcp_dbg!("*S* Server STATE: Handshake Complete");
+    |         ------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:431:9
+    |
+431 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:431:9
+    |
+431 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:434:9
+    |
+434 |         stcp_dbg!("Client Worker Hanshake complete");   
+    |         -------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:434:9
+    |
+434 |         stcp_dbg!("Client Worker Hanshake complete");   
+    |         -------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:439:9
+    |
+439 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:439:9
+    |
+439 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:440:9
+    |
+440 |         stcp_dbg!("*S* Server STATE: AES mode");
+    |         --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:440:9
+    |
+440 |         stcp_dbg!("*S* Server STATE: AES mode");
+    |         --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:441:9
+    |
+441 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:441:9
+    |
+441 |         stcp_dbg!("*S*");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:446:9
+    |
+446 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:446:9
+    |
+446 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:447:9
+    |
+447 |         stcp_dbg!("*** Server STATE: Error");
+    |         ------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:447:9
+    |
+447 |         stcp_dbg!("*** Server STATE: Error");
+    |         ------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:448:9
+    |
+448 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:448:9
+    |
+448 |         stcp_dbg!("***");
+    |         ---------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:450:9
+    |
+450 |         stcp_dbg!("Client Worker STATE Error");   
+    |         -------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_handshake.rs:450:9
+    |
+450 |         stcp_dbg!("Client Worker STATE Error");   
+    |         -------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:39:3
+    |
+ 39 |   stcp_dbg!("   Version         : {}", the_header.version);   
+    |   -------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:39:3
+    |
+ 39 |   stcp_dbg!("   Version         : {}", the_header.version);   
+    |   -------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:40:3
+    |
+ 40 |   stcp_dbg!("   Tag             : {}", the_header.tag);   
+    |   ---------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:40:3
+    |
+ 40 |   stcp_dbg!("   Tag             : {}", the_header.tag);   
+    |   ---------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:41:3
+    |
+ 41 |   stcp_dbg!("   Type            : {}", the_header.msg_type.to_raw());   
+    |   ------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:41:3
+    |
+ 41 |   stcp_dbg!("   Type            : {}", the_header.msg_type.to_raw());   
+    |   ------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:42:3
+    |
+ 42 |   stcp_dbg!("   Payload length  : {}", the_header.msg_len);   
+    |   -------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:42:3
+    |
+ 42 |   stcp_dbg!("   Payload length  : {}", the_header.msg_len);   
+    |   -------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:73:5
+    |
+ 73 |     stcp_dbg!("Header size: {}", header_size_in_bytes);   
+    |     -------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:73:5
+    |
+ 73 |     stcp_dbg!("Header size: {}", header_size_in_bytes);   
+    |     -------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:74:5
+    |
+ 74 |     stcp_dbg!("Data size  : {}", data_lenght);   
+    |     ----------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:74:5
+    |
+ 74 |     stcp_dbg!("Data size  : {}", data_lenght);   
+    |     ----------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:75:5
+    |
+ 75 |     stcp_dbg!("Total size : {}", total_size);   
+    |     ---------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:75:5
+    |
+ 75 |     stcp_dbg!("Total size : {}", total_size);   
+    |     ---------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:96:5
+    |
+ 96 |     stcp_dbg!("Header size: {}", header_size_in_bytes);   
+    |     -------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:96:5
+    |
+ 96 |     stcp_dbg!("Header size: {}", header_size_in_bytes);   
+    |     -------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:97:5
+    |
+ 97 |     stcp_dbg!("Input data size: {}", data.len());   
+    |     -------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:97:5
+    |
+ 97 |     stcp_dbg!("Input data size: {}", data.len());   
+    |     -------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:100:7
+    |
+100 |       stcp_dbg!("Invalid length for STCP frame");   
+    |       ------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:100:7
+    |
+100 |       stcp_dbg!("Invalid length for STCP frame");   
+    |       ------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:106:5
+    |
+106 |     stcp_dbg!("Header from bytes:");
+    |     ------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:106:5
+    |
+106 |     stcp_dbg!("Header from bytes:");
+    |     ------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:127:7
+    |
+127 |       stcp_dbg!("ERROR Frame size header vs actual differs");   
+    |       ------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:127:7
+    |
+127 |       stcp_dbg!("ERROR Frame size header vs actual differs");   
+    |       ------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:129:7
+    |
+129 |       stcp_dbg!("Marked as error");   
+    |       ---------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:129:7
+    |
+129 |       stcp_dbg!("Marked as error");   
+    |       ---------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:132:5
+    |
+132 |     stcp_dbg!("Frame size check passed");   
+    |     ------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:132:5
+    |
+132 |     stcp_dbg!("Frame size check passed");   
+    |     ------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:135:7
+    |
+135 |       stcp_dbg!("ERROR Need bytes got bytes");   
+    |       --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:135:7
+    |
+135 |       stcp_dbg!("ERROR Need bytes got bytes");   
+    |       --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:137:7
+    |
+137 |       stcp_dbg!("Marked as error");   
+    |       ---------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:137:7
+    |
+137 |       stcp_dbg!("Marked as error");   
+    |       ---------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:142:7
+    |
+142 |       stcp_dbg!("ERROR Not valid type got");   
+    |       ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:142:7
+    |
+142 |       stcp_dbg!("ERROR Not valid type got");   
+    |       ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:144:7
+    |
+144 |       stcp_dbg!("Marked as error");   
+    |       ---------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:144:7
+    |
+144 |       stcp_dbg!("Marked as error");   
+    |       ---------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:148:3
+    |
+148 |   stcp_dbg!("Copying public key");   
+    |   ------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:148:3
+    |
+148 |   stcp_dbg!("Copying public key");   
+    |   ------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:153:3
+    |
+153 |   stcp_dbg!("Returning");   
+    |   ---------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:153:3
+    |
+153 |   stcp_dbg!("Returning");   
+    |   ---------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:163:7
+    |
+163 |       stcp_dbg!("Not a frame");   
+    |       ------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:163:7
+    |
+163 |       stcp_dbg!("Not a frame");   
+    |       ------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:174:7
+    |
+174 |       stcp_dbg!("Reported data versus actual differs");   
+    |       ------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:174:7
+    |
+174 |       stcp_dbg!("Reported data versus actual differs");   
+    |       ------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:209:5
+    |
+209 |     stcp_dbg!("From raw: Got header");   
+    |     --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:209:5
+    |
+209 |     stcp_dbg!("From raw: Got header");   
+    |     --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:213:9
+    |
+213 |         stcp_dbg!("RECV FRAME: Receive error No valid TAG found");   
+    |         --------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:213:9
+    |
+213 |         stcp_dbg!("RECV FRAME: Receive error No valid TAG found");   
+    |         --------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:229:5
+    |
+229 |     stcp_dbg!("Copying {} bytes from frame_payload_in as payload", frame_payload_in_len);   
+    |     ------------------------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:229:5
+    |
+229 |     stcp_dbg!("Copying {} bytes from frame_payload_in as payload", frame_payload_in_len);   
+    |     ------------------------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `msg_type`
+   --> src/stcp_message.rs:238:5
+    |
+238 |     msg_type: StcpMsgType,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_msg_type`
+
+warning: unused variable: `payload_len`
+   --> src/stcp_message.rs:264:7
+    |
+264 |   let payload_len = payload.len() as u32;
+    |       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_payload_len`
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:283:3
+    |
+283 |   stcp_dbg!("Sending frame, total bytes: {}", frame.len());
+    |   -------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_message.rs:283:3
+    |
+283 |   stcp_dbg!("Sending frame, total bytes: {}", frame.len());
+    |   -------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:51:5
+    |
+ 51 |     stcp_dbg!("Pump: no session");   
+    |     ----------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:51:5
+    |
+ 51 |     stcp_dbg!("Pump: no session");   
+    |     ----------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:56:5
+    |
+ 56 |     stcp_dbg!("Pump: NO transport");   
+    |     ------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:56:5
+    |
+ 56 |     stcp_dbg!("Pump: NO transport");   
+    |     ------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:80:7
+    |
+ 80 |       stcp_dbg!("SERVER: Changing state from {} to {} ...", now, nxt.to_raw());
+    |       ------------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:80:7
+    |
+ 80 |       stcp_dbg!("SERVER: Changing state from {} to {} ...", now, nxt.to_raw());
+    |       ------------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:83:7
+    |
+ 83 |       stcp_dbg!("CLIENT: Changing state from {} to {} ...", now, nxt.to_raw());
+    |       ------------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:83:7
+    |
+ 83 |       stcp_dbg!("CLIENT: Changing state from {} to {} ...", now, nxt.to_raw());
+    |       ------------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:101:3
+    |
+101 |   stcp_dbg!("Is handshake compelte: {}", rc);
+    |   ------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:101:3
+    |
+101 |   stcp_dbg!("Is handshake compelte: {}", rc);
+    |   ------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:128:5
+    |
+128 |     stcp_dbg!("Worker Client Setting server false");   
+    |     ----------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:128:5
+    |
+128 |     stcp_dbg!("Worker Client Setting server false");   
+    |     ----------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:131:5
+    |
+131 |     stcp_dbg!("Worker Client Starting worker");   
+    |     ------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:131:5
+    |
+131 |     stcp_dbg!("Worker Client Starting worker");   
+    |     ------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:133:7
+    |
+133 |       stcp_dbg!("Worker Client No transport");   
+    |       --------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:133:7
+    |
+133 |       stcp_dbg!("Worker Client No transport");   
+    |       --------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:187:3
+    |
+187 |   stcp_dbg!("SESSION/Checkpoint 1");
+    |   --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:187:3
+    |
+187 |   stcp_dbg!("SESSION/Checkpoint 1");
+    |   --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:199:3
+    |
+199 |   stcp_dbg!("SESSION/Checkpoint 2");
+    |   --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:199:3
+    |
+199 |   stcp_dbg!("SESSION/Checkpoint 2");
+    |   --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:203:3
+    |
+203 |   stcp_dbg!("SESSION/Checkpoint 3");
+    |   --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:203:3
+    |
+203 |   stcp_dbg!("SESSION/Checkpoint 3");
+    |   --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:301:5
+    |
+301 |     stcp_dbg!("Before unsafe parts A");   
+    |     ---------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:301:5
+    |
+301 |     stcp_dbg!("Before unsafe parts A");   
+    |     ---------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:312:5
+    |
+312 |     stcp_dbg!("After unsafe parts A");   
+    |     --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:312:5
+    |
+312 |     stcp_dbg!("After unsafe parts A");   
+    |     --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:314:5
+    |
+314 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:314:5
+    |
+314 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:315:5
+    |
+315 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:315:5
+    |
+315 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:316:5
+    |
+316 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:316:5
+    |
+316 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:317:5
+    |
+317 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:317:5
+    |
+317 |     stcp_dbg!("SENDING IN RUST =====================================");   
+    |     ------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:321:5
+    |
+321 |     stcp_dbg!("Sending encrypted: {}", s.in_aes_mode());
+    |     --------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:321:5
+    |
+321 |     stcp_dbg!("Sending encrypted: {}", s.in_aes_mode());
+    |     --------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:324:7
+    |
+324 |       stcp_dbg!("In AES mode..");
+    |       -------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:324:7
+    |
+324 |       stcp_dbg!("In AES mode..");
+    |       -------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:327:7
+    |
+327 |       stcp_dbg!("In Public-key mode..");
+    |       --------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:327:7
+    |
+327 |       stcp_dbg!("In Public-key mode..");
+    |       --------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:330:5
+    |
+330 |     stcp_dbg!("Got rc: {} at exit.", ret);
+    |     ------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:330:5
+    |
+330 |     stcp_dbg!("Got rc: {} at exit.", ret);
+    |     ------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unreachable pattern
+   --> src/stcp_protocol_functions.rs:379:7
+    |
+374 |       _ =>{
+    |       - matches any value
+...
+379 |       StcpMsgType::Public => {
+    |       ^^^^^^^^^^^^^^^^^^^ no value can reach this
+    |
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+   --> src/stcp_protocol_functions.rs:383:9
+    |
+374 |       _ =>{
+    |       - matches any value
+...
+383 |         StcpMsgType::Aes => {
+    |         ^^^^^^^^^^^^^^^^ no value can reach this
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:375:11
+    |
+375 |           stcp_dbg!("No option...");
+    |           ------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/stcp_protocol_functions.rs:375:11
+    |
+375 |           stcp_dbg!("No option...");
+    |           ------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `is_server`
+  --> src/proto_session.rs:32:16
+   |
+32 |     pub fn new(is_server: bool, transport: *mut kernel_socket) -> Self {
+   |                ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_server`
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:47:9
+    |
+ 47 |         stcp_dbg!("Initialising with AES....");
+    |         -------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:47:9
+    |
+ 47 |         stcp_dbg!("Initialising with AES....");
+    |         -------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:72:9
+    |
+ 72 |         stcp_dbg!("recv_header_and_payload: reading header ({} bytes)", hdr.len());
+    |         -------------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:72:9
+    |
+ 72 |         stcp_dbg!("recv_header_and_payload: reading header ({} bytes)", hdr.len());
+    |         -------------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:76:13
+    |
+ 76 |             stcp_dbg!("recv_header_and_payload: header read failed rc={}", rc);
+    |             ------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:76:13
+    |
+ 76 |             stcp_dbg!("recv_header_and_payload: header read failed rc={}", rc);
+    |             ------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:80:9
+    |
+ 80 |         stcp_dbg!("recv_header_and_payload: header ok, reading payload ({} bytes)", payload.len());
+    |         ------------------------------------------------------------------------------------------ in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:80:9
+    |
+ 80 |         stcp_dbg!("recv_header_and_payload: header ok, reading payload ({} bytes)", payload.len());
+    |         ------------------------------------------------------------------------------------------ in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:84:13
+    |
+ 84 |             stcp_dbg!("recv_header_and_payload: payload read failed rc={}", rc);
+    |             ------------------------------------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:84:13
+    |
+ 84 |             stcp_dbg!("recv_header_and_payload: payload read failed rc={}", rc);
+    |             ------------------------------------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:88:9
+    |
+ 88 |         stcp_dbg!("recv_header_and_payload: OK");
+    |         ---------------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/proto_session.rs:88:9
+    |
+ 88 |         stcp_dbg!("recv_header_and_payload: OK");
+    |         ---------------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/module_handlers.rs:7:3
+    |
+  7 |   stcp_dbg!("STCP rust module enter");   
+    |   ----------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/module_handlers.rs:7:3
+    |
+  7 |   stcp_dbg!("STCP rust module enter");   
+    |   ----------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused variable: `loc`
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/module_handlers.rs:12:3
+    |
+ 12 |   stcp_dbg!("STCP rust module exit");   
+    |   ---------------------------------- in this macro invocation
+    |
+help: `loc` is captured in macro and introduced a unused variable
+   --> src/debug.rs:144:13
+    |
+144 |         let loc = Location::caller();
+    |             ^^^
+    |
+   ::: src/module_handlers.rs:12:3
+    |
+ 12 |   stcp_dbg!("STCP rust module exit");   
+    |   ---------------------------------- in this macro invocation
+    = note: this warning originates in the macro `$crate::stcp_log` which comes from the expansion of the macro `stcp_dbg` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: variable `skBytes` should have a snake case name
+   --> src/stcp_handshake.rs:208:7
+    |
+208 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: convert the identifier to snake case: `sk_bytes`
+    |
+    = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `pVer` should have a snake case name
+   --> src/types.rs:164:21
+    |
+164 |     pub fn new_from(pVer: u32, pTag: u64, pType: StcpMsgType, pLen: u32) -> Self {
+    |                     ^^^^ help: convert the identifier to snake case: `p_ver`
+
+warning: variable `pTag` should have a snake case name
+   --> src/types.rs:164:32
+    |
+164 |     pub fn new_from(pVer: u32, pTag: u64, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                ^^^^ help: convert the identifier to snake case: `p_tag`
+
+warning: variable `pType` should have a snake case name
+   --> src/types.rs:164:43
+    |
+164 |     pub fn new_from(pVer: u32, pTag: u64, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                           ^^^^^ help: convert the identifier to snake case: `p_type`
+
+warning: variable `pLen` should have a snake case name
+   --> src/types.rs:164:63
+    |
+164 |     pub fn new_from(pVer: u32, pTag: u64, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                                               ^^^^ help: convert the identifier to snake case: `p_len`
+
+warning: variable `theSK` should have a snake case name
+  --> src/proto_session.rs:46:37
+   |
+46 |     pub fn init_aes_with(&mut self, theSK: StcpEcdhSecret) {
+   |                                     ^^^^^ help: convert the identifier to snake case: `the_sk`
+
+warning: `the_stcp_kernel_module` (lib) generated 231 warnings (run `cargo fix --lib -p the_stcp_kernel_module` to apply 30 suggestions)
+    Finished `release` profile [optimized] target(s) in 37.66s

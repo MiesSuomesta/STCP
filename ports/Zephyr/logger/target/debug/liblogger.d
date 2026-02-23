@@ -1,0 +1,1 @@
+/home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/target/debug/liblogger.a: /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/src/lib.rs /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/src/panic_handler.rs /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/src/paxlogd_x86.rs

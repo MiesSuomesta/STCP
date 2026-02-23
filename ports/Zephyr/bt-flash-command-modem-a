@@ -1,0 +1,1 @@
+west -v flash -d ./build-bt/ --runner jlink --dev-id 1050931089

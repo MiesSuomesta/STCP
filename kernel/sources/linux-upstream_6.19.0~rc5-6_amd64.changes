@@ -1,0 +1,38 @@
+Format: 1.8
+Date: Mon, 19 Jan 2026 17:12:42 +0200
+Source: linux-upstream
+Binary: linux-headers-6.19.0-rc5-paxsudos-stcp-debug linux-image-6.19.0-rc5-paxsudos-stcp-debug linux-image-6.19.0-rc5-paxsudos-stcp-debug-dbg linux-libc-dev
+Built-For-Profiles: noudeb
+Architecture: amd64
+Version: 6.19.0~rc5-6
+Distribution: plucky
+Urgency: low
+Maintainer: pomo <pomo@devaus>
+Changed-By: pomo <pomo@devaus>
+Description:
+ linux-headers-6.19.0-rc5-paxsudos-stcp-debug - Linux kernel headers for 6.19.0-rc5-paxsudos-stcp-debug on amd64
+ linux-image-6.19.0-rc5-paxsudos-stcp-debug - Linux kernel, version 6.19.0-rc5-paxsudos-stcp-debug
+ linux-image-6.19.0-rc5-paxsudos-stcp-debug-dbg - Linux kernel debugging symbols for 6.19.0-rc5-paxsudos-stcp-debug
+ linux-libc-dev - Linux support headers for userspace development
+Changes:
+ linux-upstream (6.19.0~rc5-6) plucky; urgency=low
+ .
+   * Custom built Linux kernel.
+Checksums-Sha1:
+ 142001b199cacdb2d7fd9efd89ca68d3cbcbd369 10352242 linux-headers-6.19.0-rc5-paxsudos-stcp-debug_6.19.0~rc5-6_amd64.deb
+ 21b3fd94021928a7a2e1579b872d65e9d6958a52 1666414394 linux-image-6.19.0-rc5-paxsudos-stcp-debug-dbg_6.19.0~rc5-6_amd64.deb
+ 023b8702ac0d5dc709c982446df576a6ea04a726 207658826 linux-image-6.19.0-rc5-paxsudos-stcp-debug_6.19.0~rc5-6_amd64.deb
+ b2ea4d1e55c8a27af0dd12a7ab4bbd1b8e5e3c2a 1529140 linux-libc-dev_6.19.0~rc5-6_amd64.deb
+ 55dcd92b4dfeaeeda709c10c03523c9debd14571 8782 linux-upstream_6.19.0~rc5-6_amd64.buildinfo
+Checksums-Sha256:
+ 9e8a8386d0db89353e8d09c766de6a4be2ac20c53d539dbd82d0ad8a5e9d5d3f 10352242 linux-headers-6.19.0-rc5-paxsudos-stcp-debug_6.19.0~rc5-6_amd64.deb
+ 520395aefe9ef8c93245fbefa1b785367c3df26c4e6f0c4d6ea7e5136713b007 1666414394 linux-image-6.19.0-rc5-paxsudos-stcp-debug-dbg_6.19.0~rc5-6_amd64.deb
+ 60c8d4c495d2b4902d4c3be50a2003fd644a81082be5731a901e87ce91b0b3ae 207658826 linux-image-6.19.0-rc5-paxsudos-stcp-debug_6.19.0~rc5-6_amd64.deb
+ 03c216fca8daff05cbbb84ce0cd9a6c33a2d35d7d1bfa1d7d428cc5c940232e6 1529140 linux-libc-dev_6.19.0~rc5-6_amd64.deb
+ 9abb89eabd1d8250f0325df706206cf346366ad97b7263d3b0668e9a9a0d9254 8782 linux-upstream_6.19.0~rc5-6_amd64.buildinfo
+Files:
+ e838a7a5ec390f7f7b3f9d80db5461a9 10352242 kernel optional linux-headers-6.19.0-rc5-paxsudos-stcp-debug_6.19.0~rc5-6_amd64.deb
+ b7571f347ee2547843d0dc7be6976e0f 1666414394 debug optional linux-image-6.19.0-rc5-paxsudos-stcp-debug-dbg_6.19.0~rc5-6_amd64.deb
+ 1b6558b2e22e065b4066800f561aaa06 207658826 kernel optional linux-image-6.19.0-rc5-paxsudos-stcp-debug_6.19.0~rc5-6_amd64.deb
+ 76faac2de40f42cd8b78098a665baa91 1529140 devel optional linux-libc-dev_6.19.0~rc5-6_amd64.deb
+ dd439c2669896cc6a64b4c2027f7e43a 8782 kernel optional linux-upstream_6.19.0~rc5-6_amd64.buildinfo

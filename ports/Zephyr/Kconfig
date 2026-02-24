@@ -25,7 +25,7 @@ config STCP_AES_BYPASS
 
 config STCP_CONNECT_TO_HOST
     string "STCP Connect to hostname"
-    default "lja.fi"
+    default "your-public-stcp-server"
     depends on STCP_ENABLE
     help
       STCP Remote endpoint hostname.

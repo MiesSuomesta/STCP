@@ -17,6 +17,7 @@
 #include <zephyr/sys/atomic.h>
 #include <modem/nrf_modem_lib.h>
 
+#include "settings.h"
 #include "stcp_struct.h"
 #include "stcp_net.h"
 #include "workers.h"
@@ -33,9 +34,9 @@
 #include "debug.h"
 
 // LTE / BT kytkin ...
-#define TEST_CONNECTON_TO_HOST 	"lja.fi"
-#define TEST_CONNECTON_TO_PORT 	"7777"
-#define STCP_WAIT_IN_SECONDS    180
+#define TEST_CONNECTON_TO_HOST 	STCP_CONNECT_TO_ADDRESS_HOSTNAME
+#define TEST_CONNECTON_TO_PORT 	STCP_CONNECT_TO_ADDRESS_PORT
+#define STCP_WAIT_IN_SECONDS    (3*60)
 
 #define STCP_HEAP_DEBUG         0
 

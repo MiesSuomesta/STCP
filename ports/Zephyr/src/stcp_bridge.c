@@ -10,12 +10,14 @@
 #include <zephyr/sys/sys_heap.h>
 #include <zephyr/kernel.h>
 
+#include "settings.h"
 #include "stcp_alloc.h"
 #include "stcp_struct.h"
 #include "stcp_bridge.h"
 #include "stcp_net.h"
 #include "utils.h"
 #include "stcp_operations_zephyr.h"
+
 
 #include "stcp_rust_exported_functions.h"
 

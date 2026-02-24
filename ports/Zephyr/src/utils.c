@@ -147,42 +147,10 @@ int stcp_tcp_context_connect_and_shake_hands(struct stcp_ctx *ctx, int timeout_m
     return 1;
 }
 
-#if 0
-static int test_tcp(const char *host, const char *port, struct stcp_ctx **theContext)
-{
-    int fd, err;
-
-    fd = stcp_tcp_resolve_and_make_socket(host, port);
-
-    LDBG("STCP: Creating socket...");
-
-    struct stcp_ctx *ctx = stcp_create_new_context(fd);
-    *theContext = ctx;
-    
-    if (!ctx) {
-        LDBG("No context?");
-        return -ENOMEM;
-    }
-
-    LDBG("STCP: Connecting via fd: %d / %p(TCP:%d, KS:%d)", fd, ctx, ctx->tcp_fd, ctx->ks.fd);
-    errno = 0;
-
-    LDBG("closing flag before TCP connect: %d", atomic_get(&ctx->closing));
-    err = stcp_context_connect(ctx, (struct sockaddr*)&ss, res->ai_addrlen, 180000);
-    LDBG("closing flag after TCP connect: %d", atomic_get(&ctx->closing));
-    zsock_freeaddrinfo(res);
-
-    if (err >= 0) {
-        LDBG(".-------------------------------------------------------->");
-        LDBG("| STCP state: CONNECTED");
-        LDBG("'--------------------------->");
-        ctx->handshake_done = 1;
-    } else {
-        LDBG("Connection failed?, rc & errno: %d, %d", err, errno);
-        return -errno;
-    }
-
-    LDBG("TCP: CONNECT OK");
-    return 0;
+int stcp_config_debug_enabled() {
+    return IS_ENABLED(CONFIG_STCP_DEBUG);
 }
-#endif
+
+int stcp_config_aes_bypass_enabled() {
+    return IS_ENABLED(CONFIG_STCP_AES_BYPASS);
+}

@@ -1,12 +1,26 @@
-menu "STCP options"
-
 source "Kconfig"
 
-config STCP_TRANSPORT_LTE
+menu "STCP Configuration"
+
+config STCP_ENABLE
     bool "Enable STCP LTE transport"
     default y
     depends on NET_SOCKETS   # esimerkki: riippuvuudet kernelistä
     help
-      Enable LTE transport backend for STCP on Zephyr / nRF9161.
+      Enable STCP LTE transport.
+
+config STCP_DEBUG
+    bool "Enable STCP debug"
+    default n
+    depends on STCP_ENABLE   # esimerkki: riippuvuudet kernelistä
+    help
+      Enable STCP debugs.
+
+config STCP_AES_BYPASS
+    bool "Enable STCP AES bypass"
+    default n
+    depends on STCP_ENABLE   # esimerkki: riippuvuudet kernelistä
+    help
+      Bypass AES enc/decryption for development purposes.
 
 endmenu

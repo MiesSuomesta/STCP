@@ -51,3 +51,7 @@ struct stcp_ctx *stcp_tcp_resolve_and_make_context(const char *host, const char 
 int              stcp_tcp_do_hanshake_with_context(struct stcp_ctx *ctx);
 
 int stcp_tcp_context_connect_and_shake_hands(struct stcp_ctx *ctx, int timeout_ms);
+
+
+int stcp_config_debug_enabled();
+int stcp_config_aes_bypass_enabled();

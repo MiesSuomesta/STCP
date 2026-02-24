@@ -61,6 +61,11 @@ int stcp_exported_rust_ctx_alive_count(void)
 
 void stcp_hexdump_ascii(const char *prefix, const uint8_t *buf, size_t len)
 {
+
+    if (!stcp_config_debug_enabled()) {
+        return ;
+    }
+
 #if STCP_DEBUG_DUMP_ENABLED
     const size_t cols = 16;
 

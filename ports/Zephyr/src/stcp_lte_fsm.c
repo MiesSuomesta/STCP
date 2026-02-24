@@ -11,6 +11,7 @@
 
 #include <errno.h>
 
+#include "settings.h"
 #include "debug.h"
 #include "stcp_alloc.h"
 #include "stcp_struct.h"

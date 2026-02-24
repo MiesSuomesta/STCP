@@ -18,7 +18,7 @@
 #include <zephyr/net/conn_mgr_monitor.h>
 #include <zephyr/net/conn_mgr_connectivity.h>
 
-
+#include "settings.h"
 #include "debug.h"
 #include "stcp_alloc.h"
 #include "stcp_struct.h"
@@ -35,8 +35,7 @@ int g_sock = -1;
 
 LOG_MODULE_DECLARE(stcp_lte_module);
 
-// The APN for SIM, consult your ISP
-#define STCP_LTE_APN                        "internet"
+
 
 // Evant mask for l4 events
 /* Macros used to subscribe to specific Zephyr NET management events. */

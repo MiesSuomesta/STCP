@@ -12,6 +12,7 @@ void stcp_fsm_notify_pdn_ready(struct stcp_fsm *fsm);
 LOG_MODULE_REGISTER(stcp_fsm, LOG_LEVEL_INF);
 
 #include "fsm.h"
+#include "settings.h"
 #include "debug.h"
 #include "stcp_alloc.h"
 #include "stcp_struct.h"
@@ -72,7 +73,10 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
         case STCP_FSM_TCP_CONNECT:
             LDBG("[FSM] TCP CONNECT");
 #if STCP_FSM_REAL_IMPL
-            struct stcp_ctx *ctx = stcp_tcp_resolve_and_make_context("lja.fi", "7777");
+            struct stcp_ctx *ctx = stcp_tcp_resolve_and_make_context(
+                    CONFIG_STCP_CONNECT_TO_HOST, 
+                    CONFIG_STCP_CONNECT_TO_PORT);
+                    
             if (!ctx) {
                 LWRN("[FSM] ctx alloc failed");
                 k_sleep(K_SECONDS(3));

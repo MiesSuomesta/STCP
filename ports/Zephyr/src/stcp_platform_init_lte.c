@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "stcp_platform.h"
 #include "stcp_net.h"
+#include "settings.h"
 
 LOG_MODULE_DECLARE(stcp_lte_module);
 
@@ -45,6 +46,7 @@ int stcp_platform_init_banner(void)
     LOG_INF("|  🕓 Build at %s (%s)", STCP_BUILD_DATE, STCP_GIT_SHA);
     LOG_INF("|");
     LOG_INF("| Configuration:");
+    LOG_INF("|   * The APN: %s", CONFIG_STCP_LTE_APN_NAME);
 
 #if CONFIG_STCP_DEBUG
     LOG_INF("|   * STCP DEBUG enabled.");

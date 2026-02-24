@@ -57,7 +57,8 @@ unsafe extern "C" {
         out_shared: *mut StcpEcdhSecret,
     ) -> i32;
 
-
+    pub fn stcp_is_debug_enabled() -> i32;
+    
     //
     // Conteksti countterit
     //

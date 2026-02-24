@@ -1,0 +1,199 @@
+# =========================
+# UART driver
+# =========================
+CONFIG_SERIAL=y
+
+# =========================
+# LOG -> UART (vain yksi backend)
+# =========================
+CONFIG_LOG=y
+CONFIG_LOG_BACKEND_UART=y
+CONFIG_LOG_MODE_IMMEDIATE=y
+CONFIG_LOG_PRINTK=n
+
+# =========================
+# Estä printk + early console
+# =========================
+CONFIG_PRINTK=n
+CONFIG_EARLY_CONSOLE=n
+CONFIG_STDOUT_CONSOLE=n
+
+# =========================
+# Shell UARTiin (ei Shell-log-backendiä!)
+# =========================
+CONFIG_CONSOLE=y
+CONFIG_UART_CONSOLE=y
+CONFIG_SHELL=y
+CONFIG_SHELL_BACKEND_SERIAL=y
+CONFIG_SHELL_LOG_BACKEND=n   # <<< TÄRKEIN
+
+# =========================
+# Tracing (vain trace_backend symboliin, ei UARTiin)
+# =========================
+CONFIG_TRACING=y
+CONFIG_TRACING_BACKEND_UART=n   # EI enää UARTiin
+CONFIG_TRACING_SYNC=y
+
+# =========================
+# Modem trace RAMiin (ei UARTiin)
+# =========================
+CONFIG_NRF_MODEM_LIB_TRACE=y
+CONFIG_NRF_MODEM_LIB_TRACE_BACKEND_RAM=y
+CONFIG_NRF_MODEM_LIB_TRACE_BACKEND_RAM_LENGTH=32768
+
+# =========================
+# Estä muut backendit
+# =========================
+CONFIG_LOG_BACKEND_RTT=n
+
+# -------------------------
+# Core networking
+# -------------------------
+CONFIG_PDN=y
+CONFIG_NETWORKING=y
+CONFIG_NET_IPV4=y
+CONFIG_NET_IPV6=n
+CONFIG_DNS_RESOLVER=y
+CONFIG_NET_CONFIG_SETTINGS=y
+CONFIG_NET_CONFIG_AUTO_INIT=y
+
+# -------------------------
+# Sockets (pakollinen zsock_*)
+# -------------------------
+CONFIG_NET_SOCKETS=y
+CONFIG_NET_SOCKETS_POSIX_NAMES=y
+CONFIG_NET_BUF_RX_COUNT=8
+CONFIG_NET_BUF_TX_COUNT=8
+CONFIG_NET_PKT_RX_COUNT=4
+CONFIG_NET_PKT_TX_COUNT=4
+
+# File dessejä
+CONFIG_ZVFS_OPEN_MAX=32
+CONFIG_NET_SOCKETS_POLL_MAX=32
+
+# -------------------------
+# Offload (nRF9161 modem sockets)
+# -------------------------
+CONFIG_NET_SOCKETS_OFFLOAD=y
+CONFIG_NET_OFFLOAD=y
+
+# -------------------------
+# DNS (zsock_getaddrinfo)
+# -------------------------
+CONFIG_DNS_RESOLVER=y
+CONFIG_NET_CONFIG_SETTINGS=y
+CONFIG_NET_CONFIG_INIT_TIMEOUT=30
+
+# -------------------------
+# LTE / modem
+# -------------------------
+CONFIG_NRF_MODEM_LIB=y
+CONFIG_LTE_LINK_CONTROL=y
+CONFIG_LTE_LINK_CONTROL_LOG_LEVEL_DBG=y
+
+CONFIG_MODEM_KEY_MGMT=y
+CONFIG_NET_CONFIG_SETTINGS=y
+CONFIG_NET_CONFIG_INIT_TIMEOUT=60
+
+# -------------------------
+# POSIX layer (poll, fcntl jne)
+# -------------------------
+CONFIG_POSIX_API=y
+CONFIG_POLL=y
+CONFIG_EVENTFD=y
+
+# -------------------------
+# Crypto
+# -------------------------
+# Crypto perusta
+
+# nRF9161 HW crypto (CC3XX)
+CONFIG_PSA_CRYPTO_DRIVER_CC3XX=y
+
+# Entropy / RNG
+CONFIG_ENTROPY_GENERATOR=y
+
+# Tarvittavat ECC-algoritmit
+CONFIG_MBEDTLS_ECP_C=y
+CONFIG_MBEDTLS_ECDH_C=y
+CONFIG_MBEDTLS_ECDSA_C=y
+
+# (valinnainen) debug
+CONFIG_MBEDTLS_DEBUG=y
+
+# HW crypto nRF9161:
+CONFIG_NORDIC_SECURITY_BACKEND=y
+CONFIG_PSA_CRYPTO_DRIVER_CC3XX=y
+
+# Muisti 24kb stakki ja 32kb heappi 
+CONFIG_MAIN_STACK_SIZE=32768
+CONFIG_HEAP_MEM_POOL_SIZE=32768
+CONFIG_NET_SOCKETS_SERVICE_STACK_SIZE=8192
+CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
+
+# Stack debug
+CONFIG_INIT_STACKS=y
+CONFIG_STACK_SENTINEL=y
+CONFIG_THREAD_STACK_INFO=y
+CONFIG_MBEDTLS=y
+
+
+# --- ÄLÄ vedä mbedTLS debug-init mukaan ---
+CONFIG_MBEDTLS=n
+CONFIG_MBEDTLS_LIBRARY=n
+CONFIG_MBEDTLS_DEBUG=n
+
+# --- Disabloi nrf_security mbedTLS backend ---
+CONFIG_NRF_SECURITY=n
+
+# --- Pakota mbedTLS kirjasto ---
+#CONFIG_MBEDTLS=y
+#CONFIG_MBEDTLS_LIBRARY=y
+
+# --- Nordic HW backend ---
+#CONFIG_PSA_CRYPTO_DRIVER_CC3XX=y
+
+# --- Entropy ---
+#CONFIG_ENTROPY_GENERATOR=y
+
+# --- ECC ---
+#CONFIG_MBEDTLS_ECP_C=y
+#CONFIG_MBEDTLS_ECDH_C=y
+#CONFIG_MBEDTLS_ECDSA_C=y
+
+#defbuggia
+CONFIG_SYS_HEAP_RUNTIME_STATS=y
+CONFIG_SYS_HEAP_LISTENER=y
+CONFIG_ASSERT=y
+CONFIG_DEBUG_OPTIMIZATIONS=y
+CONFIG_CBPRINTF_COMPLETE=y
+
+#HEappi
+CONFIG_SYS_HEAP_LISTENER=y
+CONFIG_SYS_HEAP_RUNTIME_STATS=y
+CONFIG_SYS_HEAP_VALIDATE=y
+
+CONFIG_ENTROPY_GENERATOR=y
+CONFIG_ENTROPY_NRF5_RNG=y
+CONFIG_NRFX_RNG=y
+
+
+#CONFIG_INIT_STACKS=y
+#CONFIG_THREAD_STACK_INFO=y
+#CONFIG_THREAD_RUNTIME_STATS=y
+
+#CONFIG_HEAP_MEM_POOL_SIZE=65536
+CONFIG_DEBUG_INFO=y
+CONFIG_DEBUG_OPTIMIZATIONS=y
+CONFIG_NO_OPTIMIZATIONS=y
+
+# Analyysiä
+#CONFIG_THREAD_ANALYZER=y
+#CONFIG_THREAD_ANALYZER_AUTO=y
+#CONFIG_THREAD_ANALYZER_USE_PRINTK=y
+
+# STCP configuration
+CONFIG_STCP_ENABLE=y
+CONFIG_STCP_DEBUG=y
+CONFIG_STCP_AES_BYPASS=n
+

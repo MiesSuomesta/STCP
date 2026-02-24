@@ -39,11 +39,11 @@ int stcp_network_test_dns(const char *host, const char *port,
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    LOG_INF("DNS test: resolving %s:%s", host, port);
+    LINF("DNS test: resolving %s:%s", host, port);
 
     rc = zsock_getaddrinfo(host, port, &hints, &res);
     if (rc != 0) {
-        LOG_ERR("getaddrinfo failed rc=%d errno=%d", rc, errno);
+        LERR("getaddrinfo failed rc=%d errno=%d", rc, errno);
         return -errno;
     }
 
@@ -52,7 +52,7 @@ int stcp_network_test_dns(const char *host, const char *port,
     char ip[NET_IPV4_ADDR_LEN];
     net_addr_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
 
-    LOG_INF("DNS OK: %s -> %s:%d", host, ip, ntohs(addr->sin_port));
+    LINF("DNS OK: %s -> %s:%d", host, ip, ntohs(addr->sin_port));
 
     if (out) {
         memcpy(out, addr, sizeof(*out));

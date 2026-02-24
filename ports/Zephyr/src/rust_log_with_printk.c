@@ -6,10 +6,15 @@ LOG_MODULE_REGISTER(stcp_loggin_with_ldbg, LOG_LEVEL_INF);
 #include <zephyr/kernel.h>
 
 #include "debug.h"
+#include "utils.h"
 
 #define LOG_BUFFER_SIZE_BYTES   (1024*4)
-void stcp_rust_log(int level, const char *buf, size_t len)
+void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
 {
+    if (! stcp_config_debug_enabled() ) {
+        return;
+    }
+
     // Check ratelimitter
     static const char *lvl[] = {
         "??",   // 0

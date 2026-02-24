@@ -1,1 +1,0 @@
-/home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/target/thumbv8m.main-none-eabi/release/liblogger.a: /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/src/lib.rs /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/src/panic_handler.rs /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/logger/src/paxlogd_arm.rs

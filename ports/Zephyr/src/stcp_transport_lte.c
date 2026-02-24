@@ -480,9 +480,15 @@ int stcp_transport_send(struct stcp_ctx *ctx, const uint8_t *buf, size_t len)
         return -EBADFD;
     }
 
-    LDBG("Sending via rust %d bytes: %s", len, buf);
-    int ret = rust_exported_session_sendmsg(ctx->session, &ctx->ks, buf, len);
-    LDBG("Called RUST send message, rc: %d", ret);
+    LDBG("Sending %d bytes: %s", len, buf);
+    int ret = 0;
+    if (stcp_config_aes_bypass_enabled()) {
+        LDBG("Bypassing AES...");
+        ret = stcp_tcp_send(&ctx->ks, buf, len);
+    } else {
+        ret = rust_exported_session_sendmsg(ctx->session, &ctx->ks, buf, len);
+    }
+    LDBG("Called send message, rc: %d", ret);
     return ret;
 }
 
@@ -502,8 +508,17 @@ int stcp_transport_recv(struct stcp_ctx *ctx, uint8_t *buf, size_t maxlen)
         LDBG("Called RUST recv message, without lenght...");
         return -EBADFD;
     }
-    int ret = rust_exported_session_recvmsg(ctx->session, &ctx->ks, buf, maxlen, /* no blocking */ 1 );
-    LDBG("Called RUST recv message, rc: %d", ret);
+
+    int ret = 0;
+    int recv_len = 0;
+    if (stcp_config_aes_bypass_enabled()) {
+        LDBG("Bypassing AES...");
+        ret = stcp_tcp_recv(&ctx->ks, buf, maxlen, 1, 0, &recv_len);
+        LDBG("Raw RECV ret: %d // %d", ret, recv_len);
+    } else {
+        ret = rust_exported_session_recvmsg(ctx->session, &ctx->ks, buf, maxlen, /* no blocking */ 1 );
+    }
+    LDBG("Called recv message, rc: %d", ret);
     return ret;
 }
 

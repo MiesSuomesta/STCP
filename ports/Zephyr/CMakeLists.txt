@@ -48,31 +48,33 @@ target_compile_definitions(app PRIVATE
 )
 
 
-#if(CONFIG_STCP_TRANSPORT_LTE)
-target_sources(app PRIVATE
-	micro-ecc/uECC.c
-	src/workers.c
-	src/utils.c
-  src/network_testing.c
-	src/fsm.c
-	src/ffi_random.c
-	src/rust_alloc.c
-	src/rust_log_with_printk.c
-	src/stcp_alloc_zephyr.c
-	src/stcp_bridge.c
-	src/stcp_kernel_crypto.c
-	src/stcp_lte_fsm.c
-	src/stcp_main_lte.c
-	src/stcp_net_zephyr.c
-	src/stcp_operations_zephyr.c
-	src/stcp_platform_init_lte.c
-	src/stcp_soft_reset.c
-	src/stcp_tcp_recv.c
-	src/stcp_tcp_send.c
-	src/stcp_transport_lte.c
-
-    )
-#endif()
+if(CONFIG_STCP_ENABLE)
+  message(STATUS "STCP Enabled")
+  target_sources(app PRIVATE
+    micro-ecc/uECC.c
+    src/workers.c
+    src/utils.c
+    src/network_testing.c
+    src/fsm.c
+    src/ffi_random.c
+    src/rust_alloc.c
+    src/rust_log_with_printk.c
+    src/stcp_alloc_zephyr.c
+    src/stcp_bridge.c
+    src/stcp_kernel_crypto.c
+    src/stcp_lte_fsm.c
+    src/stcp_main_lte.c
+    src/stcp_net_zephyr.c
+    src/stcp_operations_zephyr.c
+    src/stcp_platform_init_lte.c
+    src/stcp_soft_reset.c
+    src/stcp_tcp_recv.c
+    src/stcp_tcp_send.c
+    src/stcp_transport_lte.c
+  )
+else()
+  message(STATUS "STCP Disabled")
+endif()
 
 #if(CONFIG_STCP_TRANSPORT_BT)
 #    target_sources(app PRIVATE

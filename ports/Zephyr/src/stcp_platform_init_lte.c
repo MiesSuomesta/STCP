@@ -40,10 +40,26 @@ static stcp_platform_ready_cb_t user_platform_ready_callback = NULL;
 // tässä myöhemmin: socket connect, stcp_net_set_sock, rng init, jne.
 int stcp_platform_init_banner(void)
 {
-    LOG_INF(".----<[STCP by Paxsudos IT]>------------------------------------------------------------>");
+    LOG_INF(".----<[ STCP by Paxsudos IT (c) 2026 ]>------------------------------------------------------------>");
     LOG_INF("|  ✅ STCP Initialised (Version %s), Protocol number %d", STCP_VERSION, IPPROTO_STCP);
     LOG_INF("|  🕓 Build at %s (%s)", STCP_BUILD_DATE, STCP_GIT_SHA);
+    LOG_INF("|");
+    LOG_INF("| Configuration:");
+
+#if CONFIG_STCP_DEBUG
+    LOG_INF("|   * STCP DEBUG enabled.");
+#else
+    LOG_INF("|   * STCP DEBUG disabled.");
+#endif
+
+#if CONFIG_STCP_AES_BYPASS
+    LOG_INF("|   * AES BYPASS ENABLED!");
+#else
+    LOG_INF("|   * STCP AES bypass disabled.");
+#endif
+
     LOG_INF("'----------------------------------------------------------------------'");
+
     return 0;
 }
 

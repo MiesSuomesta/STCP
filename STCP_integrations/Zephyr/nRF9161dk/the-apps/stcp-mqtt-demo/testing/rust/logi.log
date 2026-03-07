@@ -1,0 +1,746 @@
+   Compiling zeroize v1.8.2
+   Compiling typenum v1.19.0
+   Compiling version_check v0.9.5
+   Compiling subtle v2.6.1
+   Compiling cfg-if v1.0.4
+   Compiling const-oid v0.9.6
+   Compiling libc v0.2.180
+   Compiling generic-array v0.14.7
+   Compiling base64ct v1.8.3
+   Compiling cpufeatures v0.2.17
+   Compiling zerocopy v0.8.39
+   Compiling pem-rfc7468 v0.7.0
+   Compiling der v0.7.10
+   Compiling base16ct v0.2.0
+   Compiling opaque-debug v0.3.1
+   Compiling getrandom v0.2.17
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling rand_core v0.6.4
+   Compiling digest v0.10.7
+   Compiling hmac v0.12.1
+   Compiling spki v0.7.3
+   Compiling hkdf v0.12.4
+   Compiling pkcs8 v0.10.2
+   Compiling ff v0.13.1
+   Compiling inout v0.1.4
+   Compiling group v0.13.0
+   Compiling cipher v0.4.4
+   Compiling sec1 v0.7.3
+   Compiling crypto-bigint v0.5.5
+   Compiling universal-hash v0.5.1
+   Compiling polyval v0.6.2
+   Compiling ghash v0.5.1
+   Compiling aes v0.8.4
+   Compiling ctr v0.9.2
+   Compiling rfc6979 v0.4.0
+   Compiling signature v2.2.0
+   Compiling sha2 v0.10.9
+   Compiling elliptic-curve v0.13.8
+   Compiling aead v0.5.2
+   Compiling primeorder v0.13.6
+   Compiling aes-gcm v0.10.3
+   Compiling ecdsa v0.16.9
+   Compiling byteorder v1.5.0
+   Compiling num_threads v0.1.7
+   Compiling the_stcp_kernel_module v0.1.0 (/home/pomo/uusi-modeemi/modules/stcp/rust)
+warning: unused import: `core::ptr`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/linux_random.rs:4:5
+  |
+4 | use core::ptr;
+  |     ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `zsock_iovec` and `zsock_msghdr`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/abi.rs:8:9
+  |
+8 |         zsock_msghdr,
+  |         ^^^^^^^^^^^^
+9 |         zsock_iovec,
+  |         ^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session::ProtoSession`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/aes.rs:7:5
+  |
+7 | use crate::proto_session::ProtoSession;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/aes.rs:8:5
+  |
+8 | use crate::proto_session;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_dbg`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/aes.rs:11:5
+   |
+11 | use crate::stcp_dbg;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/crypto.rs:9:5
+  |
+9 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/crypto.rs:11:5
+   |
+11 | use crate::proto_session;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/debug.rs:4:5
+  |
+4 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_dump`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/helpers.rs:7:5
+  |
+7 | use crate::stcp_dump;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/helpers.rs:10:5
+   |
+10 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `GlobalAlloc` and `Layout`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/system_memory_allocator.rs:3:19
+  |
+3 | use core::alloc::{GlobalAlloc, Layout};
+  |                   ^^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `core::ptr::null_mut`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/system_memory_allocator.rs:4:5
+  |
+4 | use core::ptr::null_mut;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ffi::c_void`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/system_memory_allocator.rs:5:5
+  |
+5 | use core::ffi::c_void;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::PanicInfo`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/system_memory_allocator.rs:6:5
+  |
+6 | use core::panic::PanicInfo;
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `stcp_rust_kernel_alloc` and `stcp_rust_kernel_free`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/system_memory_allocator.rs:7:18
+  |
+7 | use crate::abi::{stcp_rust_kernel_alloc, stcp_rust_kernel_free};
+  |                  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/session_handler.rs:4:5
+  |
+4 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `StcpMessageHeader` and `StcpMsgType`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:5:9
+  |
+5 |         StcpMsgType,
+  |         ^^^^^^^^^^^
+6 |         StcpEcdhPubKey,
+7 |         StcpMessageHeader,
+  |         ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes::StcpAesCodec`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:12:5
+   |
+12 | use crate::aes::StcpAesCodec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:19:5
+   |
+19 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:20:5
+   |
+20 | use alloc::vec;
+   |     ^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:21:5
+   |
+21 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers::stcp_sleep_msec`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:23:5
+   |
+23 | use crate::helpers::stcp_sleep_msec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around `while` condition
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:203:9
+    |
+203 |   while ( (rc == -EAGAIN) && (tries < 10) ) {
+    |         ^^                               ^^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+203 -   while ( (rc == -EAGAIN) && (tries < 10) ) {
+203 +   while (rc == -EAGAIN) && (tries < 10)  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:209:6
+    |
+209 |   if (rc < 0) {
+    |      ^      ^
+    |
+help: remove these parentheses
+    |
+209 -   if (rc < 0) {
+209 +   if rc < 0  {
+    |
+
+warning: unnecessary parentheses around `while` condition
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:263:9
+    |
+263 |   while ( (rc == -EAGAIN) && (tries < 10) ) {
+    |         ^^                               ^^
+    |
+help: remove these parentheses
+    |
+263 -   while ( (rc == -EAGAIN) && (tries < 10) ) {
+263 +   while (rc == -EAGAIN) && (tries < 10)  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:269:6
+    |
+269 |   if (rc < 0) {
+    |      ^      ^
+    |
+help: remove these parentheses
+    |
+269 -   if (rc < 0) {
+269 +   if rc < 0  {
+    |
+
+warning: unused import: `zsock_iovec`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_message.rs:10:5
+   |
+10 |     zsock_iovec,
+   |     ^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_message.rs:13:5
+   |
+13 | use crate::aes;
+   |     ^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_message.rs:16:5
+   |
+16 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:5:5
+  |
+5 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::types::STCP_MAX_TCP_PAYLOAD_SIZE`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:13:5
+   |
+13 | use crate::types::STCP_MAX_TCP_PAYLOAD_SIZE;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_send`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:35:5
+   |
+35 | use crate::tcp_io::stcp_tcp_send;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_recv`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:37:5
+   |
+37 | use crate::tcp_io::stcp_tcp_recv;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::abi::stcp_exported_rust_ctx_alive_count`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:41:5
+   |
+41 | use crate::abi::stcp_exported_rust_ctx_alive_count;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/slice_helpers.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/tcp_helper_macros.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ptr`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/tcp_helper_macros.rs:8:5
+  |
+8 | use core::ptr;
+  |     ^^^^^^^^^
+
+warning: unused import: `crate::proto_session::ProtoSession`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/tcp_helper_macros.rs:9:5
+  |
+9 | use crate::proto_session::ProtoSession;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/tcp_io.rs:4:5
+  |
+4 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_recv`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:5:5
+  |
+5 | use crate::tcp_io::stcp_tcp_recv;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:9:5
+  |
+9 | use crate::aes;
+  |     ^^^^^^^^^^
+
+warning: unused import: `crate::aes::StcpAesCodec`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:10:5
+   |
+10 | use crate::aes::StcpAesCodec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:11:5
+   |
+11 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::session_handler::rust_session_destroy`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:12:5
+   |
+12 | use crate::session_handler::rust_session_destroy;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::slice_helpers::StcpError`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:13:5
+   |
+13 | use crate::slice_helpers::StcpError;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session::ProtoSession`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:14:5
+   |
+14 | use crate::proto_session::ProtoSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_until_buffer_full`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:17:5
+   |
+17 | use crate::stcp_tcp_recv_until_buffer_full;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ffi::c_int`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:3:5
+  |
+3 | use core::ffi::c_int;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_recv`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:5:5
+  |
+5 | use crate::tcp_io::stcp_tcp_recv;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:11:5
+   |
+11 | use crate::aes;
+   |     ^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:13:5
+   |
+13 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::session_handler::rust_session_destroy`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:14:5
+   |
+14 | use crate::session_handler::rust_session_destroy;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers::*`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:20:5
+   |
+20 | use crate::helpers::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:21:5
+   |
+21 | use crate::helpers;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::slice_helpers::*`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:24:5
+   |
+24 | use crate::slice_helpers::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TcpListener`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:27:16
+   |
+27 | use std::net::{TcpListener, TcpStream};
+   |                ^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/module_handlers.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling env v1.0.1
+warning: `#[track_caller]` attribute cannot be used on macro defs
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/debug.rs:196:1
+    |
+196 | #[track_caller]
+    | ^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = help: `#[track_caller]` can only be applied to functions
+    = note: `#[warn(unused_attributes)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling p256 v0.13.2
+   Compiling rand_core v0.10.0
+warning: value assigned to `ret` is never read
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/crypto.rs:25:26
+   |
+25 |       let mut ret: i32 = 0;
+   |                          ^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/debug.rs:101:5
+    |
+101 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `s`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:77:9
+   |
+77 |     let s = unsafe { &mut *sess };
+   |         ^ help: if this is intentional, prefix it with an underscore: `_s`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `skBytes`
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:226:7
+    |
+226 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_skBytes`
+
+warning: unused variable: `skBytes`
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:285:7
+    |
+285 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_skBytes`
+
+warning: unused variable: `msg_type`
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_message.rs:239:5
+    |
+239 |     msg_type: StcpMsgType,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_msg_type`
+
+warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:345:20
+    |
+345 |         let iov = &*msg.msg_iov.add(i);
+    |                    ^^^^^^^^^^^^^^^^^^^ dereference of raw pointer
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html>
+    = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
+note: an unsafe function restricts its caller, but its body is safe by default
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:342:1
+    |
+342 | unsafe fn internal_iovec_total_len(msg: &zsock_msghdr) -> usize {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: `#[warn(unsafe_op_in_unsafe_fn)]` (part of `#[warn(rust_2024_compatibility)]`) on by default
+
+warning[E0133]: call to unsafe function `std::ptr::mut_ptr::<impl *mut T>::add` is unsafe and requires unsafe block
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:345:21
+    |
+345 |         let iov = &*msg.msg_iov.add(i);
+    |                     ^^^^^^^^^^^^^^^^^^ call to unsafe function
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html>
+    = note: consult the function's documentation for information on how to avoid undefined behavior
+
+warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:356:20
+    |
+356 |         let iov = &*msg.msg_iov.add(i);
+    |                    ^^^^^^^^^^^^^^^^^^^ dereference of raw pointer
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html>
+    = note: raw pointers may be null, dangling or unaligned; they can violate aliasing rules and cause data races: all of these are undefined behavior
+note: an unsafe function restricts its caller, but its body is safe by default
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:352:1
+    |
+352 | unsafe fn internal_iovec_flatten(msg: &zsock_msghdr, out: &mut [u8]) {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning[E0133]: call to unsafe function `std::ptr::mut_ptr::<impl *mut T>::add` is unsafe and requires unsafe block
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:356:21
+    |
+356 |         let iov = &*msg.msg_iov.add(i);
+    |                     ^^^^^^^^^^^^^^^^^^ call to unsafe function
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html>
+    = note: consult the function's documentation for information on how to avoid undefined behavior
+
+warning[E0133]: call to unsafe function `std::slice::from_raw_parts` is unsafe and requires unsafe block
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_protocol_functions.rs:358:21
+    |
+358 |           let slice = core::slice::from_raw_parts(
+    |  _____________________^
+359 | |             iov.iov_base as *const u8,
+360 | |             iov.iov_len,
+361 | |         );
+    | |_________^ call to unsafe function
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html>
+    = note: consult the function's documentation for information on how to avoid undefined behavior
+
+warning: variable does not need to be mutable
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:41:13
+   |
+41 |         let mut recv_len: c_int = 0;
+   |             ----^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `msg_type`
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:286:13
+    |
+286 |         let msg_type = StcpMsgType::from_raw(msg_type_raw);
+    |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_msg_type`
+
+warning: value assigned to `i` is never read
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:290:9
+    |
+290 |         i += 4;
+    |         ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `is_server`
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:50:16
+   |
+50 |     pub fn new(is_server: bool, transport_vp: *mut c_void) -> Self {
+   |                ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_server`
+
+warning: unused variable: `rc1`
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:155:13
+    |
+155 |         let rc1 = match self.recv_exact(transport, hdr, hdr.len()) {
+    |             ^^^ help: if this is intentional, prefix it with an underscore: `_rc1`
+
+warning: unused variable: `rc2`
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:174:13
+    |
+174 |         let rc2 = match self.recv_exact(transport, payload, msgLen as usize) {
+    |             ^^^ help: if this is intentional, prefix it with an underscore: `_rc2`
+
+warning: unused variable: `stream`
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:266:39
+    |
+266 |    pub fn recv_from_stream(&mut self, stream: &TcpStream) -> Result<Vec<u8>, StcpError>  {
+    |                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_stream`
+
+warning: variable `skBytes` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:226:7
+    |
+226 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: convert the identifier to snake case: `sk_bytes`
+    |
+    = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `skBytes` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/stcp_handshake.rs:285:7
+    |
+285 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: convert the identifier to snake case: `sk_bytes`
+
+warning: variable `atBuff` should have a snake case name
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:44:13
+   |
+44 |         let atBuff = &mut self.buffer[self.len..];
+   |             ^^^^^^ help: convert the identifier to snake case: `at_buff`
+
+warning: variable `pVer` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:170:21
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                     ^^^^ help: convert the identifier to snake case: `p_ver`
+
+warning: variable `pTag` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:170:32
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                ^^^^ help: convert the identifier to snake case: `p_tag`
+
+warning: variable `pType` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:170:43
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                           ^^^^^ help: convert the identifier to snake case: `p_type`
+
+warning: variable `pLen` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:170:63
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                                               ^^^^ help: convert the identifier to snake case: `p_len`
+
+warning: variable `STCP_MAGIC` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/types.rs:276:13
+    |
+276 |         let STCP_MAGIC = u32::from_be_bytes(*b"STCP");
+    |             ^^^^^^^^^^ help: convert the identifier to snake case: `stcp_magic`
+
+warning: variable `theSK` should have a snake case name
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:67:37
+   |
+67 |     pub fn init_aes_with(&mut self, theSK: StcpEcdhSecret) {
+   |                                     ^^^^^ help: convert the identifier to snake case: `the_sk`
+
+warning: method `setAesMode` should have a snake case name
+  --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:94:12
+   |
+94 |     pub fn setAesMode(&mut self, v: bool) {
+   |            ^^^^^^^^^^ help: convert the identifier to snake case: `set_aes_mode`
+
+warning: variable `newTransport` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:114:40
+    |
+114 |     pub fn set_transport_to(&mut self, newTransport: *mut c_void) {
+    |                                        ^^^^^^^^^^^^ help: convert the identifier to snake case: `new_transport`
+
+warning: variable `msgLen` should have a snake case name
+   --> /home/pomo/uusi-modeemi/modules/stcp/rust/src/proto_session.rs:165:13
+    |
+165 |         let msgLen = header.msg_len;
+    |             ^^^^^^ help: convert the identifier to snake case: `msg_len`
+
+   Compiling ppv-lite86 v0.2.21
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.5
+For more information about this error, try `rustc --explain E0133`.
+warning: `the_stcp_kernel_module` (lib) generated 88 warnings (run `cargo fix --lib -p the_stcp_kernel_module` to apply 70 suggestions)
+   Compiling stcp-test-package v0.1.0 (/home/pomo/uusi-modeemi/the-app/stcp-mqtt-demo/testing/rust)
+warning: unused import: `the_stcp_kernel_module::stcp_message::build_frame_and_send`
+ --> bin/stcp_server.rs:3:5
+  |
+3 | use the_stcp_kernel_module::stcp_message::build_frame_and_send;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `the_stcp_kernel_module::debug::*`
+ --> bin/stcp_server.rs:5:5
+  |
+5 | use the_stcp_kernel_module::debug::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `the_stcp_kernel_module::debug`
+ --> bin/stcp_server.rs:6:5
+  |
+6 | use the_stcp_kernel_module::debug;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ptr`
+  --> bin/stcp_server.rs:19:5
+   |
+19 | use core::ptr;
+   |     ^^^^^^^^^
+
+warning: unused imports: `AsRawFd` and `FromRawFd`
+  --> bin/stcp_server.rs:23:25
+   |
+23 | use std::os::unix::io::{AsRawFd, FromRawFd};
+   |                         ^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::panic::Location`
+  --> bin/stcp_server.rs:24:5
+   |
+24 | use std::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::net::Shutdown`
+   --> bin/stcp_server.rs:246:5
+    |
+246 | use std::net::Shutdown;
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `the_stcp_kernel_module::stcp_message::build_frame_and_send`
+ --> bin/stcp_client_proxy.rs:3:5
+  |
+3 | use the_stcp_kernel_module::stcp_message::build_frame_and_send;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `the_stcp_kernel_module::debug::*`
+ --> bin/stcp_client_proxy.rs:5:5
+  |
+5 | use the_stcp_kernel_module::debug::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `the_stcp_kernel_module::debug`
+ --> bin/stcp_client_proxy.rs:6:5
+  |
+6 | use the_stcp_kernel_module::debug;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ptr`
+  --> bin/stcp_client_proxy.rs:16:5
+   |
+16 | use core::ptr;
+   |     ^^^^^^^^^
+
+warning: unused imports: `AsRawFd` and `FromRawFd`
+  --> bin/stcp_client_proxy.rs:20:25
+   |
+20 | use std::os::unix::io::{AsRawFd, FromRawFd};
+   |                         ^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::panic::Location`
+  --> bin/stcp_client_proxy.rs:21:5
+   |
+21 | use std::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^
+

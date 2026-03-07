@@ -1,0 +1,17 @@
+language = "C"
+pragma_once = true
+
+include_guard = "STCP_H"
+style = "both"
+
+[parse]
+parse_deps = false
+include = ["the_stcp_kernel_module"]
+
+[export]
+exclude = ["StcpAesCodec"]
+include = ["stcp_.*"]
+
+[defines]
+"target_os = linux" = "STCP_LINUX"
+"target_os = none"  = "STCP_ZEPHYR"

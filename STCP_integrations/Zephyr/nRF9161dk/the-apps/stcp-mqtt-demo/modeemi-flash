@@ -1,0 +1,8 @@
+#!/bin/bash
+set -e
+
+west flash -d ./build --runner jlink --file "$1" -- \
+  --device NRF9161_XXCA \
+  --tool-opt=-USB \
+  --tool-opt=1050931089
+

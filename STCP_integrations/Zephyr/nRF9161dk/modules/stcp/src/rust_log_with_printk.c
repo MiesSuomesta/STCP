@@ -1,0 +1,75 @@
+// debug_bridge.c
+#include <zephyr/logging/log.h>
+#include "stcp/debug.h"
+LOG_MODULE_REGISTER(rust_log, LOG_LEVEL_DBG);
+
+#include <zephyr/kernel.h>
+
+#include "stcp/debug.h"
+#include "stcp/utils.h"
+
+#define LOG_BUFFER_SIZE_BYTES   (1024*4)
+
+__used
+__noinline
+void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
+{
+/*
+    if (! stcp_config_debug_enabled() ) {
+        return;
+    }
+*/
+    // Check ratelimitter
+    static const char *lvl[] = {
+        "??",   // 0
+        "ERR",  // 1
+        "WRN",  // 2
+        "INF",  // 3
+        "DBG",  // 4
+        "TRC",  // 5
+    };
+
+    char tmp[LOG_BUFFER_SIZE_BYTES];
+    size_t n;
+
+    if (!buf || !len)
+        return;
+
+    if (len >= sizeof(tmp))
+        n = sizeof(tmp) - 1;
+    else
+        n = len;
+
+    memcpy(tmp, buf, n);
+    tmp[n] = '\0';
+
+    if (level < 0 || level > 5)
+        level = 4;
+
+    // Yksinkertainen printk – ei mitään ihmeellistä
+    switch(level) {
+        case 1:
+            LOG_ERR("RUST: %s", tmp);
+            break;
+
+        case 2:
+            LOG_WRN("RUST: %s", tmp);
+            break;
+
+        case 3:
+            LOG_INF("RUST: %s", tmp);
+            break;
+
+        case 4:
+            LOG_DBG("RUST: %s", tmp);
+            break;
+
+        default:
+            LOG_INF("RUST: %s", tmp);
+            break;
+    }
+
+}
+
+__used
+void *stcp_rust_log_keep = (void *)&stcp_rust_log;

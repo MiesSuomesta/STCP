@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+export CMAKE_MAKE_PROGRAM=/usr/bin/ninja
+export NINJA=/usr/bin/ninja
+
+west build -p ${1:-always} -b nrf9161dk/nrf9161/ns -d build -- \
+  -DSTCP_SDK_DIR=/home/pomo/modeemi//the-app/out \
+  -DJLINK_DEVICE=NRF9161_XXCA \
+  -DJLINK_TOOL_OPT=-USB=1050931089 \
+  -DSTCP_DEBUG=1
+
+west flash -d ./build --runner jlink --file ./build/merged.hex -- \
+  --device NRF9161_XXCA \
+  --tool-opt=-USB \
+  --tool-opt=1050931089
+
+pncnote "STCP kääntyö" "Dodii nyt ois valmista"

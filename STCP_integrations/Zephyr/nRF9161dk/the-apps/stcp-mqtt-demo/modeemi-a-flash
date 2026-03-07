@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+west flash -d ./build --runner jlink --file ./build/merged.hex -- \
+  --device NRF9161_XXCA \
+  --tool-opt=-USB \
+  --tool-opt=1050931089
+
+pncnote "STCP kääntyö" "Dodii nyt ois väläytetty"

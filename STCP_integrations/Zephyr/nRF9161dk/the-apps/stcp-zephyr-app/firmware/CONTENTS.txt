@@ -1,0 +1,74 @@
+These files were built with nRF Connect SDK version v2.8.0
+from sdk-nrf repository (https://github.com/nrfconnect/sdk-nrf)
+
+Full commit SHA: a2386bfc84016fa571f997ac871b25bd67ca481a
+
+Folder contents:
+img_app_bl/
+  - Full application images including bootloader.
+  - These files can be used with:
+    - nRF Connect Programmer
+    - nrfjprog CLI
+img_fota_dfu_hex/
+  - These images contain only application and bootloader is not included.
+  - Images are in HEX format.
+  - These files can be used with nRF Connect Programmer (via USB bootloader only).
+img_fota_dfu_bin/
+  - These images contain only application and bootloader is not included.
+  - Images are in binary format.
+  - These files can be used with:
+    - Over-the-air update, for example, via nRF Cloud, Azure or AWS.
+    - mcumgr CLI (via USB bootloader only)
+
+The following folders contain images configured for external GNSS antenna:
+  - img_app_bl/external_gnss_antenna
+  - img_fota_dfu_hex/external_gnss_antenna
+  - img_fota_dfu_bin/external_gnss_antenna
+
+The following folders contain images configured for modem debugging:
+  - img_app_bl/debug 
+  - img_fota_dfu_hex/debug
+  - img_fota_dfu_bin/debug
+
+File                                                                                                                             Description
+-------------------------------------------------------------------------------------------------------------------------------  -----------------------------------------------------------------------------------------------------------------------
+img_app_bl/debug/external_gnss_antenna/nrf9161dk_asset_tracker_v2_debug_ext_gnss_2024-11-15_a2386bfc.hex                         Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-Iot and LTE-M network modes, external gnss antenna
+img_app_bl/debug/external_gnss_antenna/nrf9161dk_asset_tracker_v2_debug_nbiot_legacy_pco_ext_gnss_2024-11-15_a2386bfc.hex        Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-IoT network mode, legacy PCO, external gnss antenna
+img_app_bl/debug/nrf9161dk_asset_tracker_v2_debug_2024-11-15_a2386bfc.hex                                                        Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-Iot and LTE-M network modes
+img_app_bl/debug/nrf9161dk_asset_tracker_v2_debug_nbiot_legacy_pco_2024-11-15_a2386bfc.hex                                       Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-IoT network mode, legacy PCO
+img_app_bl/debug/nrf9161dk_modem_shell_debug_2024-11-15_a2386bfc.hex                                                             Modem shell, modem uart debug enabled
+img_app_bl/debug/nrf9161dk_nrfcloud_multi_service_coap_debug_2024-11-15_a2386bfc.hex                                             nRF Cloud multi-service sample, CoAP support, modem uart debug enabled
+img_app_bl/debug/nrf9161dk_serial_lte_modem_debug_2024-11-15_a2386bfc.hex                                                        Serial LTE modem, modem uart debug enabled
+img_app_bl/external_gnss_antenna/nrf9161dk_asset_tracker_v2_ext_gnss_2024-11-15_a2386bfc.hex                                     Asset tracker v2 firmware for nRF9160, NB-Iot and LTE-M network modes, external gnss antenna
+img_app_bl/external_gnss_antenna/nrf9161dk_asset_tracker_v2_nbiot_legacy_pco_ext_gnss_2024-11-15_a2386bfc.hex                    Asset tracker v2 firmware for nRF9160, NB-IoT network mode, legacy PCO, external gnss antenna
+img_app_bl/nrf9161dk_asset_tracker_v2_2024-11-15_a2386bfc.hex                                                                    Asset tracker v2 firmware for nRF9160, NB-Iot and LTE-M network modes
+img_app_bl/nrf9161dk_asset_tracker_v2_nbiot_legacy_pco_2024-11-15_a2386bfc.hex                                                   Asset tracker v2 firmware for nRF9160, NB-IoT network mode, legacy PCO
+img_app_bl/nrf9161dk_at_client_2024-11-15_a2386bfc.hex                                                                           Firmware for direct modem communication
+img_app_bl/nrf9161dk_modem_shell_2024-11-15_a2386bfc.hex                                                                         Modem shell
+img_app_bl/nrf9161dk_nrfcloud_multi_service_coap_2024-11-15_a2386bfc.hex                                                         nRF Cloud multi-service sample, CoAP support
+img_app_bl/nrf9161dk_serial_lte_modem_2024-11-15_a2386bfc.hex                                                                    Serial LTE modem
+img_fota_dfu_bin/debug/external_gnss_antenna/nrf9161dk_asset_tracker_v2_debug_ext_gnss_2024-11-15_a2386bfc.bin                   Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-Iot and LTE-M network modes, external gnss antenna
+img_fota_dfu_bin/debug/external_gnss_antenna/nrf9161dk_asset_tracker_v2_debug_nbiot_legacy_pco_ext_gnss_2024-11-15_a2386bfc.bin  Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-IoT network mode, legacy PCO, external gnss antenna
+img_fota_dfu_bin/debug/nrf9161dk_asset_tracker_v2_debug_2024-11-15_a2386bfc.bin                                                  Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-Iot and LTE-M network modes
+img_fota_dfu_bin/debug/nrf9161dk_asset_tracker_v2_debug_nbiot_legacy_pco_2024-11-15_a2386bfc.bin                                 Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-IoT network mode, legacy PCO
+img_fota_dfu_bin/debug/nrf9161dk_nrfcloud_multi_service_coap_debug_2024-11-15_a2386bfc.bin                                       nRF Cloud multi-service sample, CoAP support, modem uart debug enabled
+img_fota_dfu_bin/debug/nrf9161dk_serial_lte_modem_debug_2024-11-15_a2386bfc.bin                                                  Serial LTE modem, modem uart debug enabled
+img_fota_dfu_bin/external_gnss_antenna/nrf9161dk_asset_tracker_v2_ext_gnss_2024-11-15_a2386bfc.bin                               Asset tracker v2 firmware for nRF9160, NB-Iot and LTE-M network modes, external gnss antenna
+img_fota_dfu_bin/external_gnss_antenna/nrf9161dk_asset_tracker_v2_nbiot_legacy_pco_ext_gnss_2024-11-15_a2386bfc.bin              Asset tracker v2 firmware for nRF9160, NB-IoT network mode, legacy PCO, external gnss antenna
+img_fota_dfu_bin/nrf9161dk_asset_tracker_v2_2024-11-15_a2386bfc.bin                                                              Asset tracker v2 firmware for nRF9160, NB-Iot and LTE-M network modes
+img_fota_dfu_bin/nrf9161dk_asset_tracker_v2_nbiot_legacy_pco_2024-11-15_a2386bfc.bin                                             Asset tracker v2 firmware for nRF9160, NB-IoT network mode, legacy PCO
+img_fota_dfu_bin/nrf9161dk_nrfcloud_multi_service_coap_2024-11-15_a2386bfc.bin                                                   nRF Cloud multi-service sample, CoAP support
+img_fota_dfu_bin/nrf9161dk_serial_lte_modem_2024-11-15_a2386bfc.bin                                                              Serial LTE modem
+img_fota_dfu_hex/debug/external_gnss_antenna/nrf9161dk_asset_tracker_v2_debug_ext_gnss_2024-11-15_a2386bfc.hex                   Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-Iot and LTE-M network modes, external gnss antenna
+img_fota_dfu_hex/debug/external_gnss_antenna/nrf9161dk_asset_tracker_v2_debug_nbiot_legacy_pco_ext_gnss_2024-11-15_a2386bfc.hex  Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-IoT network mode, legacy PCO, external gnss antenna
+img_fota_dfu_hex/debug/nrf9161dk_asset_tracker_v2_debug_2024-11-15_a2386bfc.hex                                                  Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-Iot and LTE-M network modes
+img_fota_dfu_hex/debug/nrf9161dk_asset_tracker_v2_debug_nbiot_legacy_pco_2024-11-15_a2386bfc.hex                                 Asset tracker v2 firmware for nRF9160, modem uart debug enabled, NB-IoT network mode, legacy PCO
+img_fota_dfu_hex/debug/nrf9161dk_nrfcloud_multi_service_coap_debug_2024-11-15_a2386bfc.hex                                       nRF Cloud multi-service sample, CoAP support, modem uart debug enabled
+img_fota_dfu_hex/debug/nrf9161dk_serial_lte_modem_debug_2024-11-15_a2386bfc.hex                                                  Serial LTE modem, modem uart debug enabled
+img_fota_dfu_hex/external_gnss_antenna/nrf9161dk_asset_tracker_v2_ext_gnss_2024-11-15_a2386bfc.hex                               Asset tracker v2 firmware for nRF9160, NB-Iot and LTE-M network modes, external gnss antenna
+img_fota_dfu_hex/external_gnss_antenna/nrf9161dk_asset_tracker_v2_nbiot_legacy_pco_ext_gnss_2024-11-15_a2386bfc.hex              Asset tracker v2 firmware for nRF9160, NB-IoT network mode, legacy PCO, external gnss antenna
+img_fota_dfu_hex/nrf9161dk_asset_tracker_v2_2024-11-15_a2386bfc.hex                                                              Asset tracker v2 firmware for nRF9160, NB-Iot and LTE-M network modes
+img_fota_dfu_hex/nrf9161dk_asset_tracker_v2_nbiot_legacy_pco_2024-11-15_a2386bfc.hex                                             Asset tracker v2 firmware for nRF9160, NB-IoT network mode, legacy PCO
+img_fota_dfu_hex/nrf9161dk_nrfcloud_multi_service_coap_2024-11-15_a2386bfc.hex                                                   nRF Cloud multi-service sample, CoAP support
+img_fota_dfu_hex/nrf9161dk_serial_lte_modem_2024-11-15_a2386bfc.hex                                                              Serial LTE modem
+mfw_nrf91x1_2.0.2.zip                                                                                                            Modem firmware, update via nRFConnect for Desktop Programmer application

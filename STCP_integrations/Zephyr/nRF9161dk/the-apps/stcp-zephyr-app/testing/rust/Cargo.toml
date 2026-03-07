@@ -1,0 +1,38 @@
+[package]
+name = "stcp-test-package"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+the_stcp_kernel_module = { path = "../../rust", features = ["std", "stcp_debug"] }
+p256 = { version = "0.13", features = ["ecdh"] }
+rand = "0.8"
+rand_core = "0.10.0"
+
+
+[[bin]]
+name = "stcp-server"
+path = "bin/stcp_server.rs"
+
+[[bin]]
+name = "stcp-client-proxy"
+path = "bin/stcp_client_proxy.rs"
+
+
+[features]
+stcp_debug = []
+std = []
+
+
+[profile.release]
+opt-level = "z"
+lto = true
+panic = "abort"
+codegen-units = 1
+
+[profile.dev]
+opt-level = "z"
+lto = true
+panic = "abort"
+codegen-units = 1
+

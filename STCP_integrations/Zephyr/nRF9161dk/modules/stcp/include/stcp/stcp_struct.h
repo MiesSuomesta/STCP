@@ -45,11 +45,11 @@ struct stcp_fsm {
     bool stop;
 };
 
-// 4KB 
+// 2KB 
 #define STCP_RECV_STREAM_BUF_SIZE (2*1024)
 
-// 64KB 
-#define STCP_RECV_FRAME_BUF_SIZE (4*1024)
+// 2KB 
+#define STCP_RECV_FRAME_BUF_SIZE (2*1024)
 
 #define STCP_MAX_HOSTNAME_LEN   128
 #define STCP_MAX_PORT_LEN       8

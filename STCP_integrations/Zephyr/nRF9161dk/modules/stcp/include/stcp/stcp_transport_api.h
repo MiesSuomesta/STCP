@@ -3,4 +3,4 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <sys/socket.h>
+#include <zephyr/net/socket.h>

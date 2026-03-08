@@ -5,6 +5,7 @@ use crate::types::STCP_MAX_TCP_PAYLOAD_SIZE;
 pub enum StcpError {
     Ok,
     OkStreamClosed,
+    PeerDisconnected,
     CryptoFailure,
     NullPointer,
     Invalid,

@@ -1,13 +1,12 @@
 
 use core::ffi::c_int;
 use core::ffi::c_void;
-use crate::types::{kernel_socket};
 use crate::tcp_io;
 use crate::stcp_dbg;
-use crate::stcp_dump;
+//use crate::stcp_dump;
 use crate::errorit::*;
 use alloc::vec::Vec;
-use core::panic::Location;
+//use core::panic::Location;
 use crate::proto_session::ProtoSession;
 
 const STCP_PEEK_FLAGS: u32 = 0;
@@ -19,7 +18,7 @@ pub fn stcp_sleep_msec(ms: u32) {
     }
 }
 
-pub fn tcp_send_all(sock: *mut kernel_socket, data: &[u8]) -> isize {
+pub fn tcp_send_all(sock: *mut core::ffi::c_void, data: &[u8]) -> isize {
 
   stcp_dbg!("TCP SENDing {} bytes..", data.len());   
 
@@ -46,7 +45,7 @@ pub fn tcp_send_all(sock: *mut kernel_socket, data: &[u8]) -> isize {
     total as isize
 }
 
-pub fn tcp_recv_exact(sock: *mut kernel_socket, buf: &mut [u8], no_blocking: i32) -> isize {
+pub fn tcp_recv_exact(sock: *mut core::ffi::c_void, buf: &mut [u8], no_blocking: i32) -> isize {
 
   stcp_dbg!("TCP RECV exact {} bytes.", buf.len());   
 
@@ -75,7 +74,7 @@ pub fn tcp_recv_exact(sock: *mut kernel_socket, buf: &mut [u8], no_blocking: i32
     total as isize
 }
 
-pub fn tcp_peek_max(sock: *mut kernel_socket, buf: &mut [u8], no_bloking: i32) -> isize {
+pub fn tcp_peek_max(sock: *mut core::ffi::c_void, buf: &mut [u8], no_bloking: i32) -> isize {
 
   stcp_dbg!("TCP PEEK Sock Peeking traffic");   
 
@@ -107,7 +106,7 @@ pub fn tcp_peek_max(sock: *mut kernel_socket, buf: &mut [u8], no_bloking: i32) -
     n as isize
 }
 
-pub fn tcp_recv_until_buffer_full(sock: *mut kernel_socket, buf: &mut [u8], no_blocking: i32) -> isize {
+pub fn tcp_recv_until_buffer_full(sock: *mut core::ffi::c_void, buf: &mut [u8], no_blocking: i32) -> isize {
 
   stcp_dbg!("TCP RECV Sock Buffer bytes");   
 
@@ -135,7 +134,7 @@ pub fn tcp_recv_until_buffer_full(sock: *mut kernel_socket, buf: &mut [u8], no_b
 }
 
 
-pub fn tcp_recv_once(sock: *mut kernel_socket, buf: &mut [u8], no_blocking: i32) -> isize {
+pub fn tcp_recv_once(sock: *mut core::ffi::c_void, buf: &mut [u8], no_blocking: i32) -> isize {
 
   stcp_dbg!("TCP RECV Sock once");   
   let mut recv_len: c_int = 0;

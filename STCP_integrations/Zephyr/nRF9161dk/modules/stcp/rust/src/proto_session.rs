@@ -1,27 +1,15 @@
 extern crate alloc;
 
-use core::ffi::c_int;
 use core::ffi::c_void;
-use crate::tcp_io::stcp_tcp_recv;
 use crate::stcp_tcp_recv_once;
 use alloc::vec;
 use alloc::vec::Vec;
 use crate::stcp_dbg;
 use crate::stcp_dump;
-use crate::aes;
 use crate::aes::StcpAesCodec;
-use core::panic::Location;
-use crate::session_handler::rust_session_destroy;
 use crate::slice_helpers::StcpError;
-use crate::types::kernel_socket;
 use crate::types::*;
 use crate::errorit::*;
-
-use crate::helpers::*;
-use crate::helpers;
-
-
-use crate::slice_helpers::*;
 
 #[cfg(feature = "std")]
 use std::net::{TcpListener, TcpStream};
@@ -40,7 +28,7 @@ pub struct ProtoSession {
     pub is_server: bool,
     pub is_in_aes_mode: bool,
     pub is_freed: bool,
-    pub transport: *mut kernel_socket,
+    pub transport: *mut core::ffi::c_void,
     pub rx_buff: PeekRxBuff,
     pub aes: Option<StcpAesCodec>,
 }
@@ -48,14 +36,14 @@ pub struct ProtoSession {
 impl ProtoSession {
 
     pub fn new(is_server: bool, transport_vp: *mut c_void) -> Self {
-        let transp = transport_vp as *mut kernel_socket;
+        let transp = transport_vp as *mut core::ffi::c_void;
 
         Self {
             private_key: StcpEcdhSecret::new(),
             public_key: StcpEcdhPubKey::new(),
             shared_key: StcpEcdhSecret::new(),
             status_raw: HandshakeStatus::Init.to_raw(),
-            is_server: false,
+            is_server: is_server,
             is_in_aes_mode: true,
             is_freed: false,
             transport: transp,
@@ -64,12 +52,12 @@ impl ProtoSession {
         }
     }
 
-    pub fn init_aes_with(&mut self, theSK: StcpEcdhSecret) {
+    pub fn init_aes_with(&mut self, the_sk: StcpEcdhSecret) {
         stcp_dbg!("Initialising with AES....");
-        let sk = theSK.to_bytes_be();
+        let sk = the_sk.to_bytes_be();
         self.aes = Some(StcpAesCodec::new(&sk));
         self.set_status(HandshakeStatus::Aes);
-        self.setAesMode(true);
+        self.set_aes_mode(true);
         stcp_dbg!("====== WITH AES ======");
     }
 
@@ -91,7 +79,7 @@ impl ProtoSession {
     pub fn set_is_server(&mut self, v: bool) { self.is_server = v; }
     pub fn get_is_server(&self) -> bool { self.is_server }
 
-    pub fn setAesMode(&mut self, v: bool) {
+    pub fn set_aes_mode(&mut self, v: bool) {
         self.is_in_aes_mode = v;
     }
 
@@ -111,22 +99,22 @@ impl ProtoSession {
         HandshakeStatus::from_raw(self.status_raw) == tgt
     }
 
-    pub fn set_transport_to(&mut self, newTransport: *mut c_void) {
-        stcp_dbg!("Setting transport to {:?}", newTransport);
-        self.transport = newTransport as *mut kernel_socket;
+    pub fn set_transport_to(&mut self, new_transport: *mut c_void) {
+        stcp_dbg!("Setting transport to {:?}", new_transport);
+        self.transport = new_transport as *mut core::ffi::c_void;
     }
 
     /// Lue tarkka määrä tavua TCP/STCP socketista
     pub fn recv_exact(
         &mut self,
-        transport: *mut kernel_socket,
+        transport: *mut core::ffi::c_void,
         buf: &mut [u8],
         want: usize,
     ) -> Result<(), StcpError> {
         let mut off = 0;
 
         while off < want {
-            let rc = unsafe { stcp_tcp_recv_once!(transport, &mut buf[off..], (want - off) as i32) };
+            let rc = stcp_tcp_recv_once!(transport, &mut buf[off..], (want - off) as i32);
 
             if rc == -EAGAIN as isize {
                 stcp_dbg!("recv_exact: Would block, try again");
@@ -147,7 +135,7 @@ impl ProtoSession {
     /// Lue STCP frame header ja payload
     pub fn recv_header_and_payload(
         &mut self,
-        transport: *mut kernel_socket,
+        transport: *mut core::ffi::c_void,
         hdr: &mut [u8],
         payload: &mut [u8],
     ) -> Result<i32, StcpError> {

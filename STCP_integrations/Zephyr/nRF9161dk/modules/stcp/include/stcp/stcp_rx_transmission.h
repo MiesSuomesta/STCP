@@ -5,3 +5,4 @@
 #include <stdint.h>
 
 void stcp_context_recv_stream_init(struct stcp_ctx *ctx);
+int stcp_recv_frame(struct stcp_ctx *ctx);

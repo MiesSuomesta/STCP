@@ -85,14 +85,14 @@ static ssize_t _the_stcp_tcp_recv(
     return -errno;
 }
 
-intptr_t stcp_tcp_recv(struct kernel_socket *sock,
+intptr_t stcp_tcp_recv(void *sock_vp,
                        uint8_t *buf,
                        uintptr_t len,
                        int32_t non_blocking,
                        uint32_t flags,
                        int *recv_len)
 {
-    
+    struct kernel_socket *sock = sock_vp;
     if (!sock) {
         LERR("stcp_tcp_send: sock == NULL");
         return -EINVAL;

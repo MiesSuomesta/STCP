@@ -60,8 +60,7 @@ int stcp_api_connect(struct stcp_api *api,
                      const struct zsock_addrinfo *addr,
                      socklen_t addrlen)
 {
-
-    return stcp_connect(api->ctx, addr, addrlen);
+    return stcp_connect(api->ctx, (struct sockaddr *)addr, addrlen);
 }
 
 ssize_t stcp_api_send(struct stcp_api *api,
@@ -97,7 +96,7 @@ int stcp_api_accept(struct stcp_api *api,
 {
     struct stcp_ctx *child = NULL;
 
-    int ret = stcp_accept(api->ctx, &child, peer, peer_len);
+    int ret = stcp_accept(api->ctx, &child, (struct sockaddr *)peer, peer_len);
     if (ret < 0) {
         return ret;
     }
@@ -169,6 +168,6 @@ int stcp_api_set_nonblocking(struct stcp_api *api,
         return -EINVAL;
     }
     api->nonblocking = (enable) ? 1 : 0;
-    stcp_set_non_bloking_to(api->ctx, api->nonblocking);
+    return stcp_set_non_bloking_to(api->ctx, api->nonblocking);
 }
 

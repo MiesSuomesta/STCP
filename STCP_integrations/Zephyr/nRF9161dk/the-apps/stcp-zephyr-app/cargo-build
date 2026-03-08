@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cd rust && cargo +nightly build --release --target thumbv8m.main-none-eabi --features stcp_debug --manifest-path ./Cargo.toml

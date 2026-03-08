@@ -1,6 +1,4 @@
 #include <errno.h>
-#include <zephyr/init.h>
-#include <zephyr/kernel.h>
 #include <modem/lte_lc.h>
 #include <modem/pdn.h>
 
@@ -14,14 +12,14 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(stcp_workers, LOG_LEVEL_INF);
 
-#include "stcp/debug.h"
-#include "stcp/stcp_alloc.h"
-#include "stcp/stcp_struct.h"
-#include "stcp/utils.h"
-#include "stcp/stcp_net.h"
-#include "stcp/workers.h"
-#include "stcp/stcp_operations_zephyr.h"
-#include "stcp/stcp_rust_exported_functions.h"
+#include <stcp/debug.h>
+#include <stcp/stcp_alloc.h>
+#include <stcp/stcp_struct.h>
+#include <stcp/utils.h>
+#include <stcp/stcp_net.h>
+#include <stcp/workers.h>
+#include <stcp/stcp_operations_zephyr.h>
+#include <stcp/stcp_rust_exported_functions.h>
 
 K_THREAD_STACK_DEFINE(stcp_worker_stack, (4096*2));
 static struct k_work_q stcp_work_q;
@@ -110,4 +108,3 @@ void worker_schedule_cleanup(struct stcp_ctx * ctx) {
         //k_work_submit_to_queue(&stcp_work_q, &ctx->cleanup_work);
     }
 }
-

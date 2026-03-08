@@ -2,7 +2,6 @@
 use core::ffi::c_void;
 use core::ffi::c_int;
 use crate::{stcp_dbg, stcp_worker_dbg /* , stcp_dump, stcp_sess_transp */ };
-use core::panic::Location;
 
 use crate::slice_helpers::{stcp_make_mut_slice, StcpError};
 use crate::session_handler::{rust_session_create, rust_session_destroy};
@@ -10,9 +9,7 @@ use crate::stcp_handshake::{
     rust_session_server_handshake_lte,
     rust_session_client_handshake_lte,
 };
-use crate::types::STCP_MAX_TCP_PAYLOAD_SIZE;
 use crate::stcp_message::*;
-use alloc::vec::Vec;
 use crate::stcp_dump;
 use crate::helpers;
 //use alloc::boxed::Box;
@@ -33,7 +30,6 @@ use crate::tcp_io::stcp_tcp_recv;
 
 //use crate::helpers::{tcp_recv_once, tcp_send_all, get_session};
 //use crate::abi::{stcp_end_of_life_for_sk};
-use crate::abi::stcp_exported_rust_ctx_alive_count;
 
 // TCP helpperi makrot
 //use crate::stcp_tcp_recv_once;

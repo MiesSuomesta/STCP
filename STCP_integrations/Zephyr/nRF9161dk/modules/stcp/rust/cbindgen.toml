@@ -9,9 +9,11 @@ parse_deps = false
 include = ["the_stcp_kernel_module"]
 
 [export]
+item_types = ["functions", "structs", "enums", "typedefs", "constants"]
+include = ["stcp_.*", "zsock_.*"]
 exclude = ["StcpAesCodec"]
-include = ["stcp_.*"]
 
 [defines]
 "target_os = linux" = "STCP_LINUX"
 "target_os = none"  = "STCP_ZEPHYR"
+

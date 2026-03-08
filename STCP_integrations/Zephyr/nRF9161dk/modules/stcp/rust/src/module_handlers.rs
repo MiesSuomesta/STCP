@@ -1,10 +1,9 @@
 
 use crate::stcp_dbg;
-use core::panic::Location;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_module_rust_enter () {
-
+/* logituksen tarkistukseen...
   let msg = b"HELLO FROM RUST\n";
 
   unsafe {
@@ -14,7 +13,7 @@ pub extern "C" fn stcp_module_rust_enter () {
           msg.len(),
       );
   }
-  
+  */
   stcp_dbg!("STCP rust module enter");   
 }
 

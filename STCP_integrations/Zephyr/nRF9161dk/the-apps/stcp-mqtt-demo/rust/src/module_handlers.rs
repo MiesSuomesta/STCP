@@ -1,6 +1,5 @@
 
 use crate::stcp_dbg;
-use core::panic::Location;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_module_rust_enter () {

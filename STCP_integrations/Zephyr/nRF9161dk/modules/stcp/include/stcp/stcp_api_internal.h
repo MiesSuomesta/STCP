@@ -13,6 +13,7 @@
 #include <stcp/fsm.h>
 #include <stcp/workers.h>
 #include <stcp/stcp_operations_zephyr.h>
+#include <stcp/stcp_rx_transmission.h>
 
 struct stcp_api {
     struct stcp_ctx *ctx;

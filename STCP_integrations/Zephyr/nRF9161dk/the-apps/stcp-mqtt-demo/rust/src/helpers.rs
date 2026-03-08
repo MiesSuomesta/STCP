@@ -4,10 +4,8 @@ use core::ffi::c_void;
 use crate::types::{kernel_socket};
 use crate::tcp_io;
 use crate::stcp_dbg;
-use crate::stcp_dump;
 use crate::errorit::*;
 use alloc::vec::Vec;
-use core::panic::Location;
 use crate::proto_session::ProtoSession;
 
 

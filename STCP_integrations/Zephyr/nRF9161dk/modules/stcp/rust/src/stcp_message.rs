@@ -6,14 +6,10 @@ use crate::types::{
     STCP_ECDH_PUB_XY_LEN,
     STCP_VERSION, 
     STCP_TAG_BYTES, 
-    kernel_socket,
-    zsock_iovec,
 };
 use crate::{stcp_dbg, stcp_dump};
-use crate::aes;
 use crate::errorit::*;
 //use crate::helpers::{tcp_send_all, tcp_recv_once, tcp_recv_exact, tcp_peek_max};
-use core::panic::Location;
 use crate::proto_session::ProtoSession;
 
 // TCP helpperi makrot
@@ -235,8 +231,8 @@ pub fn stcp_message_frame_from_raw(frame_payload_in: &[u8]) ->
 
 pub fn stcp_message_send_frame(
     sess: &mut ProtoSession,
-    transport: *mut kernel_socket,
-    msg_type: StcpMsgType,
+    transport: *mut core::ffi::c_void,
+    _msg_type: StcpMsgType,
     buffer: &[u8],
 ) -> i32 {
 
@@ -261,7 +257,7 @@ pub fn stcp_message_send_frame(
 }
 
 pub fn build_frame_and_send(
-    transport: *mut kernel_socket,
+    transport: *mut core::ffi::c_void,
     msg_type: StcpMsgType,
     payload: &[u8],
 ) -> i32 {

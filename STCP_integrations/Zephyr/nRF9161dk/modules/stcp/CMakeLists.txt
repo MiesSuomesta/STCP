@@ -68,7 +68,7 @@ if(CONFIG_STCP)
 # ------------------------------------------------------------
 # Version / metadata
 # ------------------------------------------------------------
-	set(STCP_VERSION "1.0.0-beta")
+	set(STCP_VERSION_STR "1.0.0-beta")
 	string(TIMESTAMP STCP_BUILD_TIME "%Y-%m-%d %H:%M:%S UTC")
 
 	# Git SHA
@@ -85,7 +85,7 @@ if(CONFIG_STCP)
 	endif()
 
 	zephyr_library_compile_definitions(
-	    STCP_VERSION=\"${STCP_VERSION}\"
+	    STCP_VERSION_STR=\"${STCP_VERSION_STR}\"
 	    STCP_BUILD_TIME=\"${STCP_BUILD_TIME}\"
 	    STCP_GIT_SHA=\"${STCP_GIT_SHA}\"
 	)
@@ -150,6 +150,8 @@ if(CONFIG_STCP)
 	set(STCP_GENERATED_HEADER
 	    ${CMAKE_CURRENT_BINARY_DIR}/stcp_generated.h
 	)
+
+	zephyr_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 	add_custom_command(
 	    OUTPUT ${STCP_GENERATED_HEADER}

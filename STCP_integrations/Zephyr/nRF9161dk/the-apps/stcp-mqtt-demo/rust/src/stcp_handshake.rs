@@ -2,25 +2,18 @@ use core::ffi::c_int;
 use crate::types::{
   //    ProtoOps,
         HandshakeStatus,
-        StcpMsgType,
         StcpEcdhPubKey,
-        StcpMessageHeader,
         STCP_ECDH_PUB_LEN,
         kernel_socket,
     };
 
-use crate::aes::StcpAesCodec;
 use crate::tcp_io;
 //use alloc::boxed::Box;
 //use crate::stcp_handshake::{client_handshake, server_handshake};
 use crate::crypto::Crypto;
 use crate::{stcp_dbg, stcp_dump};
 use crate::errorit::{EBADF,EAGAIN,ECONNABORTED,EINVAL};
-use alloc::vec::Vec;
-use alloc::vec;
-use core::panic::Location;
 use crate::proto_session::ProtoSession;
-use crate::helpers::stcp_sleep_msec;
 
 //use crate::abi::stcp_exported_rust_ctx_alive_count;
 
@@ -74,7 +67,7 @@ pub fn handshake_recv_public_key(
     out_pubkey: &mut StcpEcdhPubKey,
 ) -> isize {
 
-    let s = unsafe { &mut *sess };
+    let _s = unsafe { &mut *sess };
     let mut pubkey_buf = [0u8; STCP_ECDH_PUB_LEN];
     let mut ret_len: c_int = 0;
 
@@ -200,13 +193,13 @@ pub extern "C" fn rust_session_client_handshake_lte(sess: *mut ProtoSession, tra
   let ret_gen = handshake_generate_keys(s);
   stcp_dbg!("=C= Generated Keys... ret: {}", ret_gen);
 
-  while ( (rc == -EAGAIN) && (tries < 10) ) {
+  while (rc == -EAGAIN) && (tries < 10)  {
     rc = client_handshake_pub_keys(sess, transport, &mut incoming_pubkey) as i32;
     tries += 1;
     stcp_dbg!("Client PK try: {} => {}", tries, rc);   
   } 
 
-  if (rc < 0) {
+  if rc < 0  {
     stcp_dbg!("Client: error in hs: {}", rc);   
     return rc;
   }
@@ -223,7 +216,6 @@ pub extern "C" fn rust_session_client_handshake_lte(sess: *mut ProtoSession, tra
   stcp_dbg!("=C= Shared key calculation returned: {}", ret_shared);   
 
   s.set_status(HandshakeStatus::Aes);
-  let skBytes = s.shared_key.to_bytes_be();
   s.init_aes_with(s.shared_key.clone());
   stcp_dbg!("==== Client HS complete => AES MODE =====");
   stcp_dbg!("==== Client HS complete => AES MODE =====");
@@ -260,13 +252,13 @@ pub extern "C" fn rust_session_server_handshake_lte(sess: *mut ProtoSession, tra
   let ret_gen = handshake_generate_keys(s);
   stcp_dbg!("=S= Generated Keys... ret: {}", ret_gen);
 
-  while ( (rc == -EAGAIN) && (tries < 10) ) {
+  while (rc == -EAGAIN) && (tries < 10)  {
     rc = server_handshake_pub_keys(sess, transport, &mut incoming_pubkey) as i32;
     tries += 1;
     stcp_dbg!("Client PK try: {} => {}", tries, rc);   
   } 
 
-  if (rc < 0) {
+  if rc < 0  {
     return rc;
   }
 
@@ -282,7 +274,6 @@ pub extern "C" fn rust_session_server_handshake_lte(sess: *mut ProtoSession, tra
   stcp_dbg!("=S= Shared key calculation returned: {}", ret_shared);   
 
   s.set_status(HandshakeStatus::Aes);
-  let skBytes = s.shared_key.to_bytes_be();
   s.init_aes_with(s.shared_key.clone());
   stcp_dbg!("==== Server HS complete => AES MODE =====");   
   stcp_dbg!("==== Server HS complete => AES MODE =====");   

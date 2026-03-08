@@ -10,13 +10,11 @@
 #include <stdint.h>
 
 
-#ifndef STCP_H
 struct kernel_socket {
 	int fd;
 	void *kctx;
 	void *resolved_host; // Kättelyssä täytetään, pitää closessa vapauttaa..
 };
-#endif
 
 enum {
     CTX_STATE_INIT = 0,
@@ -53,6 +51,9 @@ struct stcp_fsm {
 // 64KB 
 #define STCP_RECV_FRAME_BUF_SIZE (4*1024)
 
+#define STCP_MAX_HOSTNAME_LEN   128
+#define STCP_MAX_PORT_LEN       8
+
 struct stcp_recv_stream {
     uint8_t *buffer;
     size_t pos;
@@ -62,8 +63,8 @@ struct stcp_recv_stream {
 struct stcp_ctx {
 	void *session;   // Rust STCP session pointer
 	struct stcp_fsm fsm;
-	const char *hostname_str;
-	const char *port_str;
+	char hostname_str[STCP_MAX_HOSTNAME_LEN];
+	char port_str[STCP_MAX_PORT_LEN];
 	int handshake_done;
 	atomic_t closing;
 	atomic_t ctx_state;

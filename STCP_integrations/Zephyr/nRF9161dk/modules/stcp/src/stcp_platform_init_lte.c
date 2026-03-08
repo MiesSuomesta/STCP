@@ -14,14 +14,16 @@
 #include <zephyr/logging/log.h>
 
 #include <stcp/stcp_rust_exported_functions.h>
-
+#include <stcp/stcp_platform.h>
 #include <stcp_api.h>
 #include <stcp/debug.h>
 
+
+
 LOG_MODULE_DECLARE(stcp_lte_module);
 
-#ifndef STCP_VERSION
-#define STCP_VERSION "unknown"
+#ifndef STCP_VERSION_STR
+#define STCP_VERSION_STR "unknown"
 #endif
 
 #ifndef STCP_BUILD_DATE
@@ -48,7 +50,7 @@ int stcp_platform_init_banner(void)
 {
 
     LOG_INF(".----<[ STCP by Paxsudos IT (c) 2026 ]>------------------------------------------------------------>");
-    LOG_INF("|  ✅ STCP Initialised (Version %s), Protocol number %d", STCP_VERSION, IPPROTO_STCP);
+    LOG_INF("|  ✅ STCP Initialised (Version %s), Protocol number %d", STCP_VERSION_STR, IPPROTO_STCP);
     LOG_INF("|  🕓 Build at %s (%s)", STCP_BUILD_DATE, STCP_GIT_SHA);
     LOG_INF("|");
     LOG_INF("| Configuration:");
@@ -99,7 +101,7 @@ void stcp_platform_mark_ready(void)
     }
 }
 
-static void my_fault_handler(struct nrf_modem_fault_info *fault)
+void my_fault_handler(struct nrf_modem_fault_info *fault)
 {
     LERR("MODEM FAULT: reason=%d pc=0x%x\n",
            fault->reason, fault->program_counter);
@@ -108,7 +110,6 @@ static void my_fault_handler(struct nrf_modem_fault_info *fault)
 int stcp_platform_init(stcp_platform_ready_cb_t cb) {
     stcp_platform_soft_reset();
     user_platform_ready_callback = cb;
-    nrf_modem_fault_handler_set(my_fault_handler);
     return 0;
 }
 

@@ -8,8 +8,11 @@ LOG_MODULE_REGISTER(stcp_rust_memory_allocations, LOG_LEVEL_INF);
  * Jos tarvitset myöhemmin ATOMIC tms, voidaan lisätä erillinen API.
  */
 // Lippu, jos laittasi moduulin argumentteihin mukaan ??
-static int debug_memory_alloc = 0;
 #define STCP_MEM_DEBUG 0
+
+#if STCP_MEM_DEBUG
+int debug_memory_alloc = 0;
+#endif
 
 void *stcp_rust_kernel_alloc(size_t pSize)
 {
@@ -26,7 +29,7 @@ void *stcp_rust_kernel_alloc(size_t pSize)
     return p;
 }
 
-void stcp_rust_kernel_free(const void *pFrom)
+void stcp_rust_kernel_free(void *pFrom)
 {
 
 #if STCP_MEM_DEBUG

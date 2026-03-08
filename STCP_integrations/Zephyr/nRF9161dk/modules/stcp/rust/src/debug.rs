@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-
 use core::ffi::c_int;
 use core::fmt::{self, Write};
 
@@ -43,6 +42,7 @@ pub fn stcp_log_fmt(level: LogLevel, args: fmt::Arguments<'_>) {
     let _ = b.write_fmt(args);
 
     unsafe {
+        #[cfg(feature = "stcp_debug")]
         stcp_rust_log(level as c_int, b.buf.as_ptr(), b.len);
     }
 }

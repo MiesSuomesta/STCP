@@ -18,21 +18,7 @@ LOG_MODULE_REGISTER(stcp_full_soft_reset, LOG_LEVEL_INF);
 
 void stcp_full_soft_reset(void)
 {
-    LOG_WRN("STCP: Performing full soft reset");
-
-    /* TCP */
-    stcp_tcp_close();
-
-    /* STCP */
-    stcp_crypto_reset();
-    stcp_state_reset();
-
-    /* DNS */
-    dns_resolve_cancel_all();
-
-    /* LTE */
-    lte_lc_power_off();
-    k_sleep(K_SECONDS(2));
-
-    lte_lc_power_on();
+    // NOP!
+    LDBG("Soft reset called, doing nothing...");
+    
 }

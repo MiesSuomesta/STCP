@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <zephyr/net/socket.h>
 
+#include "stcp_generated.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

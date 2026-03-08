@@ -4,8 +4,11 @@
 // Public FFI from Rust
 //extern int rust_exported_session_create(void **out_sess, void *transport);
 //extern int rust_exported_session_destroy(void *sess);
-//extern int rust_exported_session_client_handshake(void *sess);
-//extern int rust_exported_session_server_handshake(void *sess);
+
+//extern void rust_session_reset_everything_now(void *sess);
+#if 0
+extern int rust_session_client_handshake_lte(void *sess, void *transport);
+extern int rust_session_server_handshake_lte(void *sess, void *transport);
 //
 extern ssize_t rust_exported_session_sendmsg(void *sess, void *transport, void *msg, size_t msglen);
 extern ssize_t rust_exported_session_recvmsg(void *sess, void *transport, void *buffer, size_t maxlen, int bloking);
@@ -17,7 +20,7 @@ extern ssize_t rust_exported_session_sendmsg_iovec(
     int flags,
     bool encrypted
 );
-
+#endif
 
 //
 //// Functions to be clear of the scope ...

@@ -7,9 +7,9 @@
 
 #include <errno.h>
 
-#include "stcp/stcp_struct.h"
-#include "stcp/stcp_net.h"
-#include "stcp/stcp_operations_zephyr.h"
+#include <stcp_api.h>
+#include <stcp/stcp_struct.h>
+#include <stcp/stcp_rust_exported_functions.h>
 
 #ifndef IPPROTO_STCP
 #define IPPROTO_STCP 253

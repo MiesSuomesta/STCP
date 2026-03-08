@@ -10,6 +10,7 @@
 #include <zephyr/sys/fdtable.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/net_context.h>
+#include <zephyr/net/net_pkt.h>
 #include <errno.h>
 #include <string.h>
 #include <stddef.h>
@@ -17,13 +18,14 @@
 
 #include <errno.h>
 
+#define STCP_SOCKET_INTERNAL 1
 #include <stcp_api.h>
 #include <stcp/debug.h>
 #include <stcp/stcp_struct.h>
 #include <stcp/stcp_socket.h>
 #include <stcp/stcp_transport.h>
 #include <stcp/stcp_rx_transmission.h>
-#include <zephyr/net/net_pkt.h>
+#include <stcp/stcp_rust_exported_functions.h>
 
 #ifndef IPPROTO_STCP
 #define IPPROTO_STCP 253
@@ -330,10 +332,10 @@ int stcp_set_non_bloking_to(struct stcp_ctx *ctx, int val)
         return -EINVAL;
     }
 
-    int fd = stcp_api_get_fd(ctx);
+    int fd = ctx->ks.fd;
 
     LINF("[Ctx: %p] Setting nonblocking %d for fd: %d...", ctx, val, fd);
-    zsock_ioctl(fd, ZFD_IOCTL_FIONBIO, &val);
+    return zsock_ioctl(fd, ZFD_IOCTL_FIONBIO, &val);
 }
 
 int stcp_close(struct stcp_ctx *ctx)

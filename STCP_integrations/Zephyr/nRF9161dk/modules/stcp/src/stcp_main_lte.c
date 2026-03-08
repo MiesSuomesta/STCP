@@ -6,26 +6,27 @@
 #include <stdlib.h>
 #include <zephyr/init.h>
 #include <modem/lte_lc.h>
+#include <modem/at_cmd_custom.h>
+#include <modem/nrf_modem_lib.h>
 
 #include <zephyr/sys/heap_listener.h>
 #include <zephyr/sys/sys_heap.h>
 #include <zephyr/kernel.h>
 
-#include <zephyr/net/socket.h>
 #include <zephyr/net/net_ip.h>
-#include <errno.h>
 #include <zephyr/sys/atomic.h>
-#include <modem/nrf_modem_lib.h>
 
 #include <stcp_api.h>
+#include <stcp/stcp_api_internal.h>
 #include <stcp/fsm.h>
 #include <stcp/debug.h>
 #include <stcp/stcp_rust_exported_functions.h>
-
-// LTE / BT kytkin ...
-#define TEST_CONNECTON_TO_HOST 	STCP_CONNECT_TO_ADDRESS_HOSTNAME
-#define TEST_CONNECTON_TO_PORT 	STCP_CONNECT_TO_ADDRESS_PORT
-#define STCP_WAIT_IN_SECONDS    (3*60)
+#include <stcp/stcp_rx_transmission.h>
+#include <stcp/stcp_soft_reset.h>
+#include <stcp/stcp_rx_transmission.h>
+#include <stcp/stcp_transport_api.h>
+#include <stcp/stcp_transport.h>
+#include <stcp/stcp_platform.h>
 
 #define STCP_HEAP_DEBUG         0
 
@@ -33,22 +34,16 @@ LOG_MODULE_REGISTER(stcp_lte_module, LOG_LEVEL_INF);
 
 int  stcp_rust_alive(void);
 
-static atomic_t KEEP_RUNNING = ATOMIC_INIT(1);
-extern int g_sock;
+#if STCP_HEAP_DEBUG
 extern struct k_heap _system_heap;
-
+#endif
 
 int stcp_lte_reset_everythign(struct stcp_ctx *ctx) {
-    LDBG("Resetting platform ....");
-    int rc = stcp_platform_soft_reset();
-    if (rc<0) { return rc; }
-
-    // TODO: RIKKOO!!
-    // LDBG("Resetting transport (NOP)....");
-    // rc = stcp_transport_soft_reset(ctx);
-    // if (rc<0) { return rc; }
     
+    LDBG("Resetting platform called..");
     if (stcp_is_context_valid(ctx) > 0) {
+        LDBG("Resetting platform ....");
+        stcp_full_soft_reset(ctx);
         LDBG("Resetting session ....");
         rust_session_reset_everything_now(ctx);
     } else {
@@ -63,11 +58,6 @@ int lte_connect(void)
 	return stcp_transport_connect();
 }
 
-static int callback_platform_ready() {
-	LDBG("Platform ready!");
-    stcp_module_rust_enter();
-    LDBG("RUST init done..");
-}
 
 void stcp_shutdown(void)
 {
@@ -97,6 +87,7 @@ static void dump_stack(const char *tag)
 
 void stcp_fsm_init_globals(void);
 void dump_sim_status(void);
+void stcp_platform_init_banner(void);
 
 int stcp_library_init()
 {
@@ -132,9 +123,9 @@ int stcp_library_init()
         return err;
     }
 
-#if 1
     LDBG("Waiting for network up ... ");
     err = stcp_transport_wait_for_network_up(wait_timeout_sec);
+
     int64_t endTime = k_uptime_get();
     int64_t spent = endTime - startTime;
 
@@ -143,7 +134,6 @@ int stcp_library_init()
     } else {
         LDBGBIG("Network UP => STCP READY, Init done in %llu ms", spent);
     }
-#endif
 
     dump_sim_status();
     return err;

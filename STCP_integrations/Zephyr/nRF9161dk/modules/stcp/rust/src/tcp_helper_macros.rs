@@ -1,12 +1,8 @@
 #![allow(dead_code)]
 
-use core::panic::Location;
-use crate::types::kernel_socket;
 use core::ffi::c_int;
 use crate::tcp_io::stcp_tcp_recv;
 use crate::errorit::EAGAIN;
-use core::ptr;
-use crate::proto_session::ProtoSession;
 
 #[macro_export]
 macro_rules! stcp_tcp_op {
@@ -87,7 +83,7 @@ macro_rules! stcp_tcp_recv_once {
 
 // RECV EXACT
 pub fn stcp_tcp_recv_exact(
-    sock: *mut kernel_socket,
+    sock: *mut core::ffi::c_void,
     buf: &mut [u8],
     non_blocking: i32,
 ) -> isize {

@@ -2,7 +2,6 @@
 use core::ffi::c_void;
 use core::ffi::c_int;
 use crate::{stcp_dbg /* , stcp_dump, stcp_sess_transp */ };
-use core::panic::Location;
 
 use crate::slice_helpers::{stcp_make_mut_slice, StcpError};
 use crate::session_handler::{rust_session_create, rust_session_destroy};
@@ -10,21 +9,15 @@ use crate::stcp_handshake::{
     rust_session_server_handshake_lte,
     rust_session_client_handshake_lte,
 };
-use crate::types::STCP_MAX_TCP_PAYLOAD_SIZE;
 use crate::stcp_message::*;
 use alloc::vec::Vec;
 use crate::stcp_dump;
-use crate::helpers;
 
 //use alloc::boxed::Box;
 
 use crate::types::{
   //    ProtoOps,
-        kernel_socket,
-        HandshakeStatus,
         StcpMsgType,
-        StcpMessageHeader,
-        STCP_TAG_BYTES,
         zsock_iovec,
         zsock_msghdr,
     };
@@ -32,13 +25,10 @@ use crate::types::{
 use crate::errorit::*;
 use crate::proto_session::ProtoSession;
 
-use crate::tcp_io::stcp_tcp_send;
 use crate::tcp_io::stcp_tcp_send_iovec;
-use crate::tcp_io::stcp_tcp_recv;
 
 //use crate::helpers::{tcp_recv_once, tcp_send_all, get_session};
 //use crate::abi::{stcp_end_of_life_for_sk};
-use crate::abi::stcp_exported_rust_ctx_alive_count;
 
 // TCP helpperi makrot
 //use crate::stcp_tcp_recv_once;
@@ -50,9 +40,9 @@ use crate::abi::stcp_exported_rust_ctx_alive_count;
 pub const STCP_REASON_NEXT_STEP : i32 = 3;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_exported_session_handshake_pump(sess: *mut ProtoSession, transport: *mut kernel_socket, reason: i32) -> i32 {
+pub extern "C" fn rust_exported_session_handshake_pump(sess_void_ptr: *mut c_void, transport: *mut core::ffi::c_void, reason: i32) -> i32 {
 
-  if sess.is_null() {
+  if sess_void_ptr.is_null() {
     stcp_dbg!("Pump: no session");   
     return -EBADF;
   }
@@ -62,13 +52,10 @@ pub extern "C" fn rust_exported_session_handshake_pump(sess: *mut ProtoSession, 
     return -EBADF;
   }
 
-  let s = unsafe { &mut *sess };
+  let s = unsafe { &mut *(sess_void_ptr as *mut ProtoSession) };
 
   let server     = s.is_server;
   let status     = s.get_status();
-
-  let sess_casted = sess as *mut c_void;
-  let transport_casted = transport as *mut c_void;
 
   if reason == STCP_REASON_NEXT_STEP {
     let now = status.to_raw();
@@ -83,10 +70,10 @@ pub extern "C" fn rust_exported_session_handshake_pump(sess: *mut ProtoSession, 
 */
     if server {
       stcp_dbg!("SERVER: Changing state from {} to {} ...", now, nxt.to_raw());
-      rust_worker_return = rust_exported_data_server_ready_worker(sess_casted, transport_casted);
+      rust_worker_return = rust_exported_data_server_ready_worker(sess_void_ptr, transport);
     } else {
       stcp_dbg!("CLIENT: Changing state from {} to {} ...", now, nxt.to_raw());
-      rust_worker_return = rust_exported_data_client_ready_worker(sess_casted, transport_casted);
+      rust_worker_return = rust_exported_data_client_ready_worker(sess_void_ptr, transport);
     }
 
     return rust_worker_return;
@@ -127,7 +114,7 @@ pub extern "C" fn rust_exported_data_client_ready_worker(sess_void_ptr: *mut c_v
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
     let s: &mut ProtoSession = unsafe { &mut *sess };
 
-    let transport = s.transport as *mut kernel_socket;
+    let transport = s.transport as *mut core::ffi::c_void;
     
     stcp_dbg!("Worker Client Setting server false");   
     s.set_is_server(false);
@@ -138,13 +125,9 @@ pub extern "C" fn rust_exported_data_client_ready_worker(sess_void_ptr: *mut c_v
       return -EBADF;
     }
 
-    let is_server = s.get_is_server();
-    let mut status = s.get_status();
     let ret: c_int;
 
-    ret = rust_session_client_handshake_lte(sess, transport);
-
-    status = s.get_status();
+    ret = rust_session_client_handshake_lte(sess_void_ptr, transport);
     ret
 }
 
@@ -167,16 +150,12 @@ pub extern "C" fn rust_exported_data_server_ready_worker(sess_void_ptr: *mut c_v
 
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
     let s: &mut ProtoSession = unsafe { &mut *sess };
-    let transport = transport_void_ptr as *mut kernel_socket;
+    let transport = transport_void_ptr as *mut core::ffi::c_void;
     s.set_is_server(true);
-
-    //let is_server = s.get_is_server();
-    let status: HandshakeStatus;
 
     let ret: c_int;
 
-    ret = rust_session_server_handshake_lte(sess, transport);
-    status = s.get_status();
+    ret = rust_session_server_handshake_lte(sess_void_ptr, transport);
     
     ret
 }
@@ -198,7 +177,7 @@ pub extern "C" fn rust_exported_session_create(out: *mut *mut c_void, transport:
   
   stcp_dbg!("SESSION/Checkpoint 2");
 
-  let s = rust_session_create(out, transport as *mut kernel_socket);
+  let s = rust_session_create(out, transport as *mut core::ffi::c_void);
  
   stcp_dbg!("SESSION/Checkpoint 3");
 
@@ -225,13 +204,13 @@ pub extern "C" fn rust_exported_session_client_handshake(sess_void_ptr: *mut c_v
   // 2) Eksplisiittinen &mut-viite, EI generiikkaa
   let s: &mut ProtoSession = unsafe { &mut *sess };
 
-  let transport = s.transport as *mut kernel_socket;
+  let transport = s.transport as *mut core::ffi::c_void;
   if transport.is_null() {
     return -EBADF;
   }
 
   s.set_is_server(false);
-  let ret = rust_session_client_handshake_lte(sess, transport);
+  let ret = rust_session_client_handshake_lte(sess_void_ptr, transport);
 
   ret
 }
@@ -256,7 +235,7 @@ pub extern "C" fn rust_exported_session_server_handshake(sess_void_ptr: *mut c_v
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
     let s: &mut ProtoSession = unsafe { &mut *sess };
 
-    let transport = s.transport as *mut kernel_socket;
+    let transport = s.transport as *mut core::ffi::c_void;
 
     // tämä on struct sock pointteri
     if transport.is_null() {
@@ -264,7 +243,7 @@ pub extern "C" fn rust_exported_session_server_handshake(sess_void_ptr: *mut c_v
     }
 
     s.set_is_server(true);
-    let ret = rust_session_server_handshake_lte(sess, transport);
+    let ret = rust_session_server_handshake_lte(sess_void_ptr, transport);
     ret
 }
 
@@ -295,7 +274,7 @@ pub extern "C" fn rust_exported_session_sendmsg(sess_void_ptr: *const c_void,
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
     let s: &mut ProtoSession = unsafe { &mut *sess };
   
-    let transport = transport_void_ptr as *mut kernel_socket;
+    let transport = transport_void_ptr as *mut core::ffi::c_void;
 
     // Connecti ei mee solmuun tällä tavalla ...
     let cast_buffer = buf as *mut u8;
@@ -335,25 +314,43 @@ pub extern "C" fn rust_exported_session_sendmsg(sess_void_ptr: *const c_void,
 }
 
 unsafe fn internal_iovec_total_len(msg: &zsock_msghdr) -> usize {
-    let mut sum = 0;
-    for i in 0..msg.msg_iovlen {
-        let iov = &*msg.msg_iov.add(i);
-        sum += iov.iov_len;
-    }
-    sum
+  let mut sum = 0;
+  
+  if msg.msg_iov.is_null() {
+      return 0;
+  }
+
+  let base = msg.msg_iov;
+
+  for i in 0..msg.msg_iovlen as usize {
+      let iov = unsafe { &*base.add(i) };
+      sum += iov.iov_len;
+  }
+
+  sum
 }
 
-
 unsafe fn internal_iovec_flatten(msg: &zsock_msghdr, out: &mut [u8]) {
+    if msg.msg_iov.is_null() {
+        return;
+    }
+
     let mut offset = 0;
 
-    for i in 0..msg.msg_iovlen {
-        let iov = &*msg.msg_iov.add(i);
+    let iovecs = unsafe {
+        core::slice::from_raw_parts(
+            msg.msg_iov,
+            msg.msg_iovlen,
+        )
+    };
 
-        let slice = core::slice::from_raw_parts(
-            iov.iov_base as *const u8,
-            iov.iov_len,
-        );
+    for iov in iovecs {
+        let slice = unsafe {
+            core::slice::from_raw_parts(
+                iov.iov_base as *const u8,
+                iov.iov_len,
+            )
+        };
 
         out[offset..offset + iov.iov_len]
             .copy_from_slice(slice);
@@ -391,7 +388,7 @@ pub extern "C" fn rust_exported_session_sendmsg_iovec(
     // 2) Eksplisiittinen &mut-viite, EI generiikkaa
     let s: &mut ProtoSession = unsafe { &mut *sess };
   
-    let transport = transport_void_ptr as *mut kernel_socket;
+    let transport = transport_void_ptr as *mut core::ffi::c_void;
     let msg = msg_void_ptr as *mut zsock_msghdr;
 
   if !encrypted {

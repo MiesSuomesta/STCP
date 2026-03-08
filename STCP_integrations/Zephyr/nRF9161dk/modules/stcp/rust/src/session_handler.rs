@@ -1,11 +1,10 @@
 
 use core::ffi::c_void;
 use crate::errorit::*;
-use core::panic::Location;
+//use core::panic::Location;
 use alloc::boxed::Box;
 use crate::proto_session::ProtoSession;
 
-use crate::types::{kernel_socket};
 use crate::stcp_dbg;
 
 
@@ -13,7 +12,7 @@ use crate::stcp_dbg;
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_session_create(
     out_sess: *mut *mut c_void,
-    transport: *mut kernel_socket,
+    transport: *mut core::ffi::c_void,
 ) -> i32 {
 
     stcp_dbg!("SESSION/CREATE start");

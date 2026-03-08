@@ -256,7 +256,7 @@ pub fn handle_client(mut stream: TcpStream, aes_enabled: bool) -> Result<(), Stc
     println!("=========================================");
 
     let mut session = ProtoSession::new(true, transport);
-    session.setAesMode(aes_enabled);
+    session.set_aes_mode(aes_enabled);
     // ===============================
     // HANDSHAKE
     // ===============================

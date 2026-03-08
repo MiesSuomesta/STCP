@@ -8,8 +8,8 @@ LOG_MODULE_REGISTER(rust_log, LOG_LEVEL_DBG);
 #include "stcp/debug.h"
 #include "stcp/utils.h"
 
-#define LOG_BUFFER_SIZE_BYTES   (1024*4)
-
+#define LOG_BUFFER_SIZE_BYTES       (1024*4)
+#define STCP_DEFAULT_RUST_LOG_LEVEL  4
 __used
 __noinline
 void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
@@ -44,28 +44,28 @@ void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
     tmp[n] = '\0';
 
     if (level < 0 || level > 5)
-        level = 4;
+        level = STCP_DEFAULT_RUST_LOG_LEVEL;
 
     // Yksinkertainen printk – ei mitään ihmeellistä
     switch(level) {
         case 1:
-            LOG_ERR("RUST: %s", tmp);
+            LOG_ERR("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         case 2:
-            LOG_WRN("RUST: %s", tmp);
+            LOG_WRN("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         case 3:
-            LOG_INF("RUST: %s", tmp);
+            LOG_INF("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         case 4:
-            LOG_DBG("RUST: %s", tmp);
+            LOG_DBG("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         default:
-            LOG_INF("RUST: %s", tmp);
+            LOG_INF("RUST[%s]: %s", lvl[STCP_DEFAULT_RUST_LOG_LEVEL],  tmp);
             break;
     }
 

@@ -2,19 +2,9 @@ extern crate alloc;
 
 use core::ffi::c_int;
 use core::ffi::c_void;
-use crate::tcp_io::stcp_tcp_recv;
 use alloc::vec;
 use alloc::vec::Vec;
 use crate::stcp_dbg;
-use crate::aes;
-use crate::aes::StcpAesCodec;
-use core::panic::Location;
-use crate::session_handler::rust_session_destroy;
-use crate::slice_helpers::StcpError;
-use crate::proto_session::ProtoSession;
-
-use crate::stcp_tcp_recv_once;
-use crate::stcp_tcp_recv_until_buffer_full;
 
 /* ========================= RX BUFFER ========================= */
 
@@ -162,12 +152,12 @@ impl StcpMessageHeader {
         }
     }
 
-    pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    pub fn new_from(p_ver: u32, p_tag: u32, p_type: StcpMsgType, p_len: u32) -> Self {
         Self {
-            version: pVer,
-            tag: pTag,
-            msg_type: pType,
-            msg_len: pLen,
+            version: p_ver,
+            tag: p_tag,
+            msg_type: p_type,
+            msg_len: p_len,
         }
     }
 
@@ -268,12 +258,12 @@ impl StcpMessageHeader {
         let version = u32::from_be_bytes(buf[i..i+4].try_into().ok()?); 
         i += 4;
 
-        let STCP_MAGIC = u32::from_be_bytes(*b"STCP");
+        let stcp_magic = u32::from_be_bytes(*b"STCP");
         let magic = u32::from_be_bytes(buf[i..i+4].try_into().ok()?);
         i += 4;
 
-        if magic != STCP_MAGIC {
-            stcp_dbg!("Bad magic: 0x{:08X?} vs 0x{:08X?}", magic,  STCP_MAGIC);
+        if magic != stcp_magic {
+            stcp_dbg!("Bad magic: 0x{:08X?} vs 0x{:08X?}", magic,  stcp_magic);
             return None;
         }
 
@@ -282,7 +272,7 @@ impl StcpMessageHeader {
         i += 4;
 
         let msg_len = u32::from_be_bytes(buf[i..i+4].try_into().ok()?);
-        i += 4;
+        //i += 4;
 
         if msg_len > 64 * 1024 {
             stcp_dbg!("Insane msg_len: {}", msg_len);
@@ -292,20 +282,13 @@ impl StcpMessageHeader {
         Some(Self {
             version,
             tag: magic,
-            msg_type: StcpMsgType::from_raw(msg_type_raw),
+            msg_type: msg_type,
             msg_len,
         })
     }
 }
 
 /* ========================= SOCKET ========================= */
-
-#[repr(C)]
-pub struct kernel_socket {
-    pub fd: i32,
-    pub resolved_host: *mut c_void, // Kernelin konteksti mukaan.
-    pub kctx: *mut c_void, // Kernelin konteksti mukaan.
-}
 
 /* iovec ja msgheader */
 

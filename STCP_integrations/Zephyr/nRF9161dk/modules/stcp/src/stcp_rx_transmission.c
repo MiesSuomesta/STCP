@@ -161,7 +161,7 @@ int stcp_recv_frame(struct stcp_ctx *ctx)
         ctx, version, magic, type, len);
 
     if (len > STCP_RECV_FRAME_BUF_SIZE) {
-        LDBG("Frame too big: %llu", len);
+        LDBG("Frame too big: %u", len);
         return -EMSGSIZE;
     }
 

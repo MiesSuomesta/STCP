@@ -21,7 +21,10 @@ LOG_MODULE_REGISTER(stcp_operations, LOG_LEVEL_INF);
 #include <stcp/debug.h>
 #include <stcp/stcp_struct.h>
 #include <stcp/fsm.h>
+#include <stcp/utils.h>
+#include <stcp/stcp_api_internal.h>
 #include <stcp/stcp_rust_exported_functions.h>
+#include <stcp/stcp_alloc.h>
 
 #ifndef IPPROTO_STCP
 #define IPPROTO_STCP 253
@@ -74,7 +77,7 @@ int stcp_net_close_fd(int *fd)
     *fd = -1; 
 
 	int rc = zsock_close(old);
-    LOG_INF("close(fd=%d) rc=%d", old, 0);
+    LOG_INF("close(fd=%d) rc=%d but returning 0", old, rc);
 
     return 0; // Oli rc
 }

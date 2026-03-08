@@ -1,6 +1,5 @@
 use core::ffi::c_int;
 use crate::types::{kernel_socket};
-use core::panic::Location;
 
 unsafe extern "C" {
     pub fn stcp_tcp_send(sock: *mut kernel_socket,

@@ -1,7 +1,6 @@
 
 use core::ffi::c_void;
 use crate::errorit::*;
-use core::panic::Location;
 use alloc::boxed::Box;
 use crate::proto_session::ProtoSession;
 

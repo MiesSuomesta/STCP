@@ -1,27 +1,19 @@
 extern crate alloc;
 
-use core::ffi::c_int;
 use core::ffi::c_void;
-use crate::tcp_io::stcp_tcp_recv;
 use crate::stcp_tcp_recv_once;
 use alloc::vec;
 use alloc::vec::Vec;
 use crate::stcp_dbg;
 use crate::stcp_dump;
-use crate::aes;
 use crate::aes::StcpAesCodec;
-use core::panic::Location;
-use crate::session_handler::rust_session_destroy;
 use crate::slice_helpers::StcpError;
 use crate::types::kernel_socket;
 use crate::types::*;
 use crate::errorit::*;
 
-use crate::helpers::*;
-use crate::helpers;
 
 
-use crate::slice_helpers::*;
 
 #[cfg(feature = "std")]
 use std::net::{TcpListener, TcpStream};
@@ -47,7 +39,7 @@ pub struct ProtoSession {
 
 impl ProtoSession {
 
-    pub fn new(is_server: bool, transport_vp: *mut c_void) -> Self {
+    pub fn new(_is_server: bool, transport_vp: *mut c_void) -> Self {
         let transp = transport_vp as *mut kernel_socket;
 
         Self {
@@ -64,12 +56,12 @@ impl ProtoSession {
         }
     }
 
-    pub fn init_aes_with(&mut self, theSK: StcpEcdhSecret) {
+    pub fn init_aes_with(&mut self, the_sk: StcpEcdhSecret) {
         stcp_dbg!("Initialising with AES....");
-        let sk = theSK.to_bytes_be();
+        let sk = the_sk.to_bytes_be();
         self.aes = Some(StcpAesCodec::new(&sk));
         self.set_status(HandshakeStatus::Aes);
-        self.setAesMode(true);
+        self.set_aes_mode(true);
         stcp_dbg!("====== WITH AES ======");
     }
 
@@ -91,7 +83,7 @@ impl ProtoSession {
     pub fn set_is_server(&mut self, v: bool) { self.is_server = v; }
     pub fn get_is_server(&self) -> bool { self.is_server }
 
-    pub fn setAesMode(&mut self, v: bool) {
+    pub fn set_aes_mode(&mut self, v: bool) {
         self.is_in_aes_mode = v;
     }
 
@@ -111,9 +103,9 @@ impl ProtoSession {
         HandshakeStatus::from_raw(self.status_raw) == tgt
     }
 
-    pub fn set_transport_to(&mut self, newTransport: *mut c_void) {
-        stcp_dbg!("Setting transport to {:?}", newTransport);
-        self.transport = newTransport as *mut kernel_socket;
+    pub fn set_transport_to(&mut self, new_transport: *mut c_void) {
+        stcp_dbg!("Setting transport to {:?}", new_transport);
+        self.transport = new_transport as *mut kernel_socket;
     }
 
     pub fn recv_exact(
@@ -152,22 +144,22 @@ impl ProtoSession {
         stcp_dbg!("recv_header_and_payload: reading header ({} bytes)", hdr.len());
 
         //let rc = self.rx_buff.read_data_to(self.transport, hdr);
-        let rc1 = self.recv_exact(transport, hdr, hdr.len() as usize)?;
+        let _rc1 = self.recv_exact(transport, hdr, hdr.len() as usize)?;
 
         let header = StcpMessageHeader::try_from_bytes_be(hdr).unwrap();
 
-        let msgLen = header.msg_len;
-        stcp_dbg!("recv_header_and_payload: header ok, reading payload ({}/{} bytes)", msgLen, payload.len());
+        let msg_len = header.msg_len;
+        stcp_dbg!("recv_header_and_payload: header ok, reading payload ({}/{} bytes)", msg_len, payload.len());
 
-        if msgLen > 64*1024 {
-            stcp_dbg!("recv_header_and_payload: Insane payload length: {}", msgLen);
+        if msg_len > 64*1024 {
+            stcp_dbg!("recv_header_and_payload: Insane payload length: {}", msg_len);
             return Err(StcpError::HeaderSizeMismatch);
         }
 
         //let rc2 = self.rx_buff.read_data_to(transport, payload);
-        let rc2 = self.recv_exact(transport, payload, msgLen as usize)?;
+        let _rc2 = self.recv_exact(transport, payload, msg_len as usize)?;
      
-        let data_in: Vec<u8> = payload[..msgLen as usize].to_vec();
+        let data_in: Vec<u8> = payload[..msg_len as usize].to_vec();
         stcp_dump!("DataIN", &data_in);
 
         let plain: Vec<u8> = if self.in_aes_mode() {

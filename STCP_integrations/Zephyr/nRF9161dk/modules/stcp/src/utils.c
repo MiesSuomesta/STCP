@@ -100,7 +100,7 @@ void stcp_util_log_sockaddr(char *tag, const struct zsock_addrinfo *ai)
 int stcp_util_hostname_resolver(const char *host, const char *port, struct zsock_addrinfo **result) {
     struct addrinfo hints = { 0 };
     struct zsock_addrinfo *res;
-    int fd, err;
+    int err;
 
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -124,7 +124,7 @@ int stcp_util_hostname_resolver(const char *host, const char *port, struct zsock
 struct addrinfo *resolve_to_connect(const char *host, const char *port) {
     struct addrinfo hints = { 0 };
     struct addrinfo *res;
-    int fd, err;
+    int err;
 
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -151,39 +151,29 @@ int stcp_tcp_resolve_and_make_socket(const char *host, const char *port) {
     return fd;
 }
 
-char *stcp_strndup(char *from, int len) {
-
-    if (len < strlen(from) ) {
-        len = strlen(from);
-        LDBG("Smaller ...");
-    }
-
-    if (len > strlen(from) ) {
-        len = strlen(from);
-        LDBG("Larger ...");
-    }
-
-    char ret = malloc(len);
-    
-    if (!ret) { 
-        return NULL;
-    }
-
-    memset(ret, 0, len);
-    strncpy(ret, from, len - 1);
-    
-
-    return ret;
-}
-
 struct stcp_ctx *stcp_tcp_resolve_and_make_context(const char *host, const char *port) {
 
     int fd = stcp_tcp_resolve_and_make_socket(host, port);
     if (fd >= 0) {
         struct stcp_ctx *ctx =  stcp_create_new_context(fd);
 
-        ctx->hostname_str = stcp_strndup(host, 64);
-        ctx->port_str = stcp_strndup(port, 8);
+        // TODO: TEhdä nämä taulukoiksi => EI MALLOC
+        memset(ctx->hostname_str, 0, sizeof(ctx->hostname_str));
+        memset(ctx->port_str, 0, sizeof(ctx->port_str));
+        
+        snprintf(
+            ctx->hostname_str, 
+            sizeof(ctx->hostname_str) - 1,
+            "%s",
+            host
+        );
+
+        snprintf(
+            ctx->port_str, 
+            sizeof(ctx->port_str) - 1,
+            "%s",
+            port
+        );
 
         ctx->ks.resolved_host = resolve_to_connect(host, port);
 

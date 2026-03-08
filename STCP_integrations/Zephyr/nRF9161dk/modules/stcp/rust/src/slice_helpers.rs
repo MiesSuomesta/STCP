@@ -1,6 +1,5 @@
 use core::slice;
 use crate::types::STCP_MAX_TCP_PAYLOAD_SIZE;
-use core::panic::Location;
 
 #[derive(Debug)]
 pub enum StcpError {

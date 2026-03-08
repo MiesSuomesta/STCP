@@ -10,18 +10,19 @@ void stcp_fsm_notify_pdn_ready(struct stcp_fsm *fsm);
 
 LOG_MODULE_REGISTER(stcp_fsm, LOG_LEVEL_INF);
 
-#include "stcp/fsm.h"
-#include "stcp/settings.h"
-#include "stcp/debug.h"
-#include "stcp/stcp_alloc.h"
-#include "stcp/stcp_struct.h"
-#include "stcp/utils.h"
-#include "stcp/stcp_net.h"
-#include "stcp/workers.h"
-#include "stcp/utils.h"
-#include "stcp/stcp_operations_zephyr.h"
-
-#include "stcp/stcp_rust_exported_functions.h"
+#include <stcp/fsm.h>
+#include <stcp/settings.h>
+#include <stcp/debug.h>
+#include <stcp/stcp_alloc.h>
+#include <stcp/stcp_struct.h>
+#include <stcp/utils.h>
+#include <stcp/stcp_net.h>
+#include <stcp/workers.h>
+#include <stcp/utils.h>
+#include <stcp/stcp_operations_zephyr.h>
+#include <stcp/stcp_rust_exported_functions.h>
+#include <stcp/stcp_transport_api.h>
+#include <stcp/stcp_transport.h>
 
 #define STCP_FSM_REAL_IMPL 1
 
@@ -191,24 +192,25 @@ void stcp_fsm_init(struct stcp_fsm *fsm, struct stcp_ctx *ctx)
 
 int stcp_fsm_wait_until_reached_ip_network_up(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for network UP, max %d seconds....", timeout);
-    k_sem_take(&g_sem_ip_ready, K_SECONDS(timeout));
+    return k_sem_take(&g_sem_ip_ready, K_SECONDS(timeout));
 }
 
 int stcp_fsm_wait_until_reached_lte_ready(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for LTE ready, max %d seconds....", timeout);
-    k_sem_take(&g_sem_lte_ready, K_SECONDS(timeout));
+    return k_sem_take(&g_sem_lte_ready, K_SECONDS(timeout));
 }
 
 int stcp_fsm_wait_until_reached_connect_ready(struct stcp_fsm *fsm, int timeout) {
     if (fsm) {
         LINF("Waiting for connection ready, max %d seconds....", timeout);
-        k_sem_take(&fsm->connection_ready, K_SECONDS(timeout));
+        return k_sem_take(&fsm->connection_ready, K_SECONDS(timeout));
     }
+    return 0;
 }
 
 int stcp_fsm_wait_until_reached_pdn_ready(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for PDN ready, max %d seconds....", timeout);
-    k_sem_take(&g_sem_pdn_ready, K_SECONDS(timeout));
+    return k_sem_take(&g_sem_pdn_ready, K_SECONDS(timeout));
 }
 
 void stcp_fsm_start(struct stcp_fsm *fsm)

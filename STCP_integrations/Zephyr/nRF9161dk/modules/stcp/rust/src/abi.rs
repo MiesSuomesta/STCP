@@ -5,8 +5,6 @@ use core::ffi::{c_void, c_int};
 use crate::types::{
         StcpEcdhPubKey,
         StcpEcdhSecret,
-        zsock_msghdr,
-        zsock_iovec,
     };
 
 unsafe extern "C" {

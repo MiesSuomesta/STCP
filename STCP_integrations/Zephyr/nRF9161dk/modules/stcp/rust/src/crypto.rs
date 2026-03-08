@@ -6,9 +6,9 @@ use crate::types::{
     };
 
 use crate::abi;
-use core::panic::Location;
+//use core::panic::Location;
 use crate::proto_session::ProtoSession;
-use crate::proto_session;
+//use crate::proto_session;
 
 
 
@@ -22,13 +22,13 @@ impl Crypto {
       stcp_dbg!("Starting keypair generation");   
       stcp_dbg!("Sess ptr inside generate_keypair: {:?}", sess as *mut _);
       stcp_dbg!("Calling C keypair creation");   
-      let mut ret: i32 = 0;
 
       let the_public_key = &mut sess.public_key;
       let the_private_key = &mut sess.private_key;
       stcp_dbg!("sizeof pubkey {}", core::mem::size_of::<StcpEcdhPubKey>());
       stcp_dbg!("sizeof secret {}", core::mem::size_of::<StcpEcdhSecret>());
 
+      let ret: i32;
       unsafe {
 
         ret = abi::stcp_crypto_generate_keypair(

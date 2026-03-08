@@ -11,6 +11,8 @@
 #include <zephyr/sys/atomic.h>
 #include <modem/nrf_modem_lib.h>
 #include <modem/lte_lc.h>
+#include <modem/at_cmd_custom.h>
+#include <modem/nrf_modem_lib.h>
 
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
@@ -21,14 +23,15 @@
 #include <zephyr/net/conn_mgr_connectivity.h>
 #include <stcp/stcp_rx_transmission.h>
 
+
 #define STCP_SOCKET_INTERNAL 1
 #include <stcp_api.h>
 #include <stcp/fsm.h>
 #include <stcp/stcp_api_internal.h>
+#include <stcp/stcp_transport.h>    
+#include <stcp/stcp_platform.h>    
 
 #include "stcp/stcp_rust_exported_functions.h"
-
-int g_sock = -1;
 
 LOG_MODULE_DECLARE(stcp_lte_module);
 
@@ -45,10 +48,14 @@ LOG_MODULE_DECLARE(stcp_lte_module);
 
 atomic_t g_pdn_active = ATOMIC_INIT(0);
 atomic_t reset_requested = ATOMIC_INIT(0);
-static int64_t pdn_last_up_ms;
 
 static struct net_mgmt_event_callback l4_cb;
+
+#if 0
+static int64_t pdn_last_up_ms;
 static struct net_mgmt_event_callback conn_cb;
+#endif
+
 static K_SEM_DEFINE(network_connected_sem, 0, 1);
 
 
@@ -89,7 +96,7 @@ void stcp_set_reset_requested() {
 
 static int stcp_transport_modem_has_ip() {
     char buf[128];
-    int ok = nrf_modem_at_cmd(buf, sizeof(buf), "AT+CGPADDR");
+    (void)nrf_modem_at_cmd(buf, sizeof(buf), "AT+CGPADDR");
     /* crude but effective check for IPv4 */
     if (strstr(buf, "\"10.") ||
         strstr(buf, "\"100.") ||
@@ -149,6 +156,15 @@ int stcp_transport_soft_reset(void *vpCtx) {
     return 0;
 }
 
+
+void stcp_on_disconnect(struct stcp_ctx *ctx)
+{
+    LDBG("On disconnect called....");
+    if (!ctx)  { return; }
+    ctx->handshake_done = false;
+    stcp_lte_reset_everythign(ctx);
+}
+
 static void l4_event_handler(struct net_mgmt_event_callback *cb,
 			     uint32_t event,
 			     struct net_if *iface)
@@ -196,13 +212,14 @@ int stcp_transport_wait_for_data_path(int seconds)
     int rc = k_sem_take(&g_sem_pdn_ready, K_SECONDS(seconds));
     if (rc < 0) {
         LERR("PDN never became active!");
-        stcp_reset_everything();
+        stcp_lte_reset_everythign(NULL);
         return rc;
     }
 
     return 0;
 }
 
+#if 0
 static void on_platform_ready(void)
 {
     printk("STCP platform ready starts");
@@ -210,6 +227,7 @@ static void on_platform_ready(void)
     stcp_transport_connect();
     printk("STCP platform ready DONE");
 }
+#endif
 
 int stcp_pdn_wait_until_active_or_secs_passed(int seconds)
 {
@@ -402,21 +420,9 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
     }
 }
 
-
-int stcp_transport_set_connected_fd(int fd) {
-
-    LDBG("Setting transport FD to: %d", fd);
-    if (fd < 0) {
-        return -EINVAL;
-    }
-
-    g_sock = fd;
-    return 0;
-}
-
-static void dump_sim_status_of_command(const char *cmd) {
-    char buf[1280] = { 0 };
-    int err = nrf_modem_at_cmd(buf, sizeof(buf), cmd);
+static void dump_sim_status_of_command(char *cmd) {
+    char buf[256] = { 0 };
+    int err = nrf_modem_at_cmd(buf, sizeof(buf), "%s", cmd);
     LDBG("%s rc=%d resp=%s", cmd, err, buf);
 }
 
@@ -465,18 +471,19 @@ void dump_modem_full_status(void)
     LDBG("===========================================");
 }
 
-
+#if 0
 static void wait_until_sim_ready(int maxTimes) {
     char resp[64] = { 0 };
     for (int i = 0; i < maxTimes; i++) {
         LDBG("Waiting SIM ready... %d / %d sec", i, maxTimes);
-        nrf_modem_at_cmd(resp, sizeof(resp), "AT+CPIN?");
+        nrf_modem_at_cmd(resp, sizeof(resp), "%s", "AT+CPIN?");
         if (strstr(resp, "READY")) {
             break;
         }
         k_sleep(K_SECONDS(1));
     }
 }
+#endif 
 
 int stcp_poll_fd_changes(int fd, int timeout, int events) {
 
@@ -491,41 +498,25 @@ int stcp_poll_fd_changes(int fd, int timeout, int events) {
     return rc;
 }
 
-void stcp_on_disconnect(struct stcp_ctx *ctx)
-{
-    LDBG("On disconnect called....");
-    if (!ctx)  { return; }
-    ctx->handshake_done = false;
-    stcp_lte_reset_everythign(ctx);
-}
-
 static void stcp_modem_force_apn(void)
 {
     char buf[128];
 
-    int ret = nrf_modem_at_cmd(buf, sizeof(buf),
+    int ret = nrf_modem_at_cmd(buf, sizeof(buf), "%s", 
                                "AT+CGDCONT=1,\"IP\",\"internet\"");
     LDBG("CGDCONT set ret=%d resp=%s\n", ret, buf);
 
-    ret = nrf_modem_at_cmd(buf, sizeof(buf),
+    ret = nrf_modem_at_cmd(buf, sizeof(buf), "%s", 
                            "AT+CGDCONT?");
     LDBG("CGDCONT query ret=%d resp=%s\n", ret, buf);
 }
 
-static void stcp_modem_force_attach(void)
-{
-    char buf[128];
-
-    dump_sim_status_of_command("AT+CGATT=1");
-    dump_sim_status_of_command("AT+CGATT?");
-}
-
-
+#if 0
 static void dump_lte_monitor(void)
 {
     char buf[256] = {0};
 
-    int rc = nrf_modem_at_cmd(buf, sizeof(buf), "AT%%XMONITOR");
+    int rc = nrf_modem_at_cmd(buf, sizeof(buf), "%s", "AT%%XMONITOR");
 
     if (rc) {
         LERR("[Transport Init] XMONITOR failed rc=%d", rc);
@@ -534,6 +525,7 @@ static void dump_lte_monitor(void)
 
     LDBGBIG("[Transport Init] MODEM RAW: %s", buf);
 }
+#endif
 
 int stcp_transport_init(void)
 {
@@ -712,7 +704,7 @@ int stcp_transport_send_iovec(struct stcp_ctx *ctx, const struct msghdr *message
     if (stcp_config_aes_bypass_enabled()) {
         LDBG("Bypassing AES...");
     }
-    ret = rust_exported_session_sendmsg_iovec(ctx->session, &ctx->ks, message, 0, 1);
+    ret = rust_exported_session_sendmsg_iovec(ctx->session, &ctx->ks, (void *)message, 0, 1);
     LDBG("Called send message, rc: %d", ret);
     return ret;
 }

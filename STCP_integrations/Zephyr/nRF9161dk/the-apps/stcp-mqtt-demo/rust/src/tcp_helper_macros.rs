@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use core::panic::Location;
 
 #[macro_export]
 macro_rules! stcp_tcp_op {

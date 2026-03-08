@@ -1,7 +1,6 @@
 // debug.rs
 
 #![allow(dead_code)]
-use core::panic::Location;
 
 use core::ffi::c_int;
 use core::fmt::{self};
@@ -193,7 +192,6 @@ pub fn stcp_log_str(level: LogLevel, msg: &str) {
 
 /// Yleislogi, ilman sessiota / sockia
 #[macro_export]
-#[track_caller]
 macro_rules! stcp_log {
     ($level:expr, $($arg:tt)*) => {{
         //let loc = Location::caller();

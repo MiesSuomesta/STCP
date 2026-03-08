@@ -17,11 +17,10 @@ LOG_MODULE_REGISTER(stcp_low_level_send_operations, LOG_LEVEL_INF);
 
 #define TCP_DEBUG 1
 
-ssize_t stcp_tcp_send_iovec(struct kernel_socket *sock,
-                            void *msgVP,
-                            int flags)
+intptr_t stcp_tcp_send_iovec(void *sock_vp, void *msg_vp, int flags)
 {
-    struct msghdr *msg = msgVP;
+    struct kernel_socket *sock = sock_vp;
+    struct msghdr *msg = msg_vp;
 
     if (!sock) {
         LDBG("Socket not set");
@@ -116,24 +115,12 @@ ssize_t stcp_tcp_send_iovec(struct kernel_socket *sock,
     return total;
 }
 
-static ssize_t _the_stcp_tcp_send(int fd, int8_t *buf, size_t len, int flags)
+static ssize_t _the_stcp_tcp_send(int fd, const int8_t *buf, size_t len, int flags)
 {
     if (fd < 0) {
         LDBG("Fail: bad FD");
         return -EBADFD;
     }
-    
-/*
-    int perr = stcp_get_pending_fd_error(fd);
-    if (perr != 0) {
-        LERR("Used FD has error pending! (%d)", perr);
-        return -ENOTCONN;
-    } else {
-        LDBG("Error check: FD %d has no error pending...", fd);
-    }
-*/
-    //Lukko pidetään C puolella kiinni
-    ssize_t sent;
 
     if (!buf) {
         LDBG("No buff %p", buf);
@@ -191,9 +178,9 @@ static ssize_t _the_stcp_tcp_send(int fd, int8_t *buf, size_t len, int flags)
     return total;    // >=0: tavujen määrä, <0: -errno
 }
 
-intptr_t stcp_tcp_send(struct kernel_socket *sock, const uint8_t *buf, uintptr_t len)
+intptr_t stcp_tcp_send(void *sock_vp, const uint8_t *buf, uintptr_t len)
 {
-    
+    struct kernel_socket *sock = sock_vp;
     if (!sock) {
         LERR("stcp_tcp_send: sock == NULL");
         return -EINVAL;
@@ -210,6 +197,12 @@ intptr_t stcp_tcp_send(struct kernel_socket *sock, const uint8_t *buf, uintptr_t
         LERR("stcp_tcp_send: buf == NULL");
         return -EINVAL;
     }
+
+    if (len < 1) {
+        LERR("stcp_tcp_send: len < 1");
+        return -EINVAL;
+    }
+
 
     if (sock->fd < 0) {
         LERR("stcp_tcp_send: No FD!");

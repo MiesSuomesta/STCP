@@ -2,10 +2,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <sys/socket.h>
+#include <zephyr/net/socket.h>
 #include <stdbool.h>
 #include <errno.h>
-#include <zephyr/net/socket.h>
 
 #include "stcp_generated.h"
 

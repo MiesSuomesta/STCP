@@ -51,7 +51,13 @@ int     stcp_api_connect(struct stcp_api *api,
                          const struct zsock_addrinfo *addr,
                          socklen_t addrlen);
 
+
+int stcp_api_connection_reset(struct stcp_api *api);
+
+
 /* IO */
+int stcp_api_set_io_timeout(struct stcp_api *api, int timeout_ms);
+
 ssize_t stcp_api_send(struct stcp_api *api,
                        const void *buf,
                        size_t len,

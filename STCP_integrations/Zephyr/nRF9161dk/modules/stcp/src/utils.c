@@ -43,15 +43,33 @@
 #include "stcp/stcp_transport.h"
 #include "stcp/utils.h"
 
-LOG_MODULE_REGISTER(stcp_utils, LOG_LEVEL_INF);
 
 #include <zephyr/net/net_ip.h>
+
+void dump_socket_error(int fd)
+{
+    int err = 0;
+    socklen_t len = sizeof(err);
+
+    int rc = zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
+
+    if (rc < 0) {
+        LERR("getsockopt(SO_ERROR) failed errno=%d", errno);
+        return;
+    }
+
+    if (err == 0) {
+        LINF("SO_ERROR: no pending error");
+    } else {
+        LERR("SO_ERROR: %d (%s)", err, strerror(err));
+    }
+}
 
 void stcp_util_log_sockaddr(char *tag, const struct zsock_addrinfo *ai)
 {
 
     if (!ai) {
-        LOG_INF("addrinfo: NULL");
+        LINF("addrinfo: NULL");
         return;
     }
 
@@ -111,7 +129,7 @@ int stcp_util_hostname_resolver(const char *host, const char *port, struct zsock
 
     err = zsock_getaddrinfo(host, port, &hints, &res);
     if (err < 0) {
-        LOG_ERR("getaddrinfo failed: %d", err);
+        LERR("getaddrinfo failed: %d", err);
         return -ENOBUFS;
     }
 
@@ -132,7 +150,7 @@ struct addrinfo *resolve_to_connect(const char *host, const char *port) {
     LDBG("DNS lookup: %s:%s", host, port);
     err = zsock_getaddrinfo(host, port, &hints, &res);
     if (err < 0) {
-        LOG_ERR("getaddrinfo failed: %d", err);
+        LERR("getaddrinfo failed: %d", err);
         return NULL;
     }
     return res;
@@ -144,8 +162,8 @@ int stcp_tcp_resolve_and_make_socket(const char *host, const char *port) {
 	int fd = zsock_socket(res->ai_family, res->ai_socktype, IPPROTO_TCP);
     zsock_freeaddrinfo(res);
     if (fd < 0) {
-        LOG_ERR("TCP socket rc: %d", fd);
-        LOG_ERR("TCP socket failed: %d", errno);
+        LERR("TCP socket rc: %d", fd);
+        LERR("TCP socket failed: %d", errno);
         return -errno;
     }
     return fd;
@@ -278,7 +296,7 @@ int stcp_is_file_desc_alive(int fd) {
     } else if (ret < 0 && errno == EAGAIN) {
         return 1;
     }
-    return -1;
+    return -errno;
 }
 
 int stcp_get_pending_fd_error(int fd)

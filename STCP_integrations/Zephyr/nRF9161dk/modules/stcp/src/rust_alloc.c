@@ -1,6 +1,5 @@
 #include <zephyr/kernel.h>
 #include "stcp/debug.h"
-LOG_MODULE_REGISTER(stcp_rust_memory_allocations, LOG_LEVEL_INF);
 
 /*
  * Yksinkertaiset wrapperit Rustin globaalille allokaattorille.

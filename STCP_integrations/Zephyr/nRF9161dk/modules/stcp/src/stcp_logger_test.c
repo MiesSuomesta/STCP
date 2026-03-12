@@ -3,7 +3,6 @@
 #include <zephyr/logging/log.h>
 #include <string.h>
 
-LOG_MODULE_REGISTER(paxlogd_test, LOG_LEVEL_INF);
 
 #define TEST_HOST "192.168.1.20"
 #define TEST_PORT 7755
@@ -11,11 +10,11 @@ LOG_MODULE_REGISTER(paxlogd_test, LOG_LEVEL_INF);
 static void paxlogd_test_thread(void)
 {
     while (1) {
-        LOG_INF("paxlogd test: connecting...");
+        LINF("paxlogd test: connecting...");
 
         int fd = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (fd < 0) {
-            LOG_ERR("socket() failed: %d", errno);
+            LERR("socket() failed: %d", errno);
             k_sleep(K_SECONDS(5));
             continue;
         }
@@ -26,14 +25,14 @@ static void paxlogd_test_thread(void)
         };
 
         if (zsock_inet_pton(AF_INET, TEST_HOST, &addr.sin_addr) != 1) {
-            LOG_ERR("inet_pton failed");
+            LERR("inet_pton failed");
 // pois             zsock_close(fd);
             k_sleep(K_SECONDS(5));
             continue;
         }
 
         if (zsock_connect(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-            LOG_ERR("connect() failed: %d", errno);
+            LERR("connect() failed: %d", errno);
 // pois             zsock_close(fd);
             k_sleep(K_SECONDS(5));
             continue;
@@ -43,9 +42,9 @@ static void paxlogd_test_thread(void)
         ssize_t rc = zsock_send(fd, msg, strlen(msg), 0);
 
         if (rc < 0) {
-            LOG_ERR("send() failed: %d", errno);
+            LERR("send() failed: %d", errno);
         } else {
-            LOG_INF("sent %d bytes", rc);
+            LINF("sent %d bytes", rc);
         }
 
 // pois         zsock_close(fd);

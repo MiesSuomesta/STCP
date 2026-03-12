@@ -1,7 +1,6 @@
 // debug_bridge.c
 #include <zephyr/logging/log.h>
 #include "stcp/debug.h"
-LOG_MODULE_REGISTER(rust_log, LOG_LEVEL_DBG);
 
 #include <zephyr/kernel.h>
 
@@ -49,23 +48,23 @@ void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
     // Yksinkertainen printk – ei mitään ihmeellistä
     switch(level) {
         case 1:
-            LOG_ERR("RUST[%s]: %s", lvl[level],  tmp);
+            LERR("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         case 2:
-            LOG_WRN("RUST[%s]: %s", lvl[level],  tmp);
+            LWRN("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         case 3:
-            LOG_INF("RUST[%s]: %s", lvl[level],  tmp);
+            LINF("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         case 4:
-            LOG_DBG("RUST[%s]: %s", lvl[level],  tmp);
+            LDBG("RUST[%s]: %s", lvl[level],  tmp);
             break;
 
         default:
-            LOG_INF("RUST[%s]: %s", lvl[STCP_DEFAULT_RUST_LOG_LEVEL],  tmp);
+            LINF("RUST[%s]: %s", lvl[STCP_DEFAULT_RUST_LOG_LEVEL],  tmp);
             break;
     }
 

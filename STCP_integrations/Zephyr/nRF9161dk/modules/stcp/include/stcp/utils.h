@@ -33,6 +33,8 @@
 
 #define STCP_HEAP_DEBUG         0
 
+//void sleep_with_jitter(uint32_t base_ms, uint32_t jitter_ms);
+
 void stcp_util_log_sockaddr(char *tag, const struct zsock_addrinfo *ai);
 
 int stcp_util_hostname_resolver(const char *host, const char *port, struct zsock_addrinfo **result);
@@ -60,4 +62,6 @@ int stcp_tcp_timeout_set_to_fd(int fd, int timeout_ms);
 
 int stcp_is_file_desc_alive(int fd);
 int stcp_get_pending_fd_error(int fd);
+
+void dump_socket_error(int fd);
 

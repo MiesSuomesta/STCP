@@ -30,7 +30,6 @@
 
 #define STCP_HEAP_DEBUG         0
 
-LOG_MODULE_REGISTER(stcp_lte_module, LOG_LEVEL_INF);
 
 int  stcp_rust_alive(void);
 
@@ -38,9 +37,18 @@ int  stcp_rust_alive(void);
 extern struct k_heap _system_heap;
 #endif
 
+extern struct k_sem g_sem_lte_ready;
+extern struct k_sem g_sem_pdn_ready;
+extern struct k_sem g_sem_ip_ready;
+
 int stcp_lte_reset_everythign(struct stcp_ctx *ctx) {
     
     LDBG("Resetting platform called..");
+
+    k_sem_reset(&g_sem_pdn_ready);
+    k_sem_reset(&g_sem_lte_ready);
+    k_sem_reset(&g_sem_ip_ready);
+
     if (stcp_is_context_valid(ctx) > 0) {
         LDBG("Resetting platform ....");
         stcp_full_soft_reset(ctx);
@@ -70,7 +78,6 @@ static void dump_stack(const char *tag)
 {
     size_t unused = 0;
 
-    k_thread_stack_space_get(k_current_get(), &unused);
     LDBG("%s: main unused stack = %u bytes", tag, (unsigned)unused);
 
 #if STCP_HEAP_DEBUG    
@@ -88,6 +95,72 @@ static void dump_stack(const char *tag)
 void stcp_fsm_init_globals(void);
 void dump_sim_status(void);
 void stcp_platform_init_banner(void);
+
+int stcp_lte_do_full_reset(struct stcp_ctx *ctx, int wait)
+{
+    int64_t startTime = k_uptime_get();
+    
+
+    if (ctx) {
+
+        LDBG("Guards up...");
+        atomic_set(&ctx->connection_closed, 1);
+        ctx->handshake_done = 0;
+
+        LDBG("Connection RESET => closing transport...");
+        stcp_transport_close(ctx);
+
+        LDBG("Re-Init context..");
+        stcp_create_init_new_context(ctx);
+
+        LDBG("Doing soft reset of transport.");
+        stcp_transport_soft_reset(ctx);
+    }
+
+    LDBG("Initialising globals....");
+    stcp_fsm_init_globals();
+
+    LDBG("Initialising platform....");
+    stcp_platform_init(NULL);
+
+    LDBG("Initialising transport....");
+    stcp_transport_init();
+
+    int64_t endTime = k_uptime_get();
+    int64_t spent = endTime - startTime;
+
+    LDBGBIG("Full reset to wait for READY, done in %llu ms", spent);
+
+    if (wait > 0)
+    {
+        LDBG("Waiting until PDN state reached....");
+        int err = stcp_pdn_wait_until_active_or_secs_passed(wait);
+        if (err<0) {
+            LWRN("PDN not activated within %d seconds", wait);
+            return err;
+        } else {
+            LINF("PDN Activated!");
+        }
+
+        LDBG("Waiting for network up ... ");
+        err = stcp_transport_wait_for_network_up(wait);
+        if (err<0) {
+            LWRN("Network not up within %d seconds", wait);
+            return err;
+        } else {
+            LINF("IP Network is UP!");
+        }
+
+    }
+
+    endTime = k_uptime_get();
+    spent = endTime - startTime;
+
+    LDBGBIG("Full reset to STCP READY, done in %llu ms", spent);
+
+    return 0;
+}
+
 
 int stcp_library_init()
 {
@@ -107,36 +180,17 @@ int stcp_library_init()
     // Init?
     stcp_module_rust_enter();
 
-    LDBG("Initialising globals....");
-    stcp_fsm_init_globals();
+    LDBG("Doing reset....");
+    stcp_lte_do_full_reset(NULL, wait_timeout_sec);
 
-    LDBG("Initialising platform....");
-    stcp_platform_init(NULL);
-
-    LDBG("Initialising transport....");
-    stcp_transport_init();
-
-    LDBG("Waiting until PDN state reached....");
-    int err = stcp_pdn_wait_until_active_or_secs_passed(wait_timeout_sec);
-    if (err<0) {
-        LDBG("Got nothing!");
-        return err;
-    }
-
-    LDBG("Waiting for network up ... ");
-    err = stcp_transport_wait_for_network_up(wait_timeout_sec);
-
+    
     int64_t endTime = k_uptime_get();
     int64_t spent = endTime - startTime;
 
-    if (err < 0) {
-        LWRNBIG("Network NOT ready within %d seconds!", wait_timeout_sec);
-    } else {
-        LDBGBIG("Network UP => STCP READY, Init done in %llu ms", spent);
-    }
+    LDBGBIG("INIT => STCP READY, done in %llu ms", spent);
 
     dump_sim_status();
-    return err;
+    return 0;
     
 }
 

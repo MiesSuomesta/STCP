@@ -1,6 +1,4 @@
-#include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(net_mqtt_sock_statistics, CONFIG_MQTT_LOG_LEVEL);
 
 #include <errno.h>
 #include <zephyr/net/socket.h>

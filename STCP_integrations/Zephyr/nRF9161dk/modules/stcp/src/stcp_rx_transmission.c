@@ -1,19 +1,22 @@
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(stcp_rx_transmission, LOG_LEVEL_INF);
 
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/socket_offload.h>
 #include <zephyr/sys/fdtable.h>
 #include <zephyr/sys/util.h>
-
 #include <errno.h>
 
 #include <stcp/debug.h>
 #include <stcp/stcp_struct.h>
+#include <stcp/stcp_transport.h>
 #include <stcp/fsm.h>
 #include <stcp/stcp_rust_exported_functions.h>
+
+#define STCP_TIMEOUT_MAX_LOOPS 5
+#define STCP_FRAME_HEADER_MAGIC 0x53544350 // STCP
+
 
 void stcp_context_recv_stream_init(struct stcp_ctx *ctx)
 {
@@ -40,7 +43,7 @@ static int recv_stream_fill(struct stcp_ctx *ctx)
     if (!ctx)
         return -EINVAL;
 
-    if (!ctx->ks.fd)
+    if (ctx->ks.fd < 0)
         return -EBADF;
 
     /* Jos bufferi on täynnä mutta alkuun on vapautunut tilaa → siirrä */
@@ -63,6 +66,48 @@ static int recv_stream_fill(struct stcp_ctx *ctx)
         LDBG("RX stream buffer full");
         return -ENOBUFS;
     }
+    
+    int ret = 1;
+    int tries = 10;
+    int keep_polling = 1;
+    while (keep_polling) {
+        int fd = ctx->ks.fd;
+
+        ret = stcp_poll_fd_changes(fd, 500, ZSOCK_POLLIN);
+
+        if (ret == 0) {
+            ctx->poll_timeouts++;
+            LDBG("Timeout (fd: %d, timeouts: %d)", fd, ctx->poll_timeouts);
+            if (ctx->poll_timeouts > STCP_TIMEOUT_MAX_LOOPS) {
+                ctx->poll_timeouts = 0;
+                LDBG("Exess timeouts, returning EAGAIN");
+                return -EAGAIN;
+            }
+            continue;     // timeout
+        }
+
+        if (ret < 0) {
+
+            if (ret == -ECONNRESET) {
+                LINF("Connection reset by peer.");
+            }
+
+            LERR("Poll error: %d", ret);
+
+            atomic_set(&ctx->connection_closed, 1);
+            break;   // 🔴 tärkein muutos
+        } else {
+            LDBG("Resetting poll timeouts...");
+            ctx->poll_timeouts = 0;
+        }
+
+        keep_polling = 0; 
+    }
+
+    if (ret < 0) {
+        LERR("Poll while exit with returned: %d / %d", ret, errno);
+        return ret;
+    }
 
     ssize_t r = zsock_recv(
         ctx->ks.fd,
@@ -72,6 +117,17 @@ static int recv_stream_fill(struct stcp_ctx *ctx)
     );
 
     if (r < 0) {
+
+        // Tärkeitä, älä koske!
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return -EAGAIN;
+        }
+
+        if (errno == ETIMEDOUT) {
+            return -EAGAIN;
+        }
+
+        // NYT vasta errno, jos jotain muuta
         return -errno;
     }
 
@@ -98,10 +154,24 @@ static int recv_stream_read(
     while (copied < wanted) {
 
         if (s->pos == s->len) {
-
             int r = recv_stream_fill(ctx);
-            if (r < 0)
+            LERR("RECV: recv_stream_fill ret: %d", r);
+            
+            if (r < 0) {
+                
+                if (r == -ETIMEDOUT) {
+                    LDBG("Timeout. returnign -EAGAIN...");
+                    return -EAGAIN;    
+                }
+
+                if (r == -EAGAIN) {
+                    LDBG("Got EAGAIN...");
+                    return -EAGAIN;
+                }
+
+                LDBG("RECV: fill returned %d (errno: %d)", r, errno);
                 return r;
+            }
         }
 
         size_t available = s->len - s->pos;
@@ -129,9 +199,17 @@ int stcp_recv_frame(struct stcp_ctx *ctx)
 
     int r;
 
+    if (atomic_get(&ctx->connection_closed)) {
+        LDBGBIG("Connection marked as closed => returning -ECONNRESET");
+        return -ECONNRESET;
+    }
+
     r = recv_stream_read(ctx, header, 16);
-    if (r < 0)
+    LERR("RECV: recv_stream_read header ret: %d", r);
+    if (r < 0) {
+        LDBG("RECV: stream read returned %d (errno: %d)", r, errno);
         return r;
+    }
 
     uint32_t version =
         (header[0] << 24) |
@@ -160,15 +238,25 @@ int stcp_recv_frame(struct stcp_ctx *ctx)
     LDBG("[Ctx %p] Read frame header: VER: %u, Magic:%u, Type:%u, Len: %u",
         ctx, version, magic, type, len);
 
+    if (magic != STCP_FRAME_HEADER_MAGIC) {
+        LERR("STCP desync detected: magic %08x", magic);
+        /* stream out-of-sync → reset parser */
+        stcp_context_recv_stream_init(ctx);
+        return -EPROTO;
+    }
+
+
     if (len > STCP_RECV_FRAME_BUF_SIZE) {
         LDBG("Frame too big: %u", len);
         return -EMSGSIZE;
     }
 
     r = recv_stream_read(ctx, ctx->rx_frame, len);
-    if (r < 0)
+    LERR("RECV: recv_stream_read frame ret: %d", r);
+    if (r < 0) {
+        LDBG("RECV: stream read returned %d (errno: %d)", r, errno);
         return r;
-
+    }
     ctx->rx_frame_len = len;
 
     LDBG("STCP frame received: %u bytes", len);

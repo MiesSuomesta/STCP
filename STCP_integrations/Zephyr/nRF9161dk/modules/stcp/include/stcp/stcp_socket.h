@@ -32,4 +32,6 @@ int stcp_bind(struct stcp_ctx *ctx,
               socklen_t addrlen);
 int stcp_socket_poll(struct zsock_pollfd *fds, int nfds, int timeout);
 int stcp_set_non_bloking_to(struct stcp_ctx *ctx, int val);
+void stcp_do_full_reset(struct stcp_ctx *ctx);
 #endif
+

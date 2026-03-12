@@ -6,7 +6,6 @@
 #include "uECC.h"
 #include "stcp/debug.h"
 #include "stcp/stcp_kernel_crypto.h"
-LOG_MODULE_REGISTER(stcp_kernel_crypto_module, LOG_LEVEL_INF);
 
 /* uECC RNG hook Zephyrille */
 static int zephyr_rng(uint8_t *dest, unsigned size)
@@ -19,7 +18,7 @@ int stcp_crypto_generate_keypair(struct stcp_crypto_pubkey *out_pub,
                                  struct stcp_crypto_secret *out_priv)
 {
     if (!out_pub || !out_priv) {
-        return -1;
+        return -errno;
     }
 
     LDBG("sizeof pubkey %u\n", sizeof(struct stcp_crypto_pubkey));
@@ -63,7 +62,7 @@ int stcp_crypto_compute_shared(const struct stcp_crypto_secret *priv,
                                struct stcp_crypto_secret *out_shared)
 {
     if (!priv || !peer_pub || !out_shared) {
-        return -1;
+        return -errno;
     }
 
     const struct uECC_Curve_t *curve = uECC_secp256r1();

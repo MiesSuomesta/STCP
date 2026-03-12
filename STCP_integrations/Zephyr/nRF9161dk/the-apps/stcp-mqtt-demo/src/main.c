@@ -1,7 +1,6 @@
 #include <zephyr/random/random.h>
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
-#include <zephyr/logging/log.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -20,21 +19,52 @@
 #include <stcp/settings.h>
 #include <stcp/utils.h>
 #include "stcp_mqtt.h"
+#include <stcp/debug.h>
 
-LOG_MODULE_REGISTER(stcp_mqtt_demo, LOG_LEVEL_INF);
+#include "mqtt_demo_utils.h"
+
 
 
 extern int mqtt_connected;
 extern struct mqtt_client client;
+K_MUTEX_DEFINE(client_lock);
 
-int stpc_mqtt_subscribe(struct mqtt_client *client)
+void sleep_ms_jitter(uint32_t base_ms, uint32_t jitter_ms)
+{
+    uint32_t rnd = sys_rand32_get();
+    uint32_t jitter = rnd % jitter_ms;
+
+    k_sleep(K_MSEC(base_ms + jitter));
+}
+
+
+int stpc_mqtt_subscribe(struct mqtt_client *clientPtr)
 {
     static char *subTo = "testi";
 
-    LDBG("Client API: %p", client->transport.stcp.stcp_api_instance);
-    LDBG("Client FD: %d", client->transport.tcp.sock);
+    MDBG("Subscribing .... waiting for CONNACK event (max %d ms)",
+        STCP_MQTT_WAIT_CONNACK_EVENT_FOR_MSEC);
 
-    LDBG("Subscribing to %s", subTo);
+    int ACK = stcp_mqtt_wait_for_connak_event(STCP_MQTT_WAIT_CONNACK_EVENT_FOR_MSEC);
+
+    // 0 == Success
+    if (ACK) {
+        MWRN("Got no ACK event in %d ms...", STCP_MQTT_WAIT_CONNACK_EVENT_FOR_MSEC);
+        return -EAGAIN;
+    }
+
+    if (!mqtt_connected) {
+        MDBG("Not connected => NOT subbing...");
+        return -EAGAIN;
+    }
+
+    MDBGBIG("Subscribing starts...");
+
+    MDBG("Client API: %p", clientPtr->transport.stcp.stcp_api_instance);
+    MDBG("Client FD: %d", clientPtr->transport.stcp.sock);
+
+    MDBG("Subscribing to %s", subTo);
+
     struct mqtt_topic subscribe_topic = {
         .topic = {
             .utf8 = subTo,
@@ -48,12 +78,19 @@ int stpc_mqtt_subscribe(struct mqtt_client *client)
         .list_count = 1,
         .message_id = 1
     };
-    LDBG("Subbing ....");
-    return mqtt_subscribe(client, &subscription_list);
+
+        
+    CLIENT_LOCK(&client_lock);
+    int ret = mqtt_subscribe(clientPtr, &subscription_list);
+    CLIENT_UNLOCK(&client_lock);
+
+    MDBG("mqtt_subscribe ret: %d", ret);
+    return ret;
+
 }
 
 
-static void make_timestamp(char *out, size_t max_len)
+void make_timestamp(char *out, size_t max_len)
 {
     int64_t now_ms = k_uptime_get();
 
@@ -75,41 +112,16 @@ static void make_timestamp(char *out, size_t max_len)
 int main(void)
 {
     struct stcp_api *theAPI = NULL;
-
+    
     int rc = stcp_library_init();
-    LINF("STCP library init: %d, errno: %d .. waiting it to complete..\n", rc, errno);
+    MINF("STCP READY!");
 
-    // minute waiting max ..
-    rc = mqtt_connect_via_stcp("lja.fi", "7777", &theAPI);
-
-    LINF("STCP + MQTT READY!");
+    MINF("FSM starting....");
+    stpc_mqtt_init_fsm_thread();
+    MINF("FSM started....");
 
     while (1) {
-
-        int r = mqtt_server_stcp_recv_loop(theAPI);
-
-        if (r < 0) {
-            if (r == -EAGAIN) {
-                k_sleep(K_MSEC(5));
-                continue;
-            }
-            LOG_ERR("STCP recv loop failed rc=%d", r);
-            break;
-        }
-
-        if (mqtt_connected) {
-
-            char timestamp[128];
-            make_timestamp(timestamp, sizeof(timestamp));
-
-            mqtt_publish_message(
-                "testi",
-                (uint8_t *)timestamp,
-                strlen(timestamp)
-            );
-        }
-
-        k_sleep(K_MSEC(100));
+        SLEEP_SEC(600);
     }
 
     return 0;

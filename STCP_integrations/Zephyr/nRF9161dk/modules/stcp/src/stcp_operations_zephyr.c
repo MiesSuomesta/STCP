@@ -8,7 +8,6 @@
  */
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(stcp_operations, LOG_LEVEL_INF);
 
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
@@ -35,9 +34,6 @@ LOG_MODULE_REGISTER(stcp_operations, LOG_LEVEL_INF);
 /* -------------------------------------------------------------------------- */
 int stcp_handshake_for_context(struct stcp_ctx *ctx)
 {
-    if (stcp_is_context_valid(ctx) < 0) {
-        return -ENOTCONN;
-    }
 
     LDBG("Starting handshake for LTE %d / %p", ctx->ks.fd, ctx);
 
@@ -69,18 +65,72 @@ int stcp_handshake_for_context(struct stcp_ctx *ctx)
 int stcp_net_close_fd(int *fd)
 {
     if (*fd < 0) {
-        LOG_WRN("close skipped, fd already invalid");
+        LWRN("close skipped, fd already invalid");
         return 0;
     }
 
     int old = *fd;
     *fd = -1; 
 
+	int linger = 0;
+	LDBG("Setting linger OFF for fd: %d", old);
+	zsock_setsockopt(old, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+	
 	int rc = zsock_close(old);
-    LOG_INF("close(fd=%d) rc=%d but returning 0", old, rc);
+    LINF("close(fd=%d) rc=%d but returning 0", old, rc);
 
     return 0; // Oli rc
 }
+
+int stcp_ctx_ref_count_get(struct stcp_ctx *ctx)
+{
+	if (!ctx) {
+		return;
+	}
+
+	return (int)atomic_inc(&ctx->refcnt);
+}
+
+int stcp_ctx_ref_count_is_what(struct stcp_ctx *ctx)
+{
+	if (!ctx) {
+		return;
+	}
+	return (int)atomic_get(&ctx->refcnt);
+}
+
+int stcp_ctx_ref_count_put(struct stcp_ctx *ctx)
+{
+	if (!ctx) {
+		return;
+	}
+
+    if ( atomic_dec(&ctx->refcnt) == 1 ) {
+		LDBG("Last reference of ctx: %p", ctx);
+		return 1;
+	}
+	return 0;
+}
+
+void stcp_create_init_new_context(struct stcp_ctx *ctx) {
+	if (!ctx) {
+		LERR("No context");
+		return;
+ 	}
+
+	ctx->magic = STCP_CTX_MAGIC_ALIVE;
+	ctx->ks.kctx = ctx;
+	ctx->handshake_done = 0;
+	ctx->poll_timeouts = 0;
+	atomic_set(&ctx->closing, 0);
+	atomic_set(&ctx->refcnt, 1);
+	atomic_set(&ctx->connection_closed, 0);
+	atomic_set(&ctx->destroyed, 0);
+	k_mutex_init(&ctx->lock);
+	worker_context_init(ctx);
+	stcp_context_recv_stream_init(ctx);
+}
+
 
 struct stcp_ctx *stcp_create_new_context(int under) {
 
@@ -96,18 +146,12 @@ struct stcp_ctx *stcp_create_new_context(int under) {
 	LDBG("Created CTX: %p / %d", ctx, under);
 
 	ctx->ks.fd = under;
-	ctx->ks.kctx = ctx;
-	k_mutex_init(&ctx->lock);
-//	worker_context_init(ctx);
-
-	ctx->handshake_done = 0;
+	stcp_create_init_new_context(ctx);
 
 	LDBG("STCP: Settings via fd: %d / %p (KS.FD:%d)", under, ctx, ctx->ks.fd);
 	LDBG("Creating STCP session for %p", ctx);
 	int ret = rust_exported_session_create(&ctx->session, &ctx->ks);
-
-	LDBG("Created STCP session for %p: %p", 
-		ctx, ctx->session);
+	LDBGBIG("CREATION: Created STCP session for %p: %p", ctx, ctx->session);
 
 	if (ret < 0) {
 		LDBG("Error while creating STCP session: %d", ret);

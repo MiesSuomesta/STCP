@@ -46,13 +46,16 @@ struct stcp_fsm {
 };
 
 // 2KB 
-#define STCP_RECV_STREAM_BUF_SIZE (2*1024)
+#define STCP_RECV_STREAM_BUF_SIZE (512)
 
 // 2KB 
-#define STCP_RECV_FRAME_BUF_SIZE (2*1024)
+#define STCP_RECV_FRAME_BUF_SIZE (512)
 
 #define STCP_MAX_HOSTNAME_LEN   128
 #define STCP_MAX_PORT_LEN       8
+
+#define STCP_CTX_MAGIC_ALIVE    0x53544350
+#define STCP_CTX_MAGIC_POISON   0xDEADBEEF
 
 struct stcp_recv_stream {
     uint8_t *buffer;
@@ -61,29 +64,36 @@ struct stcp_recv_stream {
 };
 
 struct stcp_ctx {
-	void *session;   // Rust STCP session pointer
-	struct stcp_fsm fsm;
-	char hostname_str[STCP_MAX_HOSTNAME_LEN];
-	char port_str[STCP_MAX_PORT_LEN];
-	int handshake_done;
-	atomic_t closing;
-	atomic_t ctx_state;
+    uint32_t magic; // Conteksti magikki
+
 	struct k_mutex lock;
 	struct k_work cleanup_work;
-	struct k_work connect_work;
+	struct stcp_fsm fsm;
+    atomic_t refcnt;
+    atomic_t closing;
+    atomic_t connection_closed;
+    atomic_t destroyed;
+	int handshake_done;
+    int poll_timeouts;
+    size_t rx_frame_len;
+    size_t rx_payload_pos;
+    size_t rx_payload_len;
+
+    void *session;   // Rust STCP session pointer
+	void *api;       // Api instance this conntext belongs to. 
 	struct kernel_socket ks;
 
+    // Bufferit loppuun ... 
+	char hostname_str[STCP_MAX_HOSTNAME_LEN];
+	char port_str[STCP_MAX_PORT_LEN];
+
     // RX bufferi per konteksti
+    char rx_frame[STCP_RECV_FRAME_BUF_SIZE];
+    // RX STCP frame puskuri
     char rx_stream_buffer[STCP_RECV_STREAM_BUF_SIZE];
     struct stcp_recv_stream rx_stream;
-  
-    // RX STCP frame puskuri
-    char rx_frame[STCP_RECV_FRAME_BUF_SIZE];
-    size_t rx_frame_len;
 
     // Koonti puskuri
     uint8_t rx_payload[STCP_RECV_FRAME_BUF_SIZE];
-    size_t rx_payload_pos;
-    size_t rx_payload_len;
 
 };

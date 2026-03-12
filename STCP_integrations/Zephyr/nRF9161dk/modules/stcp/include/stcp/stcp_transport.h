@@ -26,3 +26,4 @@ int stcp_transport_close(void *vpCtx);
 
 int stcp_transport_wait_for_network_up(int seconds);
 int stcp_transport_wait_for_data_path(int seconds);
+int stcp_lte_issue_at_command(char *cmd);

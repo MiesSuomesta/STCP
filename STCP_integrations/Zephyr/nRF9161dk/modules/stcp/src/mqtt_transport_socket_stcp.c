@@ -9,9 +9,7 @@
  * @brief Internal functions to handle transport over TCP socket.
  */
 
-#include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(net_mqtt_sock_stcp, CONFIG_MQTT_LOG_LEVEL);
 
 #include <errno.h>
 #include <zephyr/net/socket.h>
@@ -182,10 +180,10 @@ int mqtt_client_stcp_read(struct mqtt_client *client,
 
     if (ret == -EAGAIN) {
         g_mqtt_stcp_stats.rx_eagain++;
-        return 0;
+        return -EAGAIN;
     }
 
-    if (ret > 0)
+    if (ret >= 0)
         g_mqtt_stcp_stats.rx_bytes += ret;
 
     return ret;

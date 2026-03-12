@@ -11,6 +11,7 @@ project(stcp_zephyr_app)
 target_sources(app PRIVATE
     src/stcp_mqtt.c
     src/main.c
+    src/stcp_mqtt_fsm.c
 )
 
 target_link_libraries(app PRIVATE

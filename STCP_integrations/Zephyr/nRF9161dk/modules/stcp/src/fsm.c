@@ -8,7 +8,6 @@ void stcp_fsm_start(struct stcp_fsm *fsm);
 void stcp_fsm_notify_lte_ready(struct stcp_fsm *fsm);
 void stcp_fsm_notify_pdn_ready(struct stcp_fsm *fsm);
 
-LOG_MODULE_REGISTER(stcp_fsm, LOG_LEVEL_INF);
 
 #include <stcp/fsm.h>
 #include <stcp/settings.h>
@@ -58,7 +57,7 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
         return;
     }
 
-    LOG_INF("fsm=%p ctx_ptr=%p", fsm, fsm->ctx);
+    LINF("fsm=%p ctx_ptr=%p", fsm, fsm->ctx);
 
     while (!fsm->stop) {
         switch (fsm->state) {

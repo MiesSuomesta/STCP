@@ -27,7 +27,6 @@
 
 #include "stcp/stcp_rust_exported_functions.h"
 
-LOG_MODULE_REGISTER(stcp_tcp_tester, LOG_LEVEL_INF);
 
 int stcp_network_test_dns(const char *host, const char *port,
                                struct sockaddr_in *out)
@@ -112,7 +111,7 @@ int stcp_network_test_network_avalability(const char *host, const char *port) {
     struct sockaddr_in theAddr;
     int err = stcp_network_test_dns(host, port, &theAddr);
     if ( err < 0 ) {
-        return -1;
+        return -errno;
     }
     
 /* EI LTE verkossa toimi

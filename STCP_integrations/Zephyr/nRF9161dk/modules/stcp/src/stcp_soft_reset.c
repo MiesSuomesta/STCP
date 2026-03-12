@@ -14,7 +14,6 @@
 #include <zephyr/logging/log.h>
 #include "stcp/debug.h"
 
-LOG_MODULE_REGISTER(stcp_full_soft_reset, LOG_LEVEL_INF);
 
 void stcp_full_soft_reset(void)
 {

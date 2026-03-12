@@ -10,8 +10,8 @@
 #include <modem/nrf_modem_lib.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(stcp_workers, LOG_LEVEL_INF);
 
+#include <stcp_api.h>
 #include <stcp/debug.h>
 #include <stcp/stcp_alloc.h>
 #include <stcp/stcp_struct.h>
@@ -20,91 +20,202 @@ LOG_MODULE_REGISTER(stcp_workers, LOG_LEVEL_INF);
 #include <stcp/workers.h>
 #include <stcp/stcp_operations_zephyr.h>
 #include <stcp/stcp_rust_exported_functions.h>
+#include <stcp/stcp_api_internal.h>
 
-K_THREAD_STACK_DEFINE(stcp_worker_stack, (4096*2));
-static struct k_work_q stcp_work_q;
+K_THREAD_STACK_DEFINE(stcp_worker_stack, (4096));
+static struct k_work_q stcp_work_cleanup_q;
 
-#define STCP_DO_FREE_FOR_RESOURCES 0
+int rust_session_is_valid(void *sess);
+
+#define CTX_SOCK_LOCK(ctx) \
+    do {                                       \
+        LDBG("Locking %p context...", ctx);    \
+        k_mutex_lock(&(ctx->lock), K_FOREVER); \
+        LDBG("Locked %p context...", ctx);     \
+    } while (0)
+
+#define CTX_SOCK_UNLOCK(ctx) \
+    do {                                       \
+        LDBG("Unlocking %p context...", ctx);  \
+        k_mutex_unlock(&(ctx->lock));          \
+        LDBG("Unlocked %p context...", ctx);   \
+    } while (0)
+
+
+#define STCP_DO_FREE_FOR_RESOURCES      0
+#define CONFIG_STCP_DEBUG_POISON        0
 
 static int stcp_workers_init(const struct device *dev)
 {
     ARG_UNUSED(dev);
-    k_work_queue_start(&stcp_work_q,
+    k_work_queue_start(&stcp_work_cleanup_q,
                        stcp_worker_stack,
                        K_THREAD_STACK_SIZEOF(stcp_worker_stack),
                        5,   // priority
                        NULL);
 
-    LOG_INF("STCP worker queue started");
+    LINF("STCP worker queue started");
     return 0;
 }
 
 SYS_INIT(stcp_workers_init, APPLICATION, 90);
 
 void worker_context_init(struct stcp_ctx *ctx) {
-    LDBG("Init of worker (NOP)");
-//    atomic_set(&ctx->closing, 0);
-//    k_work_init(&ctx->cleanup_work, worker_cleanup_work_handler);
-//    LDBG("Init of worker, DONE");
+    LDBG("Init of worker..");
+    k_work_init(&ctx->cleanup_work, worker_cleanup_work_handler);
+    LDBG("Init of worker, DONE");
 }
 
 void worker_cleanup_work_handler(struct k_work *work)
 {
+    LDBG("STCP cleanup staring running for %p\n", work);
+
     struct stcp_ctx *ctx =
         CONTAINER_OF(work, struct stcp_ctx, cleanup_work);
+
+    LDBG("STCP cleanup context running for %p\n", ctx);
 
     if (!ctx) {
         LDBG("STCP cleanup, no context...");
         return ;
     }
 
-    if (!ctx->handshake_done) {
-        LDBG("STCP cleanup disabled for %p, No HS done", ctx);
-        return ;
+    if (!atomic_cas(&ctx->closing, 0, 1)) {
+        LWRN("Context already in cleaning up....");
+        return;   // joku muu jo siivoaa
     }
 
-    LDBG("STCP cleanup running for %p\n", ctx);
+    if ( ctx->magic == STCP_CTX_MAGIC_POISON ) {
+        LWRN("Context magic is poisoned already");
+        return;
+    }
 
-#if STCP_DO_FREE_FOR_RESOURCES
+    if ( ctx->magic != STCP_CTX_MAGIC_ALIVE ) {
+        LWRN("Context invalid: No magic.. ");
+        return;
+    }
+
+    
     /* 2️⃣ Tuhotaan Rust sessio */
-    if (ctx->session) {
-        rust_exported_session_destroy(ctx->session);
-        ctx->session = NULL;
+    LINF("Cleanup fetching pointers....");
+    CTX_SOCK_LOCK(ctx);
+    LINF("Cleanup fetching pointers in guarded zone");
+        void *session = ctx->session;
+        struct stcp_api *theAPI = ctx->api;
+        int sockFD = ctx->ks.fd;
+
+        ctx->magic = STCP_CTX_MAGIC_POISON;
+        ctx->session = NULL; // Tärkeä
+        ctx->api = NULL;     // Tärkeä
+        ctx->ks.fd = -1;
+    k_yield();
+    LINF("Cleanup fetching leaving guarded zone");
+    CTX_SOCK_UNLOCK(ctx);
+    LINF("Cleanup fetched pointers....");
+
+    bool freed = false;
+
+    LDBG("Cleanup setup: REFCNT: %d, FD: %d, API: %p, CTX: %p, Rust session: %p", 
+           stcp_ctx_ref_count_is_what(ctx), 
+           sockFD, 
+           theAPI, 
+           ctx, 
+           session);
+
+    freed = stcp_ctx_ref_count_put(ctx);
+
+    if (!freed) {
+        LDBG("Not last reference, leaving cleanup");
+        return;
     }
+    k_yield();
+
+
+    int is_rust_session_valid = 0;
+    LDBG("Cleanup: RUST Session? %p", session);
+    if (atomic_cas(&ctx->destroyed, 0, 1)) {
+        is_rust_session_valid = rust_session_is_valid(session);
+        LDBG("Cleanup: RUST Session if set, is valid: %d", is_rust_session_valid);
+        if (is_rust_session_valid) {
+            LDBG("Cleanup: RUST Session %p...", session);
+            rust_exported_session_destroy(session);
+            LDBG("Cleanup: RUST Session cleaned..");
+        }
+    }
+    /* 1️⃣ Sulje socket */
+    LDBG("Cleanup: Scoket? %d", sockFD);
+    if (sockFD >= 0) {
+        LDBG("Cleanup: socket...");
+        stcp_net_close_fd(&sockFD);
+        ctx->ks.fd = -1;
+    }
+    k_yield();
 
 #ifdef CONFIG_STCP_DEBUG_POISON
-    /* 3️⃣ Debug poison */
+    LDBG("Poisoning memory...");
+    /* Debug poison */
     memset(ctx, 0xDE, sizeof(*ctx));
-#endif
-
-    /* 1️⃣ Sulje socket */
-    if (ctx->ks.fd >= 0) {
-        stcp_net_close_fd(&ctx->ks.fd);
+    if (theAPI != NULL) {
+        memset(theAPI, 0xAD, sizeof(*theAPI));
     }
-
-    /* 4️⃣ Vapautus */
-    k_free(ctx);
-    LDBG("STCP cleanup done (Free version)\n");
-#else 
-    /* 1️⃣ Sulje socketit */
-
-    if (ctx->ks.fd >= 0) {
-        stcp_net_close_fd(&ctx->ks.fd);
-    }
-    LDBG("STCP cleanup done (No free version)\n");
 #endif
+ 
+    k_yield();
+    if (freed) {
+        LDBG("Freeing API (%p) & CTX (%p)", theAPI, ctx);
+        if (theAPI) {
+            LDBG("Freeing API...");
+            k_free(theAPI);
+        }
 
-    LDBG("STCP Cleanup: Resetting everything...\n");
-    stcp_lte_reset_everythign(ctx);
+        LDBG("Freeing CTX...");
+        k_free(ctx);
+    }
+    LDBG("Work exit");
+    k_yield();
+}
 
+int worker_is_context_scheduled_for_cleanup(struct stcp_ctx * ctx)
+{
+    LDBG("Context %p marked?", ctx);
+    if (!ctx) {
+        return -errno;
+    }
+    LDBG("Context %p marked for cleanup: %d (refcnt: %d)",
+        ctx, 
+        atomic_get(&ctx->closing),
+        atomic_get(&ctx->refcnt)
+    );
+    return atomic_get(&ctx->closing);
+}
+
+void worker_set_context_scheduled_for_cleanup(struct stcp_ctx * ctx)
+{
+    LDBG("Setting context %p marked for cleanup...", ctx);
+    if (!ctx) {
+        return -errno;
+    }
+    atomic_set(&ctx->closing, 1);
 }
 
 void worker_schedule_cleanup(struct stcp_ctx * ctx) {
     LDBG("Cleanup %p ?", ctx);
+
+    if (!ctx) {
+        return;
+    }
+
+
+    if (worker_is_context_scheduled_for_cleanup(ctx)) {
+        LDBG("Already in closing...");
+        return -EALREADY;
+    }
+
     if (ctx != NULL) {
-        LDBG("Cleanup for %p scheduled..(NOP)", ctx);
-        //atomic_set(&ctx->closing, 1);
+        LDBG("Cleanup for %p scheduled..", ctx);
+        atomic_set(&ctx->closing, 1);
         /* Aikatauluta cleanup */
-        //k_work_submit_to_queue(&stcp_work_q, &ctx->cleanup_work);
+        k_work_submit_to_queue(&stcp_work_cleanup_q, &ctx->cleanup_work);
+        LDBG("Cleanup for %p scheduled!", ctx);
     }
 }

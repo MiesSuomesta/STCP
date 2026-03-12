@@ -19,6 +19,15 @@ use crate::stcp_message::stcp_message_get_header_size_in_bytes;
 
 
 /* ========================= SESSION ========================= */
+pub const SESSION_MAGIC: u32 = 0x53544350;
+pub const STCP_HEADER_SIZE: usize = 16;
+pub const STCP_MAX_FRAME: usize = 1024 * 1024; // 1MB
+
+pub enum RxState {
+    Header,
+    Payload,
+}
+
 
 pub struct ProtoSession {
     pub private_key: StcpEcdhSecret,
@@ -31,6 +40,14 @@ pub struct ProtoSession {
     pub transport: *mut core::ffi::c_void,
     pub rx_buff: PeekRxBuff,
     pub aes: Option<StcpAesCodec>,
+    pub magic: u32,
+    pub rx_state: RxState,
+    pub header_buf: [u8; STCP_HEADER_SIZE],
+    pub header_pos: usize,
+    pub payload_buf: Vec<u8>,
+    pub payload_pos: usize,
+    pub payload_len: usize,
+
 }
 
 impl ProtoSession {
@@ -49,8 +66,19 @@ impl ProtoSession {
             transport: transp,
             rx_buff: PeekRxBuff::new(),
             aes: None,
+            magic: SESSION_MAGIC,
+
+            rx_state: RxState::Header,
+
+            header_buf: [0; STCP_HEADER_SIZE],
+            header_pos: 0,
+
+            payload_buf: Vec::new(),
+            payload_pos: 0,
+            payload_len: 0,
         }
     }
+
 
     pub fn init_aes_with(&mut self, the_sk: StcpEcdhSecret) {
         stcp_dbg!("Initialising with AES....");
@@ -73,8 +101,6 @@ impl ProtoSession {
         self.rx_buff = PeekRxBuff::new();
         0
     }
-
-
 
     pub fn set_is_server(&mut self, v: bool) { self.is_server = v; }
     pub fn get_is_server(&self) -> bool { self.is_server }
@@ -102,6 +128,21 @@ impl ProtoSession {
     pub fn set_transport_to(&mut self, new_transport: *mut c_void) {
         stcp_dbg!("Setting transport to {:?}", new_transport);
         self.transport = new_transport as *mut core::ffi::c_void;
+    }
+
+    pub fn parse_payload_len(header: &[u8]) -> Result<usize, StcpError> {
+
+        let mut len_bytes = [0u8;4];
+        len_bytes.copy_from_slice(&header[0..4]);
+
+        let payload_len = u32::from_be_bytes(len_bytes) as usize;
+
+        if payload_len > STCP_MAX_FRAME {
+            return Err(StcpError::HeaderSizeMismatch);
+        }
+
+        Ok(payload_len)
+
     }
 
     /// Lue tarkka määrä tavua TCP/STCP socketista
@@ -139,39 +180,66 @@ impl ProtoSession {
         hdr: &mut [u8],
         payload: &mut [u8],
     ) -> Result<i32, StcpError> {
+
         stcp_dbg!("recv_header_and_payload: reading header ({} bytes)", hdr.len());
 
-        self.recv_exact(transport, hdr, hdr.len())?;
+        match self.recv_exact(transport, hdr, hdr.len()) {
+
+            Ok(_) => {}
+
+            Err(StcpError::WouldBlock) => {
+                stcp_dbg!("recv_header_and_payload: header WouldBlock");
+                return Ok(0);
+            }
+
+            Err(e) => return Err(e),
+        }
 
         let header = StcpMessageHeader::try_from_bytes_be(hdr)
             .ok_or(StcpError::HeaderSizeMismatch)?;
 
-        let msg_len = header.msg_len;
+        let msg_len = header.msg_len as usize;
+
         stcp_dbg!(
             "recv_header_and_payload: header ok, reading payload ({} bytes)",
             msg_len
         );
 
-        if msg_len > STCP_MAX_TCP_PAYLOAD_SIZE as u32 {
+        if msg_len > STCP_MAX_TCP_PAYLOAD_SIZE {
             stcp_dbg!("recv_header_and_payload: payload too large: {}", msg_len);
             return Err(StcpError::HeaderSizeMismatch);
         }
 
-        self.recv_exact(transport, payload, msg_len as usize)?;
+        match self.recv_exact(transport, payload, msg_len) {
 
-        let data_in: Vec<u8> = payload[..msg_len as usize].to_vec();
+            Ok(_) => {}
+
+            Err(StcpError::WouldBlock) => {
+                stcp_dbg!("recv_header_and_payload: payload WouldBlock");
+                return Ok(0);
+            }
+
+            Err(e) => return Err(e),
+        }
+
+        let data_in: Vec<u8> = payload[..msg_len].to_vec();
         stcp_dump!("DataIN", &data_in);
 
         let plain = if self.in_aes_mode() {
+
             self.aes
                 .as_ref()
                 .and_then(|aes| aes.decrypt(&data_in))
                 .ok_or(StcpError::ProtoError)?
+
         } else {
+
             data_in
+
         };
 
         let dl = plain.len();
+
         payload[..dl].copy_from_slice(&plain[..dl]);
 
         stcp_dbg!("DECRYPTED: {} bytes", dl);
@@ -241,3 +309,4 @@ impl ProtoSession {
         msg
     }
 }
+

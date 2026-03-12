@@ -20,7 +20,6 @@
 
 
 
-LOG_MODULE_DECLARE(stcp_lte_module);
 
 #ifndef STCP_VERSION_STR
 #define STCP_VERSION_STR "unknown"
@@ -49,32 +48,32 @@ extern void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len);
 int stcp_platform_init_banner(void)
 {
 
-    LOG_INF(".----<[ STCP by Paxsudos IT (c) 2026 ]>------------------------------------------------------------>");
-    LOG_INF("|  ✅ STCP Initialised (Version %s), Protocol number %d", STCP_VERSION_STR, IPPROTO_STCP);
-    LOG_INF("|  🕓 Build at %s (%s)", STCP_BUILD_DATE, STCP_GIT_SHA);
-    LOG_INF("|");
-    LOG_INF("| Configuration:");
-    LOG_INF("|   * The APN: %s", CONFIG_STCP_LTE_APN_NAME);
+    LINF(".----<[ STCP by Paxsudos IT (c) 2026 ]>------------------------------------------------------------>");
+    LINF("|  ✅ STCP Initialised (Version %s), Protocol number %d", STCP_VERSION_STR, IPPROTO_STCP);
+    LINF("|  🕓 Build at %s (%s)", STCP_BUILD_DATE, STCP_GIT_SHA);
+    LINF("|");
+    LINF("| Configuration:");
+    LINF("|   * The APN: %s", CONFIG_STCP_LTE_APN_NAME);
 
 #if CONFIG_MQTT_LIB_STCP
-    LOG_INF("|   * STCP MQTT transport enabled.");
+    LINF("|   * STCP MQTT transport enabled.");
 #else
-    LOG_INF("|   * STCP MQTT transport disabled.");
+    LINF("|   * STCP MQTT transport disabled.");
 #endif
 
 #if CONFIG_STCP_DEBUG
-    LOG_INF("|   * STCP DEBUG enabled.");
+    LINF("|   * STCP DEBUG enabled.");
 #else
-    LOG_INF("|   * STCP DEBUG disabled.");
+    LINF("|   * STCP DEBUG disabled.");
 #endif
 
 #if CONFIG_STCP_AES_BYPASS
-    LOG_INF("|   * AES BYPASS ENABLED!");
+    LINF("|   * AES BYPASS ENABLED!");
 #else
-    LOG_INF("|   * STCP AES bypass disabled.");
+    LINF("|   * STCP AES bypass disabled.");
 #endif
 
-    LOG_INF("'----------------------------------------------------------------------'");
+    LINF("'----------------------------------------------------------------------'");
 
     char *pMsgA = "Rust log test A!, Should be visible...";
     stcp_rust_log(1, pMsgA, strlen(pMsgA));
@@ -127,7 +126,7 @@ int stcp_platform_wait_until_platform_ready(int seconds) {
     SDBG("LTE: Waiting for platform ready (%d Seconds)...", seconds);
 	int semRet = k_sem_take(&platform_ready_sem, K_SECONDS(seconds));
     if (semRet<0) {
-        LOG_ERR("STCP: Platform not ready within %d seconds, RC: %d",
+        LERR("STCP: Platform not ready within %d seconds, RC: %d",
             seconds, semRet);
     }
     SDBG("LTE: Plaform OK?: %d", semRet);

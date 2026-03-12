@@ -4,6 +4,7 @@ use crate::errorit::*;
 //use core::panic::Location;
 use alloc::boxed::Box;
 use crate::proto_session::ProtoSession;
+use crate::proto_session::SESSION_MAGIC;
 
 use crate::stcp_dbg;
 
@@ -31,14 +32,29 @@ pub extern "C" fn rust_session_create(
     0
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_session_is_valid(sess: *mut c_void) -> i32 {
+
+    if sess.is_null() {
+        stcp_dbg!("No session!");
+        return 0;
+    }
+    
+    let s = unsafe { &mut *(sess as *mut ProtoSession) };
+    let rv = s.magic == SESSION_MAGIC;
+    stcp_dbg!("Is RUST session valid: {}", rv);
+    
+    if rv {
+        return 1;
+    }
+
+    return 0;
+}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_session_destroy(sess: *mut c_void) -> i32 {
 
-    if sess.is_null() {
-        return -EBADF;
-    }
-    stcp_dbg!("RUST Session destroy: {:?}", sess);
+    stcp_dbg!("RUST Session destroy called with: {:?}", sess);
     unsafe { drop(Box::from_raw(sess as *mut ProtoSession)); }
     0
 }

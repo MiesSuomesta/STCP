@@ -14,7 +14,6 @@
 #include <stcp/stcp_tcp_low_level_operations.h>
 #include <stcp/stcp_rx_transmission.h>
 
-LOG_MODULE_REGISTER(stcp_low_level_recv_operations, LOG_LEVEL_INF);
 
 #define STCP_RECV_POLL_TIMEOUT_MS (10*1000)
 
@@ -60,10 +59,9 @@ static ssize_t _the_stcp_tcp_recv(
     errno = 0;
     ssize_t r = zsock_recv(fd, buf, len, flags);
 
-
     if (r > 0) {
         *recv_len = r;
-
+    
 #if TCP_DEBUG
         LDBG(".----<[MESSAGE]>------------------------------------------------------------>\n");
         LDBG("|  ✅ Received data %d bytes, errno: %d ", (int)r, errno);
@@ -72,6 +70,9 @@ static ssize_t _the_stcp_tcp_recv(
 #endif
 
         return r;
+    } else {
+        LDBG("Got error while recving: %d", r);
+        dump_socket_error(fd);
     }
 
     if (r == 0) {

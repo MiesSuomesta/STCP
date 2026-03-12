@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "stcp/debug.h"
-LOG_MODULE_REGISTER(stcp_c_memory_allocations, LOG_LEVEL_INF);
 
 #define STCP_MEM_DEBUG 0 
 

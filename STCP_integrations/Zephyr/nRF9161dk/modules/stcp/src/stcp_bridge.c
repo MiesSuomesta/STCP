@@ -17,11 +17,11 @@
 #include "stcp/utils.h"
 #include "stcp/stcp_operations_zephyr.h"
 
+#include <stcp/workers.h>
 #include <stcp/debug.h>
 
 #include "stcp/stcp_rust_exported_functions.h"
 
-LOG_MODULE_REGISTER(stcp_brige_operations, LOG_LEVEL_INF);
 
 #define STCP_DEBUG_DUMP_ENABLED             1
 #define STCP_DEBUG_DUMP_MAX_DUMP_LENGTH     512
@@ -31,7 +31,7 @@ int stcp_is_file_desc_alive(int fd);
 int stcp_exported_rust_ctx_alive_count(void) 
 {
     // Not enabled
-    return -1;
+    return -errno;
 }
 
 void stcp_hexdump_ascii(const char *prefix, const uint8_t *buf, int len)
@@ -95,6 +95,11 @@ int stcp_is_context_valid(void *vpCtx) {
         LDBG("STCP Context check: ctx ptr ok? %p", ctx);
     }
 
+    if (worker_is_context_scheduled_for_cleanup(ctx)) {
+        LINF("Trying to use after closing set....");
+        return -ENOTRECOVERABLE;
+    }
+
     if (!ctx->session) {
         LDBG("STCP RUST Session null!\n");
         return -EINVAL;
@@ -108,7 +113,7 @@ int stcp_is_context_valid(void *vpCtx) {
     }
     
     // Checking FD's
-/*
+#if 0
     if (ctx->ks.fd >= 0) {
         LDBG("STCP Context check: Transport FD....");
         int rc2 = stcp_is_file_desc_alive(ctx->ks.fd);
@@ -120,7 +125,7 @@ int stcp_is_context_valid(void *vpCtx) {
     } else {
         LDBG("FD for transport is set -1 => NOT checking");
     }
-*/
+#endif
     return 1;
 }
 
@@ -133,7 +138,7 @@ int stcp_is_file_descq_alive(int fd) {
     } else if (ret < 0 && errno == EAGAIN) {
         return 1;
     }
-    return -1;
+    return -errno;
 }
 
 void stcp_sleep_ms(uint32_t ms)
@@ -141,15 +146,28 @@ void stcp_sleep_ms(uint32_t ms)
     k_msleep(ms);
 }
 
+int stcp_tcp_timeout_set_to_fd(int fd, int timeout_ms)
+{
+    int rc;
 
-int stcp_tcp_timeout_set_to_fd(int fd, int timeout_ms) {
-    LDBG("Setting timeout of %d seconds for reading from fd: %d",
-        timeout_ms / 1000, fd);
-    int rc = zsock_setsockopt(fd,
-                            SOL_SOCKET,
-                            SO_RCVTIMEO,
-                            &timeout_ms,
-                            sizeof(timeout_ms));
-    return rc;
+    LDBG("Setting timeout of %d ms for fd: %d", timeout_ms, fd);
+
+    struct timeval timeout = {
+        .tv_sec  = timeout_ms / 1000,
+        .tv_usec = (timeout_ms % 1000) * 1000
+    };
+
+    rc = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    if (rc < 0) {
+        LERR("Failed to set SO_SNDTIMEO: %d", errno);
+        return -errno;
+    }
+
+    rc = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    if (rc < 0) {
+        LERR("Failed to set SO_RCVTIMEO: %d", errno);
+        return -errno;
+    }
+
+    return 0;
 }
-

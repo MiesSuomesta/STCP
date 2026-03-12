@@ -16,3 +16,23 @@ int mqtt_server_stcp_recv_loop(struct stcp_api *api);
 int mqtt_publish_message(const char *topic,
                          const uint8_t *payload,
                          size_t len);
+
+int stcp_mqtt_reconnect(struct mqtt_client *client);
+int stcp_mqtt_run_session(struct stcp_api *api);
+void make_timestamp(char *out, size_t max_len);
+
+#define CLIENT_LOCK(clientArg) \
+    do {                                       \
+        MDBG("MQTT: Locking %p client...", clientArg);    \
+        k_mutex_lock((clientArg), K_FOREVER); \
+        MDBG("MQTT: Locked %p client...", clientArg);     \
+    } while (0)
+
+#define CLIENT_UNLOCK(clientArg) \
+    do {                                       \
+        MDBG("MQTT: Unlocking %p client...", clientArg);  \
+        k_mutex_unlock((clientArg));          \
+        MDBG("MQTT: Unlocked %p client...", clientArg);   \
+    } while (0)
+
+                         

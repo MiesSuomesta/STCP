@@ -33,7 +33,6 @@
 
 #include "stcp/stcp_rust_exported_functions.h"
 
-LOG_MODULE_DECLARE(stcp_lte_module);
 
 // Evant mask for l4 events
 /* Macros used to subscribe to specific Zephyr NET management events. */
@@ -44,6 +43,7 @@ LOG_MODULE_DECLARE(stcp_lte_module);
 
 // 30 secs debounce time
 #define STCP_PDN_DEBOUNCE_TIME_IN_MS        (30 * 1000)
+#define MQTT_CONNECT_TIMEOUT_MS             500
 
 
 atomic_t g_pdn_active = ATOMIC_INIT(0);
@@ -70,11 +70,8 @@ extern int stcp_lte_reset_everythign(struct stcp_ctx *ctx);
 
 int stcp_transport_close(void *vpCtx)
 {
-    LDBG("Transport closing %p..", vpCtx);
-    if (stcp_is_context_valid(vpCtx) < 0) {
-        LDBG("Scheduling destroy for %p...", vpCtx);
-        worker_schedule_cleanup((struct stcp_ctx *)vpCtx);
-    }
+    LDBG("Transport closing scheduling destroy for %p...", vpCtx);
+    worker_schedule_cleanup((struct stcp_ctx *)vpCtx);
     return 0;
 }
 
@@ -296,7 +293,8 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
         switch (evt->nw_reg_status) {
 
         case LTE_LC_NW_REG_NOT_REGISTERED:
-            LINF("LTE: NOT REGISTERED");
+            LINF("LTE: NOT REGISTERED, starting reconnect...");
+            worker_schedule_lte_reconnect();
             break;
 
         case LTE_LC_NW_REG_REGISTERED_HOME:
@@ -306,7 +304,8 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
             break;
 
         case LTE_LC_NW_REG_SEARCHING:
-            LINF("LTE: SEARCHING");
+            LINF("LTE: SEARCHING, starting reconnect...");
+            worker_schedule_lte_reconnect();
             break;
 
         case LTE_LC_NW_REG_REGISTRATION_DENIED:
@@ -328,7 +327,7 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
             break;
 
         default:
-            LOG_WRN("LTE: UNKNOWN REG STATUS %d", evt->nw_reg_status);
+            LWRN("LTE: UNKNOWN REG STATUS %d", evt->nw_reg_status);
             break;
         }
 
@@ -354,14 +353,21 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
 
 
     case LTE_LC_EVT_RRC_UPDATE:
-        LINF("RRC UPDATE: mode=%d", evt->rrc_mode);
-        break;
-
+        LINF("RRC UPDATE: mode=%d => state: %s",
+            evt->rrc_mode,
+            (evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED) ? "CONNECTED" : "IDLE"
+        );
+    break;
 
     case LTE_LC_EVT_CELL_UPDATE:
         LINFBIG("CELL UPDATE: id=%d tac=%d",
-                evt->cell.id,
-                evt->cell.tac);
+                evt->cell.id, evt->cell.tac);
+
+        if (evt->cell.id == -1) {
+            LINF("Starting reconnectin, CELL not found currently...");
+            worker_schedule_lte_reconnect();
+        }
+
         break;
 
 
@@ -415,9 +421,20 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
 
 
     default:
-        LOG_WRN("UNKNOWN LTE EVENT: %d", evt->type);
+        LWRN("UNKNOWN LTE EVENT: %d", evt->type);
         break;
     }
+}
+
+int stcp_lte_issue_at_command(char *cmd) {
+    char buf[512] = { 0 };
+    int err = nrf_modem_at_cmd(buf, sizeof(buf), "%s", cmd);
+    LDBG("%s rc=%d resp=%s", cmd, err, buf);
+    if (err < 0) {
+        LWRN("Command '%s' returned: %d", cmd, err);
+    }
+
+    return err;
 }
 
 static void dump_sim_status_of_command(char *cmd) {
@@ -484,18 +501,53 @@ static void wait_until_sim_ready(int maxTimes) {
     }
 }
 #endif 
-
-int stcp_poll_fd_changes(int fd, int timeout, int events) {
-
-    struct pollfd pfd = {
+int stcp_poll_fd_changes(int fd, int timeout, int events)
+{
+    struct zsock_pollfd pfd = {
         .fd = fd,
         .events = events,
     };
 
-    int rc = zsock_poll(&pfd, 1, timeout);  // 10s timeout
+    int rc = zsock_poll(&pfd, 1, timeout);
 
-    LERR("Poll (events: %d) exit: %d", events, rc);
-    return rc;
+    if (rc < 0) {
+        LERR("poll() error rc=%d errno=%d", rc, errno);
+        return -errno;
+    }
+
+    if (rc == 0) {
+        LDBG("poll() timeout");
+        return -ETIMEDOUT;
+    }
+
+    /* Poll heräsi */
+    LDBG("poll revents = 0x%x", pfd.revents);
+
+    if (pfd.revents & ZSOCK_POLLIN) {
+        return 1;  // data available
+    }
+
+    if (pfd.revents & ZSOCK_POLLOUT) {
+        return 2;  // send possible
+    }
+
+    if (pfd.revents & ZSOCK_POLLERR) {
+        LDBG("poll: socket closed");
+
+        return -ECONNRESET;   // ei EIO
+    }
+
+    if (pfd.revents & ZSOCK_POLLHUP) {
+        LERR("poll: peer closed");
+        return -ECONNRESET;
+    }
+
+    if (pfd.revents & ZSOCK_POLLNVAL) {
+        LERR("poll: invalid fd");
+        return -EBADF;
+    }
+
+    return 0;
 }
 
 static void stcp_modem_force_apn(void)
@@ -551,6 +603,9 @@ int stcp_transport_init(void)
 
         LDBGBIG("[Transport Init] Setting APN to %s", STCP_LTE_APN);
         stcp_modem_force_apn();
+
+        LDBGBIG("[Transport Init] Turnng CSCON on", STCP_LTE_APN);
+        stcp_lte_issue_at_command("AT+CSCON=1");
 
         LDBGBIG("[Transport Init] Registering LTE L4 event handler .....");
         net_mgmt_init_event_callback(&l4_cb, l4_event_handler, L4_EVENT_MASK);
@@ -614,7 +669,7 @@ int stcp_transport_init(void)
     int err = lte_lc_normal();
     LDBG("LTE to normal-state done, RC: %d", err);
     if (err < 0) {
-        LOG_ERR("LTE normal state failed!");
+        LERR("LTE normal state failed!");
         return err;
     }
 */
@@ -711,24 +766,21 @@ int stcp_transport_send_iovec(struct stcp_ctx *ctx, const struct msghdr *message
 
 int stcp_transport_recv(struct stcp_ctx *ctx, uint8_t *buf, size_t maxlen)
 {
-    if (stcp_is_context_valid(ctx) < 0) {
-        LDBG("Called RUST recv message, without context...");
-        return -EBADFD;
-    }
-
-    if (!buf) {
-        LDBG("Called RUST recv message, without buffer...");
-        return -EBADFD;
-    }
-
-    if (maxlen < 1) {
-        LDBG("Called RUST recv message, without length...");
-        return -EINVAL;
-    }
-
 again:
 
-    /* ------------------------------------------------ */
+    if (stcp_is_context_valid(ctx) < 0)
+        return -EBADFD;
+
+    if (atomic_get(&ctx->connection_closed))
+        return -ENOTCONN;
+
+    if (!buf)
+        return -EINVAL;
+
+    if (maxlen == 0)
+        return -EINVAL;
+
+        /* ------------------------------------------------ */
     /* 1. Onko decryptattu payload bufferissa           */
     /* ------------------------------------------------ */
 
@@ -743,7 +795,6 @@ again:
 
         ctx->rx_payload_pos += n;
 
-        /* payload kulutettu loppuun */
         if (ctx->rx_payload_pos == ctx->rx_payload_len) {
             ctx->rx_payload_pos = 0;
             ctx->rx_payload_len = 0;
@@ -753,16 +804,27 @@ again:
     }
 
     /* ------------------------------------------------ */
-    /* 2. Haetaan uusi STCP frame TCP streamista        */
+    /* 2. Yritetään lukea uusi STCP frame                */
     /* ------------------------------------------------ */
 
     int ret = stcp_recv_frame(ctx);
 
-    if (ret == -EAGAIN)
+    if (ret == -EAGAIN) {
+        LDBG("Ret: EAGAIN");
         return -EAGAIN;
+    }
 
-    if (ret < 0)
+    if (ret == -ETIMEDOUT) {
+        LDBG("Ret: ETIMEDOUT => EAGAIN");
+        return -EAGAIN;
+    }
+
+    if (ret < 0) {
+        LDBG("Error => Exit with ret: %d", ret);
         return ret;
+    }
+
+    LDBG("Frame received len=%d", ctx->rx_frame_len);
 
     /* ------------------------------------------------ */
     /* 3. decryptataan payload payload-bufferiin        */
@@ -779,11 +841,21 @@ again:
     if (dec == -EAGAIN)
         return -EAGAIN;
 
-    if (dec < 0)
+
+    if (dec == -EAGAIN) {
+        LDBG("Ret @ dec: EAGAIN");
+        return -EAGAIN;
+    }
+
+    if (dec < 0) {
+        LDBG("Err @ dec: %d", dec);
         return dec;
+    }
 
     ctx->rx_payload_len = dec;
     ctx->rx_payload_pos = 0;
+
+    LDBG("Frame received len=%d", ctx->rx_frame_len);
 
     goto again;
 }

@@ -13,7 +13,6 @@
 #include <stcp/stcp_struct.h>
 #include <stcp/stcp_tcp_low_level_operations.h>
 
-LOG_MODULE_REGISTER(stcp_low_level_send_operations, LOG_LEVEL_INF);
 
 #define TCP_DEBUG 1
 

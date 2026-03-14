@@ -8,7 +8,8 @@
 #include "stcp/utils.h"
 
 #define LOG_BUFFER_SIZE_BYTES       (1024*4)
-#define STCP_DEFAULT_RUST_LOG_LEVEL  4
+#define STCP_DEFAULT_RUST_LOG_LEVEL  1
+
 __used
 __noinline
 void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)

@@ -85,6 +85,7 @@ int stpc_mqtt_subscribe(struct mqtt_client *clientPtr)
     CLIENT_UNLOCK(&client_lock);
 
     MDBG("mqtt_subscribe ret: %d", ret);
+    stcp_mqtt_reset_connak_event_seen();
     return ret;
 
 }

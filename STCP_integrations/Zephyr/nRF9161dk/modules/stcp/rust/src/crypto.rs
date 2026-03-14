@@ -76,7 +76,14 @@ impl Crypto {
               &mut sess.shared_key,    // *mut StcpEcdhSecret
           );
           stcp_dbg!("Called C shared key calc, ret {}", ret);   
-          stcp_dump!("Peer shared key", &sess.shared_key.to_bytes_be());
+
+          if ret != 0 {
+              stcp_dbg!("❌ Shared key computation failed");
+              return ret;
+          }
+          
+          stcp_dbg!("ECDH shared key computed OK");
+
           ret
         }
     }

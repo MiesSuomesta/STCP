@@ -66,53 +66,49 @@ pub fn handshake_send_public_key(sess: *mut ProtoSession, transport: *mut core::
     sent
 }
 
-
 #[inline(never)]
 pub fn handshake_recv_public_key(
-    _sess: *mut ProtoSession,
     transport: *mut core::ffi::c_void,
     out_pubkey: &mut StcpEcdhPubKey,
 ) -> isize {
 
-    let mut pubkey_buf = [0u8; STCP_ECDH_PUB_LEN];
-    let mut ret_len: c_int = 0;
+    let mut buf = [0u8; STCP_ECDH_PUB_LEN];
+    let mut off = 0;
 
-    let rc = unsafe {
-        stcp_tcp_recv(transport, pubkey_buf.as_mut_ptr(), STCP_ECDH_PUB_LEN, 0, 0, &mut ret_len)
-    };
+    while off < STCP_ECDH_PUB_LEN {
 
-    stcp_dbg!("Received public key, rc {}, ret_len {}", rc, ret_len);
+        let mut ret_len: c_int = 0;
 
-    // 1️⃣ Peer sulki
-    if rc == 0 {
-        stcp_dbg!("❌ peer closed connection before pubkey");
-        return -ECONNABORTED as isize;
+        let rc = unsafe {
+            stcp_tcp_recv(
+                transport,
+                buf[off..].as_mut_ptr(),
+                (STCP_ECDH_PUB_LEN - off) as usize,
+                0,
+                0,
+                &mut ret_len
+            )
+        };
+
+        if rc == -EAGAIN as isize {
+            return -EAGAIN as isize;
+        }
+
+        if rc <= 0 {
+            return rc;
+        }
+
+        off += ret_len as usize;
     }
 
-    // 2️⃣ Nonblock: ei vielä dataa
-    if rc == -EAGAIN as isize {
-        return -EAGAIN as isize;
-    }
+    stcp_dump!("RX PUBKEY FRAME", &buf);
 
-    // 3️⃣ Muu virhe
-    if rc < 0 {
-        stcp_dbg!("❌ recv error {}", rc);
-        return rc as isize;
-    }
+    *out_pubkey = StcpEcdhPubKey::from_bytes_be(&buf);
 
-    // 4️⃣ Tarkista oikea pituus
-    if ret_len as isize != STCP_ECDH_PUB_LEN as isize {
-        stcp_dbg!("❌ invalid pubkey length {}, expected {}", ret_len, STCP_ECDH_PUB_LEN);
-        return -EINVAL as isize;
-    }
-
-    stcp_dump!("RX PUBKEY FRAME", &pubkey_buf);
-
-    *out_pubkey = StcpEcdhPubKey::from_bytes_be(&pubkey_buf);
     STCP_ECDH_PUB_LEN as isize
 }
 
-pub fn client_handshake_pub_keys(
+pub fn stcp_do_handshake_pub_keys(
     sess: *mut ProtoSession,
     transport: *mut core::ffi::c_void,
     out_pubkey: &mut StcpEcdhPubKey,
@@ -128,7 +124,7 @@ pub fn client_handshake_pub_keys(
   stcp_dbg!("[client] Public key sent: {}", rc1);
 
   stcp_dbg!("Client handshake: Public key receiving ....");
-  let rc2 = handshake_recv_public_key(sess, transport, out_pubkey);
+  let rc2 = handshake_recv_public_key(transport, out_pubkey);
   if rc2 < 0 {
     stcp_dbg!("[client] Error while receiving PK: {}", rc2);
     return rc2;
@@ -139,37 +135,13 @@ pub fn client_handshake_pub_keys(
   return 1;
 }
 
-pub fn server_handshake_pub_keys(
-    sess: *mut ProtoSession,
-    transport: *mut core::ffi::c_void,
-    out_pubkey: &mut StcpEcdhPubKey,
 
-) -> isize {
-
-  stcp_dbg!("Server handshake: Public key receiving ....");
-  let rc2 = handshake_recv_public_key(sess, transport, out_pubkey);
-  if rc2 < 0 {
-    stcp_dbg!("[server] Error while receiving PK: {}", rc2);
-    return rc2;
-  }
-  stcp_dbg!("[server] Public key recv: {}", rc2);
-
-  
-  stcp_dbg!("Server handshake: Public key sending ....");
-  let rc1 = handshake_send_public_key(sess, transport);
-  if rc1 < 0 {
-    stcp_dbg!("[server] Error while sending PK: {}", rc1);
-    return rc1;
-  }
-  stcp_dbg!("[server] Public key sent: {}", rc1);
-  return 1;
-}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_session_client_handshake_lte(sess_vp: *mut core::ffi::c_void, transport: *mut core::ffi::c_void) -> i32 {
+pub extern "C" fn rust_session_handshake_lte(sess_vp: *mut core::ffi::c_void, transport: *mut core::ffi::c_void) -> i32 {
 
   stcp_dbg!("========================================================");   
-  stcp_dbg!("=== START CLIENT =======================================");   
+  stcp_dbg!("=== START HANDSHAKE ====================================");   
   stcp_dbg!("========================================================");   
   let sock = transport as *mut core::ffi::c_void;
 
@@ -177,18 +149,12 @@ pub extern "C" fn rust_session_client_handshake_lte(sess_vp: *mut core::ffi::c_v
     return -EBADF;
   }
 
-  stcp_dbg!("Client Worker CP 1");   
-
   if sock.is_null() {
     stcp_dbg!("Client Worker NO transport");   
     return -EBADF;
   }
 
-  stcp_dbg!("Client Worker Checks passed starting");   
-
   let s = unsafe { &mut *(sess_vp as *mut ProtoSession) };
-
-  s.set_is_server(false);
 
   let mut incoming_pubkey = StcpEcdhPubKey::new();
   let mut rc = -EAGAIN;
@@ -196,16 +162,16 @@ pub extern "C" fn rust_session_client_handshake_lte(sess_vp: *mut core::ffi::c_v
 
   stcp_dbg!("Starting to generate keys.....");
   let ret_gen = handshake_generate_keys(s);
-  stcp_dbg!("=C= Generated Keys... ret: {}", ret_gen);
+  stcp_dbg!("=HS= Generated Keys... ret: {}", ret_gen);
 
   while  (rc == -EAGAIN) && (tries < 10) {
-    rc = client_handshake_pub_keys(s, transport, &mut incoming_pubkey) as i32;
+    rc = stcp_do_handshake_pub_keys(s, transport, &mut incoming_pubkey) as i32;
     tries += 1;
-    stcp_dbg!("Client PK try: {} => {}", tries, rc);   
+    stcp_dbg!("Handshake PK try: {} => {}", tries, rc);   
   } 
 
   if rc < 0 {
-    stcp_dbg!("Client: error in hs: {}", rc);   
+    stcp_dbg!("Handshake: error in hs: {}", rc);   
     return rc;
   }
 
@@ -213,75 +179,17 @@ pub extern "C" fn rust_session_client_handshake_lte(sess_vp: *mut core::ffi::c_v
   let incoming_pubkey_bytes_64: &[u8; 64] = 
       incoming_pubkey_bytes.as_slice().try_into().expect("pubkey wrong length");
 
-  stcp_dump!("=C= Peer Public key", incoming_pubkey_bytes_64);   
+  stcp_dump!("=HS= Peer Public key", incoming_pubkey_bytes_64);   
 
   let ret_shared = Crypto::compute_shared_from_bytes(
                 s, incoming_pubkey_bytes_64);
 
-  stcp_dbg!("=C= Shared key calculation returned: {}", ret_shared);   
+  stcp_dbg!("=HS= Shared key calculation returned: {}", ret_shared);   
 
   s.set_status(HandshakeStatus::Aes);
   s.init_aes_with(s.shared_key.clone());
-  stcp_dbg!("==== Client HS complete => AES MODE =====");
-  stcp_dbg!("==== Client HS complete => AES MODE =====");
-  stcp_dbg!("==== Client HS complete => AES MODE =====");
-  return 1; // EI nolla, vaan ykkönen!
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_session_server_handshake_lte(sess_vp: *mut core::ffi::c_void, transport: *mut core::ffi::c_void) -> i32 {
-
-  stcp_dbg!("========================================================");   
-  stcp_dbg!("=== START SERVER =======================================");   
-  stcp_dbg!("========================================================");   
-
-  if sess_vp.is_null() {
-    return -EBADF;
-  }
-    
-  let sock = transport as *mut core::ffi::c_void;
-
-  if sock.is_null() {
-    return -EBADF;
-  }
-
-  stcp_dbg!("Server Checks passed starting");   
-  let s = unsafe { &mut *(sess_vp as *mut ProtoSession) };
-
-  s.set_is_server(true);
-
-  let mut incoming_pubkey = StcpEcdhPubKey::new();
-  let mut rc = -EAGAIN;
-  let mut tries = 0;
-
-  let ret_gen = handshake_generate_keys(s);
-  stcp_dbg!("=S= Generated Keys... ret: {}", ret_gen);
-
-  while  (rc == -EAGAIN) && (tries < 10) {
-    rc = server_handshake_pub_keys(s, transport, &mut incoming_pubkey) as i32;
-    tries += 1;
-    stcp_dbg!("Client PK try: {} => {}", tries, rc);   
-  } 
-
-  if rc < 0 {
-    return rc;
-  }
-
-  let incoming_pubkey_bytes = incoming_pubkey.to_bytes_be();
-  let incoming_pubkey_bytes_64: &[u8; 64] = 
-      incoming_pubkey_bytes.as_slice().try_into().expect("pubkey wrong length");
-
-  stcp_dump!("=S= Peer Public key", incoming_pubkey_bytes_64);   
-
-  let ret_shared = Crypto::compute_shared_from_bytes(
-                s, incoming_pubkey_bytes_64);
-
-  stcp_dbg!("=S= Shared key calculation returned: {}", ret_shared);   
-
-  s.set_status(HandshakeStatus::Aes);
-  s.init_aes_with(s.shared_key.clone());
-  stcp_dbg!("==== Server HS complete => AES MODE =====");   
-  stcp_dbg!("==== Server HS complete => AES MODE =====");   
-  stcp_dbg!("==== Server HS complete => AES MODE =====");   
+  stcp_dbg!("==== HS complete => AES MODE =====");
+  stcp_dbg!("==== HS complete => AES MODE =====");
+  stcp_dbg!("==== HS complete => AES MODE =====");
   return 1; // EI nolla, vaan ykkönen!
 }

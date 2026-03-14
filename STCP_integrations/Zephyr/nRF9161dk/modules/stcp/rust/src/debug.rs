@@ -4,12 +4,24 @@ use core::fmt::{self, Write};
 
 use crate::abi::stcp_rust_log;
 
+/*
+    // Check ratelimitter
+    static const char *lvl[] = {
+        "??",   // 0
+        "ERR",  // 1
+        "WRN",  // 2
+        "INF",  // 3
+        "DBG",  // 4
+        "TRC",  // 5
+    };*/
+
 #[repr(i32)]
 #[derive(Copy, Clone)]
 pub enum LogLevel {
-    Err   = 3,
-    Info  = 6,
-    Debug = 7,
+    Err   = 1,
+    Warn  = 2,
+    Info  = 3,
+    Debug = 4,
 }
 
 #[cfg(feature = "stcp_debug")]
@@ -47,8 +59,49 @@ pub fn stcp_log_fmt(level: LogLevel, args: fmt::Arguments<'_>) {
     }
 }
 
+#[cfg(feature = "stcp_debug")]
+pub fn stcp_log_fmt_big(level: LogLevel, args: fmt::Arguments<'_>) {
+
+    struct Buf {
+        buf: [u8; 256],
+        len: usize,
+    }
+
+    impl Write for Buf {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+
+            let bytes = s.as_bytes();
+            let space = self.buf.len() - self.len;
+            let n = core::cmp::min(space, bytes.len());
+
+            self.buf[self.len..self.len+n].copy_from_slice(&bytes[..n]);
+            self.len += n;
+
+            Ok(())
+        }
+    }
+
+    let mut b = Buf {
+        buf: [0;256],
+        len: 0,
+    };
+
+    let _ = b.write_str(".--------------------------------------------------------------->\n");
+    let _ = b.write_str("| ");
+    let _ = b.write_fmt(args);
+    let _ = b.write_str("'----------------------------------------->\n");
+
+    unsafe {
+        #[cfg(feature = "stcp_debug")]
+        stcp_rust_log(level as c_int, b.buf.as_ptr(), b.len);
+    }
+}
+
 #[cfg(not(feature = "stcp_debug"))]
 pub fn stcp_log_fmt(_: LogLevel, _: fmt::Arguments<'_>) {}
+
+#[cfg(not(feature = "stcp_debug"))]
+pub fn stcp_log_fmt_big(_: LogLevel, _: fmt::Arguments<'_>) {}
 
 pub fn stcp_dump_bytes(level: LogLevel, info: &str, data: &[u8]) {
 
@@ -122,6 +175,46 @@ macro_rules! stcp_err {
     ($($arg:tt)*) => {
         $crate::debug::stcp_log_fmt(
             $crate::debug::LogLevel::Err,
+            core::format_args!($($arg)*)
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_dbg_big {
+    ($($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt_big(
+            $crate::debug::LogLevel::Debug,
+            core::format_args!($($arg)*)
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_info_big {
+    ($($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt_big(
+            $crate::debug::LogLevel::Info,
+            core::format_args!($($arg)*)
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_err_big {
+    ($($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt_big(
+            $crate::debug::LogLevel::Err,
+            core::format_args!($($arg)*)
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! stcp_warn_big {
+    ($($arg:tt)*) => {
+        $crate::debug::stcp_log_fmt_big(
+            $crate::debug::LogLevel::Warn,
             core::format_args!($($arg)*)
         );
     };

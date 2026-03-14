@@ -3,7 +3,13 @@
 #include <zephyr/kernel.h>
 
 #define STCP_MQTT_WAIT_CONNACK_EVENT_FOR_MSEC    (60 * 1000)
-#define STCP_MQTT_POLL_TIMEOUT_MSEC              (20 * 1000)
+#define STCP_MQTT_POLL_TIMEOUT_MSEC              (1 * 1000)
+
+// Tuotantoon 30 - 300 sec, mut MAX KEEPALIVE sec
+#define STCP_MQTT_PUBLISH_INTERVAL_MS            (5 * 1000)
+
+// Keepalive PITÄÄ olla isompi kuin poll interval.
+#define STCP_MQTT_KEEPALIVE_SECONDS              300
 
 void sleep_ms_jitter(uint32_t base_ms, uint32_t jitter_ms);
 void stpc_mqtt_init_fsm_thread();

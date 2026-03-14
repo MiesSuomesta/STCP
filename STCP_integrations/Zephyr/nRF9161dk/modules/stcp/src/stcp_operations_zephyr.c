@@ -44,7 +44,7 @@ int stcp_handshake_for_context(struct stcp_ctx *ctx)
         __func__, ctx, ctx->handshake_done, ctx->ks.fd
     );
 
-	int rc = rust_session_client_handshake_lte(ctx->session, &(ctx->ks));
+	int rc = rust_session_handshake_lte(ctx->session, &(ctx->ks));
 	
 	if (rc < 0) {
 		rust_session_reset_everything_now(ctx->session);

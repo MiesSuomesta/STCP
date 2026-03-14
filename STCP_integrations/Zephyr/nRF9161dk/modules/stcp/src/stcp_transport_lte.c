@@ -33,6 +33,11 @@
 
 #include "stcp/stcp_rust_exported_functions.h"
 
+// LAtenssi jne. mittailuja 
+//#if CONFIG_STCP_DEBUG_LATENCY
+//#endif
+
+
 
 // Evant mask for l4 events
 /* Macros used to subscribe to specific Zephyr NET management events. */
@@ -89,6 +94,9 @@ void stcp_set_reset_requested() {
     LDBG("Setting reset requested ON");
     atomic_set(&reset_requested, 1);
 }
+
+// Watchdog update, ei omassa headerissa, koska tämä on piilossa kaikilta.
+void stcp_watchdog_update_activity(void);
 
 
 static int stcp_transport_modem_has_ip() {
@@ -166,6 +174,8 @@ static void l4_event_handler(struct net_mgmt_event_callback *cb,
 			     uint32_t event,
 			     struct net_if *iface)
 {
+    // Joka eventillä WD update
+    stcp_watchdog_update_activity();
 	switch (event) {
         case NET_EVENT_L4_CONNECTED:
             LDBG("Network connected");
@@ -286,6 +296,9 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
 
     LINF("LTE EVT: type=%d", evt->type);
 
+    // Joka eventillä WD update
+    stcp_watchdog_update_activity();
+
     switch (evt->type) {
 
     case LTE_LC_EVT_NW_REG_STATUS:
@@ -353,11 +366,28 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
 
 
     case LTE_LC_EVT_RRC_UPDATE:
+
         LINF("RRC UPDATE: mode=%d => state: %s",
             evt->rrc_mode,
             (evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED) ? "CONNECTED" : "IDLE"
         );
-    break;
+#if CONFIG_STCP_DEBUG_LATENCY
+    {
+        static uint32_t rrc_start = 0;
+        if (evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED) {
+            if (rrc_start > 0) {
+                LINF("LTE: radio was idle for %u ms before wake",
+                    k_uptime_get_32() - rrc_start
+                );
+                rrc_start = 0;
+            }
+        } else {
+            rrc_start = k_uptime_get_32();
+        }
+    }
+#endif
+
+        break;
 
     case LTE_LC_EVT_CELL_UPDATE:
         LINFBIG("CELL UPDATE: id=%d tac=%d",

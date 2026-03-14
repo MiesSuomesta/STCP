@@ -2,17 +2,14 @@ use std::net::TcpStream;
 use std::io::{Read, Write};
 use std::io::ErrorKind;
 use std::slice;
-
+use the_stcp_kernel_module::slice_helpers::StcpError;
+use the_stcp_kernel_module::stcp_dbg;
 use core::ffi::{c_int, c_void};
-
-use p256::{
-    SecretKey,
-    PublicKey,
-    ecdh::diffie_hellman,
-    elliptic_curve::sec1::ToEncodedPoint,
-};
-
-use rand::rngs::OsRng;
+use p256::SecretKey;
+use p256::PublicKey;
+use p256::ecdh::diffie_hellman;
+use rand_core::OsRng;
+use p256::elliptic_curve::sec1::ToEncodedPoint;
 
 const EAGAIN: i32 = 11;
 const EINVAL: i32 = 22;
@@ -33,6 +30,46 @@ pub struct stcp_crypto_secret {
 //
 
 #[unsafe(no_mangle)]
+pub fn recv_exact(sock: &mut TcpStream, buf: &mut [u8]) -> Result<(), StcpError> {
+
+    let mut off = 0;
+
+    while off < buf.len() {
+
+        match sock.read(&mut buf[off..]) {
+
+            Ok(0) => {
+                // connection closed before full frame
+                return Err(StcpError::ConnectionClosed);
+            }
+
+            Ok(rc) => {
+                off += rc;
+            }
+
+            Err(e) => {
+
+                if e.kind() == ErrorKind::Interrupted {
+                    continue;
+                }
+
+                if e.kind() == ErrorKind::WouldBlock {
+                    return Err(StcpError::Again);
+                }
+
+                stcp_dbg!("Got error while reading: {:?}", e);
+
+                return Err(StcpError::IoError);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+
+
+#[unsafe(no_mangle)]
 pub extern "C" fn stcp_tcp_recv(
     sock_ptr: *mut c_void,
     buf: *mut u8,
@@ -46,24 +83,49 @@ pub extern "C" fn stcp_tcp_recv(
         return -EINVAL as isize;
     }
 
-    let stream = unsafe { &mut *(sock_ptr as *mut TcpStream) };
+    let transport: &mut TcpStream =
+        unsafe { &mut *(sock_ptr as *mut TcpStream) };
+
     let slice = unsafe { slice::from_raw_parts_mut(buf, len) };
 
-    match stream.read(slice) {
+    let mut off = 0;
 
-        Ok(n) => {
-            unsafe { *recv_len = n as i32; }
-            n as isize
-        }
+    while off < len {
 
-        Err(ref e) if e.kind() == ErrorKind::WouldBlock => {
-            -EAGAIN as isize
-        }
+        match transport.read(&mut slice[off..]) {
 
-        Err(_) => {
-            -1
+            Ok(0) => {
+                // connection closed
+                unsafe { *recv_len = off as i32 };
+                return 0;
+            }
+
+            Ok(rc) => {
+                off += rc;
+            }
+
+            Err(e) => {
+
+                if e.kind() == ErrorKind::Interrupted {
+                    continue;
+                }
+
+                if e.kind() == ErrorKind::WouldBlock {
+                    unsafe { *recv_len = off as i32 };
+                    return -11; // EAGAIN
+                }
+
+                stcp_dbg!("Got error while reading: {:?}", e);
+
+                unsafe { *recv_len = -1 };
+                return -(e.raw_os_error().unwrap_or(1) as isize);
+            }
         }
     }
+
+    unsafe { *recv_len = off as i32 };
+
+    off as isize
 }
 
 //
@@ -152,11 +214,15 @@ pub extern "C" fn stcp_crypto_compute_shared(
         full_pub[1..33].copy_from_slice(&(*peer_pub).x);
         full_pub[33..65].copy_from_slice(&(*peer_pub).y);
 
-        let peer_public =
-            PublicKey::from_sec1_bytes(&full_pub).unwrap();
+        let peer_public = match PublicKey::from_sec1_bytes(&full_pub) {
+            Ok(v) => v,
+            Err(_) => return -1,
+        };
 
-        let secret =
-            SecretKey::from_slice(&(*priv_key).data).unwrap();
+        let secret = match SecretKey::from_slice(&(*priv_key).data) {
+            Ok(v) => v,
+            Err(_) => return -2,
+        };
 
         let shared = diffie_hellman(
             secret.to_nonzero_scalar(),

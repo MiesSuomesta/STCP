@@ -1,6 +1,6 @@
 mod stcp_platform_linux;
 
-use the_stcp_kernel_module::stcp_handshake::rust_session_server_handshake_lte;
+use the_stcp_kernel_module::stcp_handshake::rust_session_handshake_lte;
 use std::net::{TcpListener, TcpStream, Shutdown};
 use std::thread;
 use std::time::Duration;
@@ -28,11 +28,14 @@ fn main() {
     stcp_dbg!(" Listening on 0.0.0.0:7777");
     stcp_dbg!(" Forward to {}:{}", FORWARD_HOST, FORWARD_PORT);
     stcp_dbg!("=========================================");
-
+    let poll_flags =
+        PollFlags::POLLIN
+        | PollFlags::POLLERR
+        | PollFlags::POLLHUP;
     loop {
 
         let mut fds = [
-            PollFd::new(listener.as_fd(), PollFlags::POLLIN)
+            PollFd::new(listener.as_fd(), poll_flags)
         ];
 
         poll(&mut fds, PollTimeout::from(1000u16)).unwrap();
@@ -76,10 +79,14 @@ fn handle_client(mut stream: TcpStream) -> Result<(), StcpError> {
     // =============================
     // STCP HANDSHAKE
     // =============================
+    let poll_flags =
+        PollFlags::POLLIN
+        | PollFlags::POLLERR
+        | PollFlags::POLLHUP;
 
     loop {
         let mut fds = [
-            PollFd::new(stream.as_fd(), PollFlags::POLLIN)
+            PollFd::new(stream.as_fd(), poll_flags)
         ];
 
         poll(&mut fds, PollTimeout::from(1000u16)).unwrap();
@@ -94,7 +101,7 @@ fn handle_client(mut stream: TcpStream) -> Result<(), StcpError> {
 
         stcp_dbg!("Server HS state: {}", session.get_status().to_raw());
 
-        let hsret = rust_session_server_handshake_lte(
+        let hsret = rust_session_handshake_lte(
             &mut session as *mut _ as *mut c_void,
             transport,
         );

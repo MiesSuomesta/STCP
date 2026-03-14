@@ -36,7 +36,7 @@ int mqtt_connected = 0;
 #define RX_BUF_SIZE             1024
 #define TX_BUF_SIZE             1024
 #define RECV_RETRY_DELAY_MS     5
-#define MQTT_KEEPALIVE_SECONDS  300
+
 
 static uint8_t rx_buffer[RX_BUF_SIZE];
 static uint8_t tx_buffer[TX_BUF_SIZE];
@@ -198,7 +198,7 @@ int mqtt_connect_via_stcp(char *host, char *port, struct stcp_api **saveTo)
     client.client_id.utf8 = "zephyr-stcp-device";
     client.client_id.size = strlen("zephyr-stcp-device");
 
-    client.keepalive = MQTT_KEEPALIVE_SECONDS;
+    client.keepalive = STCP_MQTT_KEEPALIVE_SECONDS;
     client.protocol_version = MQTT_VERSION_3_1_1;
 
     client.rx_buf = rx_buffer;
@@ -216,7 +216,7 @@ int mqtt_connect_via_stcp(char *host, char *port, struct stcp_api **saveTo)
     int rc = mqtt_connect(&client);
 
     LINF("Client info:");
-    LINF("  Keepalive: %d (set: %d)", MQTT_KEEPALIVE_SECONDS, client.keepalive);
+    LINF("  Keepalive: %d (set: %d)", STCP_MQTT_KEEPALIVE_SECONDS, client.keepalive);
 
     if (rc < 0) {
        MDBG("MQTT connect failed rc=%d, errno: %d", rc, errno);

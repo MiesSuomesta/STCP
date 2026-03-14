@@ -93,21 +93,71 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
 
         case STCP_FSM_TCP_CONNECT:
             LDBG("[FSM] TCP CONNECT");
+
+
             int rc = stcp_tcp_resolve_and_make_socket(
-                    ctx->hostname_str,ctx->port_str);
-            if (rc < 0) {
-                LWRN("[FSM] ctx alloc failed");
-                k_sleep(K_SECONDS(3));
-                fsm->state = STCP_FSM_TCP_RECONNECT;
-                continue;
+                    ctx->hostname_str,
+                    ctx->port_str);
+
+            if (rc == 0) {
+
+                LDBG("[FSM] connect started");
+                fsm->state = STCP_FSM_TCP_WAIT_CONNECT;
+                break;
             }
-            // Should not happen...but if then there is socked freed
-            if (ctx->ks.fd >= 0) {
-               zsock_close(ctx->ks.fd);
+
+            if (rc < 0 && errno == EINPROGRESS) {
+
+                LDBG("[FSM] connect in progress");
+                fsm->state = STCP_FSM_TCP_WAIT_CONNECT;
+                break;
             }
-            ctx->ks.fd = rc;
-            fsm->state = STCP_FSM_STCP_HANDSHAKE;
+
+            LWRN("[FSM] TCP connect failed rc=%d errno=%d", rc, errno);
+
+            k_sleep(K_SECONDS(3));
+            fsm->state = STCP_FSM_TCP_RECONNECT;
             break;
+
+        case STCP_FSM_TCP_WAIT_CONNECT:
+        {
+            LDBG("[FSM] TCP WAIT CONNECT");
+            int err = 0;
+            socklen_t len = sizeof(err);
+
+            int rc = zsock_getsockopt(
+                    ctx->ks.fd,
+                    SOL_SOCKET,
+                    SO_ERROR,
+                    &err,
+                    &len);
+
+            if (rc < 0) {
+                LWRN("[FSM] getsockopt failed errno=%d", errno);
+                fsm->state = STCP_FSM_TCP_RECONNECT;
+                break;
+            }
+
+            if (err == 0) {
+
+                LINF("[FSM] TCP connected");
+                fsm->state = STCP_FSM_STCP_HANDSHAKE;
+                break;
+            }
+
+            if (err == EINPROGRESS || err == EALREADY) {
+
+                LDBG("[FSM] still connecting...");
+                k_sleep(K_MSEC(200));
+                break;
+            }
+
+            LWRN("[FSM] TCP connect error %d", err);
+
+            fsm->state = STCP_FSM_TCP_RECONNECT;
+            break;
+        }
+    
 
         case STCP_FSM_STCP_HANDSHAKE: {
             LDBG("[FSM] STCP HANDSHAKE");

@@ -247,7 +247,7 @@ int stcp_tcp_connect_shake_hands_with_addr(
     LDBG("|");
     LDBG("'--------------------------------------------->");
 
-    rc = rust_session_client_handshake_lte(ctx->session, &ctx->ks);
+    rc = rust_session_handshake_lte(ctx->session, &ctx->ks);
     if (rc < 0) {
         LERR("Handshake failed: errno=%d", errno);
         return -errno;
@@ -362,7 +362,7 @@ int stcp_tcp_context_connect_and_shake_hands(struct stcp_ctx *ctx, int timeout_m
     LDBG("|");
     LDBG("'--------------------------------------------->");
 
-    rc = rust_session_client_handshake_lte(ctx->session, &ctx->ks);
+    rc = rust_session_handshake_lte(ctx->session, &ctx->ks);
     if (rc < 0) {
         LERR("Handshake failed: errno=%d", errno);
         return -errno;

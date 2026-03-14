@@ -45,45 +45,69 @@ static stcp_platform_ready_cb_t user_platform_ready_callback = NULL;
 
 // tässä myöhemmin: socket connect, stcp_net_set_sock, rng init, jne.
 extern void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len);
+
+#if CONFIG_STCP_SELFTEST
+extern int stcp_crypto_selftest(void);
+#endif
+
 int stcp_platform_init_banner(void)
 {
 
-    LINF(".----<[ STCP by Paxsudos IT (c) 2026 ]>------------------------------------------------------------>");
-    LINF("|  ✅ STCP Initialised (Version %s), Protocol number %d", STCP_VERSION_STR, IPPROTO_STCP);
-    LINF("|  🕓 Build at %s (%s)", STCP_BUILD_DATE, STCP_GIT_SHA);
-    LINF("|");
-    LINF("| Configuration:");
-    LINF("|   * The APN: %s", CONFIG_STCP_LTE_APN_NAME);
+#if CONFIG_STCP_SELFTEST
+    int ret = stcp_crypto_selftest();
+#endif
+
+    printk(".----<[ STCP by Paxsudos IT (c) 2026 - 2050 ]>------------------------------------------------------------>\n");
+    printk("|  ✅ STCP Initialised (Version %s), Protocol number %d\n", STCP_VERSION_STR, IPPROTO_STCP);
+    printk("|  🕓 Build at %s (%s)\n", STCP_BUILD_DATE, STCP_GIT_SHA);
+    printk("|  🔐 Crypto: ECDH + AES-256-GCM\n");
+#if CONFIG_STCP_SELFTEST
+    printk("|  🧪 STCP Self-test: %s (%d)\n", (ret) ? "FAIL" : "PASS", ret);
+#else
+    printk("|  🧪 STCP Self-test: DISABLED\n");
+#endif
+    printk("|\n");
+    printk("| Configuration:\n");
+    printk("|   * The APN: %s\n", CONFIG_STCP_LTE_APN_NAME);
 
 #if CONFIG_MQTT_LIB_STCP
-    LINF("|   * STCP MQTT transport enabled.");
+    printk("|   * STCP MQTT transport enabled.\n");
 #else
-    LINF("|   * STCP MQTT transport disabled.");
+    printk("|   * STCP MQTT transport disabled.\n");
 #endif
 
 #if CONFIG_STCP_DEBUG
-    LINF("|   * STCP DEBUG enabled.");
+    printk("|   * STCP DEBUG enabled.\n");
 #else
-    LINF("|   * STCP DEBUG disabled.");
+    printk("|   * STCP DEBUG disabled.\n");
 #endif
 
 #if CONFIG_STCP_AES_BYPASS
-    LINF("|   * AES BYPASS ENABLED!");
+    printk("|   * AES BYPASS ENABLED!\n");
 #else
-    LINF("|   * STCP AES bypass disabled.");
+    printk("|   * STCP AES bypass disabled.\n");
 #endif
 
-    LINF("'----------------------------------------------------------------------'");
+#if CONFIG_STCP_WATCHDOG_ENABLE
+    printk("|   * Watchdog ENABLED!\n");
+    printk("|       Max timeout   : %d seconds\n", CONFIG_STCP_WATCHDOG_MAX_TIMEOUT);
+    printk("|       Check interval: %d seconds\n", CONFIG_STCP_WATCHDOG_CHECK_INTERVAL);
+#else
+    printk("|   * Watchdog disabled.\n");
+#endif
 
-    char *pMsgA = "Rust log test A!, Should be visible...";
-    stcp_rust_log(1, pMsgA, strlen(pMsgA));
-    
-    printk("Nyt .. ennen ...");
-    stcp_module_rust_enter();
-    printk("Nyt .. jälkeen...");
+#if CONFIG_STCP_DEBUG_LATENCY
+    printk("|   * Latency debug enabled.\n");
+#else
+    printk("|   * Latency debug disabled.\n");
+#endif
 
-    char *pMsgB = "Rust log test B!, Should be visible...";
-    stcp_rust_log(1, pMsgB, strlen(pMsgB));
+#if CONFIG_STCP_AES_BYPASS
+    printk("|   * AES BYPASS ENABLED!\n");
+#else
+    printk("|   * STCP AES bypass disabled.\n");
+#endif
+    printk("'---------------------------------------------------------------------->\n");
 
     return 0;
 }

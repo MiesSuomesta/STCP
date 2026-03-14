@@ -78,11 +78,10 @@ int mqtt_client_stcp_connect(struct mqtt_client *client)
                              sizeof(struct sockaddr_in6);
 
     rc = stcp_api_connect(api, client->broker, peer_addr_size);
-    MDBG("Connect to broker, rc=%d", rc);
-    if (rc < 0 && errno != EISCONN) {
+    MDBG("Connect to broker, rc=%d errno=%d", rc, errno);
+    if (rc < 0 && errno != EISCONN && errno != EINPROGRESS) {
         goto error;
     }
-
 	g_mqtt_stcp_stats.connects++;
     return 0;
 
@@ -99,6 +98,9 @@ int mqtt_client_stcp_write(struct mqtt_client *client,
     struct stcp_api *api = client->transport.stcp.stcp_api_instance;
 
     g_mqtt_stcp_stats.tx_calls++;
+
+    MDBGBIG("@ WRITE[%d bytes]: %s",len, data);
+    STCP_LOG_HEX("Before write, buffer contents", data, len);
 
     size_t offset = 0;
 
@@ -133,10 +135,13 @@ int mqtt_client_stcp_write_msg(struct mqtt_client *client,
     struct stcp_api *api = client->transport.stcp.stcp_api_instance;
     if (!api) return -EINVAL;
 
+
     size_t total_len = 0;
     for (size_t i = 0; i < message->msg_iovlen; i++) {
         total_len += message->msg_iov[i].iov_len;
     }
+
+    MDBGBIG("@ WRITE MSG[%d bytes]", total_len);
 
     size_t offset = 0;
     while (offset < total_len) {
@@ -175,8 +180,15 @@ int mqtt_client_stcp_read(struct mqtt_client *client,
         flags |= ZSOCK_MSG_DONTWAIT;
 
     g_mqtt_stcp_stats.rx_calls++;
+    MDBGBIG("@ READ[%d bytes max] block: %d, read to %p", buflen, shall_block, data);
 
     int ret = stcp_api_recv(api, data, buflen, flags);
+    if (ret < 0) {
+        MDBGBIG("@ AFTER READ: Error %d", ret);
+    } else {
+        MDBGBIG("@ AFTER READ[%d/%d bytes]", ret, buflen);
+        STCP_LOG_HEX("After read, buffer contents", data, ret);
+    }
 
     if (ret == -EAGAIN) {
         g_mqtt_stcp_stats.rx_eagain++;

@@ -6,8 +6,7 @@ use crate::{stcp_dbg /* , stcp_dump, stcp_sess_transp */ };
 use crate::slice_helpers::{stcp_make_mut_slice, StcpError};
 use crate::session_handler::{rust_session_create, rust_session_destroy};
 use crate::stcp_handshake::{
-    rust_session_server_handshake_lte,
-    rust_session_client_handshake_lte,
+    rust_session_handshake_lte,
 };
 use crate::stcp_message::*;
 use alloc::vec::Vec;
@@ -39,48 +38,6 @@ use crate::tcp_io::stcp_tcp_send_iovec;
 
 pub const STCP_REASON_NEXT_STEP : i32 = 3;
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_exported_session_handshake_pump(sess_void_ptr: *mut c_void, transport: *mut core::ffi::c_void, reason: i32) -> i32 {
-
-  if sess_void_ptr.is_null() {
-    stcp_dbg!("Pump: no session");   
-    return -EBADF;
-  }
-
-  if transport.is_null() {
-    stcp_dbg!("Pump: NO transport");   
-    return -EBADF;
-  }
-
-  let s = unsafe { &mut *(sess_void_ptr as *mut ProtoSession) };
-
-  let server     = s.is_server;
-  let status     = s.get_status();
-
-  if reason == STCP_REASON_NEXT_STEP {
-    let now = status.to_raw();
-    let nxt = status.next_step().unwrap();
-    s.set_status(nxt);
-    let rust_worker_return: i32;
-
-/*
-    >0 = edistyi (state vaihtui / lähetti jotain / purki framia) → C saa schedulettaa heti uudestaan jos haluaa
-     0 = ei edistystä (tarvitsee lisää dataa / odottaa herätettä) → C ei schedulea; odottaa data_ready
-    <0 = fatal (protokolla rikki tms) → C merkitsee fatal ja alas
-*/
-    if server {
-      stcp_dbg!("SERVER: Changing state from {} to {} ...", now, nxt.to_raw());
-      rust_worker_return = rust_exported_data_server_ready_worker(sess_void_ptr, transport);
-    } else {
-      stcp_dbg!("CLIENT: Changing state from {} to {} ...", now, nxt.to_raw());
-      rust_worker_return = rust_exported_data_client_ready_worker(sess_void_ptr, transport);
-    }
-
-    return rust_worker_return;
-  }
-
-  return 0; // ei edistystä, odottelee uutta herätettä
-}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_exported_session_handshake_done(sess_void_ptr: *mut c_void) -> c_int {
@@ -92,72 +49,6 @@ pub extern "C" fn rust_exported_session_handshake_done(sess_void_ptr: *mut c_voi
   }
   stcp_dbg!("Is handshake compelte: {}", rc);
   rc
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_exported_data_client_ready_worker(sess_void_ptr: *mut c_void, transport_void_ptr: *mut c_void) -> c_int {
-
-   /* TODO: Lauttaa featuren taakse ?
-    let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-    stcp_dbg!("There are {} alive instances", alive);   
-    if alive < 1 {
-      return -500;
-    }
-    */
-
-    if sess_void_ptr.is_null()      { return -EBADF; }
-    if transport_void_ptr.is_null() { return -EBADF; }
-
-    // 1) Raaka pointteri sessioon
-    let sess = sess_void_ptr as *mut ProtoSession;
-
-    // 2) Eksplisiittinen &mut-viite, EI generiikkaa
-    let s: &mut ProtoSession = unsafe { &mut *sess };
-
-    let transport = s.transport as *mut core::ffi::c_void;
-    
-    stcp_dbg!("Worker Client Setting server false");   
-    s.set_is_server(false);
-
-    stcp_dbg!("Worker Client Starting worker");   
-    if transport.is_null() {
-      stcp_dbg!("Worker Client No transport");   
-      return -EBADF;
-    }
-
-    let ret: c_int;
-
-    ret = rust_session_client_handshake_lte(sess_void_ptr, transport);
-    ret
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_exported_data_server_ready_worker(sess_void_ptr: *mut c_void, transport_void_ptr: *mut c_void) -> c_int {
-    // Check alive count
-/*
-    let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-    stcp_dbg!("There are {} alive instances", alive);   
-    if alive < 1 {
-      return -500;
-    }
-*/
-
-    if sess_void_ptr.is_null()      { return -EBADF; }
-    if transport_void_ptr.is_null() { return -EBADF; }
-
-    // 1) Raaka pointteri sessioon
-    let sess = sess_void_ptr as *mut ProtoSession;
-
-    // 2) Eksplisiittinen &mut-viite, EI generiikkaa
-    let s: &mut ProtoSession = unsafe { &mut *sess };
-    let transport = transport_void_ptr as *mut core::ffi::c_void;
-    s.set_is_server(true);
-
-    let ret: c_int;
-
-    ret = rust_session_server_handshake_lte(sess_void_ptr, transport);
-    
-    ret
 }
 
 #[unsafe(no_mangle)]
@@ -182,69 +73,6 @@ pub extern "C" fn rust_exported_session_create(out: *mut *mut c_void, transport:
   stcp_dbg!("SESSION/Checkpoint 3");
 
   s
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_exported_session_client_handshake(sess_void_ptr: *mut c_void) -> c_int {
-  // Check alive count
-/*
-  let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-  if alive < 1 {
-    return -500;
-  }
-*/
-
-  if sess_void_ptr.is_null() {
-    return -EBADF;
-  }
-
-  // 1) Raaka pointteri sessioon
-  let sess = sess_void_ptr as *mut ProtoSession;
-
-  // 2) Eksplisiittinen &mut-viite, EI generiikkaa
-  let s: &mut ProtoSession = unsafe { &mut *sess };
-
-  let transport = s.transport as *mut core::ffi::c_void;
-  if transport.is_null() {
-    return -EBADF;
-  }
-
-  s.set_is_server(false);
-  let ret = rust_session_client_handshake_lte(sess_void_ptr, transport);
-
-  ret
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_exported_session_server_handshake(sess_void_ptr: *mut c_void) -> c_int {
-    // Check alive count
-/*
-    let alive = unsafe { stcp_exported_rust_ctx_alive_count() };
-    if alive < 1 {
-      return -5;
-    }
-*/
-
-    if sess_void_ptr.is_null() {
-      return -EBADF;
-    }
-
-    // 1) Raaka pointteri sessioon
-    let sess = sess_void_ptr as *mut ProtoSession;
-
-    // 2) Eksplisiittinen &mut-viite, EI generiikkaa
-    let s: &mut ProtoSession = unsafe { &mut *sess };
-
-    let transport = s.transport as *mut core::ffi::c_void;
-
-    // tämä on struct sock pointteri
-    if transport.is_null() {
-        return -EBADF;
-    }
-
-    s.set_is_server(true);
-    let ret = rust_session_server_handshake_lte(sess_void_ptr, transport);
-    ret
 }
 
 #[unsafe(no_mangle)]

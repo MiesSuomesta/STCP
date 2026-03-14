@@ -19,6 +19,9 @@
 
 #define TCP_DEBUG 1
 
+// Watchdog update, ei omassa headerissa, koska tämä on piilossa kaikilta.
+void stcp_watchdog_update_activity(void);
+
 static ssize_t _the_stcp_tcp_recv(
     int fd,
     int8_t *buf,
@@ -58,7 +61,8 @@ static ssize_t _the_stcp_tcp_recv(
 
     errno = 0;
     ssize_t r = zsock_recv(fd, buf, len, flags);
-
+    stcp_watchdog_update_activity();
+    
     if (r > 0) {
         *recv_len = r;
     
@@ -116,12 +120,11 @@ intptr_t stcp_tcp_recv(void *sock_vp,
         return -EINVAL;
     }
 
-    /*
     if (atomic_get(&ctx->closing)) {
-        LERR("Socket closing ...");
+        LWRN("Socket closing ...");
         return -EINPROGRESS;
     };
-    */
+
     *recv_len = 0;
     memset(buf, 0, len); // tärkeä!
     ssize_t rc = _the_stcp_tcp_recv(

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-
+use crate::stcp_dbg;
 use core::ffi::c_int;
 use crate::tcp_io::stcp_tcp_recv;
 use crate::errorit::EAGAIN;
@@ -105,14 +105,10 @@ pub fn stcp_tcp_recv_exact(
             )
         };
 
+
         if rc == -EAGAIN as isize {
-
-            // non-blocking socket → ei dataa vielä
-            if non_blocking != 0 {
-                return 0;
-            }
-
-            continue;
+            stcp_dbg!("Recv got EAGAIN..");
+            return -EAGAIN as isize;
         }
 
         if rc < 0 {
@@ -126,6 +122,7 @@ pub fn stcp_tcp_recv_exact(
         }
 
         offset += got as usize;
+        stcp_dbg!("recv_exact {} / {}", offset, buf.len());
     }
 
     offset as isize

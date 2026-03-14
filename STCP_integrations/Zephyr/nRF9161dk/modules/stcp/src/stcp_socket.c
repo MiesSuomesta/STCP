@@ -271,57 +271,80 @@ int stcp_socket(int not_used_1,int not_used_2, int not_used_3) {
     return fd;
 }
 
-int stcp_connect(struct stcp_ctx *ctx, const struct sockaddr *addr, socklen_t addrlen)
+static int stcp_wait_for_connect(int fd, int timeout_ms)
 {
-    if (stcp_is_context_valid(ctx) < 0) {
-        LERR("Not valid context, ctx: %p errno: %d", ctx, errno);
-        return -ENOTCONN;
+    struct zsock_pollfd pfd = {
+        .fd = fd,
+        .events = ZSOCK_POLLOUT,
+    };
+
+    LDBG("At poll fd=%d timeout=%d", fd, timeout_ms);
+    int rc = zsock_poll(&pfd, 1, timeout_ms);
+    LDBG("after poll rc=%d errno=%d fd=%d", rc, errno, fd);
+
+    if (rc == 0) {
+        LWRN("Connect timeout");
+        return -ETIMEDOUT;
     }
 
-    LDBG("Context at %s: %p // HS Done: %d // FD: %d",
-        __func__, ctx, ctx->handshake_done, ctx->ks.fd
-    );
-
-    if (!addr) {
-        LERR("No address!");
-        return -EINVAL;
+    if (rc < 0) {
+        LERR("Poll error: %d", errno);
+        return -errno;
     }
 
-    LDBG("Conneting...");
-
-    int err;
+    int err = 0;
     socklen_t len = sizeof(err);
 
-    if (zsock_getsockopt(ctx->ks.fd,
-                        SOL_SOCKET,
-                        SO_ERROR,
-                        &err,
-                        &len) == 0) {
-       LDBG("Pre-connect SO_ERROR: %d", err);
+    if (zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0) {
+        LERR("getsockopt failed: %d", errno);
+        return -errno;
     }
 
-    int rc = zsock_connect(ctx->ks.fd, addr, addrlen);
-
-
-    if (zsock_getsockopt(ctx->ks.fd,
-                        SOL_SOCKET,
-                        SO_ERROR,
-                        &err,
-                        &len) == 0) {
-       LDBG("Post-connect SO_ERROR: %d", err);
+    if (err != 0) {
+        LERR("Connect failed, SO_ERROR=%d", err);
+        return -err;
     }
 
-    if (errno != EISCONN) {
+    LDBG("Connect completed OK");
+
+    return 0;
+}
+
+int stcp_connect(struct stcp_ctx *ctx,
+                 const struct sockaddr *addr,
+                 socklen_t addrlen)
+{
+    int fd = ctx->ks.fd;
+
+    int rc = zsock_connect(fd, addr, addrlen);
+
+    if (rc == 0) {
+        LDBG("Connect completed immediately");
+    }
+    else {
+
+        if (errno != EINPROGRESS) {
+            LERR("Connect failed immediately errno=%d", errno);
+            return -errno;
+        }
+
+        LDBG("Connect in progress...");
+
+        rc = stcp_wait_for_connect(fd, 10000);
+
         if (rc < 0) {
-            LERR("Connect error, rc: %d, errno: %d", rc, errno);
+            LERR("Connect wait failed rc=%d", rc);
             return rc;
         }
     }
 
+    LINF("TCP connect OK");
+
     LDBG("[Ctx: %p] Doing handshake...", ctx);
-    int rv = stcp_handshake_for_context(ctx);
-    return rv;
+
+    return stcp_handshake_for_context(ctx);
 }
+
 
 
 ssize_t stcp_send(struct stcp_ctx *ctx, const void *buf, size_t len, int flags)

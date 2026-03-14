@@ -5,7 +5,9 @@
 //extern int rust_exported_session_create(void **out_sess, void *transport);
 //extern int rust_exported_session_destroy(void *sess);
 
-//extern void rust_session_reset_everything_now(void *sess);
+//exte
+int rust_session_handshake_lte(void *sess, void *transport);
+
 #if 0
 extern int rust_session_client_handshake_lte(void *sess, void *transport);
 extern int rust_session_server_handshake_lte(void *sess, void *transport);

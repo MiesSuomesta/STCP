@@ -26,6 +26,7 @@ pub mod tcp_io;
 pub mod proto_session;
 pub mod settings;
 pub mod module_handlers;
+pub mod self_testing;
 
 #[allow(dead_code)]
 mod errorit;

@@ -1,5 +1,10 @@
 
+use crate::self_testing::stcp_do_selftests;
 use crate::stcp_dbg;
+use crate::stcp_dbg_big;
+use crate::stcp_info;
+use crate::stcp_info_big;
+use crate::stcp_err_big;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_module_rust_enter () {

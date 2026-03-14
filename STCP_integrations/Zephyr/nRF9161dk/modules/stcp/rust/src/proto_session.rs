@@ -145,24 +145,29 @@ impl ProtoSession {
 
     }
 
-    /// Lue tarkka määrä tavua TCP/STCP socketista
     pub fn recv_exact(
         &mut self,
         transport: *mut core::ffi::c_void,
         buf: &mut [u8],
         want: usize,
     ) -> Result<(), StcpError> {
+
         let mut off = 0;
 
         while off < want {
-            let rc = stcp_tcp_recv_once!(transport, &mut buf[off..], (want - off) as i32);
 
-            if rc == -EAGAIN as isize {
-                stcp_dbg!("recv_exact: Would block, try again");
-                return Err(StcpError::Again);
-            }
-
+            let rc = stcp_tcp_recv_once!(
+                transport,
+                &mut buf[off..off + (want - off)],
+                0 // <= Blokkaa, tärkeä
+            );
+            stcp_dbg!("recv_once @ recv_exact, rc={}", rc);
             if rc <= 0 {
+
+                if rc == -EAGAIN as isize {
+                    return Err(StcpError::Again);
+                }
+
                 stcp_dbg!("recv_exact: rc={}", rc);
                 return Err(StcpError::ProtoError);
             }

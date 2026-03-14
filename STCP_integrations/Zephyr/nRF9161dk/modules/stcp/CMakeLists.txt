@@ -56,8 +56,9 @@ if(CONFIG_STCP)
               src/stcp_wire.c
               src/utils.c
               src/workers.c
-			  src/lte_workers.c
-			  src/recovery.c
+              src/lte_workers.c
+              src/recovery.c
+              src/watchdog.c
 
 	)
 

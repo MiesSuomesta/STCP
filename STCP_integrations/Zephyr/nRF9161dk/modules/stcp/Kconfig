@@ -22,6 +22,45 @@ config STCP_DEBUG
     help
       Enable STCP debugs.
 
+config STCP_DEBUG_LATENCY
+    bool "Enable STCP latency debug"
+    default y
+    depends on STCP_DEBUG   # esimerkki: riippuvuudet kernelistä
+    help
+      Enable STCP latency debugs.
+
+config STCP_WATCHDOG_ENABLE
+    bool "Enable STCP watchdog"
+    default y
+    depends on STCP
+    help
+      Enable STCP watchdog thread that monitors
+      STCP activity and network health.
+
+config STCP_WATCHDOG_MAX_TIMEOUT
+    int "Watchdog timeout in seconds"
+    default 300
+    range 30 36000
+    depends on STCP_WATCHDOG_ENABLE
+    help
+      Maximum allowed inactivity time before
+      the watchdog triggers a modem reset.
+
+config STCP_WATCHDOG_CHECK_INTERVAL
+    int "Watchdog check interval in seconds"
+    default 15
+    range 5 36000
+    depends on STCP_WATCHDOG_ENABLE
+    help
+      Interval between watchdog health checks.
+
+config STCP_SELFTEST
+    bool "Enable STCP self-test"
+    default y
+    depends on STCP
+    help
+      Enable STCP self-test support.
+
 config STCP_AES_BYPASS
     bool "Enable STCP AES bypass"
     default n

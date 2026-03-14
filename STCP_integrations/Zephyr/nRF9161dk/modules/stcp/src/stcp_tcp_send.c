@@ -177,6 +177,9 @@ static ssize_t _the_stcp_tcp_send(int fd, const int8_t *buf, size_t len, int fla
     return total;    // >=0: tavujen määrä, <0: -errno
 }
 
+// Watchdog update, ei omassa headerissa, koska tämä on piilossa kaikilta.
+void stcp_watchdog_update_activity(void);
+
 intptr_t stcp_tcp_send(void *sock_vp, const uint8_t *buf, uintptr_t len)
 {
     struct kernel_socket *sock = sock_vp;
@@ -224,6 +227,7 @@ intptr_t stcp_tcp_send(void *sock_vp, const uint8_t *buf, uintptr_t len)
     //};
 
     int rc = _the_stcp_tcp_send(sock->fd, buf, len, 0);
+    stcp_watchdog_update_activity();
     if (rc < 0) {
         if (errno == 128) {
             LDBG("Git 128 => returning -EAGAIN");
@@ -232,7 +236,6 @@ intptr_t stcp_tcp_send(void *sock_vp, const uint8_t *buf, uintptr_t len)
         LERR("Used FD has error pending! (%d)", perr);
         return -EINVAL;
     }
-
     return (intptr_t)rc;
 }
 

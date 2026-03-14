@@ -88,7 +88,9 @@ static int stcp_mqtt_do_run_event(struct mqtt_client *client, struct stcp_api *a
 
     /* timeout -> keepalive */
     if (ret == 0) {
+        MDBG("Calling mqtt_live...");
         rc = mqtt_live(client);
+        MDBG("Return of mqtt_live, rc: %d / errno: %d", rc, errno);
 
         if (rc < 0) {
             LERR("mqtt_live error %d", rc);
@@ -98,7 +100,9 @@ static int stcp_mqtt_do_run_event(struct mqtt_client *client, struct stcp_api *a
 
     if (fds[0].revents & poll_for) {
 
+        MDBG("Calling mqtt_input...");
         rc = mqtt_input(client);
+        MDBG("Return of mqtt_input, rc: %d / errno: %d", rc, errno);
 
         if (rc < 0) {
             LERR("mqtt_input error %d", rc);
@@ -107,51 +111,68 @@ static int stcp_mqtt_do_run_event(struct mqtt_client *client, struct stcp_api *a
 
     }
 
-    rc = mqtt_live(client);
-
-    if (rc < 0) {
-        LERR("mqtt_live returned %d", rc);
-        return rc;
-    }
-
     return 0;
 }
 
-static char *get_state_name(enum mqtt_state state) {
+static const char *get_state_name(enum mqtt_state state) {
+#if CONFIG_STCP_DEBUG
+    //MDBG("Gettin string for state %d", state);
     switch (state)
     {
-        case MQTT_STATE_INITIAL:    return "INITIAL";       break;
-        case MQTT_STATE_IDLE:       return "IDLE";          break;
-        case MQTT_STATE_CONNECT:    return "CONNECT";       break;
-        case MQTT_STATE_SUBSCRIBE:  return "SUBSCRIBE";     break;
-        case MQTT_STATE_RUNNING:    return "RUNNING";       break;
-        case MQTT_STATE_DISCONNECT: return "DISCONNECT";    break;
-        case MQTT_STATE_RECONNECT:  return "RECONNECT";     break;
-        case MQTT_STATE_WAIT_RETRY: return "WAIT_RETRY";    break;
-        default:                    return "UNKNOWN";       break;
+        case MQTT_STATE_INITIAL:    return "INITIAL";   
+        case MQTT_STATE_IDLE:       return "IDLE";      
+        case MQTT_STATE_CONNECT:    return "CONNECT";   
+        case MQTT_STATE_SUBSCRIBE:  return "SUBSCRIBE"; 
+        case MQTT_STATE_RUNNING:    return "RUNNING";   
+        case MQTT_STATE_DISCONNECT: return "DISCONNECT";
+        case MQTT_STATE_RECONNECT:  return "RECONNECT"; 
+        case MQTT_STATE_WAIT_RETRY: return "WAIT_RETRY";
+        default:                    return "UNKNOWN";   
     }
+#else
+    static char tmp[2];
+
+    tmp[0] = "0";
+    tmp[0] += (int)state;
+    tmp[1] = 0;
+
+    return tmp;
+#endif
 }
 
 static void stcp_mqtt_task(void *p1, void *p2, void *p3)
 {
     int rc;
     struct mqtt_client *clientPtr = p1;
-    struct stcp_api *api = client.transport.stcp.stcp_api_instance;
-    static enum mqtt_state last_state = MQTT_STATE_INITIAL;
+    struct stcp_api *api = clientPtr->transport.stcp.stcp_api_instance;
     static uint32_t loop_cnt = 0;
 
+#if CONFIG_STCP_DEBUG
+    static enum mqtt_state last_state = MQTT_STATE_INITIAL;
+#endif
 
     while (1) {
 
         loop_cnt++;
 
-        if (loop_cnt % 30 == 0) {
-            MINF("MQTT alive, uptime %u sec, current state %s", 
-                k_uptime_get()/1000,
-                get_state_name(state)
+        //if (loop_cnt % 30 == 0) {
+        {
+#if CONFIG_STCP_DEBUG
+            const char *msg = get_state_name(state);
+            MINF("MQTT alive, uptime %u sec, current state %s (%d)", 
+                k_uptime_get_32()/1000,
+                msg,
+                state
             );
+#else
+            MINF("MQTT alive, uptime %u sec, current state %d", 
+                k_uptime_get()/1000,
+                state
+            );
+#endif
         }
 
+#if CONFIG_STCP_DEBUG
         if (state != last_state) {
             MINF("MQTT FSM State change: %s => %s", 
                 get_state_name(last_state), 
@@ -161,7 +182,7 @@ static void stcp_mqtt_task(void *p1, void *p2, void *p3)
         } else {
             MWRN("MQTT FSM State: %s", get_state_name(state));
         }
-
+#endif
         switch (state) {
 
             case MQTT_STATE_IDLE:
@@ -222,7 +243,9 @@ static void stcp_mqtt_task(void *p1, void *p2, void *p3)
                 break;
 
 
-            case MQTT_STATE_RUNNING:
+            case MQTT_STATE_RUNNING: {
+                static uint32_t last_pub = 0;
+                uint32_t now = k_uptime_get_32();
                 MINF("MQTT: @ %s state handler", get_state_name(state));
 
                 if (!mqtt_connected) {
@@ -259,10 +282,16 @@ static void stcp_mqtt_task(void *p1, void *p2, void *p3)
 
                     /* tarkoituksella, jatkaa debug viestiin.. */
                 }
+                
+                uint32_t diffPub = now - last_pub;
+                int publish  = (last_pub == 0);
+                    publish |= (diffPub > STCP_MQTT_PUBLISH_INTERVAL_MS);
 
-               /* publish timestamp */
+                if (publish)
                 {
                     char timestamp[128];
+
+                    last_pub = now;
 
                     make_timestamp(timestamp, sizeof(timestamp));
 
@@ -285,11 +314,8 @@ static void stcp_mqtt_task(void *p1, void *p2, void *p3)
                     state = MQTT_STATE_DISCONNECT;
                     mqtt_connected = 0;
                 }
-
-                SLEEP_MSEC(100);
-
                 break;
-
+            }
 
             case MQTT_STATE_DISCONNECT:
                 MINF("MQTT: @ %s state handler", get_state_name(state));

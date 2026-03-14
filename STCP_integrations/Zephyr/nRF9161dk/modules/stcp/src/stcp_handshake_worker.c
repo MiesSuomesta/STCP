@@ -33,12 +33,14 @@ static void stcp_handshake_worker(void *a, void *b, void *c)
         if (!ctx)
             continue;
 
-
         if (!ctx->handshake_done) {
 
-            int ret = rust_session_server_handshake_lte(
+            LDBGBIG("Starting Handshake in RUST...");
+
+            int ret = rust_session_handshake_lte(
                 ctx->session,
                 &ctx->ks);
+            LDBGBIG("Handshake in RUST completed: %d (errno=%d)", ret, errno);
 
             if (ret == 1) {
 
@@ -47,6 +49,16 @@ static void stcp_handshake_worker(void *a, void *b, void *c)
                 ctx->handshake_done = true;
 
                 k_poll_signal_raise(&ctx->handshake_signal, 1);
+                LINF("STCP handshake signal raised");
+                break;
+            } else {
+                if (ret < 0) {
+                    if (errno == EINPROGRESS || errno == EAGAIN) {
+                        LWRN("[CTX %p] Got request to run again while hanshake: %d", ctx, ret);
+                        return -EAGAIN;
+                    }
+                    LERR("[CTX %p] Got error while hanshake: %d", ctx, ret);
+                }
             }
         }
 

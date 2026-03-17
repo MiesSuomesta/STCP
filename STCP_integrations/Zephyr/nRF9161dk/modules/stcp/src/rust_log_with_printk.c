@@ -49,21 +49,11 @@ void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
     // Yksinkertainen printk – ei mitään ihmeellistä
     switch(level) {
         case 1:
-            LERR("RUST[%s]: %s", lvl[level],  tmp);
-            break;
-
         case 2:
-            LWRN("RUST[%s]: %s", lvl[level],  tmp);
-            break;
-
         case 3:
+        case 4:
             LINF("RUST[%s]: %s", lvl[level],  tmp);
             break;
-
-        case 4:
-            LDBG("RUST[%s]: %s", lvl[level],  tmp);
-            break;
-
         default:
             LINF("RUST[%s]: %s", lvl[STCP_DEFAULT_RUST_LOG_LEVEL],  tmp);
             break;

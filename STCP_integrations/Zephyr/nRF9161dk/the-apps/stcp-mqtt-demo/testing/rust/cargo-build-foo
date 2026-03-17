@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+echo $1
+cargo +nightly build --features stcp_debug,linux --manifest-path ./Cargo.toml --bin $1
+

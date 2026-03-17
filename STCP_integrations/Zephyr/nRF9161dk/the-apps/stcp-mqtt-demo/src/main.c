@@ -24,6 +24,7 @@
 #include "mqtt_demo_utils.h"
 
 
+#if CONFIG_MQTT_LIB_STCP
 
 extern int mqtt_connected;
 extern struct mqtt_client client;
@@ -109,21 +110,34 @@ void make_timestamp(char *out, size_t max_len)
              tm.tm_min,
              tm.tm_sec);
 }
+#endif // CONFIG_MQTT_LIB_STCP
 
 int main(void)
 {
+
+#if CONFIG_MQTT_LIB_STCP
+//#  if STCP_COMPILE_MQTT
     struct stcp_api *theAPI = NULL;
     
     int rc = stcp_library_init();
     MINF("STCP READY!");
 
+# if (CONFIG_STCP_TESTING && (CONFIG_STCP_TEST_MODE == 3))
     MINF("FSM starting....");
     stpc_mqtt_init_fsm_thread();
     MINF("FSM started....");
+# else
+#  if !CONFIG_STCP_TESTING
+    MINF("FSM starting....");
+    stpc_mqtt_init_fsm_thread();
+    MINF("FSM started....");
+#  endif
+# endif
 
     while (1) {
         SLEEP_SEC(600);
     }
 
     return 0;
+#endif // CONFIG_MQTT_LIB_STCP
 }

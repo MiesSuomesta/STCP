@@ -20,3 +20,11 @@ intptr_t stcp_tcp_recv(void *sock_vp,
                        int32_t non_blocking,
                        uint32_t flags,
                        int *recv_len);
+
+intptr_t stcp_tcp_send_via_fd(int fd, const uint8_t *buf, uintptr_t len);
+intptr_t stcp_tcp_recv_via_fd(int fd,
+                       uint8_t *buf,
+                       uintptr_t len,
+                       int32_t non_blocking,
+                       uint32_t flags,
+                       int *recv_len);

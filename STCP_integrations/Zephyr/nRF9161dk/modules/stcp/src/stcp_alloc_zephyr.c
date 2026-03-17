@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "stcp/debug.h"
+#include <stcp/stcp_struct.h>
 
 #define STCP_MEM_DEBUG 0 
 
@@ -58,3 +59,30 @@ void stcp_free_aligned(void *p)
     stcp_free(p);
 }
 
+// Rust puolelle, ei C käyttöön!
+__used
+__noinline
+void * stcp_rust_kernel_socket_create(int fd) {
+    LDBG("Creating sock blob for RUST, with fd: %d", fd);
+    struct kernel_socket *p = stcp_alloc(sizeof(struct kernel_socket));
+    if (!p){
+        LERRBIG("FATAL: OOM (not out of mana, but memory, sorry)");
+        return NULL;
+    }
+
+    memset(p, 0, sizeof(*p));
+
+    p->fd = fd;
+
+    return p;
+}
+
+__used
+__noinline
+void stcp_rust_kernel_socket_destroy(void *p) {
+    stcp_free(p);    
+}
+
+
+void *stcp_rust_kernel_socket_create_keep  = (void *)&stcp_rust_kernel_socket_create;
+void *stcp_rust_kernel_socket_destroy_keep = (void *)&stcp_rust_kernel_socket_destroy;

@@ -85,9 +85,25 @@ void stcp_hexdump_ascii(const char *prefix, const uint8_t *buf, int len)
 #endif
 }
 
+static inline int stcp_ctx_pointer_valid(struct stcp_ctx *ctx)
+{
+    uintptr_t p = (uintptr_t)ctx;
+
+    if (p < 0x20000000 || p > 0x30000000)
+        return 0;
+
+    return 1;
+}
+
 int stcp_is_context_valid(void *vpCtx) {
     struct stcp_ctx * ctx = vpCtx;
     
+    if (!stcp_ctx_pointer_valid(ctx)) {
+        LERR("STCP Context pointer not valid!");
+        stcp_dump_bt();
+        return -EINVAL;
+    }
+
     if (!ctx) {
         LDBG("STCP Context null");
         return -EINVAL;

@@ -12,6 +12,8 @@
 #include <stcp/debug.h>
 #include <stcp/stcp_struct.h>
 #include <stcp/stcp_tcp_low_level_operations.h>
+#include <status_monitor.h>
+
 
 
 #define TCP_DEBUG 1
@@ -60,7 +62,6 @@ intptr_t stcp_tcp_send_iovec(void *sock_vp, void *msg_vp, int flags)
         ssize_t sent = zsock_sendmsg(fd, msg, flags);
 
         if (sent < 0) {
-
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 if (k_uptime_get() - start > timeout) {
                     LERR("send timeout (%d ms)", (int)timeout);
@@ -76,11 +77,11 @@ intptr_t stcp_tcp_send_iovec(void *sock_vp, void *msg_vp, int flags)
                 continue;
             }
 
+            stcp_statistics_inc(STAT_ERRORS, 1);
             if (errno == ECONNRESET || errno == ENOTCONN || errno == EPIPE) {
                 LERR("Socket dead: errno=%d", errno);
                 return -errno;
             }
-
             return -errno;
         }
 
@@ -110,6 +111,8 @@ intptr_t stcp_tcp_send_iovec(void *sock_vp, void *msg_vp, int flags)
 #if TCP_DEBUG
     LDBG("✅ sendmsg fd=%d total=%d", fd, (int)total);
 #endif
+
+    stcp_statistics_inc(STAT_TX_BYTES, total);
 
     return total;
 }
@@ -154,6 +157,7 @@ static ssize_t _the_stcp_tcp_send(int fd, const int8_t *buf, size_t len, int fla
                 continue;
             }
 
+            stcp_statistics_inc(STAT_ERRORS, 1);
             if (errno == ECONNRESET || errno == ENOTCONN || errno == EPIPE) {
                 LERR("Socket dead: errno=%d", errno);
                 return -errno;
@@ -174,11 +178,50 @@ static ssize_t _the_stcp_tcp_send(int fd, const int8_t *buf, size_t len, int fla
     LDBG("'----------------------------------------------------------------------'\n");
 #endif
 
+    stcp_statistics_inc(STAT_TX_BYTES, total);
     return total;    // >=0: tavujen määrä, <0: -errno
 }
 
 // Watchdog update, ei omassa headerissa, koska tämä on piilossa kaikilta.
 void stcp_watchdog_update_activity(void);
+
+intptr_t stcp_tcp_send_via_fd(int fd, const uint8_t *buf, uintptr_t len)
+{
+    if (fd < 0) {
+        LERR("stcp_tcp_send_via_fd: No FD!");
+        return -EINVAL;
+    }
+
+    int perr = stcp_get_pending_fd_error(fd);
+    if (perr != 0) {
+        if (errno == 128) {
+            LDBG("Git 128 => returning -EAGAIN");
+            return -EAGAIN;
+        }
+        LERR("Used FD has error pending! (%d)", perr);
+        return -EINVAL;
+    }
+
+    //if (atomic_get(&ctx->closing)) {
+    //    LERR("Socket closing ...");
+    //    return -EAGAIN;
+    //};
+
+    int rc = _the_stcp_tcp_send(fd, buf, len, 0);
+    stcp_watchdog_update_activity();
+    if (rc < 0) {
+        if (errno == 128) {
+            LDBG("Git 128 => returning -EAGAIN");
+            return -EAGAIN;
+        }
+        LERR("Used FD has error pending! (%d)", perr);
+        return -EINVAL;
+    }
+    
+    return (intptr_t)rc;
+}
+
+
 
 intptr_t stcp_tcp_send(void *sock_vp, const uint8_t *buf, uintptr_t len)
 {

@@ -1,7 +1,7 @@
 #pragma once
 #include <zephyr/kernel.h>
 
-#define STCP_GET_TIMESTAMP     ((uint32_t)k_uptime_get())
+#define STCP_GET_TIMESTAMP     ((uint32_t)k_uptime_get_32())
 
 
 #define LOG_CALLING_SPOT_FIRST  0
@@ -71,10 +71,10 @@
 
 #define _STCP_DO_CUSTOM_BIG_PRINT(MACRO, ...) \
     do { \
-        MACRO(".--------------------------------------------------------------->\n"); \
+        MACRO(".--------------------------------------------------------------->"); \
         MACRO("| " __VA_ARGS__); \
         printk("\n"); \
-        MACRO("'----------------------------------------->\n"); \
+        MACRO("'----------------------------------------->"); \
     } while(0)
 
 #define LDBGBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LDBG, ##__VA_ARGS__)
@@ -85,10 +85,9 @@
 // MQTT macros...
 #define _STCP_DO_MQTT_BIG_PRINT(MACRO, ...) \
     do { \
-        MACRO("[STCP/MQTT] .--------------------------------------------------------------->\n"); \
+        MACRO("[STCP/MQTT] .--------------------------------------------------------------->"); \
         MACRO("[STCP/MQTT] | " __VA_ARGS__); \
-        printk("\n"); \
-        MACRO("[STCP/MQTT] '----------------------------------------->\n"); \
+        MACRO("[STCP/MQTT] '----------------------------------------->"); \
     } while(0)
 
 #define MDBG(msg, ...)  LDBG("[STCP/MQTT] " msg, ##__VA_ARGS__)

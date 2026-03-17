@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <errno.h>
@@ -77,3 +78,4 @@ void stcp_rust_log(const char *msg, int len)
     printf("\n");
     fflush(stdout);
 }
+

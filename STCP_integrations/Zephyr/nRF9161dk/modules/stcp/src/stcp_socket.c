@@ -138,33 +138,52 @@ int stcp_new_empty_context(struct stcp_ctx **ctxSaveTo)
 
 }
 
+
+K_MUTEX_DEFINE(g_mutex_new_context_create);
+static void g_mutex_new_context_create_init() {
+    static int init = 0;
+    if (init) return;
+    init = 1;
+
+    k_mutex_init(&g_mutex_new_context_create);
+
+}
+
 int stcp_new_context(struct stcp_ctx **ctxSaveTo)
 {
+    g_mutex_new_context_create_init();
 
     if (ctxSaveTo == NULL) {
         return -EINVAL;
     }
 
+    k_mutex_lock(&g_mutex_new_context_create, K_FOREVER);
+    
     int rc = stcp_new_empty_context(ctxSaveTo);
     if (rc < 0) {
+        k_mutex_unlock(&g_mutex_new_context_create);
         return -ENOMEM;
     }
 
     int fd = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0) {
+        k_mutex_unlock(&g_mutex_new_context_create);
         return fd;
     }
 
     if (! *ctxSaveTo ) {
         zsock_close(fd);
+        k_mutex_unlock(&g_mutex_new_context_create);
         return -ENOMEM;
     }
 
     // Override FD (is -1)
     struct stcp_ctx *ctx = *ctxSaveTo;
     ctx->ks.fd = fd;
+    STCP_DBG_CTX_FD(ctx);
 
     LDBG("STCP Context created: %p with fd: %d...", ctx, fd);
+    k_mutex_unlock(&g_mutex_new_context_create);
     return fd;
 }
 
@@ -177,6 +196,7 @@ int stcp_bind(struct stcp_ctx *ctx,
         return -ENOTCONN;
     }
 
+    STCP_DBG_CTX_FD(ctx);
     int ret = zsock_bind(ctx->ks.fd, addr, addrlen);
     if (ret < 0) {
         return -errno;
@@ -193,6 +213,7 @@ int stcp_listen(struct stcp_ctx *ctx,
         return -ENOTCONN;
     }
     
+    STCP_DBG_CTX_FD(ctx);
     int ret = zsock_listen(ctx->ks.fd, backlog);
     if (ret < 0) {
         return -errno;
@@ -223,6 +244,7 @@ int stcp_accept(struct stcp_ctx *parent,
 
     CTX_SOCK_LOCK(parent);
     LDBG("Parent lock GET");
+    STCP_DBG_CTX_FD(parent);
     int new_fd = zsock_accept(parent->ks.fd, peer_addr, peer_len);
     if (new_fd < 0) {
         LDBG("Parent lock PUT");
@@ -234,6 +256,7 @@ int stcp_accept(struct stcp_ctx *parent,
 
     // TÄRKEÄ
     int ret = stcp_new_context_with_fd(&child, new_fd);
+    STCP_DBG_CTX_FD(child);
     CTX_SOCK_LOCK(child);
     LDBG("Child lock GET");
 
@@ -265,8 +288,9 @@ int stcp_accept(struct stcp_ctx *parent,
 int stcp_socket(int not_used_1,int not_used_2, int not_used_3) {
 
     int fd = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    LINF("GOT SOCKET fd=%d errno=%d", fd, errno);
     if(fd < 0) {
-        LERR("Error when creating sock, rc: %d", fd);
+        LERR("Error when creating sock, rc: %d, errno: %d", fd, errno);
     }
     return fd;
 }
@@ -314,35 +338,87 @@ int stcp_connect(struct stcp_ctx *ctx,
                  const struct sockaddr *addr,
                  socklen_t addrlen)
 {
-    int fd = ctx->ks.fd;
+    if (!ctx) {
+        LERR("CTX was null!");
+        return -EINVAL;
+    }
 
-    int rc = zsock_connect(fd, addr, addrlen);
+    if (ctx->closing) {
+        LWRN("CTX already scheduled for cleanup");
+        return -EBADFD;
+    }
+
+    if (stcp_is_context_valid(ctx) < 0) {
+        LERR("Not valid context, ctx: %p errno: %d", ctx, errno);
+        return -ENOTCONN;
+    }
+    
+    int fd = ctx->ks.fd;
+    if (fd < 0) {
+        LERR("Invalid FD: %d", fd);
+        return -EBADF;
+    }
+
+    LDBG("Doing connect with fd: %d from context %p (api %p)", 
+        fd, ctx, ctx->api);
+    STCP_DBG_CTX_FD(ctx);
+
+    LDBG("Doing connect with fd: %d from context %p (api %p)", 
+        fd, ctx, ctx->api);
+
+    struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+
+    LDBG("CONNECT ip=%d.%d.%d.%d port=%d addrlen=%d",
+        sin->sin_addr.s4_addr[0],
+        sin->sin_addr.s4_addr[1],
+        sin->sin_addr.s4_addr[2],
+        sin->sin_addr.s4_addr[3],
+        ntohs(sin->sin_port),
+        addrlen);
+
+     int rc = zsock_connect(fd, addr, addrlen);
 
     if (rc == 0) {
         LDBG("Connect completed immediately");
-    }
-    else {
-
-        if (errno != EINPROGRESS) {
-            LERR("Connect failed immediately errno=%d", errno);
-            return -errno;
-        }
-
-        LDBG("Connect in progress...");
-
-        rc = stcp_wait_for_connect(fd, 10000);
-
+        ctx->state = STCP_STATE_CONNECTING;
+    } else {
         if (rc < 0) {
-            LERR("Connect wait failed rc=%d", rc);
-            return rc;
+            int err;
+            socklen_t len = sizeof(err);
+
+            zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len);
+            LDBG("SO_ERROR[Ctx: %p]: err=%d", ctx, err);
+
+            if (errno != EINPROGRESS) {
+                LERR("Connect failed immediately errno=%d", errno);
+                return -errno;
+            }
+
+            LDBG("Connect in progress...");
+            rc = stcp_wait_for_connect(fd, 10000);
+
+            if (rc < 0) {
+                LERR("Connect wait failed rc=%d", rc);
+                ctx->state = STCP_STATE_CLOSING;
+                return rc;
+            }
         }
     }
 
     LINF("TCP connect OK");
 
     LDBG("[Ctx: %p] Doing handshake...", ctx);
+    ctx->state = STCP_STATE_CONNECTING;
+    STCP_DBG_CTX_FD(ctx);
+    rc = stcp_handshake_for_context(ctx);
+    
+    if (rc == 1) {
+        ctx->state = STCP_STATE_ESTABLISHED;
+    } else {
+        ctx->state = STCP_STATE_CLOSING;
+    }
 
-    return stcp_handshake_for_context(ctx);
+    return rc;
 }
 
 
@@ -359,7 +435,13 @@ ssize_t stcp_send(struct stcp_ctx *ctx, const void *buf, size_t len, int flags)
         __func__, ctx, ctx->handshake_done, ctx->ks.fd
     );
 
+    if (ctx->state != STCP_STATE_ESTABLISHED) {
+        LDBG("Context %p at sttate %d tried to send..", ctx, ctx->state);
+        return -ENOTCONN;
+    }
+
     ARG_UNUSED(flags);
+    STCP_DBG_CTX_FD(ctx);
 
     CTX_SOCK_LOCK(ctx);
         ssize_t ret = stcp_transport_send(ctx, buf, len);
@@ -379,6 +461,12 @@ ssize_t stcp_send_msg(struct stcp_ctx *ctx, const struct msghdr *message)
         __func__, ctx, ctx->handshake_done, ctx->ks.fd
     );
 
+    if (ctx->state != STCP_STATE_ESTABLISHED) {
+        LDBG("Context %p at sttate %d tried to send..", ctx, ctx->state);
+        return -ENOTCONN;
+    }
+
+    STCP_DBG_CTX_FD(ctx);
     CTX_SOCK_LOCK(ctx);
         ssize_t ret = stcp_transport_send_iovec(ctx, message);
     CTX_SOCK_UNLOCK(ctx);
@@ -400,7 +488,12 @@ ssize_t stcp_recv(struct stcp_ctx *ctx, void *buf, size_t len, int flags)
         __func__, ctx, ctx->handshake_done, ctx->ks.fd
     );
 
+    if (ctx->state != STCP_STATE_ESTABLISHED) {
+        LDBG("Context %p at sttate %d tried to recv..", ctx, ctx->state);
+        return -ENOTCONN;
+    }
 
+    STCP_DBG_CTX_FD(ctx);
     CTX_SOCK_LOCK(ctx);
         ssize_t ret = stcp_transport_recv(ctx, buf, len);
     CTX_SOCK_UNLOCK(ctx);
@@ -429,10 +522,16 @@ int stcp_close(struct stcp_ctx *ctx)
         return -ENOTCONN;
     }
 
+    if (ctx->state == STCP_STATE_CLOSING) {
+        return 0;
+    }
+    ctx->state = STCP_STATE_CLOSING;
+
     LDBG("Context at %s: %p // HS Done: %d // FD: %d",
         __func__, ctx, ctx->handshake_done, ctx->ks.fd
     );
 
+    STCP_DBG_CTX_FD(ctx);
     stcp_transport_close(ctx); // TÄMÄ HOITAA KAIKEN...
     return 0;
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include <zephyr/kernel.h>
 
-#define STCP_GET_TIMESTAMP     ((uint32_t)k_uptime_get())
+#define STCP_GET_TIMESTAMP     ((uint32_t)k_uptime_get_32())
 
 
 #define LOG_CALLING_SPOT_FIRST  0
@@ -110,3 +110,8 @@ do { \
     printk("\n"); \
 } while(0)
 
+#define STCP_DBG_CTX_FD(ctx) \
+    LDBG("CTX %p FD=%d", ctx, (ctx)->ks.fd)
+
+// Backtrace
+void stcp_dump_bt(void);

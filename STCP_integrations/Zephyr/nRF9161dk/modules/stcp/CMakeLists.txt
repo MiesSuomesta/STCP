@@ -27,9 +27,8 @@ if(CONFIG_STCP)
 # ------------------------------------------------------------
 # C sources (enabled only if CONFIG_STCP)
 # ------------------------------------------------------------
-#zephyr_library_sources_ifdef(CONFIG_STCP
-	zephyr_library_sources(
-              micro-ecc/uECC.c
+	zephyr_library_sources_ifdef(CONFIG_STCP
+	          micro-ecc/uECC.c
               src/ffi_random.c
               src/fsm.c
               src/mqtt_transport_socket_stcp.c
@@ -59,7 +58,17 @@ if(CONFIG_STCP)
               src/lte_workers.c
               src/recovery.c
               src/watchdog.c
+              src/debug.c
+              src/testing/status-monitor/stat-monitor.c
+# TODO:              src/testing/clients/mqtt.c
+	)
 
+	zephyr_library_sources_ifdef(CONFIG_STCP_TESTING
+              src/testing/the_master_server_thread.c
+              src/testing/clients/common.c
+              src/testing/clients/raw.c
+              src/testing/clients/stcp.c
+              src/testing/stcp/stcp_test.c
 	)
 
 	set_source_files_properties(
@@ -71,7 +80,7 @@ if(CONFIG_STCP)
 # ------------------------------------------------------------
 # Version / metadata
 # ------------------------------------------------------------
-	set(STCP_VERSION_STR "1.0.0-beta")
+	set(STCP_VERSION_STR "2.0.0")
 	string(TIMESTAMP STCP_BUILD_TIME "%Y-%m-%d %H:%M:%S UTC")
 
 	# Git SHA
@@ -99,6 +108,9 @@ if(CONFIG_STCP)
 	zephyr_include_directories(
 	    ${CMAKE_CURRENT_LIST_DIR}/micro-ecc
 	    ${CMAKE_CURRENT_LIST_DIR}/include
+	    ${CMAKE_CURRENT_LIST_DIR}/src/testing/include
+	    ${CMAKE_CURRENT_LIST_DIR}/src/testing
+	    ${CMAKE_CURRENT_LIST_DIR}/../../the-app/stcp-mqtt-demo/include
 	    ${CMAKE_CURRENT_BINARY_DIR}
 	)
 
@@ -106,7 +118,7 @@ if(CONFIG_STCP)
 # Rust build
 # ------------------------------------------------------------
 	# compile options kaikille lähdetiedostoille tässä moduulissa
-	add_compile_definitions(O2 flto)
+	add_compile_definitions(Os flto)
 
 	set(RUST_PROJECT_DIR ${CMAKE_CURRENT_LIST_DIR}/rust)
 
@@ -125,7 +137,7 @@ if(CONFIG_STCP)
 	    OUTPUT ${RUST_LIB_REAL}
 
 	    COMMAND cargo +nightly build
-	            --release
+	            --release --features stcp_debug
         	    --target thumbv8m.main-none-eabi
 
 	    WORKING_DIRECTORY ${RUST_PROJECT_DIR}

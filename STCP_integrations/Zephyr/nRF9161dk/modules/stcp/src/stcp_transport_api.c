@@ -40,7 +40,10 @@ int stcp_api_init_with_fd(struct stcp_api **api, int fd)
     if (!api) {
         return -EINVAL;
     }
-
+    if (fd < 0) {
+        LERR("Invalid fd in api creation");
+        return -EBADF;
+    }
     struct stcp_api *inst = k_malloc(sizeof(*inst));
     if (!inst) {
         return -ENOMEM;
@@ -58,6 +61,8 @@ int stcp_api_init_with_fd(struct stcp_api **api, int fd)
     inst->ctx->api = inst; 
 
     *api = inst;
+    LDBG("Created API %p, it has struct stcp_ctx %p with FD %d",
+        inst, inst->ctx, inst->ctx->ks.fd);
     return 0;
 }
 

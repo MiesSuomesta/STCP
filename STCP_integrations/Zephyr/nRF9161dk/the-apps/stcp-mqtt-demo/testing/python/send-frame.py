@@ -61,19 +61,33 @@ def main():
     parser.add_argument("--port", type=int, default=7777)
     parser.add_argument("--type", type=int, default=1)
     parser.add_argument("--version", type=int, default=1)
+    parser.add_argument("--flood", type=int, default=0)
+    parser.add_argument("--interval", type=int, default=1)
     parser.add_argument("--payload", default="hello")
 
     args = parser.parse_args()
 
     payload = args.payload.encode()
-
-    frame = build_frame(
-        args.version,
-        args.type,
-        payload
-    )
-
-    send_frame(args.host, args.port, frame)
+    seq = 0
+    interval = args.interval
+    flood = args.flood
+    if flood:
+        while flood > 0:
+            flood -= 1
+            pload = "{seq} {payload}"
+            frame = build_frame(
+                args.version,
+                args.type,
+                pload
+            )
+            time.sleep(interval / 1000.0)
+    else:
+        frame = build_frame(
+            args.version,
+            args.type,
+            payload
+        )
+        send_frame(args.host, args.port, frame)
 
 
 if __name__ == "__main__":

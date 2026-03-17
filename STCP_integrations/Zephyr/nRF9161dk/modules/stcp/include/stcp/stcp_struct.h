@@ -39,6 +39,13 @@ typedef enum {
 
 struct stcp_ctx;
 
+enum stcp_ctx_state {
+    STCP_STATE_INIT = 0,
+    STCP_STATE_CONNECTING,
+    STCP_STATE_ESTABLISHED,
+    STCP_STATE_CLOSING
+};
+
 struct stcp_fsm {
     stcp_fsm_state_t state;
     struct k_sem connection_ready;
@@ -69,6 +76,8 @@ struct stcp_ctx {
 
 	struct k_mutex lock;
 	struct k_work cleanup_work;
+    
+    enum stcp_ctx_state state;
 	struct stcp_fsm fsm;
     atomic_t refcnt;
     atomic_t closing;
@@ -80,9 +89,14 @@ struct stcp_ctx {
     size_t rx_payload_pos;
     size_t rx_payload_len;
 
+    struct k_poll_signal handshake_signal;
+
     void *session;   // Rust STCP session pointer
 	void *api;       // Api instance this conntext belongs to. 
 	struct kernel_socket ks;
+
+    struct sockaddr_storage peer_addr;
+    socklen_t               peer_addr_len;
 
     // Bufferit loppuun ... 
 	char hostname_str[STCP_MAX_HOSTNAME_LEN];
@@ -97,4 +111,6 @@ struct stcp_ctx {
     // Koonti puskuri
     uint8_t rx_payload[STCP_RECV_FRAME_BUF_SIZE];
 
+
 };
+

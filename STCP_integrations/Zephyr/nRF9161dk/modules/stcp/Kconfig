@@ -22,12 +22,87 @@ config STCP_DEBUG
     help
       Enable STCP debugs.
 
+config STCP_STATISTICS
+    bool "Enable STCP modem statistics"
+    default y
+    depends on STCP
+    help
+      Collect statistics from real-life traffic
+
+config STCP_STATISTICS_LOG_INTERVAL
+    int "Enable STCP modem statistics log interval"
+    default 5
+    depends on STCP_STATISTICS
+    help
+      The interval in seconds to log statistics
+
+config STCP_TESTING
+    bool "Enable STCP test support"
+    default y
+    depends on STCP
+    help
+      Enables the STCP Echo test server
+
+config STCP_TESTING_MODE 
+    int "Set STCP testmode, see help"
+    default 3
+    range 0 3
+    depends on STCP_TESTING
+    help
+      Select which testing mode the modem runs.
+
+      0 - Idle test
+          Modem connects to the testing server and stays idle.
+          Useful for testing LTE stability and watchdog behaviour.
+
+      1 - TCP max throughput
+          Raw TCP throughput test without STCP.
+
+      2 - STCP max throughput
+          STCP protocol throughput test running over TCP.
+
+      3 - MQTT max throughput
+          MQTT publish throughput test running over STCP.
+
+      The modem connects to the host defined by:
+
+          TESTING_PEER_HOSTNAME_TO_CONNECT
+          TESTING_PEER_PORT_TO_CONNECT
+
+      Normally the peer host runs the stcp-torture-server.
+
+config STCP_TESTING_PAYLOAD_FORMAT
+    string "Testing payload date format"
+    default "TEST PAYLOAD %Y-%m-%d %H:%M:%S"
+    depends on STCP_TESTING
+    help
+      Date format used to generate payload.
+      set DATE_TIME define ON, to be able to use
+      strftime() formatting rules for dynamic
+      messages.
+
+config STCP_TESTING_PEER_HOSTNAME_TO_CONNECT
+    string "Host IP to where the test server creates connection to"
+    default "lja.fi"
+    depends on STCP_TESTING
+    help
+      Cause the connection has to be from the modem, the hostname
+      an port is needed to create test connection to.
+
+config STCP_TESTING_PEER_PORT_TO_CONNECT
+    string "Port where the test server creates connection to"
+    default "7777"
+    depends on STCP_TESTING
+    help
+      Cause the connection has to be from the modem, the hostname
+      an port is needed to create test connection to.
+
 config STCP_DEBUG_LATENCY
-    bool "Enable STCP latency debug"
+    bool "Enable STCP latency & timing debug"
     default y
     depends on STCP_DEBUG   # esimerkki: riippuvuudet kernelistä
     help
-      Enable STCP latency debugs.
+      Enable STCP latency and timing debugs.
 
 config STCP_WATCHDOG_ENABLE
     bool "Enable STCP watchdog"
@@ -56,7 +131,7 @@ config STCP_WATCHDOG_CHECK_INTERVAL
 
 config STCP_SELFTEST
     bool "Enable STCP self-test"
-    default y
+    default n
     depends on STCP
     help
       Enable STCP self-test support.

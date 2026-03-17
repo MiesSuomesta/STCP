@@ -48,6 +48,13 @@ void stcp_mqtt_reset_connak_event_seen()
 }
 
 void stpc_mqtt_init_fsm_thread() {
+#if defined(CONFIG_STCP_TESTING) && (CONFIG_STCP_TEST_MODE != 3)
+#define STCP_COMPILE_MQTT 0
+#else
+#define STCP_COMPILE_MQTT 1
+#endif
+
+#if STCP_COMPILE_MQTT
     MINFBIG("Initialising & staring MQTT FSM thread...");
 
     k_sem_init(&g_sem_connack_seen, 0, 1);
@@ -64,6 +71,9 @@ void stpc_mqtt_init_fsm_thread() {
         0,                            // options
         K_NO_WAIT                     // start delay
     );
+#else
+    MINFBIG("Testing enabled but not MQTT testing => MQTT FSM not started");
+#endif
 }
 
 static int stcp_mqtt_do_run_event(struct mqtt_client *client, struct stcp_api *api)

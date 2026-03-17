@@ -69,11 +69,25 @@ void worker_context_init(struct stcp_ctx *ctx) {
 void worker_cleanup_work_handler(struct k_work *work)
 {
     LDBG("STCP cleanup staring running for %p\n", work);
+	printk("At worker %p:", work);	
 
     struct stcp_ctx *ctx =
         CONTAINER_OF(work, struct stcp_ctx, cleanup_work);
+    printk("WORK=%p\n", work);
+    printk("CTX=%p\n", ctx);
+    printk("&cleanup_work=%p\n", &ctx->cleanup_work);
+
+    if (ctx->magic != STCP_CTX_MAGIC_ALIVE) {
+        LERR("CTX not initialized yet %p magic=%x\n", ctx, ctx->magic);
+        return;
+    }
 
     LDBG("STCP cleanup context running for %p\n", ctx);
+
+    if ((uintptr_t)ctx < 0x20000000) {
+        LERR("CTX POINTER INVALID %p\n", ctx);
+        return;
+    }
 
     if (!ctx) {
         LDBG("STCP cleanup, no context...");
@@ -90,25 +104,25 @@ void worker_cleanup_work_handler(struct k_work *work)
         return;
     }
 
-    if ( ctx->magic != STCP_CTX_MAGIC_ALIVE ) {
-        LWRN("Context invalid: No magic.. ");
-        return;
-    }
-
-    
-    /* 2️⃣ Tuhotaan Rust sessio */
     LINF("Cleanup fetching pointers....");
     CTX_SOCK_LOCK(ctx);
     LINF("Cleanup fetching pointers in guarded zone");
-        void *session = ctx->session;
-        struct stcp_api *theAPI = ctx->api;
-        int sockFD = ctx->ks.fd;
 
-        ctx->magic = STCP_CTX_MAGIC_POISON;
-        ctx->session = NULL; // Tärkeä
-        ctx->api = NULL;     // Tärkeä
-        ctx->ks.fd = -1;
-    k_yield();
+    if (ctx->magic != STCP_CTX_MAGIC_ALIVE) {
+        CTX_SOCK_UNLOCK(ctx);
+        return;
+    }
+
+    ctx->magic = STCP_CTX_MAGIC_POISON;
+
+    void *session = ctx->session;
+    struct stcp_api *theAPI = ctx->api;
+    int sockFD = ctx->ks.fd;
+
+    ctx->session = NULL;
+    ctx->api = NULL;
+    ctx->ks.fd = -1;
+
     LINF("Cleanup fetching leaving guarded zone");
     CTX_SOCK_UNLOCK(ctx);
     LINF("Cleanup fetched pointers....");
@@ -128,8 +142,6 @@ void worker_cleanup_work_handler(struct k_work *work)
         LDBG("Not last reference, leaving cleanup");
         return;
     }
-    k_yield();
-
 
     int is_rust_session_valid = 0;
     LDBG("Cleanup: RUST Session? %p", session);
@@ -147,9 +159,7 @@ void worker_cleanup_work_handler(struct k_work *work)
     if (sockFD >= 0) {
         LDBG("Cleanup: socket...");
         stcp_net_close_fd(&sockFD);
-        ctx->ks.fd = -1;
     }
-    k_yield();
 
 #ifdef CONFIG_STCP_DEBUG_POISON
     LDBG("Poisoning memory...");
@@ -160,7 +170,6 @@ void worker_cleanup_work_handler(struct k_work *work)
     }
 #endif
  
-    k_yield();
     if (freed) {
         LDBG("Freeing API (%p) & CTX (%p)", theAPI, ctx);
         if (theAPI) {
@@ -205,11 +214,13 @@ void worker_schedule_cleanup(struct stcp_ctx * ctx) {
         return;
     }
 
-
     if (worker_is_context_scheduled_for_cleanup(ctx)) {
         LDBG("Already in closing...");
+        stcp_dump_bt();
         return -EALREADY;
     }
+
+    worker_context_init(ctx);
 
     if (ctx != NULL) {
         LDBG("Cleanup for %p scheduled..", ctx);

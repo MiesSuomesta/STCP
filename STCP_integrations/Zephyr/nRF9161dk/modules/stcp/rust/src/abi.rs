@@ -55,4 +55,14 @@ unsafe extern "C" {
     //
     pub fn stcp_exported_rust_ctx_alive_count() -> i32;
 
+    // Kernel socket
+    pub fn stcp_rust_kernel_socket_create(
+        fd: i32
+    ) -> *mut c_void;
+
+    pub fn stcp_rust_kernel_socket_destroy(
+        sock: *mut c_void
+    );
+
 }
+ 

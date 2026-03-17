@@ -3,13 +3,23 @@ use core::ffi::c_int;
 use core::ffi::c_void;
 use crate::tcp_io;
 use crate::stcp_dbg;
-//use crate::stcp_dump;
+use crate::abi::*;
 use crate::errorit::*;
 use alloc::vec::Vec;
 //use core::panic::Location;
 use crate::proto_session::ProtoSession;
 
 const STCP_PEEK_FLAGS: u32 = 0;
+
+pub fn stcp_rust_kernel_socket_create_call(fd: i32) -> *mut core::ffi::c_void {
+    stcp_dbg!("Creating kernel_socket for RUST, with fd {}", fd);
+    return unsafe { stcp_rust_kernel_socket_create(fd) };
+}
+
+pub fn stcp_rust_kernel_socket_destroy_call(ks: *mut core::ffi::c_void) {
+    stcp_dbg!("Destrouying kernel_socket {:?}", ks);
+    unsafe { stcp_rust_kernel_socket_destroy(ks) };
+}
 
 // sleep wrapper
 pub fn stcp_sleep_msec(ms: u32) {

@@ -26,6 +26,6 @@ if(DEFINED STCP_DEBUG)
     target_compile_definitions(app PRIVATE STCP_DEBUG=${STCP_DEBUG})
 endif()
 
-add_compile_definitions( O2 )
+add_compile_definitions( Os )
 target_include_directories(app PRIVATE include)
 zephyr_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)

@@ -87,8 +87,9 @@ int stcp_ctx_ref_count_get(struct stcp_ctx *ctx)
 	if (!ctx) {
 		return;
 	}
-
-	return (int)atomic_inc(&ctx->refcnt);
+    int old = atomic_inc(&ctx->refcnt);
+    LDBG("REF++ %p => %d\n", ctx, old + 1);
+    return old + 1;
 }
 
 int stcp_ctx_ref_count_is_what(struct stcp_ctx *ctx)
@@ -105,11 +106,34 @@ int stcp_ctx_ref_count_put(struct stcp_ctx *ctx)
 		return;
 	}
 
-    if ( atomic_dec(&ctx->refcnt) == 1 ) {
-		LDBG("Last reference of ctx: %p", ctx);
-		return 1;
+    int old = atomic_dec(&ctx->refcnt);
+    LDBG("REF-- %p => %d\n", ctx, old - 1);
+
+    if (old == 1) {
+        LWRNBIG("💣 FREE TRIGGER %p\n", ctx);
+		stcp_dump_bt();
+    }
+
+    return old - 1;
+}
+
+int stcp_wait_for_handshake_signal(struct stcp_ctx *ctx) {
+
+	if (!ctx) {
+		return -EBADFD;
 	}
-	return 0;
+
+	struct k_poll_event events[1];
+
+    k_poll_event_init(&events[0],
+        K_POLL_TYPE_SIGNAL,
+        K_POLL_MODE_NOTIFY_ONLY,
+        &ctx->handshake_signal);
+
+    LINF("[CTX %p] Waiting for hanshake signal..", ctx);
+    k_poll(events, 1, K_FOREVER);
+    LINF("[CTX %p] Got hanshake signal..", ctx);
+	k_poll_signal_reset(&ctx->handshake_signal);
 }
 
 void stcp_create_init_new_context(struct stcp_ctx *ctx) {
@@ -118,16 +142,28 @@ void stcp_create_init_new_context(struct stcp_ctx *ctx) {
 		return;
  	}
 
+	memset(ctx, 0, sizeof(*ctx));
+
+
 	ctx->magic = STCP_CTX_MAGIC_ALIVE;
 	ctx->ks.kctx = ctx;
 	ctx->handshake_done = 0;
 	ctx->poll_timeouts = 0;
+	ctx->state = STCP_STATE_INIT;
+
 	atomic_set(&ctx->closing, 0);
 	atomic_set(&ctx->refcnt, 1);
 	atomic_set(&ctx->connection_closed, 0);
 	atomic_set(&ctx->destroyed, 0);
+
+	k_poll_signal_init(&(ctx->handshake_signal));
+
+	stcp_fsm_init(&(ctx->fsm), ctx);
+
 	k_mutex_init(&ctx->lock);
-	worker_context_init(ctx);
+	printk("At init:");	
+	printk("CTX=%p\n", ctx);
+	printk("MAGIC=%x\n", ctx->magic);
 	stcp_context_recv_stream_init(ctx);
 }
 
@@ -135,6 +171,7 @@ void stcp_create_init_new_context(struct stcp_ctx *ctx) {
 struct stcp_ctx *stcp_create_new_context(int under) {
 
 	struct stcp_ctx *ctx = stcp_alloc(sizeof(struct stcp_ctx));
+	printk("CTX ALLOC %p size=%d\n", ctx, sizeof(struct stcp_ctx));
 
 	if (!ctx) {
 		LERRBIG("FATAL: OOM!");
@@ -144,9 +181,8 @@ struct stcp_ctx *stcp_create_new_context(int under) {
  	}
 
 	LDBG("Created CTX: %p / %d", ctx, under);
-
-	ctx->ks.fd = under;
 	stcp_create_init_new_context(ctx);
+	ctx->ks.fd = under;
 
 	LDBG("STCP: Settings via fd: %d / %p (KS.FD:%d)", under, ctx, ctx->ks.fd);
 	LDBG("Creating STCP session for %p", ctx);

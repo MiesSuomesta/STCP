@@ -232,20 +232,21 @@ pub fn stcp_message_frame_from_raw(frame_payload_in: &[u8]) ->
 pub fn stcp_message_send_frame(
     sess: &mut ProtoSession,
     transport: *mut core::ffi::c_void,
-    _msg_type: StcpMsgType,
+    msg_type: StcpMsgType,
     buffer: &[u8],
 ) -> i32 {
 
     let final_payload: Vec<u8>; 
     let msg_type_eff: StcpMsgType;
 
-    stcp_dbg!("Sending plain {} bytes: // {:?} //", buffer.len(), buffer);
+    stcp_dbg!("Sending {} bytes: // {:?} //", buffer.len(), buffer);
     if sess.in_aes_mode() {
         let aes = sess.get_aes()
             .expect("Encrypted state but no AES context");
         stcp_dbg!("Plain buffer: {:?}", buffer);
         final_payload = aes.encrypt(buffer);
         msg_type_eff = StcpMsgType::Aes;
+        stcp_dbg!("Cryped buffer: {:?}", final_payload);
     } else {
         final_payload = buffer.to_vec();
         msg_type_eff = StcpMsgType::Public;

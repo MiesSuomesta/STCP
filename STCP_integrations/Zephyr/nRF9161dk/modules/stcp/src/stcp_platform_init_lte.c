@@ -17,6 +17,7 @@
 #include <stcp/stcp_platform.h>
 #include <stcp_api.h>
 #include <stcp/debug.h>
+#include <status_monitor.h>
 
 
 
@@ -46,12 +47,34 @@ static stcp_platform_ready_cb_t user_platform_ready_callback = NULL;
 // tässä myöhemmin: socket connect, stcp_net_set_sock, rng init, jne.
 extern void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len);
 
+extern void *stcp_rust_kernel_socket_create(int fd);
+extern void  stcp_rust_kernel_socket_destroy(void * p);
+
 #if CONFIG_STCP_SELFTEST
 extern int stcp_crypto_selftest(void);
 #endif
 
+static void stcp_force_rust_symbols(void)
+{
+    // Käyttö, niin tulee mukaan moduuliin varmasti!
+    void *tmp = stcp_rust_kernel_socket_create(0);
+    if (tmp)
+        stcp_rust_kernel_socket_destroy(tmp);
+    char *pMsg = "RUST logging enabled.";
+    stcp_rust_log(1, pMsg, strlen(pMsg));
+
+    // Käyttö niin ei droppaa buildistä pois.
+    stcp_statistics_inc(0,0);
+    stcp_statistics_dec(0,0);
+    int tmpCnt = stcp_statistics_get(0);
+
+
+}
+
 int stcp_platform_init_banner(void)
 {
+
+    stcp_force_rust_symbols();
 
 #if CONFIG_STCP_SELFTEST
     int ret = stcp_crypto_selftest();
@@ -96,17 +119,27 @@ int stcp_platform_init_banner(void)
     printk("|   * Watchdog disabled.\n");
 #endif
 
+#if CONFIG_STCP_STATISTICS
+    printk("|   * Statistics ENABLED!\n");
+    printk("|       Logging interval: %d\n", CONFIG_STCP_STATISTICS_LOG_INTERVAL);
+#else
+    printk("|   * Statistics disabled.\n");
+#endif
+
 #if CONFIG_STCP_DEBUG_LATENCY
     printk("|   * Latency debug enabled.\n");
 #else
     printk("|   * Latency debug disabled.\n");
 #endif
 
-#if CONFIG_STCP_AES_BYPASS
-    printk("|   * AES BYPASS ENABLED!\n");
-#else
-    printk("|   * STCP AES bypass disabled.\n");
+#if CONFIG_STCP_TESTING
+    printk("|   * Test-server ENABLED, mode: %d\n",
+        CONFIG_STCP_TESTING_MODE);
+    printk("|        Hostname to connect: %s\n", CONFIG_STCP_TESTING_PEER_HOSTNAME_TO_CONNECT);
+    printk("|        Port to connect    : %s\n", CONFIG_STCP_TESTING_PEER_PORT_TO_CONNECT);
 #endif
+
+
     printk("'---------------------------------------------------------------------->\n");
 
     return 0;

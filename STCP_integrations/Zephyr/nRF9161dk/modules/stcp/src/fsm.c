@@ -211,10 +211,14 @@ static struct k_thread stcp_fsm_thread_data;
 static k_tid_t stcp_fsm_tid;
 
 void stcp_fsm_init_globals(void) {
-    LINF("Initialising global modem state semaphores..");
-    k_sem_init(&g_sem_lte_ready, 0, 1);
-    k_sem_init(&g_sem_pdn_ready, 0, 1);
-    k_sem_init(&g_sem_ip_ready, 0, 1);
+    static int done = 0;
+    if (! done) {
+        done = 1;
+        LINF("Initialising global modem state semaphores..");
+        k_sem_init(&g_sem_lte_ready, 0, 1);
+        k_sem_init(&g_sem_pdn_ready, 0, 1);
+        k_sem_init(&g_sem_ip_ready, 0, 1);
+    }
 }
 
 void stcp_fsm_init(struct stcp_fsm *fsm, struct stcp_ctx *ctx)
@@ -241,11 +245,20 @@ void stcp_fsm_init(struct stcp_fsm *fsm, struct stcp_ctx *ctx)
 
 int stcp_fsm_wait_until_reached_ip_network_up(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for network UP, max %d seconds....", timeout);
+    if (timeout<0) {
+        LINF("Waiting forever for network UP...");
+        return k_sem_take(&g_sem_ip_ready, K_FOREVER);
+    }
+    LINF("Waiting %d seconds for network UP...", timeout);
     return k_sem_take(&g_sem_ip_ready, K_SECONDS(timeout));
 }
 
 int stcp_fsm_wait_until_reached_lte_ready(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for LTE ready, max %d seconds....", timeout);
+    if (timeout<0) {
+        LINF("Waiting forever for LTE ready...");
+        return k_sem_take(&g_sem_lte_ready, K_FOREVER);
+    }
     return k_sem_take(&g_sem_lte_ready, K_SECONDS(timeout));
 }
 

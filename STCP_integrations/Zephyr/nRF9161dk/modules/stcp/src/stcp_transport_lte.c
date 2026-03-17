@@ -634,7 +634,7 @@ int stcp_transport_init(void)
         LDBGBIG("[Transport Init] Setting APN to %s", STCP_LTE_APN);
         stcp_modem_force_apn();
 
-        LDBGBIG("[Transport Init] Turnng CSCON on", STCP_LTE_APN);
+        LDBGBIG("[Transport Init] Turnng CSCON on");
         stcp_lte_issue_at_command("AT+CSCON=1");
 
         LDBGBIG("[Transport Init] Registering LTE L4 event handler .....");

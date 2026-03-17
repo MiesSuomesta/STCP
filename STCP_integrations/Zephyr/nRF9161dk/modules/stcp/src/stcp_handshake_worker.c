@@ -44,7 +44,7 @@ static void stcp_handshake_worker(void *a, void *b, void *c)
 
             if (ret == 1) {
 
-                LINF("STCP handshake done");
+                LINFBIG("STCP handshake done");
 
                 ctx->handshake_done = true;
 
@@ -60,6 +60,8 @@ static void stcp_handshake_worker(void *a, void *b, void *c)
                     LERR("[CTX %p] Got error while hanshake: %d", ctx, ret);
                 }
             }
+        } else {
+            LWRNBIG("Context %p has handshake done...", ctx);
         }
 
         k_sleep(K_MSEC(5));

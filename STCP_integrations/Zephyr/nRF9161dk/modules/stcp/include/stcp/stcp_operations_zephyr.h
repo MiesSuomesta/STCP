@@ -24,3 +24,4 @@ int stcp_ctx_ref_count_is_what(struct stcp_ctx *ctx);
 int stcp_ctx_ref_count_put(struct stcp_ctx *ctx);
 
 void stcp_create_init_new_context(struct stcp_ctx *ctx);
+int stcp_wait_for_handshake_signal(struct stcp_ctx *ctx);

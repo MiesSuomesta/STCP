@@ -28,8 +28,10 @@
 #include <stcp/stcp_transport.h>
 #include <stcp/stcp_platform.h>
 
-#define STCP_HEAP_DEBUG         0
+#include "testing/include/status_monitor.h"
 
+
+#define STCP_HEAP_DEBUG         0
 
 int  stcp_rust_alive(void);
 
@@ -180,6 +182,11 @@ int stcp_library_init()
     // Init?
     stcp_module_rust_enter();
 
+#if CONFIG_STCP_STATISTICS
+    stcp_statistic_monitor_server_start();
+    LDBG("Statistics thread started..");
+#endif
+
     LDBG("Doing reset....");
     stcp_lte_do_full_reset(NULL, wait_timeout_sec);
 
@@ -190,6 +197,17 @@ int stcp_library_init()
     LDBGBIG("INIT => STCP READY, done in %llu ms", spent);
 
     dump_sim_status();
+
+#if CONFIG_STCP_TESTING
+    LDBGBIG("Torture server %s:%s. STARTING Torture, mode %d!", 
+        CONFIG_STCP_TESTING_PEER_HOSTNAME_TO_CONNECT, 
+        CONFIG_STCP_TESTING_PEER_PORT_TO_CONNECT,
+        CONFIG_STCP_TESTING_MODE
+    );
+
+    stcp_torture_start();
+    LDBG("Torture started...");
+#endif
     return 0;
     
 }

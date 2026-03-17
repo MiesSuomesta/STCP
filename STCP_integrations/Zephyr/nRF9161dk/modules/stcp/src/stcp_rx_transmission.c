@@ -196,19 +196,36 @@ static int recv_stream_read(
 int stcp_recv_frame(struct stcp_ctx *ctx)
 {
     uint8_t header[16];
-
+    int ret = 0;
     int r;
+
+    if (!ctx) {
+        return -EBADFD;
+    }
+
+    LDBG("Locking context %p ..", ctx);    
+    k_mutex_lock(&ctx->lock, K_FOREVER);
+    LDBG("Locked context %p ..", ctx);    
+
+    if (! stcp_ctx_ref_count_get(ctx) ) {
+        LDBGBIG("Could not get context..");
+        ret = -EAGAIN;
+        goto out;
+    }
+    LDBG("Refcount get %p", ctx);
 
     if (atomic_get(&ctx->connection_closed)) {
         LDBGBIG("Connection marked as closed => returning -ECONNRESET");
-        return -ECONNRESET;
+        ret = -ECONNRESET;
+        goto out;
     }
 
     r = recv_stream_read(ctx, header, 16);
     LERR("RECV: recv_stream_read header ret: %d", r);
     if (r < 0) {
         LDBG("RECV: stream read returned %d (errno: %d)", r, errno);
-        return r;
+        ret = -EAGAIN;
+        goto out;
     }
 
     uint32_t version =
@@ -242,24 +259,35 @@ int stcp_recv_frame(struct stcp_ctx *ctx)
         LERR("STCP desync detected: magic %08x", magic);
         /* stream out-of-sync → reset parser */
         stcp_context_recv_stream_init(ctx);
-        return -EPROTO;
+        ret = -EPROTO;
+        goto out;
     }
 
 
     if (len > STCP_RECV_FRAME_BUF_SIZE) {
         LDBG("Frame too big: %u", len);
-        return -EMSGSIZE;
+        ret = -EMSGSIZE;
+        goto out;
     }
 
     r = recv_stream_read(ctx, ctx->rx_frame, len);
     LERR("RECV: recv_stream_read frame ret: %d", r);
     if (r < 0) {
         LDBG("RECV: stream read returned %d (errno: %d)", r, errno);
-        return r;
+        goto out;
     }
     ctx->rx_frame_len = len;
 
+    ret = len;
+
     LDBG("STCP frame received: %u bytes", len);
 
-    return len;
+out:
+    LDBG("Refcount put %p", ctx);
+    stcp_ctx_ref_count_put(ctx);
+    LDBG("Unlocking context %p ..", ctx);    
+    k_mutex_unlock(&ctx->lock);
+    LDBG("Unlocked context %p ..", ctx);    
+
+    return ret;
 }

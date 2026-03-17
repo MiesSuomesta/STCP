@@ -14,6 +14,10 @@
 #define WINFBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(WINF, LOGTAG, ##__VA_ARGS__)
 #define WERRBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(WERR, LOGTAG, ##__VA_ARGS__)
 
+#if CONFIG_STCP_WATCHDOG_ENABLE
+static uint32_t last_activity = 0;
+#endif
+
 // Simple => if not WD enabled => NOP call => optimized out
 void stcp_watchdog_update_activity(void)
 {
@@ -24,8 +28,6 @@ void stcp_watchdog_update_activity(void)
 
 
 #if CONFIG_STCP_WATCHDOG_ENABLE
-static uint32_t last_activity = 0;
-
 static void modem_reset(void)
 {
     WINFBIG("Hard resetting modem");

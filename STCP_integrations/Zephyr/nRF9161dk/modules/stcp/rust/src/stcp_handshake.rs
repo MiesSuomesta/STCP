@@ -188,6 +188,7 @@ pub extern "C" fn rust_session_handshake_lte(sess_vp: *mut core::ffi::c_void, tr
 
   s.set_status(HandshakeStatus::Aes);
   s.init_aes_with(s.shared_key.clone());
+  
   stcp_dbg!("==== HS complete => AES MODE =====");
   stcp_dbg!("==== HS complete => AES MODE =====");
   stcp_dbg!("==== HS complete => AES MODE =====");

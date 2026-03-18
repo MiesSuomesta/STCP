@@ -3,7 +3,7 @@
 #include <zephyr/kernel.h>
 
 #define STCP_MQTT_WAIT_CONNACK_EVENT_FOR_MSEC    (60 * 1000)
-#define STCP_MQTT_POLL_TIMEOUT_MSEC              (1 * 1000)
+#define STCP_MQTT_POLL_TIMEOUT_MSEC              (500)
 
 // Tuotantoon 30 - 300 sec, mut MAX KEEPALIVE sec
 #if CONFIG_STCP_TESTING && (CONFIG_STCP_TESTING_MODE == 3)

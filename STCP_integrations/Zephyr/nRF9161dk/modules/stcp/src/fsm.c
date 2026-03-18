@@ -23,6 +23,8 @@ void stcp_fsm_notify_pdn_ready(struct stcp_fsm *fsm);
 #include <stcp/stcp_transport_api.h>
 #include <stcp/stcp_transport.h>
 
+#include <testing/include/stcp_testing.h>
+
 #define STCP_FSM_REAL_IMPL 1
 
 // Ei olemassa per yhteys vaan globaaleina, modeemin tilaa tämä.
@@ -32,20 +34,38 @@ struct k_sem g_sem_ip_ready;
 
 
 void stcp_fsm_reached_ip_network_up(struct stcp_fsm *fsm) {
-    LDBG("Reached....");
+    LDBG("Reached Network UP....");
+    atomic_set(&g_ip_active, 1);
     k_sem_give(&g_sem_ip_ready);
 }
 
 void stcp_fsm_reached_lte_ready(struct stcp_fsm *fsm) {
-    LDBG("Reached....");
+    LDBG("Reached LTE ready....");
+    atomic_set(&g_lte_active, 1);
     k_sem_give(&g_sem_lte_ready);
-    
+
 }
 
 void stcp_fsm_reached_pdn_ready(struct stcp_fsm *fsm) {
-    LDBG("Reached....");
+    LDBG("Reached PDN ready....");
+    atomic_set(&g_pdn_active, 1);
     k_sem_give(&g_sem_pdn_ready);
 }
+
+#define STCP_SEMA_TAKE(sema, atom) \
+    do {                                                        \
+        if (atomic_get(&(atom)) == 0) {                         \
+            LDBG("Starting to wait %s", #sema);                 \
+            k_sem_take(&(sema), K_FOREVER);                     \
+        } else {                                                \
+            LDBG("Skipped wait for %s, cause atomic %s set",    \
+                #sema, #atom);                                  \
+        }                                                       \
+    } while(0)
+
+#define FSM_STATE(sta)  \
+    LDBG("[FSM(%p)] " #sta, ctx)
+
 
 static void stcp_fsm_thread(void *p1, void *p2, void *p3)
 {
@@ -60,41 +80,45 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
     LINF("fsm=%p ctx_ptr=%p", fsm, fsm->ctx);
 
     while (!fsm->stop) {
+        LDBG("FSM %p locking", fsm);
+        k_mutex_lock(&fsm->lock, K_FOREVER);
+        LDBG("FSM %p locked", fsm);
         switch (fsm->state) {
 
         case STCP_FSM_INIT:
-            LDBG("[FSM] INIT");
+            FSM_STATE(INIT);
             fsm->state = STCP_FSM_WAIT_LTE;
             break;
 
         case STCP_FSM_WAIT_LTE:
-            LDBG("[FSM] WAIT LTE");
-            k_sem_take(&(g_sem_lte_ready), K_FOREVER);
+            FSM_STATE(WAIT_LTE);
+            STCP_SEMA_TAKE(g_sem_lte_ready, g_lte_active);
             fsm->state = STCP_FSM_WAIT_PDN;
             break;
 
         case STCP_FSM_WAIT_PDN:
-            LDBG("[FSM] WAIT PDN");
-            k_sem_take(&(g_sem_pdn_ready), K_FOREVER);
+            FSM_STATE(WAIT_PDN);
+            STCP_SEMA_TAKE(g_sem_pdn_ready, g_pdn_active);
             fsm->state = STCP_FSM_WAIT_IP;
             break;
 
         case STCP_FSM_WAIT_IP:
-            LDBG("[FSM] WAIT IP");
-            k_sem_take(&(g_sem_ip_ready), K_FOREVER);
+            FSM_STATE(WAIT_IP);
+            STCP_SEMA_TAKE(g_sem_ip_ready, g_ip_active);
             fsm->state = STCP_FSM_WAIT_STABLE;
             break;
 
         case STCP_FSM_WAIT_STABLE:
+            FSM_STATE(WAIT_STABLE);
             LDBG("[FSM] LTE stable settle time...");
             k_sleep(K_SECONDS(3));
+            LDBG("[FSM] LTE stable settle time, after");
             fsm->state = STCP_FSM_TCP_CONNECT;
+            LDBG("[FSM] LTE stable settle time, exit");
             break;
 
         case STCP_FSM_TCP_CONNECT:
-            LDBG("[FSM] TCP CONNECT");
-
-
+            FSM_STATE(TCP_CONNECT);
             int rc = stcp_tcp_resolve_and_make_socket(
                     ctx->hostname_str,
                     ctx->port_str);
@@ -121,7 +145,7 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
 
         case STCP_FSM_TCP_WAIT_CONNECT:
         {
-            LDBG("[FSM] TCP WAIT CONNECT");
+            FSM_STATE(TCP_WAIT_CONNECT);
             int err = 0;
             socklen_t len = sizeof(err);
 
@@ -160,7 +184,7 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
     
 
         case STCP_FSM_STCP_HANDSHAKE: {
-            LDBG("[FSM] STCP HANDSHAKE");
+            FSM_STATE(STCP_HANDSHAKE);
             int rc = stcp_tcp_context_connect_and_shake_hands(fsm->ctx, 3*60*1000);
             if (rc == 1) {
                 ctx->handshake_done = 1;
@@ -175,13 +199,13 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
         }
 
         case STCP_FSM_RUN:
-            LDBG("[FSM] RUN");
+            FSM_STATE(RUN);
             k_sem_give(&fsm->connection_ready);
             fsm->stop = 1;            
             break;
 
         case STCP_FSM_TCP_RECONNECT:
-            LDBG("[FSM] TCP RECONNECT");
+            FSM_STATE(TCP_RECONNECT);
 #if STCP_FSM_REAL_IMPL
             stcp_transport_close(fsm->ctx);
 #endif 
@@ -191,10 +215,13 @@ static void stcp_fsm_thread(void *p1, void *p2, void *p3)
 
         case STCP_FSM_FATAL:
         default:
-            LERR("[FSM] FATAL STATE");
+            FSM_STATE(FSM_FATAL);
             k_sleep(K_SECONDS(10));
             break;
         }
+        LDBG("FSM %p unlocking", fsm);
+        k_mutex_unlock(&fsm->lock);
+        LDBG("FSM %p unlock", fsm);
     }
 
     if (fsm->state == STCP_FSM_RUN) {
@@ -229,6 +256,7 @@ void stcp_fsm_init(struct stcp_fsm *fsm, struct stcp_ctx *ctx)
     stcp_fsm_init_globals();
 
     k_sem_init(&fsm->connection_ready, 0, 1);
+    k_mutex_init(&fsm->lock);
 
     fsm->ctx = ctx;
     fsm->state = STCP_FSM_INIT;
@@ -245,16 +273,28 @@ void stcp_fsm_init(struct stcp_fsm *fsm, struct stcp_ctx *ctx)
 
 int stcp_fsm_wait_until_reached_ip_network_up(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for network UP, max %d seconds....", timeout);
+
+    if (atomic_get(&g_ip_active)) {
+        LWRN("IP Already marked active.. no need to wait.");
+        return 0;
+    }
+
     if (timeout<0) {
         LINF("Waiting forever for network UP...");
         return k_sem_take(&g_sem_ip_ready, K_FOREVER);
     }
+
     LINF("Waiting %d seconds for network UP...", timeout);
     return k_sem_take(&g_sem_ip_ready, K_SECONDS(timeout));
 }
 
 int stcp_fsm_wait_until_reached_lte_ready(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for LTE ready, max %d seconds....", timeout);
+    if (atomic_get(&g_lte_active)) {
+        LWRN("LTE Already marked active.. no need to wait.");
+        return 0;
+    }
+
     if (timeout<0) {
         LINF("Waiting forever for LTE ready...");
         return k_sem_take(&g_sem_lte_ready, K_FOREVER);
@@ -272,6 +312,16 @@ int stcp_fsm_wait_until_reached_connect_ready(struct stcp_fsm *fsm, int timeout)
 
 int stcp_fsm_wait_until_reached_pdn_ready(struct stcp_fsm *fsm, int timeout) {
     LINF("Waiting for PDN ready, max %d seconds....", timeout);
+    if (atomic_get(&g_pdn_active)) {
+        LWRN("PDN Already marked active.. no need to wait.");
+        return 0;
+    }
+
+    if (timeout<0) {
+        LINF("Waiting forever for PDN ready...");
+        return k_sem_take(&g_sem_pdn_ready, K_FOREVER);
+    }
+
     return k_sem_take(&g_sem_pdn_ready, K_SECONDS(timeout));
 }
 
@@ -282,19 +332,19 @@ void stcp_fsm_start(struct stcp_fsm *fsm)
 
 void stcp_fsm_notify_lte_ready(struct stcp_fsm *fsm)
 {
-    LDBG("Notifying....");
+    LDBG("Notifying %s....", __func__);
     k_sem_give(&g_sem_lte_ready);
 }
 
 void stcp_fsm_notify_pdn_ready(struct stcp_fsm *fsm)
 {
-    LDBG("Notifying....");
+    LDBG("Notifying %s....", __func__);
     k_sem_give(&g_sem_pdn_ready);
 }
 
 void stcp_fsm_notify_ip_ready(struct stcp_fsm *fsm)
 {
-    LDBG("Notifying....");
+    LDBG("Notifying %s....", __func__);
     k_sem_give(&g_sem_ip_ready);
 }
 

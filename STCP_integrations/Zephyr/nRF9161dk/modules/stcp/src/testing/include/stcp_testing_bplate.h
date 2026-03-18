@@ -1,9 +1,21 @@
+#include <zephyr/kernel.h>
 
 // Muista määritellä filekseen LOGTAG
-#define TDBG(msg, ...)  LDBG(LOGTAG msg, ##__VA_ARGS__)
-#define TWRN(msg, ...)  LWRN(LOGTAG msg, ##__VA_ARGS__)
-#define TINF(msg, ...)  LINF(LOGTAG msg, ##__VA_ARGS__)
-#define TERR(msg, ...)  LERR(LOGTAG msg, ##__VA_ARGS__)
+#if CONFIG_STCP_TESTING_LOG_COMPLETELY_OFF
+#  define STCP_TEST_LOG_MACRO(...)
+#else
+#  if CONFIG_STCP_TESTING_LOG
+#    define STCP_TEST_LOG_MACRO(...) printk(__VA_ARGS__)
+#  else
+#     define STCP_TEST_LOG_MACRO(...) LDBG(__VA_ARGS__)
+#  endif
+#endif
+
+#define TDBG(msg, ...)  STCP_TEST_LOG_MACRO(LOGTAG msg "\n", ##__VA_ARGS__)
+#define TWRN(msg, ...)  STCP_TEST_LOG_MACRO(LOGTAG msg "\n", ##__VA_ARGS__)
+#define TINF(msg, ...)  STCP_TEST_LOG_MACRO(LOGTAG msg "\n", ##__VA_ARGS__)
+#define TERR(msg, ...)  STCP_TEST_LOG_MACRO(LOGTAG msg "\n", ##__VA_ARGS__)
+
 
 #define TDBGBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(TDBG, LOGTAG, ##__VA_ARGS__)
 #define TWRNBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(TWRN, LOGTAG, ##__VA_ARGS__)

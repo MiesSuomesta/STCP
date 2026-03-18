@@ -51,12 +51,12 @@ struct stcp_server_stats {
 };
 
 #define STCP_MASTER_SERVER_STATISTIC_CMD    "STATISTICS"
-#define STCP_MASTER_SERVER_PING_CMD    "PING"
+#define STCP_MASTER_SERVER_PING_CMD         "PING"
 
 struct stcp_server_stats* stcp_server_statistics_get_ptr();
 
 void   stcp_statistic_monitor_send_state_to(int fd);
-void   stcp_statistic_monitor_server_start(void);
+void   stcp_status_monitor_start(void);
 int    stcp_statistic_monitor_check_for_command_reqest(char *buf, int len);
 
 void     stcp_statistics_inc(statistic_type_t statType, uint64_t val);

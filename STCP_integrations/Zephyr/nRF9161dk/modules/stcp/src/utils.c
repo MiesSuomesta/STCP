@@ -1,4 +1,5 @@
 #include <zephyr/kernel.h>
+#include <zephyr/random/random.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/init.h>
@@ -45,6 +46,16 @@
 
 
 #include <zephyr/net/net_ip.h>
+
+void sleep_ms_jitter(uint32_t base_ms, uint32_t jitter_ms)
+{
+    uint32_t rnd = sys_rand32_get();
+    uint32_t jitter = rnd % jitter_ms;
+
+    k_sleep(K_MSEC(base_ms + jitter));
+}
+
+
 
 void dump_socket_error(int fd)
 {
@@ -159,45 +170,33 @@ struct addrinfo *resolve_to_connect(const char *host, const char *port) {
 int stcp_tcp_resolve_and_make_socket(const char *host, const char *port) {
     struct addrinfo *res = resolve_to_connect(host, port);
     LDBG("STCP: Creating socket...");
-	int fd = zsock_socket(res->ai_family, res->ai_socktype, IPPROTO_TCP);
-    zsock_freeaddrinfo(res);
-    if (fd < 0) {
-        LERR("TCP socket rc: %d", fd);
-        LERR("TCP socket failed: %d", errno);
-        return -errno;
+    int fd = -EAGAIN;
+    if (res != NULL) {
+        fd = zsock_socket(res->ai_family, res->ai_socktype, IPPROTO_TCP);
+        zsock_freeaddrinfo(res);
+        if (fd < 0) {
+            LERR("TCP socket rc: %d", fd);
+            LERR("TCP socket failed: %d", errno);
+            return -errno;
+        }
     }
     return fd;
 }
 
-struct stcp_ctx *stcp_tcp_resolve_and_make_context(const char *host, const char *port) {
+int stcp_context_set_target(struct stcp_ctx *ctx, const char *pHost, const char *pPort) {
 
-    int fd = stcp_tcp_resolve_and_make_socket(host, port);
-    if (fd >= 0) {
-        struct stcp_ctx *ctx =  stcp_create_new_context(fd);
-
-        // TODO: TEhdä nämä taulukoiksi => EI MALLOC
-        memset(ctx->hostname_str, 0, sizeof(ctx->hostname_str));
-        memset(ctx->port_str, 0, sizeof(ctx->port_str));
-        
-        snprintf(
-            ctx->hostname_str, 
-            sizeof(ctx->hostname_str) - 1,
-            "%s",
-            host
-        );
-
-        snprintf(
-            ctx->port_str, 
-            sizeof(ctx->port_str) - 1,
-            "%s",
-            port
-        );
-
-        ctx->ks.resolved_host = resolve_to_connect(host, port);
-
-        return ctx;
+    if (!ctx) {
+        LWRN("No contest to set target to!");
+        return -ENOBUFS;
     }
-    return NULL;
+
+    memset(ctx->hostname_str, 0, sizeof(ctx->hostname_str));
+    snprintk(ctx->hostname_str, sizeof(ctx->hostname_str), "%s", pHost);
+
+    memset(ctx->port_str, 0, sizeof(ctx->port_str));
+    snprintk(ctx->port_str, sizeof(ctx->port_str), "%s", pPort);
+
+    return 0;
 }
 
 int stcp_tcp_connect_shake_hands_with_addr(

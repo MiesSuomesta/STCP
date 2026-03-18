@@ -17,15 +17,9 @@
 
 
 K_THREAD_STACK_ARRAY_DEFINE(worker_stacks, STCP_TORTURE_WORKERS, STCP_TORTURE_STACK);
-static struct k_thread worker_threads[STCP_TORTURE_WORKERS];
+struct k_thread worker_threads[STCP_TORTURE_WORKERS];
 
-struct worker_ctx {
-    int worker_id;
-    int mode;
-};
-
-static struct worker_ctx workers[STCP_TORTURE_WORKERS];
-
+struct worker_ctx workers[STCP_TORTURE_WORKERS];
 
 static k_thread_entry_t get_worker_entry(void)
 {
@@ -49,6 +43,7 @@ static k_thread_entry_t get_worker_entry(void)
     }
 }
 
+static int g_stcp_torture_started = 0;
 void stcp_torture_start(void)
 {
     LINFBIG("Starting torture testing..");
@@ -75,7 +70,7 @@ void stcp_torture_start(void)
 
         workers[i].worker_id = i;
 
-        k_thread_create(
+        k_tid_t thread = k_thread_create(
             &worker_threads[i],
             worker_stacks[i],
             K_THREAD_STACK_SIZEOF(worker_stacks[i]),
@@ -87,6 +82,42 @@ void stcp_torture_start(void)
             0,
             K_NO_WAIT
         );
+
+        workers[i].thread = thread;
+
+
         k_msleep(500);
     }
+    g_stcp_torture_started = 1;
+}
+
+void stcp_torture_resume(void)
+{
+
+    if (!g_stcp_torture_started) {
+        LWRN("Not able to restart, not initted!");
+        return;
+    }
+
+    LINFBIG("Resuming torture testing..");
+    //stcp_api_wait_until_reached_lte_ready(NULL, -1);
+
+    // initial all => does DNS if any ..
+    // and not in thread context..
+    stcp_testing_resolve_test_host_address();
+
+    if (CONFIG_STCP_TESTING_MODE == 0) {
+        LINF("Starting IDLE mode..");
+        return;
+    }
+
+    for (int i = 0; i < STCP_TORTURE_WORKERS; i++) {
+        k_tid_t worker_thread = workers[i].thread;
+        if (worker_thread == NULL) {
+            continue;
+        }
+        TDBG("Aborting thread %p", worker_thread);
+        k_thread_abort(worker_thread);
+    }
+    stcp_torture_start();
 }

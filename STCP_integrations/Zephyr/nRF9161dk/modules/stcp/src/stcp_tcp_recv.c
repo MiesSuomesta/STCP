@@ -13,7 +13,8 @@
 #include <stcp/stcp_struct.h>
 #include <stcp/stcp_tcp_low_level_operations.h>
 #include <stcp/stcp_rx_transmission.h>
-#include <status_monitor.h>
+
+#include "testing/include/status_monitor.h"
 
 
 #define STCP_RECV_POLL_TIMEOUT_MS (10*1000)
@@ -161,13 +162,13 @@ intptr_t stcp_tcp_recv(void *sock_vp,
 
     if (rc > 0) {
 
-        printk("STCP TCP RX %d bytes\n", rc);
+        LDBG("STCP TCP RX %d bytes\n", rc);
 
         for (int i = 0; i < rc; i++) {
-            printk("%02X ", buf[i]);
+            LDBG("%02X ", buf[i]);
         }
 
-        printk("\n");
+        LDBG("\n");
     }
 
     if (rc < 0) {
@@ -222,13 +223,13 @@ intptr_t stcp_tcp_recv_via_fd(int fd,
 
     if (rc > 0) {
 
-        printk("STCP TCP RX %d bytes\n", rc);
+        LDBG("STCP TCP RX %d bytes\n", rc);
 
         for (int i = 0; i < rc; i++) {
-            printk("%02X ", buf[i]);
+            LDBG("%02X ", buf[i]);
         }
 
-        printk("\n");
+        LDBG("\n");
     }
 
     if (rc < 0) {

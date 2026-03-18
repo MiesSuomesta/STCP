@@ -21,7 +21,7 @@
 #define STCP_INTERNAL
 
 #include "stcp/stcp_rust_exported_functions.h"
-
+#include <stcp/stcp_struct.h>
 
 #define STCP_USE_LTE			1
 #include "stcp/debug.h"
@@ -35,7 +35,11 @@
 
 //void sleep_with_jitter(uint32_t base_ms, uint32_t jitter_ms);
 
+void sleep_ms_jitter(uint32_t base_ms, uint32_t jitter_ms);
+
 void stcp_util_log_sockaddr(char *tag, const struct zsock_addrinfo *ai);
+
+int stcp_context_set_target(struct stcp_ctx *ctx, const char *pHost, const char *pPort);
 
 int stcp_util_hostname_resolver(const char *host, const char *port, struct zsock_addrinfo **result);
 

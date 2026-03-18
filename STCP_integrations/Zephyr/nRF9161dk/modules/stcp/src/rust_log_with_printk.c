@@ -14,11 +14,8 @@ __used
 __noinline
 void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
 {
-/*
-    if (! stcp_config_debug_enabled() ) {
-        return;
-    }
-*/
+#if CONFIG_STCP_DEBUG
+
     // Check ratelimitter
     static const char *lvl[] = {
         "??",   // 0
@@ -59,6 +56,7 @@ void stcp_rust_log(int level, const uint8_t *buf, uintptr_t len)
             break;
     }
 
+#endif // CONFIG_STCP_DEBUG
 }
 
 __used

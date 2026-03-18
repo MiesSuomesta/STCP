@@ -30,15 +30,6 @@ extern int mqtt_connected;
 extern struct mqtt_client client;
 K_MUTEX_DEFINE(client_lock);
 
-void sleep_ms_jitter(uint32_t base_ms, uint32_t jitter_ms)
-{
-    uint32_t rnd = sys_rand32_get();
-    uint32_t jitter = rnd % jitter_ms;
-
-    k_sleep(K_MSEC(base_ms + jitter));
-}
-
-
 int stpc_mqtt_subscribe(struct mqtt_client *clientPtr)
 {
     static char *subTo = "testi";
@@ -117,10 +108,13 @@ int main(void)
 
 #if CONFIG_MQTT_LIB_STCP
 //#  if STCP_COMPILE_MQTT
-    struct stcp_api *theAPI = NULL;
-    
+
     int rc = stcp_library_init();
-    MINF("STCP READY!");
+    if (rc != 0) {
+        MWRN("STCP init error, rc: %d", rc);
+    } else {
+        MINF("STCP READY!");
+    }
 
 # if (CONFIG_STCP_TESTING && (CONFIG_STCP_TEST_MODE == 3))
     MINF("FSM starting....");

@@ -12,7 +12,7 @@
 #include <stcp/debug.h>
 #include <stcp/stcp_struct.h>
 #include <stcp/stcp_tcp_low_level_operations.h>
-#include <status_monitor.h>
+#include "testing/include/status_monitor.h"
 
 
 

@@ -17,7 +17,6 @@
 #include <stcp/stcp_platform.h>
 #include <stcp_api.h>
 #include <stcp/debug.h>
-#include <status_monitor.h>
 
 
 
@@ -62,13 +61,6 @@ static void stcp_force_rust_symbols(void)
         stcp_rust_kernel_socket_destroy(tmp);
     char *pMsg = "RUST logging enabled.";
     stcp_rust_log(1, pMsg, strlen(pMsg));
-
-    // Käyttö niin ei droppaa buildistä pois.
-    stcp_statistics_inc(0,0);
-    stcp_statistics_dec(0,0);
-    int tmpCnt = stcp_statistics_get(0);
-
-
 }
 
 int stcp_platform_init_banner(void)

@@ -20,6 +20,7 @@
 #include <stcp/stcp_operations_zephyr.h>
 #include <stcp/stcp_rust_exported_functions.h>
 #include <stcp/stcp_api_internal.h>
+#include <stcp/stcp_transport.h>
 #include <stcp/recovery.h>
 
 
@@ -31,9 +32,8 @@ atomic_t g_is_reconnect_scheduled_already;
 
 #define STCP_LTE_DO_HARD_RESET_ON_RECONNECT     0
 
-static int stcp_lte_workers_init(const struct device *dev)
+static int stcp_lte_workers_init(void)
 {
-    ARG_UNUSED(dev);
     k_work_queue_start(&stcp_lte_work_reconnect_q,
                        stcp_lte_worker_stack,
                        K_THREAD_STACK_SIZEOF(stcp_lte_worker_stack),
@@ -56,16 +56,17 @@ void worker_reconnect_context_init(struct stcp_ctx *ctx) {
 void worker_reconnect_work_handler(struct k_work *work)
 {
     int ok = 1;
-    LINF("Worker thread started prio=%d", k_thread_priority_get(k_current_get()));
+    //LINF("Worker thread started prio=%d", k_thread_priority_get(k_current_get()));
     LDBG("STCP reconnect staring running for %p\n", work);
 
+
+#if 0
     LINF("LTE Worker: modem reset (hard=%d)",
         STCP_LTE_DO_HARD_RESET_ON_RECONNECT);
 
-#if 0
+    // TODO: tees tämä jossain välissä kuntoon...
     /* reset modem */
     int err = stcp_api_reset_modem(STCP_LTE_DO_HARD_RESET_ON_RECONNECT);
-    k_yield();
     if (err != 0) {
         LWRN("LTE Worker: Modem reset reported error, rc: %d", err);
         ok = 0;
@@ -73,17 +74,21 @@ void worker_reconnect_work_handler(struct k_work *work)
     /* pieni tauko että modem ehtii nousta */
     stcp_utils_sleep_ms_jitter(2000, 400);
 #endif
+
     /* reconnect LTE */
     
     LINF("LTE Worker: Recovering connection....");
-    int err = stcp_lte_recover();
-    if (err != 0) {
-        LWRN("LTE Worker: LTE Recovery reported error, rc: %d", err);
+    int recover = stcp_lte_recover();
+    if (recover != 0) {
+        LWRN("LTE Worker: LTE Recovery reported error, rc: %d", recover);
         ok = 0;
     }
+    LDBG("Setting LTE active: %d", ok);
+    atomic_set(&g_lte_active, ok);
 
     atomic_set(&g_is_reconnect_scheduled_already, 0);
-    LINF("LTE: All done, status: %d", ok);
+
+    LINF("LTE: All done, status: %s", ok ? "OK" : "ERROR");
 }
 
 static void __reconnecting_do_init() {
@@ -103,10 +108,13 @@ void worker_schedule_lte_reconnect() {
         LWRN("LTE: Already requested reconnecting...");
         return;
     }
+
     LINF("LTE: Setting reconnecting requested...");
 	atomic_set(&g_is_reconnect_scheduled_already, 1);
+
     LINF("LTE: Scheduling reconnect...");
     /* Aikatauluta reconnect */
     k_work_submit_to_queue(&stcp_lte_work_reconnect_q, &stcp_lte_reconnect_work);
+
     LINF("LTE: All ok, reconnect scheduled.");
 }

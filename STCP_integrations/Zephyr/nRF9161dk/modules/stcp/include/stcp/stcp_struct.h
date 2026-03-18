@@ -47,6 +47,7 @@ enum stcp_ctx_state {
 };
 
 struct stcp_fsm {
+    struct k_mutex lock;
     stcp_fsm_state_t state;
     struct k_sem connection_ready;
     struct stcp_ctx *ctx;
@@ -70,6 +71,47 @@ struct stcp_recv_stream {
     size_t pos;
     size_t len;
 };
+
+#define VOID_TO_API(vp)    ((struct stcp_api*)(vp))
+#define VOID_TO_CTX(vp)    ((struct stcp_ctx*)(vp))
+
+#define CONTEXT_LOCK(ctx) \
+    do {                                                \
+        LDBG("[Context(%p)] Locking..", ctx);           \
+        if (ctx != NULL) {                              \
+            k_mutex_lock(&(VOID_TO_CTX(ctx)->lock),     \
+                           K_FOREVER);                  \
+        }                                               \
+        LDBG("[Context(%p)] Locked..", ctx);            \
+    } while(0)
+
+#define CONTEXT_UNLOCK(ctx) \
+    do {                                                \
+        LDBG("[Context(%p)] Unlocking..", ctx);         \
+        if (ctx != NULL) {                              \
+            k_mutex_unlock(&(VOID_TO_CTX(ctx)->lock));  \
+        }                                               \
+        LDBG("[Context(%p)] Unlocked..", ctx);          \
+    } while(0)
+
+#define API_LOCK(api) \
+    do {                                            \
+        LDBG("[API(%p)] Unlocking..", api);         \
+        if (api != NULL) {                          \
+            CONTEXT_LOCK(VOID_TO_API(api)->ctx);    \
+        }                                           \
+        LDBG("[API(%p)] Unlocked..", api);          \
+    } while(0)
+
+
+#define API_UNLOCK(api) \
+    do {                                            \
+        LDBG("[API(%p)] Unlocking..", api);         \
+        if (api != NULL) {                          \
+            CONTEXT_UNLOCK(VOID_TO_API(api)->ctx);  \
+        }                                           \
+        LDBG("[API(%p)] Unlocked..", api);          \
+    } while(0)
 
 struct stcp_ctx {
     uint32_t magic; // Conteksti magikki

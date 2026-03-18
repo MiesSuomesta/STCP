@@ -5,6 +5,8 @@
 
 #include <stcp_api.h>
 #include <stcp/stcp_api_internal.h>
+#include <stcp/stcp_transport_api.h>
+#include <stcp/stcp_transport.h>
 #include <stcp/debug.h>
  
 #define LOGTAG     "[STCP/Statistic] "
@@ -13,15 +15,16 @@
 #include <stcp/stcp_tcp_low_level_operations.h>
 
 
-#if CONFIG_STCP_STATISTICS
 static struct k_mutex g_server_globals_mutex;
 static struct stcp_server_stats g_server_globals_statistics;
 
 #define STCP_MASTER_SERVER_STATS_STACK 1024
-#define STCP_MASTER_SERVER_STATS_PRIO  7
+#define STCP_MASTER_SERVER_STATS_PRIO  4
 
-K_THREAD_STACK_DEFINE(stcp_master_server_stats_stack, STCP_MASTER_SERVER_STATS_STACK);
-static struct k_thread stcp_master_server_stats_thread;
+K_THREAD_STACK_DEFINE(stcp_status_monitor_stack, STCP_MASTER_SERVER_STATS_STACK);
+static struct k_thread stcp_status_monitor_thread;
+
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
 
 static void stcp_statistics_monitor_globals_mutex_lock() {
     k_mutex_lock(&g_server_globals_mutex, K_FOREVER);
@@ -80,7 +83,7 @@ static void stcp_statistics_monitor_globals_mutex_unlock() {
 #endif
 
 int stcp_server_check_for_command(char *buf, const char *pCmd, int len) {
-#if CONFIG_STCP_STATISTICS
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
     return memcmp(buf, pCmd, len) == 0;
 #else
     return 0;
@@ -88,7 +91,7 @@ int stcp_server_check_for_command(char *buf, const char *pCmd, int len) {
 }
 
 int stcp_statistic_monitor_check_for_command_reqest(char *buf, int len) {
-#if CONFIG_STCP_STATISTICS
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
     int cmdLen = sizeof(STCP_MASTER_SERVER_STATISTIC_CMD);
     if (len == cmdLen) {
         return memcmp(buf, STCP_MASTER_SERVER_STATISTIC_CMD, len) == 0;
@@ -100,25 +103,29 @@ int stcp_statistic_monitor_check_for_command_reqest(char *buf, int len) {
 
 
 struct stcp_server_stats* stcp_server_statistics_get_ptr() {
-#if CONFIG_STCP_STATISTICS
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
     return &g_server_globals_statistics;
 #else
     TWRN("Returning null.");
     return NULL;
 #endif
 }
-
+atomic_t connection_good = ATOMIC_INIT(0);
 static void stcp_master_server_stats_monitor(void *a, void *b, void *c)
 {
-#if CONFIG_STCP_STATISTICS
-    uint64_t prev_rx = 0;
-    uint64_t prev_tx = 0;
-    struct stcp_server_stats *pStatistics = stcp_server_statistics_get_ptr();
+#if CONFIG_STCP_STATUS_MONITOR
+    int log_interval = CONFIG_STCP_STATUS_MONITOR_LOG_INTERVAL;
+    LDBG("Starting status monitor, logging interval %d seconds",
+        log_interval);
 
     while (1) {
 
-        k_sleep(K_SECONDS(5));
+        k_sleep(K_SECONDS(log_interval));
 
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
+        uint64_t prev_rx = 0;
+        uint64_t prev_tx = 0;
+        struct stcp_server_stats *pStatistics = stcp_server_statistics_get_ptr();
         uint64_t rx;
         uint64_t tx;
         uint32_t running;
@@ -145,8 +152,8 @@ static void stcp_master_server_stats_monitor(void *a, void *b, void *c)
         prev_rx = rx;
         prev_tx = tx;
 
-        uint32_t rx_rate = rx_delta / 5;
-        uint32_t tx_rate = tx_delta / 5;
+        uint32_t rx_rate = rx_delta / log_interval;
+        uint32_t tx_rate = tx_delta / log_interval;
 
         TINF("STCP stats: uptime=%llu sec running=%u rx=%u B/s tx=%u B/s rejected=%u messages=%llu errors=%llu",
                 uptime,
@@ -157,12 +164,51 @@ static void stcp_master_server_stats_monitor(void *a, void *b, void *c)
                 messages,
                 errors
         );
-    }
 #endif
+
+#define __GAT(val)    atomic_get(&(val))
+#define GET_ATOM(val) __GAT(val)
+#define OK(val)    ((__GAT(val) > 0) ? "OK"        : "NOK")
+#define RADIO(val) ((__GAT(val) > 0) ? "CONNECTED" : "IDLE")
+
+        u_int64_t up = k_uptime_get();
+
+        int connection_ok = GET_ATOM(g_lte_active)    &&
+                            GET_ATOM(g_pdn_active)    &&
+                            GET_ATOM(g_ip_active)     &&
+                            GET_ATOM(g_radio_active);
+
+        atomic_set(&connection_good, connection_ok);
+
+        int pdn = stcp_transport_pdn_is_active();
+        int lte = stcp_transport_modem_lte_network_is_up();
+        int ip  = stcp_transport_modem_has_ip();
+        int real_connection_ok = lte && ip && pdn && GET_ATOM(g_radio_active);
+
+
+        printk("[%llu ms] STCP stack state flags: LTE: %s PDN: %s IP: %s RADIO: %s => Connection: %s\n",
+            up,
+            OK(g_lte_active),
+            OK(g_pdn_active),
+            OK(g_ip_active),
+            RADIO(g_radio_active),
+            connection_ok ? "OK" : "NOK"
+        );
+
+        printk("[%llu ms] STCP stack state real : LTE: %s PDN: %s IP: %s RADIO: %s => Connection: %s\n",
+            up,
+            lte ? "OK" : "NOK",
+            pdn ? "OK" : "NOK",
+            ip ? "OK" : "NOK",
+            RADIO(g_radio_active),
+            real_connection_ok ? "OK" : "NOK"
+        );
+    }
+#endif // MONITOR
 }
 
 void stcp_statistic_monitor_send_state_to(int fd) {
-#if CONFIG_STCP_STATISTICS
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
     char reply[512];
     stcp_statistics_monitor_globals_mutex_lock();
         struct stcp_server_stats *pStatistics = stcp_server_statistics_get_ptr();    
@@ -198,41 +244,42 @@ void stcp_statistic_monitor_send_state_to(int fd) {
 #endif
 }
 
-
-void stcp_statistic_monitor_server_start(void)
+void stcp_status_monitor_start(void)
 {
-#if CONFIG_STCP_STATISTICS
     static int running = 0;
-
+    // pidä statistiikka arvot yli resumen...
     if (running) {
-        return ;
+        LWRN("Already running....");
+    } else {
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
+        LWRN("Inittin stats...");
+        k_mutex_init(&g_server_globals_mutex);
+        memset(&g_server_globals_statistics, 0, sizeof(g_server_globals_statistics));
+    
+        g_server_globals_statistics.start_time = k_uptime_get();
+#endif
     }
     running = 1;
-    
-    k_mutex_init(&g_server_globals_mutex);
-    memset(&g_server_globals_statistics, 0, sizeof(g_server_globals_statistics));
- 
-    g_server_globals_statistics.start_time = k_uptime_get();
 
-    k_thread_create(
-        &stcp_master_server_stats_thread,
-        stcp_master_server_stats_stack,
-        K_THREAD_STACK_SIZEOF(stcp_master_server_stats_stack),
+    TDBG("Monitor starting ....");
+    k_tid_t tmp = k_thread_create(
+        &stcp_status_monitor_thread,
+        stcp_status_monitor_stack,
+        K_THREAD_STACK_SIZEOF(stcp_status_monitor_stack),
         stcp_master_server_stats_monitor,
         NULL, NULL, NULL,
         STCP_MASTER_SERVER_STATS_PRIO,
         0,
         K_NO_WAIT
     );
-
-    k_thread_name_set(&stcp_master_server_stats_thread, "stcp_master_server_stats");
-#endif
+    k_thread_name_set(tmp, "stcp_status_monitor_thread");
+    TDBG("Monitor started ....");
 }
 
 
 uint64_t stcp_statistics_get(statistic_type_t statType)
 {
-#if CONFIG_STCP_STATISTICS
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
     switch (statType) {
 
         case STAT_RX_BYTES:         GET_STAT(rx_bytes); break;
@@ -258,9 +305,8 @@ uint64_t stcp_statistics_get(statistic_type_t statType)
     return 0;
 #endif    
 }
-
 void stcp_statistics_inc(statistic_type_t statType, uint64_t val) {
-#if CONFIG_STCP_STATISTICS
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
     switch (statType) {
 
         case STAT_RX_BYTES:         INC_STAT(rx_bytes, val); break;
@@ -286,7 +332,7 @@ void stcp_statistics_inc(statistic_type_t statType, uint64_t val) {
 }
 
 void stcp_statistics_dec(statistic_type_t statType, uint64_t val) {
-#if CONFIG_STCP_STATISTICS
+#if CONFIG_STCP_STATUS_MONITOR_STATISTICS
     switch (statType) {
 
         case STAT_RX_BYTES:         DEC_STAT(rx_bytes, val); break;

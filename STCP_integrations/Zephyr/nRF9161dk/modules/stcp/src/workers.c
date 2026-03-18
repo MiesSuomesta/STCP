@@ -42,12 +42,10 @@ int rust_session_is_valid(void *sess);
     } while (0)
 
 
-#define STCP_DO_FREE_FOR_RESOURCES      0
-#define CONFIG_STCP_DEBUG_POISON        0
+#define CONFIG_STCP_DEBUG_POISON        1
 
-static int stcp_workers_init(const struct device *dev)
+static int stcp_workers_init(void)
 {
-    ARG_UNUSED(dev);
     k_work_queue_start(&stcp_work_cleanup_q,
                        stcp_worker_stack,
                        K_THREAD_STACK_SIZEOF(stcp_worker_stack),
@@ -69,13 +67,13 @@ void worker_context_init(struct stcp_ctx *ctx) {
 void worker_cleanup_work_handler(struct k_work *work)
 {
     LDBG("STCP cleanup staring running for %p\n", work);
-	printk("At worker %p:", work);	
+	LDBG("At worker %p:", work);	
 
     struct stcp_ctx *ctx =
         CONTAINER_OF(work, struct stcp_ctx, cleanup_work);
-    printk("WORK=%p\n", work);
-    printk("CTX=%p\n", ctx);
-    printk("&cleanup_work=%p\n", &ctx->cleanup_work);
+    LDBG("WORK=%p\n", work);
+    LDBG("CTX=%p\n", ctx);
+    LDBG("&cleanup_work=%p\n", &ctx->cleanup_work);
 
     if (ctx->magic != STCP_CTX_MAGIC_ALIVE) {
         LERR("CTX not initialized yet %p magic=%x\n", ctx, ctx->magic);
@@ -155,10 +153,10 @@ void worker_cleanup_work_handler(struct k_work *work)
         }
     }
     /* 1️⃣ Sulje socket */
-    LDBG("Cleanup: Scoket? %d", sockFD);
+    LDBG("Cleanup: Socket? %d", sockFD);
     if (sockFD >= 0) {
         LDBG("Cleanup: socket...");
-        stcp_net_close_fd(&sockFD);
+        STCP_CLOSE_FD(sockFD);
     }
 
 #ifdef CONFIG_STCP_DEBUG_POISON
@@ -188,9 +186,9 @@ int worker_is_context_scheduled_for_cleanup(struct stcp_ctx * ctx)
 {
     LDBG("Context %p marked?", ctx);
     if (!ctx) {
-        return -errno;
+        return -EBADFD;
     }
-    LDBG("Context %p marked for cleanup: %d (refcnt: %d)",
+    LDBG("Context %p marked for cleanup: %lu (refcnt: %lu)",
         ctx, 
         atomic_get(&ctx->closing),
         atomic_get(&ctx->refcnt)
@@ -202,7 +200,7 @@ void worker_set_context_scheduled_for_cleanup(struct stcp_ctx * ctx)
 {
     LDBG("Setting context %p marked for cleanup...", ctx);
     if (!ctx) {
-        return -errno;
+        return;
     }
     atomic_set(&ctx->closing, 1);
 }
@@ -215,18 +213,16 @@ void worker_schedule_cleanup(struct stcp_ctx * ctx) {
     }
 
     if (worker_is_context_scheduled_for_cleanup(ctx)) {
-        LDBG("Already in closing...");
-        stcp_dump_bt();
-        return -EALREADY;
+        //LDBG("Already in closing...");
+        //stcp_dump_bt();
+        return;
     }
 
     worker_context_init(ctx);
 
-    if (ctx != NULL) {
-        LDBG("Cleanup for %p scheduled..", ctx);
-        atomic_set(&ctx->closing, 1);
-        /* Aikatauluta cleanup */
-        k_work_submit_to_queue(&stcp_work_cleanup_q, &ctx->cleanup_work);
-        LDBG("Cleanup for %p scheduled!", ctx);
-    }
+    LDBG("Cleanup for %p scheduling..", ctx);
+    atomic_set(&ctx->closing, 1);
+    /* Aikatauluta cleanup */
+    k_work_submit_to_queue(&stcp_work_cleanup_q, &ctx->cleanup_work);
+    LDBG("Cleanup for %p scheduled!", ctx);
 }

@@ -29,9 +29,7 @@
 
 extern struct mqtt_stcp_stats g_mqtt_stcp_stats;
 
-
 #define RECV_RETRY_DELAY_MS 5
-#define MDBG(fmt, ...) LDBG("[STCP / MQTT] " fmt,  ##__VA_ARGS__)
 
 /* Initialize STCP context and connect to broker */
 int mqtt_client_stcp_connect(struct mqtt_client *client)

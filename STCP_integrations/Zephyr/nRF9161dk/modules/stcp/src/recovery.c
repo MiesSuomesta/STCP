@@ -3,7 +3,7 @@
 
 #include <stcp/debug.h>
 #include <stcp/stcp_lte.h>
-
+#include <stcp/utils.h>
 
 
 static int lte_fail_counter;
@@ -14,9 +14,9 @@ int stcp_lte_recover(void)
 
     LINF("LTE: recover attempt %d", lte_fail_counter);
 
-    err = stcp_reset_lte();
+    err = stcp_lte_do_full_reset(NULL, 0);
 
-    stcp_utils_sleep_ms_jitter(2000, 400);
+    sleep_ms_jitter(2000, 400);
 
     /* 2. yritä reconnect */
     LINF("LTE: Trying to reconnect..");

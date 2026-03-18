@@ -59,7 +59,8 @@ if(CONFIG_STCP)
               src/recovery.c
               src/watchdog.c
               src/debug.c
-              src/testing/status-monitor/stat-monitor.c
+              src/testing/stcp_testing.c
+			  
 # TODO:              src/testing/clients/mqtt.c
 	)
 
@@ -68,7 +69,10 @@ if(CONFIG_STCP)
               src/testing/clients/common.c
               src/testing/clients/raw.c
               src/testing/clients/stcp.c
-              src/testing/stcp/stcp_test.c
+	)
+
+	zephyr_library_sources_ifdef(CONFIG_STCP_STATUS_MONITOR
+              src/testing/status-monitor/stat-monitor.c
 	)
 
 	set_source_files_properties(

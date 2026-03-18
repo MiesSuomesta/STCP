@@ -68,12 +68,12 @@ static int recv_stream_fill(struct stcp_ctx *ctx)
     }
     
     int ret = 1;
-    int tries = 10;
     int keep_polling = 1;
+    uint64_t start = k_uptime_get();
     while (keep_polling) {
         int fd = ctx->ks.fd;
 
-        ret = stcp_poll_fd_changes(fd, 500, ZSOCK_POLLIN);
+        ret = stcp_poll_fd_changes(fd, 1, ZSOCK_POLLIN);
 
         if (ret == 0) {
             ctx->poll_timeouts++;
@@ -103,6 +103,9 @@ static int recv_stream_fill(struct stcp_ctx *ctx)
 
         keep_polling = 0; 
     }
+    uint64_t end = k_uptime_get();
+
+    LDBG("RX: Polled for %llu ms", end - start);
 
     if (ret < 0) {
         LERR("Poll while exit with returned: %d / %d", ret, errno);

@@ -85,7 +85,7 @@ int stcp_net_close_fd(int *fd)
 int stcp_ctx_ref_count_get(struct stcp_ctx *ctx)
 {
 	if (!ctx) {
-		return;
+		return -EINVAL;
 	}
     int old = atomic_inc(&ctx->refcnt);
     LDBG("REF++ %p => %d\n", ctx, old + 1);
@@ -95,7 +95,7 @@ int stcp_ctx_ref_count_get(struct stcp_ctx *ctx)
 int stcp_ctx_ref_count_is_what(struct stcp_ctx *ctx)
 {
 	if (!ctx) {
-		return;
+		return -EINVAL;
 	}
 	return (int)atomic_get(&ctx->refcnt);
 }
@@ -103,7 +103,7 @@ int stcp_ctx_ref_count_is_what(struct stcp_ctx *ctx)
 int stcp_ctx_ref_count_put(struct stcp_ctx *ctx)
 {
 	if (!ctx) {
-		return;
+		return -EINVAL;
 	}
 
     int old = atomic_dec(&ctx->refcnt);
@@ -131,9 +131,10 @@ int stcp_wait_for_handshake_signal(struct stcp_ctx *ctx) {
         &ctx->handshake_signal);
 
     LINF("[CTX %p] Waiting for hanshake signal..", ctx);
-    k_poll(events, 1, K_FOREVER);
-    LINF("[CTX %p] Got hanshake signal..", ctx);
+    int ret = k_poll(events, 1, K_FOREVER);
+    LINF("[CTX %p] Got hanshake signal, ret: %d", ctx, ret);
 	k_poll_signal_reset(&ctx->handshake_signal);
+	return ret;
 }
 
 void stcp_create_init_new_context(struct stcp_ctx *ctx) {
@@ -160,10 +161,21 @@ void stcp_create_init_new_context(struct stcp_ctx *ctx) {
 
 	stcp_fsm_init(&(ctx->fsm), ctx);
 
+#if CONFIG_STCP_TESTING
+	char *pHostName = CONFIG_STCP_TESTING_PEER_HOSTNAME_TO_CONNECT;
+	char *pHostPort = CONFIG_STCP_TESTING_PEER_PORT_TO_CONNECT;
+#else
+	char *pHostName = CONFIG_STCP_CONNECT_TO_HOST;
+	char *pHostPort = CONFIG_STCP_CONNECT_TO_PORT;
+#endif
+
+	LINF("Set context %p target %s:%s", ctx, pHostName, pHostPort);
+	stcp_context_set_target(ctx, pHostName, pHostPort);
+
 	k_mutex_init(&ctx->lock);
-	printk("At init:");	
-	printk("CTX=%p\n", ctx);
-	printk("MAGIC=%x\n", ctx->magic);
+	LDBG("At init:");	
+	LDBG("CTX=%p\n", ctx);
+	LDBG("MAGIC=%x\n", ctx->magic);
 	stcp_context_recv_stream_init(ctx);
 }
 
@@ -171,7 +183,7 @@ void stcp_create_init_new_context(struct stcp_ctx *ctx) {
 struct stcp_ctx *stcp_create_new_context(int under) {
 
 	struct stcp_ctx *ctx = stcp_alloc(sizeof(struct stcp_ctx));
-	printk("CTX ALLOC %p size=%d\n", ctx, sizeof(struct stcp_ctx));
+	LDBG("CTX ALLOC %p size=%d\n", ctx, sizeof(struct stcp_ctx));
 
 	if (!ctx) {
 		LERRBIG("FATAL: OOM!");

@@ -17,6 +17,17 @@
 
 struct zsock_addrinfo *the_test_server_addr_resolved = NULL;
 
+int stcp_testing_is_connection_dead(int rc) {
+    if (rc == -ENOTRECOVERABLE ||
+        rc == -EBADFD ||
+        rc == -ESTALE ||
+        rc == -ENOTCONN)
+    {
+        return 1;
+    }
+    return 0;
+}
+
 int generate_strftime_payload(uint8_t *buf, size_t len)
 {
 #if CONFIG_DATE_TIME
@@ -62,18 +73,18 @@ int stcp_testing_resolve_test_host_address() {
             &the_test_server_addr_resolved);
 
         if (!the_test_server_addr_resolved) {
-            LERR("DNS address not resolved");
+            TERR("DNS address not resolved");
             return -EINVAL;
         }
 
         if (rc == 0) {
-            TINFBIG("DNS resolved for %s:%s",
+            TINF("DNS resolved for %s:%s",
                 CONFIG_STCP_TESTING_PEER_HOSTNAME_TO_CONNECT, 
                 CONFIG_STCP_TESTING_PEER_PORT_TO_CONNECT
             );
             dns_done = 1;
         } else {
-            TWRNBIG("DNS resolve failed!");
+            TWRN("DNS resolve failed!");
         }
     }
     return dns_done;
@@ -82,11 +93,11 @@ int stcp_testing_resolve_test_host_address() {
 int stcp_testing_connect_peer(struct stcp_api *api, struct stcp_ctx *ctx) {
     int rc = 0;
     if (api) {
-        LDBG("HAS API => connectin via stcp_api_connect...");
+        TDBG("HAS API => connectin via stcp_api_connect...");
         // STCP or MQTT
 
         if (api->ctx && api->ctx->closing) {
-            LWRN("CTX closing, skipping connect");
+            TWRN("CTX closing, skipping connect");
             return -EBADFD;
         }
 
@@ -97,10 +108,10 @@ int stcp_testing_connect_peer(struct stcp_api *api, struct stcp_ctx *ctx) {
     }
     
     if (ctx) {
-        LDBG("HAS CTX => connectin via stcp_connect...");
+        TDBG("HAS CTX => connectin via stcp_connect...");
 
         if (ctx->closing) {
-            LWRN("CTX closing, skipping connect");
+            TWRN("CTX closing, skipping connect");
             return -EBADFD;
         }
 
@@ -109,7 +120,7 @@ int stcp_testing_connect_peer(struct stcp_api *api, struct stcp_ctx *ctx) {
                 the_test_server_addr_resolved->ai_addrlen);
     }
 
-    LDBG("connect peer, rc: %d", rc);
+    TDBG("connect peer, rc: %d", rc);
     return rc;
 }
 
@@ -128,7 +139,7 @@ int stcp_testing_get_peer_socket(struct stcp_api **apiTo)
 
         fd = stcp_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (fd < 0) {
-            LERR("Got no socket!, %d / %d", fd, errno);
+            TERR("Got no socket!, %d / %d", fd, errno);
             k_mutex_unlock(&g_peer_socket);
             return fd;
         }
@@ -138,7 +149,7 @@ int stcp_testing_get_peer_socket(struct stcp_api **apiTo)
 
             int rc = stcp_api_init_with_fd(&theApi, fd);
             if (rc < 0) {
-                LERR("Got error %d", rc);
+                TERR("Got error %d", rc);
                 if (theApi) {
                     stcp_api_close(theApi);
                 }

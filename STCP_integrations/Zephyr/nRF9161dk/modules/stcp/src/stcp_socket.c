@@ -41,16 +41,16 @@
     } while (0)
 
 #define MUTEX_DO_CLOSING_CHECK(ctx)    \
-    do {                                                  \
-        LDBG("CTX %p state: closing=%d ref=%d",           \
-              ctx,                                        \
-              atomic_get(&ctx->closing),                  \
-              atomic_get(&ctx->refcnt)                    \
-        );                                                \
-        if (atomic_get(&(ctx)->closing)) {                \
-            LWRNBIG("Context %p is marked as closing!");  \
-            return -ESHUTDOWN;                            \
-        }                                                 \
+    do {                                                        \
+        LDBG("CTX %p state: closing=%lu ref=%lu",               \
+              ctx,                                              \
+              atomic_get(&(ctx)->closing),                      \
+              atomic_get(&(ctx)->refcnt)                        \
+        );                                                      \
+        if (atomic_get(&(ctx)->closing)) {                      \
+            LWRNBIG("Context %p is marked as closing!", ctx);   \
+            return -ESHUTDOWN;                                  \
+        }                                                       \
     } while (0)
 
 #define NULL_CHECK_GUARD_CODE(val, CODE)                   \
@@ -58,11 +58,6 @@
         if ((val) == NULL) {                               \
             LERRBIG("NULL CHECK FAILED!");                 \
         } else {                                           \
-            LDBG("%s Owner %p, Thread = %p",               \
-                #val,                                      \
-                (val)->lock.owner,                         \
-                k_current_get()                            \
-            );                                             \
             CODE;                                          \
         }                                                  \
     } while (0)
@@ -172,7 +167,7 @@ int stcp_new_context(struct stcp_ctx **ctxSaveTo)
     }
 
     if (! *ctxSaveTo ) {
-        zsock_close(fd);
+        STCP_CLOSE_FD(fd);
         k_mutex_unlock(&g_mutex_new_context_create);
         return -ENOMEM;
     }
@@ -261,7 +256,7 @@ int stcp_accept(struct stcp_ctx *parent,
     LDBG("Child lock GET");
 
     if (ret < 0) {
-        zsock_close(new_fd);
+        STCP_CLOSE_FD(new_fd);
         if (child != NULL) {
             LDBG("Child lock PUT");
             CTX_SOCK_UNLOCK(child);
@@ -368,7 +363,7 @@ int stcp_connect(struct stcp_ctx *ctx,
 
     struct sockaddr_in *sin = (struct sockaddr_in *)addr;
 
-    LDBG("CONNECT ip=%d.%d.%d.%d port=%d addrlen=%d",
+    LDBG("CONNECT to ip=%d.%d.%d.%d port=%d addrlen=%d",
         sin->sin_addr.s4_addr[0],
         sin->sin_addr.s4_addr[1],
         sin->sin_addr.s4_addr[2],

@@ -9,7 +9,6 @@
 #include <stcp/stcp_struct.h>
 #include <stcp/utils.h>
 #include <stcp/stcp_net.h>
-#include <stcp/utils.h>
 #include <stcp/fsm.h>
 #include <stcp/workers.h>
 #include <stcp/stcp_operations_zephyr.h>

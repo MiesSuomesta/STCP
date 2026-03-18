@@ -30,18 +30,10 @@
 #include <stcp/stcp_api_internal.h>
 #include <stcp/stcp_transport.h>    
 #include <stcp/stcp_platform.h>    
+#include <stcp/lte_workers.h>
 
 #include "stcp/stcp_rust_exported_functions.h"
 
-// LAtenssi jne. mittailuja 
-//#if CONFIG_STCP_DEBUG_LATENCY
-//#endif
-
-
-
-// Evant mask for l4 events
-/* Macros used to subscribe to specific Zephyr NET management events. */
-#define L4_EVENT_MASK		(NET_EVENT_L4_CONNECTED | NET_EVENT_L4_DISCONNECTED)
 
 // 5 minutes wait for PDN ready...
 #define STCP_WAIT_FOR_DATA_PATH_IN_SECONDS  (60 * 5)
@@ -52,9 +44,10 @@
 
 
 atomic_t g_pdn_active = ATOMIC_INIT(0);
+atomic_t g_lte_active = ATOMIC_INIT(0);
+atomic_t g_ip_active = ATOMIC_INIT(0);
+atomic_t g_radio_active = ATOMIC_INIT(0);
 atomic_t reset_requested = ATOMIC_INIT(0);
-
-static struct net_mgmt_event_callback l4_cb;
 
 #if 0
 static int64_t pdn_last_up_ms;
@@ -99,7 +92,7 @@ void stcp_set_reset_requested() {
 void stcp_watchdog_update_activity(void);
 
 
-static int stcp_transport_modem_has_ip() {
+int stcp_transport_modem_has_ip() {
     char buf[128];
     (void)nrf_modem_at_cmd(buf, sizeof(buf), "AT+CGPADDR");
     /* crude but effective check for IPv4 */
@@ -170,34 +163,14 @@ void stcp_on_disconnect(struct stcp_ctx *ctx)
     stcp_lte_reset_everythign(ctx);
 }
 
-static void l4_event_handler(struct net_mgmt_event_callback *cb,
-			     uint32_t event,
-			     struct net_if *iface)
-{
-    // Joka eventillä WD update
-    stcp_watchdog_update_activity();
-	switch (event) {
-        case NET_EVENT_L4_CONNECTED:
-            LDBG("Network connected");
-            k_sem_give(&network_connected_sem);
-            break;
-
-        case NET_EVENT_L4_DISCONNECTED:
-            LDBG("Network disconnected.");
-            stcp_on_disconnect(NULL);
-            break;
-
-        default:
-            /* Don't care */
-            return;
-	}
-}
-
-
 int stcp_transport_wait_for_network_up(int seconds)
 {
    LDBG("Waiting network bring up (%d sec max)...", seconds);
-//
+   if (atomic_get(&g_ip_active)) {
+        LDBG("Network marked active, no need to wait");
+        return 0;
+   }
+
    int rc = k_sem_take(&network_connected_sem, K_SECONDS(seconds));
    if (rc < 0) {
        LERR("Network never became up!");
@@ -210,9 +183,8 @@ int stcp_transport_wait_for_network_up(int seconds)
 int stcp_transport_wait_for_data_path(int seconds)
 {
     LDBG("Waiting PDN data path (%d sec max)...", seconds);
-
     if (atomic_get(&g_pdn_active)) {
-        LDBG("PDN already active");
+        LDBG("PDN marked active, no need to wait");
         return 0;
     }
 
@@ -226,23 +198,22 @@ int stcp_transport_wait_for_data_path(int seconds)
     return 0;
 }
 
-#if 0
-static void on_platform_ready(void)
-{
-    printk("STCP platform ready starts");
-    stcp_transport_init();
-    stcp_transport_connect();
-    printk("STCP platform ready DONE");
-}
-#endif
-
 int stcp_pdn_wait_until_active_or_secs_passed(int seconds)
 {
     LDBG("Waiting for PDN semaphore (pdn_active) %d seconds MAX.....", seconds);
+    if (atomic_get(&g_pdn_active)) {
+        LDBG("PDN marked active, no need to wait");
+        return 0;
+    }
     return k_sem_take(&g_sem_pdn_ready, K_SECONDS(seconds));
 }
 
 int stcp_library_wait_until_lte_ready(int timeout) {
+    if (atomic_get(&g_lte_active)) {
+        LDBG("LTE marked active, no need to wait");
+        return 0;
+    }
+
     return stcp_pdn_wait_until_active_or_secs_passed(timeout);
 }
 
@@ -277,7 +248,7 @@ int stcp_transport_modem_lte_network_is_up(void)
     return stcp_transport_modem_has_ip();
 }
 
-static int stcp_transport_pdn_is_active() {
+int stcp_transport_pdn_is_active() {
     char buf[128];
     nrf_modem_at_cmd(buf, sizeof(buf), "AT+CGACT?");
 
@@ -287,7 +258,7 @@ static int stcp_transport_pdn_is_active() {
     return 0;
 }
 
-static void lte_event_handler(const struct lte_lc_evt *evt)
+static void the_lte_event_handler(const struct lte_lc_evt *evt)
 {
     if (!evt) {
         LERR("LTE EVT: NULL event");
@@ -308,6 +279,7 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
         case LTE_LC_NW_REG_NOT_REGISTERED:
             LINF("LTE: NOT REGISTERED, starting reconnect...");
             worker_schedule_lte_reconnect();
+            atomic_set(&g_lte_active, 0);
             break;
 
         case LTE_LC_NW_REG_REGISTERED_HOME:
@@ -323,6 +295,7 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
 
         case LTE_LC_NW_REG_REGISTRATION_DENIED:
             LINF("LTE: REGISTRATION DENIED");
+            atomic_set(&g_lte_active, 0);
             break;
 
         case LTE_LC_NW_REG_UNKNOWN:
@@ -366,15 +339,19 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
 
 
     case LTE_LC_EVT_RRC_UPDATE:
-
+        int connected = (evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED);
         LINF("RRC UPDATE: mode=%d => state: %s",
             evt->rrc_mode,
-            (evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED) ? "CONNECTED" : "IDLE"
+            connected ? "CONNECTED" : "IDLE"
         );
+
+        atomic_set(&g_radio_active, connected);
+
+
 #if CONFIG_STCP_DEBUG_LATENCY
     {
         static uint32_t rrc_start = 0;
-        if (evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED) {
+        if (connected) {
             if (rrc_start > 0) {
                 LINF("LTE: radio was idle for %u ms before wake",
                     k_uptime_get_32() - rrc_start
@@ -615,13 +592,17 @@ int stcp_transport_init(void)
 
     k_sem_reset(&network_connected_sem);
 
+    atomic_set(&g_lte_active, 0);
     atomic_set(&g_pdn_active, 0);
+    atomic_set(&g_ip_active, 0);
+    
+    LDBG("@INIT: resetting semaphores LTE/PDN/IP...");
 
     if (!onceCalled) {
         onceCalled = 1;
 
         LDBGBIG("[Transport Init] Registering LTE eventhandler... ");
-        lte_lc_register_handler(lte_event_handler);
+        lte_lc_register_handler(the_lte_event_handler);
 
         LDBGBIG("[Transport Init] Registering LTE modem library... ");
         int err = nrf_modem_lib_init();
@@ -631,15 +612,20 @@ int stcp_transport_init(void)
             k_panic();
         }
 
+        atomic_set(&g_lte_active, 1);
+
         LDBGBIG("[Transport Init] Setting APN to %s", STCP_LTE_APN);
         stcp_modem_force_apn();
 
         LDBGBIG("[Transport Init] Turnng CSCON on");
         stcp_lte_issue_at_command("AT+CSCON=1");
 
-        LDBGBIG("[Transport Init] Registering LTE L4 event handler .....");
-        net_mgmt_init_event_callback(&l4_cb, l4_event_handler, L4_EVENT_MASK);
-        net_mgmt_add_event_callback(&l4_cb);
+        LDBGBIG("[Transport Init] Forcing LTEM mode");
+        err = lte_lc_system_mode_set(LTE_LC_SYSTEM_MODE_LTEM, LTE_LC_SYSTEM_MODE_LTEM);
+        if (err < 0) {
+            LERRBIG("[Transport Init] Forcing mode to LTEM failed, rc: %d / errno: %d", err, errno);
+        }
+
 
         LDBGBIG("[Transport Init] Starting LTE Connect .....");
         err = lte_lc_connect();
@@ -659,7 +645,7 @@ int stcp_transport_init(void)
             cnt--;
         }
 
-        if (stcp_transport_pdn_is_active()) {
+        if (pdn_ok) {
             LDBGBIG("[Transport Init] PDN is OK.");
         } else {
             LWRNBIG("[Transport Init] PDN is not OK after a while..");
@@ -667,7 +653,7 @@ int stcp_transport_init(void)
         atomic_set(&g_pdn_active, 1);
         k_sem_give(&g_sem_pdn_ready);
 
-        cnt = 3*60 * 2; // 3 minutes
+        cnt = 6*60 * 2; // 6 minutes
         int net_ok = stcp_transport_modem_lte_network_is_up();
         LDBGBIG("[Transport Init] Network ok? %d ...", net_ok);
         while (!net_ok && cnt > 0) {
@@ -677,13 +663,14 @@ int stcp_transport_init(void)
             cnt--;
         }
 
-        if (stcp_transport_modem_lte_network_is_up()) {
+        if (net_ok) {
             LDBGBIG("[Transport Init] Network is UP..");
             k_sem_give(&network_connected_sem);
         } else {
             LWRNBIG("[Transport Init] Network is not UP after a while..");
             k_sem_give(&network_connected_sem);
         }
+        atomic_set(&g_ip_active, 1);
 
         LDBGBIG("[Transport Init] Calling platform ready....");
         stcp_platform_mark_ready();

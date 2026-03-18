@@ -15,12 +15,11 @@ enum mqtt_state state = MQTT_STATE_IDLE;
 extern struct mqtt_client client;
 extern int mqtt_connected;
 
-static void stcp_mqtt_task(void *p1, void *p2, void *p3);
-void sleep_ms_jitter(uint32_t base_ms, uint32_t jitter_ms);
+void stcp_mqtt_task(void *p1, void *p2, void *p3);
 extern struct k_mutex client_lock;
 
 K_THREAD_STACK_DEFINE(stpc_mqtt_stack, MQTT_STACK_SIZE);
-static struct k_thread stpc_mqtt_thread;
+struct k_thread stpc_mqtt_thread;
 
 // Semaphore for connack
 
@@ -31,7 +30,7 @@ int stcp_mqtt_wait_for_connak_event(int timeout_ms)
     if ( k_sem_count_get(&g_sem_connack_seen) == 0) {
         return 0;
     }
-    MINFBIG("CONNACK take (%d ms)");
+    MINFBIG("CONNACK take (%d ms)", timeout_ms);
     return k_sem_take(&g_sem_connack_seen, K_MSEC(timeout_ms));
 }
 
@@ -150,7 +149,7 @@ static const char *get_state_name(enum mqtt_state state) {
 #endif
 }
 
-static void stcp_mqtt_task(void *p1, void *p2, void *p3)
+void stcp_mqtt_task(void *p1, void *p2, void *p3)
 {
     int rc;
     struct mqtt_client *clientPtr = p1;
@@ -194,6 +193,11 @@ static void stcp_mqtt_task(void *p1, void *p2, void *p3)
         }
 #endif
         switch (state) {
+
+            case MQTT_STATE_INITIAL: 
+                MINF("MQTT: @ %s state handler", get_state_name(state));
+                state = MQTT_STATE_INITIAL;
+                break;
 
             case MQTT_STATE_IDLE:
                 MINF("MQTT: @ %s state handler", get_state_name(state));

@@ -3,11 +3,21 @@
 #include <stdint.h>
 #include <stcp/stcp_api_internal.h>
 
+
+extern atomic_t g_pdn_active;
+extern atomic_t g_lte_active;
+extern atomic_t g_ip_active;
+extern atomic_t g_radio_active;
+
 int stcp_transport_set_connected_fd(int fd);
 int stcp_transport_init(void);
 int stcp_transport_connect(void);
 int stcp_transport_wait_until_ready(int seconds);
 int stcp_transport_soft_reset(void * vpCtx);
+
+int stcp_transport_pdn_is_active();
+int stcp_transport_modem_lte_network_is_up(void);
+int stcp_transport_modem_has_ip();
 
 int stcp_lte_is_registered(void);
 int stcp_pdn_is_active();

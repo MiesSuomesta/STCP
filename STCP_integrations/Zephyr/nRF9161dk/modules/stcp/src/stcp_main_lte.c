@@ -28,7 +28,8 @@
 #include <stcp/stcp_transport.h>
 #include <stcp/stcp_platform.h>
 
-#include "testing/include/status_monitor.h"
+#include <testing/include/status_monitor.h>
+#include <testing/include/stcp_testing.h>
 
 
 #define STCP_HEAP_DEBUG         0
@@ -47,9 +48,7 @@ int stcp_lte_reset_everythign(struct stcp_ctx *ctx) {
     
     LDBG("Resetting platform called..");
 
-    k_sem_reset(&g_sem_pdn_ready);
-    k_sem_reset(&g_sem_lte_ready);
-    k_sem_reset(&g_sem_ip_ready);
+    LDBG("Resetting semaphores LTE/PDN/IP...");
 
     if (stcp_is_context_valid(ctx) > 0) {
         LDBG("Resetting platform ....");
@@ -73,25 +72,6 @@ void stcp_shutdown(void)
 {
 	/* The HTTP transaction is done, take the network connection down */
 	LDBG("Shutdown...");
-}
-
-
-static void dump_stack(const char *tag)
-{
-    size_t unused = 0;
-
-    LDBG("%s: main unused stack = %u bytes", tag, (unsigned)unused);
-
-#if STCP_HEAP_DEBUG    
-    struct sys_heap_runtime_stats stats;
-    sys_heap_runtime_stats_get(&_system_heap.heap, &stats);
-
-    printk("HEAP STATS:\n");
-    printk("  total:     %u\n", stats.total_bytes);
-    printk("  free:      %u\n", stats.free_bytes);
-    printk("  used:      %u\n", stats.allocated);
-#endif
-
 }
 
 void stcp_fsm_init_globals(void);
@@ -121,6 +101,8 @@ int stcp_lte_do_full_reset(struct stcp_ctx *ctx, int wait)
 
     LDBG("Initialising globals....");
     stcp_fsm_init_globals();
+
+    LDBG("Resetting semaphores LTE/PDN/IP...");
 
     LDBG("Initialising platform....");
     stcp_platform_init(NULL);
@@ -171,8 +153,6 @@ int stcp_library_init()
     int64_t startTime = k_uptime_get();
     stcp_platform_init_banner();
 
-    dump_stack("boot");
-
     LDBG("Boot");
 
     int stcpAlive = stcp_rust_alive();
@@ -182,10 +162,7 @@ int stcp_library_init()
     // Init?
     stcp_module_rust_enter();
 
-#if CONFIG_STCP_STATISTICS
-    stcp_statistic_monitor_server_start();
-    LDBG("Statistics thread started..");
-#endif
+    stcp_status_monitor_start();
 
     LDBG("Doing reset....");
     stcp_lte_do_full_reset(NULL, wait_timeout_sec);
@@ -208,6 +185,7 @@ int stcp_library_init()
     stcp_torture_start();
     LDBG("Torture started...");
 #endif
+
     return 0;
     
 }

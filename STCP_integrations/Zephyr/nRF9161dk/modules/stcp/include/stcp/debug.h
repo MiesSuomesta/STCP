@@ -12,32 +12,56 @@
     #define DO_FIRST_ON_LOG do { } while(0)
 #endif
 
-#if CONFIG_STCP_DEBUG || 1
+#define THE_DEBUG_MESSAGE_START        "[%u ms] STCP/%s[%s:%d][LR:%p]: "
+#define THE_DEBUG_MESSAGE_ARGS(level)  STCP_GET_TIMESTAMP, level,  __FILE__, __LINE__, __builtin_return_address(0)
+
+#define DBG_MESSAGE_START THE_DEBUG_MESSAGE_START
+#define DBG_MESSAGE_ARGS  THE_DEBUG_MESSAGE_ARGS("DBG")
+
+#define WRN_MESSAGE_START THE_DEBUG_MESSAGE_START
+#define WRN_MESSAGE_ARGS  THE_DEBUG_MESSAGE_ARGS("WRN")
+
+#define INF_MESSAGE_START THE_DEBUG_MESSAGE_START
+#define INF_MESSAGE_ARGS  THE_DEBUG_MESSAGE_ARGS("INF")
+
+#define ERR_MESSAGE_START THE_DEBUG_MESSAGE_START
+#define ERR_MESSAGE_ARGS  THE_DEBUG_MESSAGE_ARGS("ERR")
+
+#define SDBG_MESSAGE_START THE_DEBUG_MESSAGE_START
+#define SDBG_MESSAGE_ARGS  THE_DEBUG_MESSAGE_ARGS("DBG")
+
+#if CONFIG_STCP_DEBUG
+
 # define SDBG(msg, ...) \
-    printk("[%u ms] STCP[%s:%d][LR:%p]: " msg "\n", STCP_GET_TIMESTAMP, __FILE__, __LINE__ , __builtin_return_address(0), ##__VA_ARGS__)
+    do { \
+        DO_FIRST_ON_LOG; \
+        printk(SDBG_MESSAGE_START msg "\n", SDBG_MESSAGE_ARGS, ##__VA_ARGS__); \
+    } while (0)
 
 # define LDBG(msg, ...) \
     do { \
         DO_FIRST_ON_LOG; \
-        printk("[%u ms] STCP[%s:%d][LR:%p]: " msg "\n", STCP_GET_TIMESTAMP, __FILE__, __LINE__, __builtin_return_address(0) , ##__VA_ARGS__ ); \
+        printk(DBG_MESSAGE_START msg "\n", DBG_MESSAGE_ARGS, ##__VA_ARGS__); \
     } while (0)
+
 # define LWRN(msg, ...) \
     do { \
         DO_FIRST_ON_LOG; \
-        printk("[%u ms] STCP[%s:%d][LR:%p]: " msg "\n", STCP_GET_TIMESTAMP, __FILE__, __LINE__, __builtin_return_address(0) , ##__VA_ARGS__ ); \
+        printk(WRN_MESSAGE_START msg "\n", WRN_MESSAGE_ARGS, ##__VA_ARGS__); \
     } while (0)
 
 # define LINF(msg, ...) \
     do { \
         DO_FIRST_ON_LOG; \
-        printk("[%u ms] STCP[%s:%d][LR:%p]: " msg "\n", STCP_GET_TIMESTAMP, __FILE__, __LINE__, __builtin_return_address(0) , ##__VA_ARGS__ ); \
+        printk(INF_MESSAGE_START msg "\n", INF_MESSAGE_ARGS, ##__VA_ARGS__); \
     } while (0)
 
 # define LERR(msg, ...)  \
     do { \
         DO_FIRST_ON_LOG; \
-        printk("[%u ms] STCP[%s:%d][LR:%p]: " msg "\n", STCP_GET_TIMESTAMP, __FILE__, __LINE__, __builtin_return_address(0) , ##__VA_ARGS__ ); \
+        printk(ERR_MESSAGE_START msg "\n", ERR_MESSAGE_ARGS, ##__VA_ARGS__); \
     } while (0)
+
 #else
 # define SDBG(msg, ...)  do { } while(0)
 # define LDBG(msg, ...)  do { } while(0)
@@ -46,60 +70,52 @@
 # define LERR(msg, ...)  do { } while(0)
 #endif
 
-#define STCP_CLOSE_FD(theFD) \
-    do { \
-        LERR("Closing fd: %d", theFD); \
-        zsock_close(theFD); \
-        LERR("Closed: %d", theFD); \
+#define STCP_CLOSE_FD(theFD)            \
+    do {                                \
+        LERR("Closing fd: %d", theFD);  \
+        zsock_close(theFD);             \
+        LERR("Closed: %d", theFD);      \
     } while(0)
 
 #define STCP_CONTEXT_GUARD_WITH_RET(theCtx, invalidRet) \
-    do { \
-        if (stcp_is_context_valid(theCtx) != 1) { \
-            LERR("Context %p not valid!", theCtx); \
-            return invalidRet; \
-        } \
+    do {                                                \
+        if (stcp_is_context_valid(theCtx) != 1) {       \
+            LERR("Context %p not valid!", theCtx);      \
+            return invalidRet;                          \
+        }                                               \
     } while(0)
 
 #define STCP_CONTEXT_GUARD_VOID_RET(theCtx, invalidRet) \
-    do { \
-        if (stcp_is_context_valid(theCtx) != 1) { \
-            LERR("Context %p not valid!", theCtx); \
-            return; \
-        } \
+    do {                                                \
+        if (stcp_is_context_valid(theCtx) != 1) {       \
+            LERR("Context %p not valid!", theCtx);      \
+            return;                                     \
+        }                                               \
     } while(0)
 
-#define _STCP_DO_CUSTOM_BIG_PRINT(MACRO, ...) \
+#define _STCP_DO_CUSTOM_BIG_PRINT(MACRO, MSTART, MARGS, MTAG, ...) \
     do { \
-        MACRO(".--------------------------------------------------------------->\n"); \
-        MACRO("| " __VA_ARGS__); \
-        printk("\n"); \
-        MACRO("'----------------------------------------->\n"); \
+        printk(MSTART "%s%s" , MARGS, MTAG, " .--------------------------------------------------------------->\n"); \
+        printk(MSTART "%s%s" , MARGS, MTAG, " | ");                                                                  \
+        printk(__VA_ARGS__);                                                                                         \
+        printk("\n");                                                                                                \
+        printk(MSTART "%s%s" , MARGS, MTAG, " '----------------------------------------->\n");                       \
     } while(0)
 
-#define LDBGBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LDBG, ##__VA_ARGS__)
-#define LWRNBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LINF, ##__VA_ARGS__)
-#define LINFBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LWRN, ##__VA_ARGS__)
-#define LERRBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LERR, ##__VA_ARGS__)
-
-// MQTT macros...
-#define _STCP_DO_MQTT_BIG_PRINT(MACRO, ...) \
-    do { \
-        MACRO("[STCP/MQTT] .--------------------------------------------------------------->\n"); \
-        MACRO("[STCP/MQTT] | " __VA_ARGS__); \
-        printk("\n"); \
-        MACRO("[STCP/MQTT] '----------------------------------------->\n"); \
-    } while(0)
+#define LDBGBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LDBG, DBG_MESSAGE_START, DBG_MESSAGE_ARGS, "", ##__VA_ARGS__)
+#define LINFBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LINF, INF_MESSAGE_START, INF_MESSAGE_ARGS, "", ##__VA_ARGS__)
+#define LWRNBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LWRN, WRN_MESSAGE_START, WRN_MESSAGE_ARGS, "", ##__VA_ARGS__)
+#define LERRBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LERR, ERR_MESSAGE_START, ERR_MESSAGE_ARGS, "", ##__VA_ARGS__)
 
 #define MDBG(msg, ...)  LDBG("[STCP/MQTT] " msg, ##__VA_ARGS__)
 #define MWRN(msg, ...)  LWRN("[STCP/MQTT] " msg, ##__VA_ARGS__)
 #define MINF(msg, ...)  LINF("[STCP/MQTT] " msg, ##__VA_ARGS__)
 #define MERR(msg, ...)  LERR("[STCP/MQTT] " msg, ##__VA_ARGS__)
 
-#define MDBGBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(MDBG, ##__VA_ARGS__)
-#define MWRNBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(MWRN, ##__VA_ARGS__)
-#define MINFBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(MINF, ##__VA_ARGS__)
-#define MERRBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(MERR, ##__VA_ARGS__)
+#define MDBGBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LDBG, DBG_MESSAGE_START, DBG_MESSAGE_ARGS, "[STCP/MQTT]", ##__VA_ARGS__)
+#define MINFBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LINF, INF_MESSAGE_START, INF_MESSAGE_ARGS, "[STCP/MQTT]", ##__VA_ARGS__)
+#define MWRNBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LWRN, WRN_MESSAGE_START, WRN_MESSAGE_ARGS, "[STCP/MQTT]", ##__VA_ARGS__)
+#define MERRBIG(...)  _STCP_DO_CUSTOM_BIG_PRINT(LERR, ERR_MESSAGE_START, ERR_MESSAGE_ARGS, "[STCP/MQTT]", ##__VA_ARGS__)
 
 
 #define STCP_LOG_HEX(label, buf, len) \

@@ -18,6 +18,7 @@ ssize_t stcp_send(struct stcp_ctx *ctx, const void *buf, size_t len, int flags);
 ssize_t stcp_send_msg(struct stcp_ctx *ctx, const struct msghdr *message);
 ssize_t stcp_recv(struct stcp_ctx *ctx, void *buf, size_t len, int flags);
 int     stcp_close(struct stcp_ctx *ctx);
+int     stcp_socket(int not_used_1,int not_used_2, int not_used_3);
 
 int stcp_accept(struct stcp_ctx *parent,
                 struct stcp_ctx **child_out,

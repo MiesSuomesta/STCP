@@ -23,7 +23,7 @@
 #include "stcp/stcp_rust_exported_functions.h"
 
 
-#define STCP_DEBUG_DUMP_ENABLED             1
+#define STCP_DEBUG_DUMP_ENABLED             0
 #define STCP_DEBUG_DUMP_MAX_DUMP_LENGTH     512
 
 int stcp_is_file_desc_alive(int fd);
@@ -36,6 +36,7 @@ int stcp_exported_rust_ctx_alive_count(void)
 
 void stcp_hexdump_ascii(const char *prefix, const uint8_t *buf, int len)
 {
+#if CONFIG_STCP_DEBUG
 #if STCP_DEBUG_DUMP_ENABLED
     if (!stcp_config_debug_enabled()) {
         return ;
@@ -82,7 +83,8 @@ void stcp_hexdump_ascii(const char *prefix, const uint8_t *buf, int len)
 
         printk("|\n");
     }
-#endif
+# endif // Dumps enabled
+#endif // CONFIG_STCP_DEBUG
 }
 
 static inline int stcp_ctx_pointer_valid(struct stcp_ctx *ctx)

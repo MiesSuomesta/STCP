@@ -80,7 +80,7 @@ int stcp_crypto_compute_shared(const struct stcp_crypto_secret *priv,
                             (const uint8_t *)priv->data,
                             shared_raw,
                             curve)) {
-        printk("stcp_crypto: uECC_shared_secret failed\n");
+        LDBG("stcp_crypto: uECC_shared_secret failed\n");
         return -2;
     }
 

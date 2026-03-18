@@ -20,7 +20,8 @@ int stcp_library_init(void);
 int stcp_api_get_handshake_status(struct stcp_api *api);
 
 int stcp_api_wait_until_reached_stcp_init_ready(int timeout_sec);
-
+int stcp_api_resolve(const char *host, const char *port, struct zsock_addrinfo **result);
+    
 // Semaforien odottelut per instanssi
 int stcp_api_wait_until_reached_ip_network_up(struct stcp_api *api, int timeout);
 int stcp_api_wait_until_reached_lte_ready    (struct stcp_api *api, int timeout);

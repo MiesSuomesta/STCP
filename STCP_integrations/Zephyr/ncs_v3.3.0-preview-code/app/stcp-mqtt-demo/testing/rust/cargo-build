@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+echo Torture
+cargo +nightly build --features stcp_debug,linux --manifest-path ./Cargo.toml --bin stcp-torture-server
+
+echo Proxy
+cargo +nightly build --features stcp_debug,linux --manifest-path ./Cargo.toml --bin stcp-proxy
+
+echo GW
+cargo +nightly build --features stcp_debug,linux --manifest-path ./Cargo.toml --bin stcp-gateway
+
+

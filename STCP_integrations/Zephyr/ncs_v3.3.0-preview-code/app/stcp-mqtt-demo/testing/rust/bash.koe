@@ -1,0 +1,8 @@
+(
+printf '\x00\x00\x00\x01';      # version
+printf '\x53\x54\x43\x50';      # STCP
+printf '\x00\x00\x00\x01';      # type
+printf '\x00\x00\x00\x05';      # payload len
+printf 'hello'                  # payload
+) | nc 127.0.0.1 7777
+

@@ -1,0 +1,38 @@
+#!/bin/sh
+set -e
+
+PKG="paxsudos-stcp"
+VER="__VERSION__"
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1"; exit 1; }
+}
+
+need_cmd dkms
+need_cmd make
+need_cmd rustup
+
+# 1) Ensure nightly toolchain exists (root context)
+if ! rustup toolchain list | grep -q '^nightly'; then
+  echo "STCP: installing Rust nightly toolchain via rustup"
+  rustup toolchain install nightly
+fi
+
+# Optional: components if you need them (example)
+# rustup component add rust-src --toolchain nightly || true
+
+# 2) Register with DKMS and build/install for current kernels
+dkms add -m "${PKG}" -v "${VER}" || true
+
+# Build+install for ALL installed kernels (nice for servers)
+# This avoids depending on "headers for running kernel only"
+dkms autoinstall -m "${PKG}" -v "${VER}" || {
+  echo "STCP: dkms autoinstall failed. Ensure matching linux-headers are installed for your kernel(s)."
+  exit 1
+}
+
+depmod -a || true
+
+echo "STCP: installed. Load with: modprobe stcp"
+exit 0
+

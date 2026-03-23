@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODDIR="/home/pomo/kernel-git/stcp/kernel/kmod"
+
+cd "$MODDIR"
+
+echo "[*] Removing old module (if any)"
+sudo rmmod stcp_rust 2>/dev/null || true
+
+echo "[*] Inserting $MODDIR/stcp_rust.ko"
+sudo insmod ./stcp_rust.ko
+
+echo "[*] Module info:"
+modinfo stcp_rust | grep -E 'filename|version'
+

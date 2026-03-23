@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+SD=$(dirname $0)
+
+scp serveri:~/viime.log $1
+bash $SD/analyse-oops.sh $1 | tee analysed-$1
+

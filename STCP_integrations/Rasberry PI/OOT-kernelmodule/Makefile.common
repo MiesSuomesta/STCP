@@ -1,0 +1,34 @@
+# ===== Makefile.settings =====
+DATETS         := $(shell date +"%Y%m%d-%H%M%S")
+SRC_DIR        := $(abspath $(CURDIR))
+
+KDIR           ?= /lib/modules/$(shell uname -r)/build
+TOPDIR         := $(SRC_DIR)
+
+KMOD_SRC       := $(TOPDIR)/kmod
+KMOD_BUILD     := $(TOPDIR)/build
+
+
+RUST_PROFILE   ?= release
+RUST_TARGET    ?= x86_64-unknown-linux-gnu
+
+KERNEL_MODULE_NAME       := stcp_rust
+RUST_CRATE_OBJECT_NAME   := the_rust_implementation
+KERNEL_MODULE_SRC_PREFIX := ../kmod/
+
+# Työkalut
+LD := $(shell which ld)
+
+# Cargo-komento
+RUST_TOOLCHAIN  ?= +nightly
+#RUST_TOOLCHAIN  := 
+CARGO           ?= cargo
+
+# komennon osasia
+CARGO_PROFILE_FLAG := --release
+#CARGO_TARGET_FLAG  := --target $(RUST_TARGET) 
+CARGO_TARGET_FLAG  := 
+CARGO_UNSTABLE     := -Z build-std=core,alloc -Z build-std-features=compiler-builtins-mem 
+#CARGO_UNSTABLE     := 
+CARGO_BUILD_CMD    := $(CARGO) $(RUST_TOOLCHAIN) $(CARGO_UNSTABLE) build $(CARGO_TARGET_FLAG) $(CARGO_PROFILE_FLAG)
+

@@ -1,0 +1,121 @@
+#!/usr/bin/awk -f
+
+# Versio B:
+# - löytää stcp_dbg!(...) -kutsut (yksi- ja moniriviset)
+# - poimii ENSIMMÄISEN string-literalin
+# - poistaa placeholderit { ... }
+# - muuttaa kaiken muun "sanoiksi":
+#     * ei-aakkosnumeeriset (ja _) -> välilyönti
+#     * tuplavälit pois
+# - tekee uuden lyhyen debug-viestin tyyliin: "Session recv on sock"
+# - lisää BACKUP-kommentin loppuun
+
+BEGIN {
+    in_dbg = 0
+    dbg_text = ""
+    first_line = ""
+}
+
+function trim(s) {
+    sub(/^[ \t\r\n]+/, "", s)
+    sub(/[ \t\r\n]+$/, "", s)
+    return s
+}
+
+# Poimitaan stringistä pelkät "sanat", placeholderit ja roskat pois.
+function clean_string(s) {
+    # 1) Poista kaikki placeholderit { ... }
+    gsub(/\{[^}]*\}/, "", s)
+
+    # 2) Kaikki ei-aakkosnumeerinen ja '_' -> välilyönti
+    #    (esim. "sock={:p}" -> "sock   p")
+    gsub(/[^0-9A-Za-z]+/, " ", s)
+
+    # 3) Yhdistä tuplavälit
+    gsub(/[ \t]+/, " ", s)
+
+    # 4) Trimmaa alusta ja lopusta
+    s = trim(s)
+
+    return s
+}
+
+{
+    line = $0
+
+    #############################################
+    # 1) Kerätään monirivinen stcp_dbg! -kutsu
+    #############################################
+    if (in_dbg == 1) {
+        dbg_text = dbg_text "\n" line
+
+        if (line ~ /\)\s*;/) {
+            # dbg-kutsu loppui
+            in_dbg = 0
+
+            # Sisennys ekalta riviltä
+            indent_len = match(first_line, /^[ \t]*/)
+            pad = ""
+            if (indent_len > 0)
+                pad = substr(first_line, 1, RLENGTH)
+
+            # Etsi ensimmäinen string-literal koko dbg_textistä
+            full = dbg_text
+            if (match(full, /"([^"\\]|\\.)*"/)) {
+                raw = substr(full, RSTART, RLENGTH)
+
+                # poista ympäröivät "
+                literal = raw
+                gsub(/^"/, "", literal)
+                gsub(/"$/, "", literal)
+
+                clean = clean_string(literal)
+            } else {
+                clean = "DBG"
+            }
+
+            printf "%sstcp_dbg!(\"%s\");   // BACKUP: %s\n", pad, clean, trim(dbg_text)
+        }
+        next
+    }
+
+    #############################################
+    # 2) Yksirivinen stcp_dbg!(...)
+    #############################################
+    if (line ~ /stcp_dbg![[:space:]]*\(.*\)[[:space:]]*;/) {
+
+        # Sisennys
+        indent_len = match(line, /^[ \t]*/)
+        pad = ""
+        if (indent_len > 0)
+            pad = substr(line, 1, RLENGTH)
+
+        # Etsi ensimmäinen string-literal
+        clean = "DBG"
+        if (match(line, /"([^"\\]|\\.)*"/)) {
+            raw = substr(line, RSTART, RLENGTH)
+            literal = raw
+            gsub(/^"/, "", literal)
+            gsub(/"$/, "", literal)
+            clean = clean_string(literal)
+        }
+
+        printf "%sstcp_dbg!(\"%s\");   // BACKUP: %s\n", pad, clean, trim(line)
+        next
+    }
+
+    #############################################
+    # 3) Monirivisen stcp_dbg!(:n alku
+    #############################################
+    if (line ~ /stcp_dbg![[:space:]]*\(/ && line !~ /\)\s*;/) {
+        in_dbg = 1
+        first_line = line
+        dbg_text = line
+        next
+    }
+
+    #############################################
+    # 4) Kaikki muu sellaisenaan
+    #############################################
+    print line
+}

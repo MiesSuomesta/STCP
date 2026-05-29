@@ -1,0 +1,672 @@
+mfw_nrf91x1 release notes
+-------------------------
+
+** Introduction to the mfw_nrf91x1 release notes **
+
+These release notes describe the changes in the mfw_nrf91x1 firmware from version to version.
+The release notes are intended to briefly list all relevant changes in each version.
+
+Copyright (c) Nordic Semiconductor ASA. All rights reserved.
+
+*** mfw_nrf91x1_2.0.2
+*********************
+
+The mfw_nrf91x1 is Cellular IoT and Positioning firmware for modem subsystem of nRF9131 LACA A0,
+nRF9151 LACA A0, and nRF9161 LACA A0 SiP modules. It supports 3GPP LTE release 14 LTE-M and NB-IoT
+standards, selected optional 3GPP LTE release 14 and 15 features, GPS L1C/A and QZSS L1C/A
+positioning.
+
+LTE-M operation is enabled on E-UTRA bands 1, 2, 3, 4, 5, 8, 12, 13, 18, 19, 20, 25, 26, 28, 66
+and 85.
+
+NB-IoT operation is enabled on E-UTRA bands 1, 2, 3, 4, 5, 8, 12, 13, 17, 19, 20, 25, 26, 28, 65, 66
+and 85.
+
+This release aligns with v1.2 of the nRF91x1 Cellular AT Commands Reference Guide.
+
+It is advisable to use the latest versions of the nRF Connect and nRF Connect Programmer tools.
+
+*** New functionality
+*********************
+- Added a socket option to postpone IPv6 refresh until the completion of Power Saving Mode (PSM),
+  enhancing power consumption efficiency. This feature requires support from the nRF Connect SDK.
+- Introduced new UICC power-saving options, configurable through the AT%UICCPOWERSAVE command, to
+  improve power efficiency.
+- New feature allowing applications to define permitted or restricted networks for modem
+  connections, providing greater control over connectivity. Configurable through the AT%PALL
+  command.
+- Added the %RAI unsolicited notification to indicate when RAI is possible for the ongoing cellular
+  connection.
+- The AT%POWERCLASS command now supports both read and write options, allowing updates to the device
+  power class. Additionally, support has been added for locking the power class after production.
+- Added support for the TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 cipher suite, enabling stronger
+  encryption for secure communications.
+- Enabled the creation of self-signed client certificates and private keys using the AT%KEYGEN
+  command.
+- Added a new option in AT%FEACONF to deactivate the UICC when no cells are found in the most recent
+  network scan. This option resolves an issue where the modem repeatedly initiated unnecessary PLMN
+  searches following a SIM profile change through SIM refresh, resulting in more frequent searches
+  than specified by the periodic search configuration. Recommended for enhancing power consumption
+  efficiency.
+
+*** Changes
+***********
+- Reading of certificates longer than 4096 bytes is prevented.
+- Improved the +CGEV: RESTR notification to include the remaining restriction duration, providing
+  better application awareness of network restrictions.
+- In addition to existing recovery to re-try attach procedure with IMSI, the modem now temporarily
+  excludes unresponsive networks for increasing durations if initial recovery fails, improving
+  connection stability and power consumption efficiency.
+- Updated configurations for mobile network carrier-specific features and functionalities to enhance
+  compatibility and performance.
+- Implemented minor improvements to reduce current consumption in NB-IoT eDRX mode.
+
+*** Bug fixes
+*************
+- Resolved an issue where the injection order of QZSS assistance data elements affected QZSS
+  assistance ephemeris usage.
+- Improved detection and mitigation of GNSS location outliers, enhancing positional accuracy.
+- Increased GNSS receiver tolerance for time assistance errors greater than three seconds.
+- Improved reliability for DTLS connection setup when PDN connection is deactivated during DTLS
+  handshake.
+- Fixed an issue where SIM refresh was not performed due to missing local time.
+- Fixed a rare issue where simultaneous mobile-originated and mobile-terminated SMS could cause the
+  modem to become unresponsive.
+- Fixed an issue where issuing the AT+CFUN=4 command alongside mobile-terminated SMS blocked
+  subsequent mobile-terminated SMS reception.
+- Improved validation of certificates stored using the AT%CMNG command.
+- Enhanced reliability in modem socket API messaging.
+- Resolved an issue where the +CGEV: NW DEACT event was not sent when the network deactivated an
+  additional PDN.
+- Fixed an issue where the channel status "Link dropped" event was not sent to the UICC.
+- Updated the content of terminal profile concerning Provide Local Information (NMR) support.
+- Improved processing of EF-LOCI and EF-EPSLOCI during SIM refresh.
+- Fixed an issue where concurrent system synchronization and GNSS activation caused subsequent TLS
+  connections to fail.
+- Resolved a scenario where the modem selected the incorrect system (LTE-M/NB-IoT) after FOTA or
+  high-priority GNSS usage.
+- Resolved an issue where primary system searches failed to resume as expected after receiving a
+  network rejection.
+- Ensured accurate registration status reporting in +CEREG when the device is in limited service
+  within a forbidden tracking area.
+- Fixed an issue where the modem could not register on a cell due to rare conflicts between LTE and
+  GNSS operations.
+- Resolved an issue where PLMN selection, triggered by a change in network selection mode (AT+COPS),
+  sometimes failed to complete as expected.
+- Fixed an issue where manual network selection with AT+COPS caused the modem to halt in certain
+  situations.
+- Fixed an issue where PLMN selection did not complete successfully in both systems even when both
+  LTE systems were active.
+- Fixed instability in AT%CONEVAL. In rare cases, the AT%CONEVAL report was missing.
+- Improved PDN handling for non-IP data types.
+- Resolved issue with CP data handling when changing system modes.
+- Resolved an issue with System Information (SI) validity verification before RRC connection
+  establishment when the eDRX cycle length exceeds the modification period.
+- Reduced stopping time for the AT%NCELLMEAS operation to address occasional delays observed.
+- Fixed handling of DL-CCCH and DL-CCCH-NB message reception, enhancing stability.
+- Fixed handling of received DL-BCCH-SCH messages carrying SIB1 or SI information, enhancing
+  stability.
+- Improved packet reception performance with NB-IoT NB2.
+- Fixed an issue where cells were incorrectly excluded when fractional nB Paging parameters were
+  used.
+
+*** Limitations
+***************
+- TLS and DTLS
+    - Secure socket buffer size is 2kB.
+    - Maximum length of DTLS datagram is 1kB.
+    - One TLS handshake at a time is supported.
+    - Concurrent secure connections
+        - Maximum server certificate chain size has a limit of 4kB.
+        - Two active connections are supported when serialized DTLS connection exists.
+        - Two active connections are supported when any client certificate size is over 1kB.
+        - Two active connections are supported when GNSS acquisition is active.
+        - Three active connections are supported when client certificate sizes are 1kB or less.
+        - Four serialized DTLS connections are supported.
+    - Server certificate expiry time is not verified.
+    - pkcs#8 is not supported.
+    - Maximum number of supported credentials is 32. The actual amount depends on the size of
+      credentials as the memory area reserved for credentials may be a limiting factor as well.
+    - TLS is not supported when the socket is configured in TCP server mode.
+- IP fragmentation and reassembly are not supported.
+- It is recommended to free the modem resources by closing unused network sockets and by undefining
+  unused PDN connections with AT+CGDCONT.
+- Maximum number of raw sockets is 4.
+- User plane data is supported in Cat M1 mode only.
+- Non-IP Data Delivery (NIDD) feature is verified only for NB-IoT. NIDD for LTE-M is not supported.
+- The number of ownership keys is restricted to one. Multiple instances are not allowed.
+
+*** Known Issues
+****************
+-
+
+*** MD5 checksums
+*****************
+
+21746FD.ipc_dfu.signed_2.1.0.ihex
+f456c26dc7e657566c0db5a5338b983b (MD5)
+
+firmware.update.image.cbor
+023397f2d80ffd82b37254410904fd8f (MD5)
+
+firmware.update.image.digest.txt
+d2663ac01e95ebe0371e4b729d153877 (MD5)
+
+firmware.update.image.segments.0.hex
+eb290bbb668d2211793989251ebeb7b3 (MD5)
+
+firmware.update.image.segments.1.hex
+5f21abbf42a8be84ad33c9b599e4dc36 (MD5)
+
+ipc-dfu_nrf91x1_2.1.0.ihex
+f456c26dc7e657566c0db5a5338b983b (MD5)
+
+mfw_nrf91x1_2.0.2.cbor
+023397f2d80ffd82b37254410904fd8f (MD5)
+
+mfw_nrf91x1_2.0.2-FOTA-TEST_trace-db.json
+e023428753c7e9d199733cb3f3be6766 (MD5)
+
+mfw_nrf91x1_2.0.2_trace-db.json
+a334bcb8b62b10281e6f4b4e78e4b8fc (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.2-FOTA-TEST_to_2.0.2.bin
+37e35327f876b9f97815ab7b62e4d89f (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.2_to_2.0.2-FOTA-TEST.bin
+829fbb2c4fc159c061b2af930f1d6c08 (MD5)
+
+mfw_nrf91x1_update_from_2.0.1_to_2.0.2.bin
+185502b7e9e19c999797416238293a2a (MD5)
+
+mfw_nrf91x1_update_from_2.0.2-FOTA-TEST_to_2.0.2.bin
+79245db014fd96b91bd58bc7156f9580 (MD5)
+
+mfw_nrf91x1_update_from_2.0.2_to_2.0.2-FOTA-TEST.bin
+5ef92bf03344dbdb484a3eb56f5491ec (MD5)
+
+
+*** mfw_nrf91x1_2.0.1
+*********************
+
+The mfw_nrf91x1 is Cellular IoT and Positioning firmware for modem subsystem of nRF9131 LACA A0,
+nRF9151 LACA A0, and nRF9161 LACA A0 SiP modules. It supports 3GPP LTE release 14 LTE-M and NB-IoT
+standards, selected optional 3GPP LTE release 14 and 15 features, GPS L1C/A and QZSS L1C/A
+positioning.
+
+LTE-M operation is enabled on E-UTRA bands 1, 2, 3, 4, 5, 8, 12, 13, 18, 19, 20, 25, 26, 28, 66
+and 85.
+
+NB-IoT operation is enabled on E-UTRA bands 1, 2, 3, 4, 5, 8, 12, 13, 17, 19, 20, 25, 26, 28, 65, 66
+and 85.
+
+This release aligns with v1.1 of the nRF91x1 Cellular AT Commands Reference Guide.
+
+It is advisable to use the latest versions of the nRF Connect and nRF Connect Programmer tools.
+
+*** New functionality
+*********************
+- Added support for the nRF9151 LACA A0 SiP module.
+- Introduced support for power class 5, enabling a 20dBm TX transmitter mode. Note that selecting
+  the device power class is a one-time operation and can only be performed using the Production Test
+  Firmware (mfw-pti_nrf91x1).
+- Support for socket option to keep data socket open and enable power optimized way to resume data
+  transmission after PDN disconnect and connect procedures. This feature is particularly useful for
+  DTLS + CID and UDP connections.
+- Enhanced network selection optimization during initial search. This feature accelerates initial
+  network selection after modem activation, particularly benefiting non-stationary devices.
+  Configuration is available via the %FEACONF command and is highly recommended for improved
+  performance.
+- Added support for IMEI read, write, and test operations through nRF Util tool.
+- Introduced a new trace for nRF Connect for Desktop Cellular Monitor, providing insight into the
+  number of times the NVM area has been erased since device boot. This information aids in
+  estimating flash wear across various usage scenarios.
+- Implemented a new RF NVM parameter to prevent the locking of certain calibration features during
+  the first modem activation.
+
+*** Changes
+***********
+- Updated configurations for mobile network carrier-specific features and functionalities to improve
+  compatibility and performance.
+- Capability to produce fix in certain AGNSS and Hot start scenarios where time has not been decoded
+  from broadcast.
+
+*** Bug fixes
+*************
+- Resolved an issue with the socket send timeout functionality where the response value for the
+  number of sent bytes was incorrect.
+- Ensured that the new content of mandatory SIM elementary files is saved to NVM when the file does
+  not exist in the UICC and is updated by AT+CRSM.
+- Fixed a problem where IPv6 data was sent to an IPv4 PDN after the PDN type was updated from IPv4v6
+  to IPv4.
+- Addressed an issue where the +CGEV: IPV6 indication was not sent when an IPV6 address refresh was
+  made.
+- Corrected the behavior where "OK" is returned to AT%NCELLMEAS in CFUN=2 mode, even though
+  AT%NCELLMEAS is not supported in CFUN=2 mode.
+- Addressed an issue where AT%XCONNSTAT reported zero value for <Data_Tx> data usage.
+- Resolved an issue where modem deactivation with AT+CFUN=4 simultaneously with ongoing MT SMS
+  caused subsequent MT SMS messages not to be received.
+- Improved the success rate of the SIM refresh procedure when initiated during an active RRC
+  connection.
+- Fixed a bug where the modem did not always use preferred PLMN lists configured to the SIM card
+  correctly.
+- Addressed a situation where the modem did not respond to manual network selection command AT+COPS
+  via the AT interface in certain scenarios.
+- Fixed an issue where stopping the client-requested neighbor cell measurement command did not stop
+  the measurement.
+- Corrected a scenario where network-specific restrictions were not always properly followed after
+  T3247 expiry.
+- Fixed a problem where a manual network search during PSM sleep caused the modem to use the wrong
+  system in subsequent actions, including the next PSM wake-up. Additionally, incorrect modem sleep
+  notifications were observed during manual network searches.
+- Corrected sporadic occurrences of incorrect access technology notifications in +CEREG and
+  %XMONITOR displayed by the modem after completing a manual network search.
+- Resolved an issue where the modem enabled measurement gaps before the first UL data was
+  transmitted to the NW (containing RRCConnectionReconfigurationComplete).
+- Fixed an issue where the modem received corrupted SIB1 data and did not continue SIB1 reception
+  correctly afterward.
+- Addressed connection establishment performance issues occurring in scenarios where the received
+  signal experiences a very low signal-to-noise ratio, and when not all downlink subframes are
+  configured and used by the network.
+- Updated QZSS health data handling to match IS-QZSS-PNT-005.
+- Fixed incorrect timestamp that sometimes occurred in NMEA RMC messages.
+- Addressed modem instability when GNSS 1PPS functionality was turned on/off repeatedly.
+- Updated speed and altitude operational envelope limits for dynamics modes to further reduce
+  possible GNSS outliers.
+- Improved fix accuracy and availability in periodic fixes when the fix period is 60s or less.
+- Security update for CVE-2024-27979.
+
+*** Limitations
+***************
+- TLS and DTLS
+    - Secure socket buffer size is 2kB.
+    - Maximum length of DTLS datagram is 1kB.
+    - One TLS handshake at a time is supported.
+    - Concurrent secure connections
+        - Maximum server certificate chain size has a limit of 4kB.
+        - Two active connections are supported when serialized DTLS connection exists.
+        - Two active connections are supported when any client certificate size is over 1kB.
+        - Two active connections are supported when GNSS acquisition is active.
+        - Three active connections are supported when client certificate sizes are 1kB or less.
+        - Four serialized DTLS connections are supported.
+    - Server certificate expiry time is not verified.
+    - pkcs#8 is not supported.
+    - Maximum number of supported credentials is 32. The actual amount depends on the size of
+      credentials as the memory area reserved for credentials may be a limiting factor as well.
+    - TLS is not supported when the socket is configured in TCP server mode.
+- IP fragmentation and reassembly are not supported.
+- It is recommended to free the modem resources by closing unused network sockets and by undefining
+  unused PDN connections with AT+CGDCONT.
+- Maximum number of raw sockets is 4.
+- User plane data is supported in Cat M1 mode only.
+- Non-IP Data Delivery (NIDD) feature is verified only for NB-IoT. NIDD for LTE-M is not supported.
+- The number of ownership keys is restricted to one. Multiple instances are not allowed.
+
+*** Known Issues
+****************
+-
+
+*** MD5 checksums
+*****************
+
+21746FD.ipc_dfu.signed_2.1.0.ihex
+2a1a9cfdfe99c83e263e19a2c247f2cb (MD5)
+
+firmware.update.image.cbor
+97023db6cf0f65b12bab4ccea3fa841a (MD5)
+
+firmware.update.image.digest.txt
+60f87a12fa75f368c32dc4854c9ab593 (MD5)
+
+firmware.update.image.segments.0.hex
+2773a18c65507045d68dc728dbdc289a (MD5)
+
+firmware.update.image.segments.1.hex
+0f09ce15f81677f5dfdb84d5ce04c130 (MD5)
+
+ipc-dfu_nrf91x1_2.1.0.ihex
+2a1a9cfdfe99c83e263e19a2c247f2cb (MD5)
+
+mfw_nrf91x1_2.0.1.cbor
+97023db6cf0f65b12bab4ccea3fa841a (MD5)
+
+mfw_nrf91x1_2.0.1-FOTA-TEST_trace-db.json
+1e2d582f1ccfb1ede4e8cb609a018300 (MD5)
+
+mfw_nrf91x1_2.0.1_trace-db.json
+1ea8c7a85a1aa98077b7f099567e0c47 (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.1-FOTA-TEST_to_2.0.1.bin
+91af5c45148d3b52cd3e1f0ad0feab15 (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.1_to_2.0.1-FOTA-TEST.bin
+21e81a2628df5401565e307fc49bdfe2 (MD5)
+
+mfw_nrf91x1_update_from_2.0.0_to_2.0.1.bin
+483dd7fc5899c66208dcc5f6a7d8f9a5 (MD5)
+
+mfw_nrf91x1_update_from_2.0.1-FOTA-TEST_to_2.0.1.bin
+1ff888048a8114cc6ea3dc6569601276 (MD5)
+
+mfw_nrf91x1_update_from_2.0.1_to_2.0.1-FOTA-TEST.bin
+b874e9497808499c2ce2443b5ae19d5c (MD5)
+
+
+*** mfw_nrf91x1_2.0.0
+*********************
+
+The mfw_nrf91x1 is Cellular IoT and Positioning firmware for modem subsystem of nRF9131 LACA A0 and
+nRF9161 LACA A0 SiP modules. It supports 3GPP LTE release 14 LTE-M and NB-IoT standards, selected
+optional 3GPP LTE release 14 and 15 features, GPS L1C/A and QZSS L1C/A positioning.
+
+LTE-M operation is enabled on E-UTRA bands 1, 2, 3, 4, 5, 8, 12, 13, 18, 19, 20, 25, 26, 28, 66
+and 85.
+
+NB-IoT operation is enabled on E-UTRA bands 1, 2, 3, 4, 5, 8, 12, 13, 17, 19, 20, 25, 26, 28, 65, 66
+and 85.
+
+For a comprehensive list of features in mfw_nrf91x1_2.0.0, please also refer to the
+mfw_nrf91x1_2.0.0-77.beta version description.
+
+This release is aligned with v1.0 of the nRF91x1 Cellular AT Commands Reference Guide.
+
+It is recommended to use the latest version of nRF Connect and nRF Connect Programmer tools.
+
+*** New functionality
+*********************
+- Notifying the application via %MDMEV if the modem has no bands to scan. This could occur if
+  %XBANDLOCK configuration and the mobile network carrier’s requirements for supported bands are in
+  conflict, resulting in no bands available for the modem to scan.
+- Enhanced network selection with mobile virtual network carriers or with the UICC configuration
+  when the home network is non-existent. This feature is configurable via %FEACONF.
+- Enhanced recovery from unexpected consecutive problems in Attach and TAU procedures when the
+  network becomes unresponsive during these procedures. This feature is configurable via %FEACONF.
+- Support for configuring send timeout in network sockets. Applications can use this feature to
+  monitor the status of modem data transmission.
+- Support for limited %XRFTEST RX tests.
+
+*** Changes
+***********
+- TLS updates.
+- Enhanced reliability and improved data throughput.
+- Removed support for LTE band 71.
+- Added new mobile network carrier MNC/MCC codes.
+- Added trace support for NIDD in the public trace database.
+- GNSS position outlier reduction, especially in weak signal conditions.
+- Faster GNSS recovery from bad assistance data.
+- GNSS TTFF and sensitivity performance improvements.
+- GNSS duty cycle power consumption optimization.
+- Enhanced modem error recovery and current consumption improvements in error situations.
+
+*** Bug fixes
+*************
+- Fixes for AT+COPS functionality. Both systems will be scanned in case both LTE-M and NB-IoT are
+  supported. Setting to automatic network selection mode will always trigger a network selection,
+  even in PSM.
+- Fix for a specific scenario where Attach attempt counter was not reset correctly. The next Attach
+  attempt was delayed as the modem waited for T3402 expiry.
+- Fix for a specific scenario where TAU was not necessarily triggered when T3402 expired.
+- Fix for a scenario where the preferred system was not necessarily considered preferred if a
+  preferred PLMN list item in UICC contained both LTE-M and NB-IoT access technologies.
+- Fix for a scenario where the UE was not able to recover from an out-of-service state due to a race
+  condition between UL data and cell search.
+- Fix for decoding of DNS server address information element. It was possible that the same address
+  was delivered twice to IP if provided twice by the network.
+- Fix for a scenario where the modem did not enter PSM if Higher Priority PLMN search was pending.
+- Fix for the handling of exceptional data configuration for an EPS bearer context. The exceptional
+  data configuration is no longer cleared during context deactivation (e.g., during Detach).
+- Fix for a specific scenario where mobile network carrier related band restrictions were not
+  properly handled when the modem was activated in manual network selection mode.
+- Mobile network carrier specific requirements for network selection.
+- Fix for an issue where the modem became unresponsive when +CFUN=4 was sent during BIP
+  communication.
+- Fixed MTU setting in IPv6 only PDN.
+- Fixed ordering of certificates in %CMNG list response.
+- Improvement for UICC initialization to tolerate an illegal length of EFad.
+- Fixed an issue where the modem did not send a response to the +CSIM command when the SIM card was
+  not present.
+- Fixed an issue where TLS session resumption content was not removed after a fatal alert message.
+- Fixed an issue where inconsistent cause values were reported in +CEREG notifications.
+- Fixed an issue where +CFUN=41 returned the wrong return value.
+- Fixed modem instability when starting RRC Idle inter-frequency measurements with certain timing
+  when a higher priority channel search is ongoing.
+- Fixed an issue causing a system reset in false DCI handling during the Random access procedure.
+- Fixed an issue which may have occasionally caused inaccuracy in neighbor measurement results.
+- Fixed an issue where the modem processing gets halted during the AT%CONEVAL process until the
+  watchdog resets the system.
+- Fixed an issue where the modem was not able to handle a situation where the same cell was found
+  twice from overlapping bands.
+- Fixed an instability issue with MT data reception in case eDRX is configured.
+- Improvement to NB-IoT RLM handling with high NPDCCH r-max values.
+- Improved stability of NB-IoT RLM measurements in C-DRX.
+- Improved DMRS scaling accuracy for 16QAM uplink transmissions. The effect on average uplink power
+  is -0.3dB when 16QAM is used.
+- AT+CLAC allowed only when the modem is deactivated.
+
+*** Limitations
+***************
+- TLS and DTLS
+    - Secure socket buffer size is 2kB.
+    - Maximum length of DTLS datagram is 1kB.
+    - One TLS handshake at a time is supported.
+    - Concurrent secure connections
+        - Maximum server certificate chain size has a limit of 4kB.
+        - Two active connections are supported when serialized DTLS connection exists.
+        - Two active connections are supported when any client certificate size is over 1kB.
+        - Two active connections are supported when GNSS acquisition is active.
+        - Three active connections are supported when client certificate sizes are 1kB or less.
+        - Four serialized DTLS connections are supported.
+    - Server certificate expiry time is not verified.
+    - pkcs#8 is not supported.
+    - Maximum number of supported credentials is 32. The actual amount depends on the size of
+      credentials as the memory area reserved for credentials may be a limiting factor as well.
+    - TLS is not supported when the socket is configured in TCP server mode.
+- It is recommended to free the modem resources by closing unused network sockets and by undefining
+  unused PDN connections with AT+CGDCONT.
+- Maximum number of raw sockets is 4.
+- User plane data is supported in Cat M1 mode only.
+- Non-IP Data Delivery (NIDD) feature is verified only for NB-IoT. NIDD for LTE-M is not supported.
+- The number of ownership keys is restricted to one. Multiple instances are not allowed.
+
+*** Known Issues
+****************
+-
+
+*** MD5 checksums
+*****************
+
+21746FD.ipc_dfu.signed_2.0.0.ihex
+3d94322590c3e5d4be45de183a34b44e (MD5)
+
+firmware.update.image.cbor
+93966bd6ef6a8b0fd3ccd009daf070ed (MD5)
+
+firmware.update.image.digest.txt
+7af4502f2161d1a81e3f6f1118e0b39c (MD5)
+
+firmware.update.image.segments.0.hex
+0145dab7d82defc3e4e4f4e5462d2eba (MD5)
+
+firmware.update.image.segments.1.hex
+bd28c3d6635daf0a2deb16a4a0b275bc (MD5)
+
+ipc-dfu_nrf91x1_2.0.0.ihex
+3d94322590c3e5d4be45de183a34b44e (MD5)
+
+mfw_nrf91x1_2.0.0.cbor
+93966bd6ef6a8b0fd3ccd009daf070ed (MD5)
+
+mfw_nrf91x1_2.0.0-FOTA-TEST_trace-db.json
+05f3b55f1cbb528264a472b397fedbf4 (MD5)
+
+mfw_nrf91x1_2.0.0_trace-db.json
+eeb620161b58dd9e93af3eaa177e2e47 (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.0-FOTA-TEST_to_2.0.0.bin
+4e759e7ca46219c29144b463cb4b3a4a (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.0_to_2.0.0-FOTA-TEST.bin
+8158aaca2cc6fce7f914a104354f39cb (MD5)
+
+mfw_nrf91x1_update_from_2.0.0-FOTA-TEST_to_2.0.0.bin
+1ffe7e6b27fe95f70093236ce492c0c1 (MD5)
+
+mfw_nrf91x1_update_from_2.0.0_to_2.0.0-FOTA-TEST.bin
+17e123830c5ec92c758935292a8077b5 (MD5)
+
+
+*** mfw_nrf91x1_2.0.0-77.beta
+*****************************
+
+The mfw_nrf91x1 is Cellular IoT and Positioning firmware for modem subsystem of nRF9131 and nRF9161
+SiP modules. It supports 3GPP LTE release 14 LTE-M and NB-IoT standards, selected optional 3GPP LTE
+release 14 and 15 features, GPS L1C/A and QZSS L1C/A positioning.
+
+LTE-M operation is enabled on E-UTRA Bands 1, 2, 3, 4, 5, 8, 12, 13, 18, 19, 20, 25, 26, 28, 66, 71
+and 85.
+
+NB-IoT operation is enabled on E-UTRA Bands 1, 2, 3, 4, 5, 8, 12, 13, 17, 19, 20, 25, 26, 28, 65,
+66, 71 and 85.
+
+This release is aligned with v0.8 of the nRF91x1 CIoT and Positioning AT Commands Reference Guide.
+
+This release has been verified and tested for beta level quality. Release can be used for test and
+demonstration purposes only, and may not be used in products or deriving products from this
+firmware.
+
+It is recommended to use the latest version of nRF Connect and nRF Connect Programmer tools.
+
+New functionality, changes and limitations listed for this release version are the difference when
+compared to mfw_nrf9160_1.3.5 release version.
+
+*** New functionality
+*********************
+- Support for nRF9131 and nRF9161 SiP modules.
+- Support of 3GPP release 14 baseline and selected optional 3GPP LTE release 14 and 15 features.
+- Support for user provisioned International Mobile Equipment Identity (IMEI) in nRF9131 and
+  nRF9161 SiP modules. One time operation of IMEI provisioning can be performed with the MFW-PTI
+  (Production Test Image) firmware and the AT command AT%IMEIWRITE it supports.
+- Support for socket option to read TLS session status whether session was resumed or a complete
+  handshake.
+- Support for socket option to set timeout for socket send operations. Socket timeout option can be
+  used to monitor socket information when and if user data is transmitted over the air interface.
+- Support for socket option to query the actual cipher suite used for DTLS/TLS connection.
+- Support for improved power saving mode sleep when network does not configure PSM and application
+  data operations always start with the uplink transmission. Feature can be utilized with
+  AT%PROPRIPSM AT command.
+- Support of AT command AT%SMSDISABLE to disable SMS support in NB-IoT.
+- Support of PRACH Coverage Enhancement (CE) level information in AT interface. Used PRACH CE level
+  is updated and informed in unsolicited %MDMEV AT notification.
+- Support to decode TLS encrypted data with nRF Connect for Desktop trace tools. See AT%CMNG and
+  special <sec_tag> values.
+- Support for NB-IoT exceptional data. Feature can be configured by AT%EXCEPTIONALDATA AT command
+  and used by socket options.
+- Support for NB-IoT enhanced mobility with 3GPP RRC Connection Re-establishment feature.
+- Power consumption optimization for NB-IOT paging reception.
+- Support for 3GPP relaxed monitoring. Feature can be utilized with AT command AT%REDMOB.
+- Support of AT command AT%DEVICEUUID to read device-specific UUID.
+- Improved acquisition TTFF and sensitivity performance in Hot and Cold starts.
+- Improved acquisition performance in certain situations.
+- Position accuracy improvements in dense urban environments.
+- QZSS assistance input support.
+- NeQuick ionosphere parameter assistance input support.
+- Added output for execution time since last start, in milliseconds.
+- Stability and accuracy enhancements to heading output.
+- Added support to reset GNSS configurations, acquired and stored history data with AT%XFACTORYRESET
+  AT command.
+- Automatic mechanism to lock nRF9131 erase-protected bandlock configuration and nRF9131 calibration
+  data. Automatic lock is performed when modem is first time activated with AT+CFUN AT command. See
+  nRF91x1 CIoT and Positioning AT Commands Reference Guide for further details.
+- Automatic mechanism to lock International Mobile Equipment Identity (IMEI) for both nRF9131 and
+  nRF9161. Automatic lock is performed when modem is first time activated with AT+CFUN AT command.
+  See nRF91x1 CIoT and Positioning AT Commands Reference Guide for further details.
+
+*** Changes
+***********
+- TLS security updates.
+- Removed support of AT%XRAI AT command functionality. Release Assistance Indication (RAI) feature
+  for LTE-M and NB-IoT can be used with AT%RAI AT command and socket option interface.
+- Enhanced integrity protection for Non-volatile memory (NVM) during active %XPOFWARN event. Active
+  %XPOFWARN event will prevent full and delta Device Firmware Upgrade (DFU) operations.
+- Enhanced robustness of communication interface between modem and application core.
+- Improved accuracy for AT%CONEVAL energy consumption estimation.
+- Various set of improvements for stability and enhancements for error recovery.
+- Various set of improvements for power consumption.
+- Removed production test features. Production test features are supported by the MFW-PTI firmware
+  image.
+
+*** Bug fixes
+*************
+-
+
+*** Limitations
+***************
+- TLS and DTLS
+    - Secure socket buffer size is 2kB.
+    - Maximum length of DTLS datagram is 1kB.
+    - One TLS handshake at a time is supported.
+    - Concurrent secure connections
+        - Maximum server certificate chain size has a limit of 4kB.
+        - Two active connections are supported when serialized DTLS connection exists.
+        - Two active connections are supported when client certificate size is over 1kB.
+        - Two active connections are supported when GNSS acquisition is active.
+        - Three active connections are supported when client certificate size is 1kB or less.
+        - Four serialized DTLS connections are supported.
+    - Server certificate expiry time is not verified.
+    - pkcs#8 is not supported.
+    - Maximum number of supported credentials is 32. The actual amount depends on size of
+      credentials as memory area reserved for credentials may be a limiting factor as well.
+    - TLS is not supported when socket is configured to TCP server mode.
+- It is recommended to free the modem resources by closing unused network sockets and by undefining
+  unused PDN connections with AT+CGDCONT.
+- Maximum number of raw sockets is 4.
+- User plane data is supported in Cat M1 mode only.
+- Non-IP Data Delivery (NIDD) feature is verified only for NB-IoT. NIDD for LTE-M is not supported.
+- The amount of ownership keys is restricted to one. Multiple instances are not allowed.
+
+*** Known Issues
+****************
+-
+
+*** MD5 checksums
+*****************
+
+21746FD.ipc_dfu.signed_2.0.0.ihex
+315bd2ae7aa7a0eff3b9d854f59be28e (MD5)
+
+firmware.update.image.cbor
+24a7dd7d91c35f9d303a7f4f838d1032 (MD5)
+
+firmware.update.image.digest.txt
+0dc9358586b46563d866219bd8869c4a (MD5)
+
+firmware.update.image.segments.0.hex
+b63aec2e48945d3db0292dc586d937a3 (MD5)
+
+firmware.update.image.segments.1.hex
+622d830d93cd8369eaf2468b1f11b143 (MD5)
+
+ipc_dfu.2.0.0-77.beta.ihex
+315bd2ae7aa7a0eff3b9d854f59be28e (MD5)
+
+mfw_nrf91x1_2.0.0-77.beta.cbor
+24a7dd7d91c35f9d303a7f4f838d1032 (MD5)
+
+mfw_nrf91x1_2.0.0-77.beta-FOTA-TEST_trace-db.json
+eaf14825a2acf661075fbdfaab61811c (MD5)
+
+mfw_nrf91x1_2.0.0-77.beta_trace-db.json
+6eac58b226cfde6f63ffd00bcdd63c44 (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.0-77.beta-FOTA-TEST_to_2.0.0-77.beta.bin
+f395a31845d87cde4df9e9d8dcf9cb45 (MD5)
+
+mfw_nrf91x1_large_update_from_2.0.0-77.beta_to_2.0.0-77.beta-FOTA-TEST.bin
+e4ec1fbc716a574a1bf5a36bf4dad60d (MD5)
+
+mfw_nrf91x1_update_from_2.0.0-77.beta-FOTA-TEST_to_2.0.0-77.beta.bin
+10ca133dee228bc08d2bfa4807f8cf67 (MD5)
+
+mfw_nrf91x1_update_from_2.0.0-77.beta_to_2.0.0-77.beta-FOTA-TEST.bin
+c140dce747509d97b5ccafe03d483c2b (MD5)
+

@@ -1,2 +1,0 @@
-# Load Zephyr board Kconfig descriptions.
-osource "/home/pomo/ncs/zephyr/boards/nordic/nrf9151dk/Kconfig"

@@ -1,3 +1,0 @@
-git status
-git commit -am "golden: $*"
-git tag zephyr-stcp-golden-$(date +%Y%m%d_%H%M%S)

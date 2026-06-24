@@ -1,7 +1,0 @@
-default: stcp-mqtt-demo
-build_dir: /home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build
-domains:
-  - name: stcp-mqtt-demo
-    build_dir: /home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo
-flash_order:
-  - stcp-mqtt-demo

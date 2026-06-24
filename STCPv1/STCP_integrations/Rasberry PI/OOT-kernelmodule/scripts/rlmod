@@ -1,0 +1,19 @@
+#!/bin/bash
+MOD=stcp_rust
+
+msg() {
+	echo "[$(date)] $*" | sudo tee /dev/kmsg 
+	pncnote "$(hostname) module reload" "$*"
+}
+
+msg "Reloading STCP module..."
+rmmod "$MOD"
+insmod ./kmod/stcp_rust.ko
+msg "Reloaded STCP module..."
+
+#msg "Rearmign netconsole..."
+#DN=$(dirname "$0")
+#sudo bash "$DN/enable-netconsole.sh"
+
+#msg "Rearmed netconsole..."
+

@@ -1,6 +1,0 @@
-
-export CMAKE_MAKE_PROGRAM=/usr/bin/ninja
-export NINJA=/usr/bin/ninja
-export ZEPHYR_EXTRA_MODULES=/home/pomo/ncs/stcp-modeemi/moduuli-tcp 
-
-   west build -b nrf9151dk/nrf9151/ns -t menuconfig

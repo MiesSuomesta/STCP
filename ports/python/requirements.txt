@@ -1,3 +1,0 @@
-pyopenssl
-cryptography
-pyinstaller

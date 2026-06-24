@@ -1,3 +1,0 @@
-source "Kconfig.zephyr"
-source "$(ZEPHYR_BASE)/../stcp-modeemi/moduuli-tcp/zephyr/Kconfig"
-

@@ -1,0 +1,27 @@
+config STCP
+	tristate "STCP protocol (Secure TCP)"
+	depends on NET && INET && CRYPTO
+	default m
+	help
+	  Secure TCP (STCP) kernel protocol.
+	  
+	  STCP adds a new socket protocol (IPPROTO 253) providing
+	  encrypted communication on top of the kernel TCP stack.
+	  It performs an elliptic-curve based key exchange and then
+	  uses AES encryption for the data channel.
+	        
+	  The API mimics BSD sockets, allowing STCP to act as a
+	  drop-in replacement for TCP in userspace programs.
+	        
+	  If unsure, select N.
+
+if STCP
+
+config STCP_DEBUG
+	bool "Enable STCP debug prints"
+	default y
+	help
+	  Enables pr_debug() and module parameter controlled prints.
+
+endif # STCP
+

@@ -1,0 +1,33 @@
+#!/bin/bash
+tmp=/tmp/a2l.$$
+
+src=${1:-}
+
+if [ -z $1 ]
+then
+	cat | grep "0x" | sed 's,^#[0-9]* ,,' > $tmp.in
+else
+	echo > $tmp.in
+	for a in $*
+	do
+		echo $a >> $tmp.in
+	done
+fi
+
+
+getAddr() {
+ 	arm-zephyr-eabi-addr2line -e build/stcp-mqtt-demo/zephyr/zephyr.elf $1
+}
+
+for addr in $(cat $tmp.in)
+do
+	getAddr $addr | tr ":" " " > $tmp.line
+	FN=$( cat $tmp.line | awk '{ print $1 }' )
+	LN=$( cat $tmp.line | awk '{ print $2 }' )
+	echo "---- $addr => $FN:$LN -----"
+	cat -n $FN | grep -C 3 "$LN"
+
+done
+
+rm -f $tmp.* $tmp
+

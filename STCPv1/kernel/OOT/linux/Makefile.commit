@@ -1,0 +1,43 @@
+
+# --- Savutestit & automaattikommit ---
+.PHONY: smoke verify commit commit-tag
+
+# Kääntää ja ajaa savutestit ilman SUDOa
+smoke-no-deps:
+	@bash scripts/smoke.sh -p $(CURDIR) -k ./kmod
+
+# Kääntää ja ajaa savutestit ilman SUDOa
+smoke: kmod
+	@bash scripts/smoke.sh -p $(CURDIR) -k ./kmod
+
+# Sama mutta tekee insmod/rmmod jos SUDO=1
+smoke-root:
+	@SUDO=1 BUILD_DIR="build" scripts/smoke.sh
+
+# Varmistus-taski (esim. työkaluversiot yms. jos haluat laajentaa)
+verify:
+	@command -v modinfo >/dev/null || (echo "modinfo puuttuu" && exit 1)
+	@command -v readelf >/dev/null || (echo "readelf puuttuu (binutils)" && exit 1)
+	@command -v nm >/dev/null || (echo "nm puuttuu (binutils)" && exit 1)
+	@echo "verify: työkalut ok"
+
+# Tee commit vain jos smoke menee läpi
+# Käyttö:
+#   make commit MSG="fix: foo"
+commit: verify smoke
+	@[ -n "$$MSG" ] || (echo 'Anna commit-viesti: make commit MSG="viesti"' && exit 1)
+	@git add -A
+	@git commit -m "$$MSG"
+	@echo "Commit tehty."
+
+# Commit + kevyt tagi (valinnainen)
+# Käyttö:
+#   make commit-tag MSG="feat: X" TAG="build-$(shell date +%Y%m%d_%H%M%S)"
+commit-tag: verify smoke
+	@[ -n "$$MSG" ] || (echo 'Anna commit-viesti: make commit-tag MSG="viesti" TAG="tunniste"' && exit 1)
+	@[ -n "$$TAG" ] || (echo 'Anna tagi: make commit-tag MSG="..." TAG="...">' && exit 1)
+	@git add -A
+	@git commit -m "$$MSG"
+	@git tag "$$TAG"
+	@echo "Commit + tag tehty: $$TAG"
+

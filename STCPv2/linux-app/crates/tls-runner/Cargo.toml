@@ -1,0 +1,9 @@
+[package]
+name = "tls-runner"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stcp-core = { path = "../stcp-core" }
+rustls = "0.23"
+rustls-pemfile = "2"

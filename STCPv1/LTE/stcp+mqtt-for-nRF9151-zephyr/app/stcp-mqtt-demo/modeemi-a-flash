@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+export ZEPHYR_EXTRA_MODULES=/home/pomo/ncs/stcp-modeemi/moduuli-tcp 
+
+   west flash -d ./build --runner jlink --file ./build/merged.hex -- \
+     --device NRF9151_XXCA \
+     --tool-opt=-USB \
+     --tool-opt=1052094012
+
+pncnote "STCP kääntyö" "Dodii nyt ois väläytetty"

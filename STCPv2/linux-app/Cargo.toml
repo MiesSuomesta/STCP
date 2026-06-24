@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/stcp-core",
+    "crates/stcp-runner",
+    "crates/tls-runner",
+]
+resolver = "2"

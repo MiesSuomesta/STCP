@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "stcp-common",
+    "stcp-client-lib/rust-client-lib",
+    "stcp-client-lib/rust-c-wrapper",
+    "stcp-server-lib/rust-server-lib",
+    "stcp-server-lib/rust-c-wrapper"
+]
+[workspace.dependencies]
+stcpcommon = { path = "stcp-common" }
+stcpclientlib = { path = "stcp-client-lib/rust-client-lib" }
+stcpserverlib = { path = "stcp-server-lib/rust-server-lib" }
+tokio = { version = "1", features = ["full"] }
+aes = "0.8"
+openssl = "0.10"
+rand = "0.8"
+base64 = "0.21"
+hex = "0.4"
+rand_core = "0.6"
+ring = "0.16"
+

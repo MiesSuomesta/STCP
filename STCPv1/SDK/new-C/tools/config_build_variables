@@ -1,0 +1,28 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "🔧 Settingup toolchain variables with PROJECT_ROOT as ${PROJECT_ROOT} ..."
+
+
+# Tämä ohittaa glibc- ja musl-crossit
+
+# Zephyr target
+#export TOOLCHAIN="/home/pomo/zephyr-sdk-0.17.1"
+#export TOOLCHAIN_TARGET="arm-zephyr-eabi" 
+
+# Linux target
+export TOOLCHAIN="${PROJECT_ROOT}/tools/musl-cross-compiled-libs"
+export TOOLCHAIN_TARGET="x86_64-linux-musl" 
+export TARGET=x86_64-unknown-linux-musl
+
+export TOOLCHAIN_CC=$TOOLCHAIN/${TOOLCHAIN_TARGET}-gcc
+export TOOLCHAIN_CXX=$TOOLCHAIN/${TOOLCHAIN_TARGET}-g++
+export TOOLCHAIN_LD=$TOOLCHAIN/${TOOLCHAIN_TARGET}-ld
+export TOOLCHAIN_AR=$TOOLCHAIN/${TOOLCHAIN_TARGET}-ar
+export TOOLCHAIN_RANLIB=$TOOLCHAIN/${TOOLCHAIN_TARGET}-ranlib
+export TOOLCHAIN_NM=$TOOLCHAIN/${TOOLCHAIN_TARGET}-nm
+
+export PATH="$TOOLCHAIN/bin:$HOME/.cargo/bin:$PATH"
+
+echo "🔧 Asennettu toolchain muuttujat OK"
+

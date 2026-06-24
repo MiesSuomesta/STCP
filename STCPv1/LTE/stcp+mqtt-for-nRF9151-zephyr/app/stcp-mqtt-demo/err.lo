@@ -1,0 +1,78 @@
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/debug.c:30:17: warning: 'debug_in_progress' defined but not used [-Wunused-variable]
+   30 | static atomic_t debug_in_progress = ATOMIC_INIT(0);
+      |                 ^~~~~~~~~~~~~~~~~
+[10/98] Building C object modules/moduuli-tcp/CMakeFiles/..__stcp-modeemi__moduuli-tcp.dir/src/stcp_transport_lte.c.obj
+FAILED: [code=1] modules/moduuli-tcp/CMakeFiles/..__stcp-modeemi__moduuli-tcp.dir/src/stcp_transport_lte.c.obj 
+ccache /home/pomo/ncs/toolchains/11e0b0bee7/opt/zephyr-sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc -DKERNEL -DK_HEAP_MEM_POOL_SIZE=60546 -DMBEDTLS_CONFIG_FILE=\"nrf-config.h\" -DMBEDTLS_PSA_CRYPTO_CONFIG_FILE=\"nrf-psa-crypto-config.h\" -DNRF54L_CONFIGURATION_56_ENABLE=0 -DNRF9120_XXAA -DNRF_SKIP_FICR_NS_COPY_TO_RAM -DNRF_TRUSTZONE_NONSECURE -DOs -DPICOLIBC_LONG_LONG_PRINTF_SCANF -DSTCP_BUILD_TIME="\"2026-05-24 17:08:07 UTC\"" -DSTCP_GIT_SHA=\"zephyr-stcp-golden-20260523_191402-19-gcb1d99d6-dirty\" -DSTCP_VERSION_STR=\"2.0.0\" -DUSE_PARTITION_MANAGER=1 -DZVFS_OPEN_SIZE=14 -D_POSIX_THREAD_SAFE_FUNCTIONS=200809L -D__LINUX_ERRNO_EXTENSIONS__ -D__PROGRAM_START -D__ZEPHYR__=1 -Dflto -I/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include -I/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src -I/home/pomo/ncs/stcp-modeemi/moduuli-tcp/micro-ecc -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/modules/moduuli-tcp -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/zephyr/include/generated/zephyr -I/home/pomo/ncs/zephyr/include -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/zephyr/include/generated -I/home/pomo/ncs/zephyr/soc/nordic -I/home/pomo/ncs/zephyr/lib/libc/picolibc/include -I/home/pomo/ncs/zephyr/lib/posix/c_lib_ext/getopt -I/home/pomo/ncs/zephyr/lib/midi2/. -I/home/pomo/ncs/zephyr/soc/nordic/nrf91/. -I/home/pomo/ncs/zephyr/soc/nordic/common/. -I/home/pomo/ncs/zephyr/subsys/net/lib/dns/. -I/home/pomo/ncs/nrf/include -I/home/pomo/ncs/nrf/lib/at_parser/include -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/tfm/api_ns/interface/include -I/home/pomo/ncs/nrf/modules/trusted-firmware-m/. -I/home/pomo/ncs/nrf/include/tfm -I/home/pomo/ncs/nrf/tests/include -I/home/pomo/ncs/modules/hal/cmsis_6/CMSIS/Core/Include -I/home/pomo/ncs/zephyr/modules/cmsis_6/. -I/home/pomo/ncs/nrf/modules/hal_nordic/. -I/home/pomo/ncs/modules/hal/nordic/nrfx -I/home/pomo/ncs/modules/hal/nordic/nrfx/drivers/include -I/home/pomo/ncs/modules/hal/nordic/nrfx/bsp/stable -I/home/pomo/ncs/modules/hal/nordic/nrfx/bsp/stable/templates -I/home/pomo/ncs/zephyr/modules/hal_nordic/nrfx/. -I/home/pomo/ncs/modules/hal/st/sensor/inc -I/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp -I/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/testing/include -I/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/testing -I/home/pomo/ncs/stcp-modeemi/moduuli-tcp/../../the-app/stcp-mqtt-demo/include -I/home/pomo/ncs/nrfxlib/nrf_modem/include -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/include -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/../../moduuli-tcp/include -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo -I/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/generated/interface_nrf_security_psa -I/home/pomo/ncs/nrf/subsys/nrf_security/include -I/home/pomo/ncs/modules/crypto/oberon-psa-crypto/include -I/home/pomo/ncs/nrf/subsys/nrf_security/src/threading/include -I/home/pomo/ncs/nrf/subsys/nrf_security/src/utils -I/home/pomo/ncs/modules/crypto/oberon-psa-crypto/library -I/home/pomo/ncs/modules/crypto/mbedtls/library -I/home/pomo/ncs/modules/crypto/mbedtls/include -I/home/pomo/ncs/modules/crypto/mbedtls/include/library -I/home/pomo/ncs/nrfxlib/crypto/nrf_oberon/include -I/home/pomo/ncs/nrfxlib/crypto/nrf_oberon/include/mbedtls -isystem /home/pomo/ncs/zephyr/lib/libc/common/include -fno-strict-aliasing -Os -imacros /home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/zephyr/include/generated/zephyr/autoconf.h -fno-printf-return-value -fno-common -g -gdwarf-4 -fdiagnostics-color=always -mcpu=cortex-m33 -mthumb -mabi=aapcs -mfp16-format=ieee -mtp=soft --sysroot=/home/pomo/ncs/toolchains/11e0b0bee7/opt/zephyr-sdk/arm-zephyr-eabi/arm-zephyr-eabi -imacros /home/pomo/ncs/zephyr/include/zephyr/toolchain/zephyr_stdint.h -Wall -Wformat -Wformat-security -Wno-format-zero-length -Wdouble-promotion -Wno-pointer-sign -Wpointer-arith -Wexpansion-to-defined -Wno-unused-but-set-variable -Werror=implicit-int -fno-pic -fno-pie -fno-asynchronous-unwind-tables -ftls-model=local-exec -fno-reorder-functions --param=min-pagesize=0 -fno-defer-pop -fmacro-prefix-map=/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo=CMAKE_SOURCE_DIR -fmacro-prefix-map=/home/pomo/ncs/zephyr=ZEPHYR_BASE -fmacro-prefix-map=/home/pomo/ncs=WEST_TOPDIR -ffunction-sections -fdata-sections -specs=picolibc.specs -std=c17 -MD -MT modules/moduuli-tcp/CMakeFiles/..__stcp-modeemi__moduuli-tcp.dir/src/stcp_transport_lte.c.obj -MF modules/moduuli-tcp/CMakeFiles/..__stcp-modeemi__moduuli-tcp.dir/src/stcp_transport_lte.c.obj.d -o modules/moduuli-tcp/CMakeFiles/..__stcp-modeemi__moduuli-tcp.dir/src/stcp_transport_lte.c.obj -c /home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/stcp_transport_lte.c
+In file included from /home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/stcp_api.h:9,
+                 from /home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/stcp_rx_transmission.h:2,
+                 from /home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/stcp_transport_lte.c:8:
+/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/modules/moduuli-tcp/stcp/stcp_generated.h:113:53: warning: 'struct ProtoSession' declared inside parameter list will not be visible outside of this definition or declaration
+  113 | intptr_t rust_exported_session_sendmsg_iovec(struct ProtoSession *session,
+--
+      |                    ^~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:9:9: note: in expansion of macro 'LDBGBIG'
+    9 |         LDBGBIG(                                        \
+      |         ^~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:89:13: note: in expansion of macro 'STCP_REF_COUNT_TRACE'
+   89 |             STCP_REF_COUNT_TRACE("GET ERROR", ctx, name);   \
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/stcp_transport_lte.c:1013:5: note: in expansion of macro 'STCP_REF_COUNT_GET'
+ 1013 |     STCP_REF_COUNT_GET(ctx, "@ send message via rust", return -EACCES; );
+      |     ^~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:10:32: note: format string is defined here
+--
+      |                    ^~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:9:9: note: in expansion of macro 'LDBGBIG'
+    9 |         LDBGBIG(                                        \
+      |         ^~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:89:13: note: in expansion of macro 'STCP_REF_COUNT_TRACE'
+   89 |             STCP_REF_COUNT_TRACE("GET ERROR", ctx, name);   \
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/stcp_transport_lte.c:1039:5: note: in expansion of macro 'STCP_REF_COUNT_GET'
+ 1039 |     STCP_REF_COUNT_GET(ctx, "@ send message iovec via rust", return -EACCES; );
+      |     ^~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:10:32: note: format string is defined here
+--
+   10 |             "REF %s ctx=%p rc=%d name=%s @ %s:%d",      \
+      |                               ~^
+      |                                |
+      |                                int
+      |                               %ld
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/stcp_transport_lte.c:1041:19: error: too many arguments to function 'rust_exported_session_sendmsg_iovec'
+ 1041 |             ret = rust_exported_session_sendmsg_iovec(ctx->session, &ctx->ks, (void *)message, 0, 1);
+      |                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/modules/moduuli-tcp/stcp/stcp_generated.h:113:10: note: declared here
+  113 | intptr_t rust_exported_session_sendmsg_iovec(struct ProtoSession *session,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+      |                    ^~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:9:9: note: in expansion of macro 'LDBGBIG'
+    9 |         LDBGBIG(                                        \
+      |         ^~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:89:13: note: in expansion of macro 'STCP_REF_COUNT_TRACE'
+   89 |             STCP_REF_COUNT_TRACE("GET ERROR", ctx, name);   \
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/stcp_transport_lte.c:1057:5: note: in expansion of macro 'STCP_REF_COUNT_GET'
+ 1057 |     STCP_REF_COUNT_GET(ctx, "@ connect context", return -EACCES );
+      |     ^~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:10:32: note: format string is defined here
+--
+      |                    ^~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:9:9: note: in expansion of macro 'LDBGBIG'
+    9 |         LDBGBIG(                                        \
+      |         ^~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:89:13: note: in expansion of macro 'STCP_REF_COUNT_TRACE'
+   89 |             STCP_REF_COUNT_TRACE("GET ERROR", ctx, name);   \
+      |             ^~~~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/src/stcp_transport_lte.c:1116:5: note: in expansion of macro 'STCP_REF_COUNT_GET'
+ 1116 |     STCP_REF_COUNT_GET(ctx, "@ recv", return -EACCES; );
+      |     ^~~~~~~~~~~~~~~~~~
+/home/pomo/ncs/stcp-modeemi/moduuli-tcp/include/stcp/low_level_refcount_tracker.h:10:32: note: format string is defined here
+--
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ninja: build stopped: subcommand failed.
+FAILED: [code=1] _sysbuild/sysbuild/images/stcp-mqtt-demo-prefix/src/stcp-mqtt-demo-stamp/stcp-mqtt-demo-build /home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/_sysbuild/sysbuild/images/stcp-mqtt-demo-prefix/src/stcp-mqtt-demo-stamp/stcp-mqtt-demo-build 
+cd /home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo && /home/pomo/ncs/toolchains/11e0b0bee7/usr/local/bin/cmake --build .
+ninja: build stopped: subcommand failed.
+FATAL ERROR: re-build in ./build failed

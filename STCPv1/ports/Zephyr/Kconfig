@@ -1,0 +1,51 @@
+source "Kconfig"
+
+menu "STCP Configuration"
+
+config STCP_ENABLE
+    bool "Enable STCP LTE transport"
+    default y
+    depends on NET_SOCKETS   # esimerkki: riippuvuudet kernelistä
+    help
+      Enable STCP LTE transport.
+
+config STCP_DEBUG
+    bool "Enable STCP debug"
+    default n
+    depends on STCP_ENABLE   # esimerkki: riippuvuudet kernelistä
+    help
+      Enable STCP debugs.
+
+config STCP_AES_BYPASS
+    bool "Enable STCP AES bypass"
+    default n
+    depends on STCP_ENABLE   # esimerkki: riippuvuudet kernelistä
+    help
+      Bypass AES enc/decryption for development purposes.
+
+config STCP_CONNECT_TO_HOST
+    string "STCP Connect to hostname"
+    default "your-public-stcp-server"
+    depends on STCP_ENABLE
+    help
+      STCP Remote endpoint hostname.
+
+config STCP_CONNECT_TO_PORT
+    string "STCP Connect to tcp port"
+    default "7777"
+    depends on STCP_ENABLE
+    help
+      STCP Remote endpoint tcp port.
+
+config STCP_LTE_APN_NAME
+    string "The APN name to connect."
+    default "internet"
+    depends on STCP_ENABLE
+    help
+      The APN name to use to connect.
+
+      Ask from your ISP what is the right APN
+      name to use.
+
+
+endmenu

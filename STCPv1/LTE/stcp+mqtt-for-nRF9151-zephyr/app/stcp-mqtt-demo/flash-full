@@ -1,0 +1,5 @@
+#!/bin/bash
+
+bash modeemi-a-compile
+bash modeemi-a-flash 
+echo > ~/minicom.cap

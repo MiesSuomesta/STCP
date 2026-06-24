@@ -1,9 +1,0 @@
-#!/bin/bash
-make superclean
-make modinfo
-read -p "paina enter"
-git add .
-git commit
-
-TS=$(date +"GOLDEN-%Y-%m-%d_%H%M%S" )
-git tag -m -a $TS

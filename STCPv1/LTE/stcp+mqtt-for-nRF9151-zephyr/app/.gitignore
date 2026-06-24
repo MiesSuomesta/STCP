@@ -1,0 +1,25 @@
+# Rust
+**/target/
+
+# Generic build directories
+**/build/
+**/out/
+**/dist/
+
+# CMake
+**/CMakeFiles/
+**/CMakeCache.txt
+
+# Zephyr / west build
+**/build-*/
+**/zephyr/
+
+# Logs
+*.log
+
+# Temp
+*.tmp
+*.swp
+*.zip
+
+

@@ -1,0 +1,21 @@
+[package]
+name = "debug"
+version = "0.1.0"
+edition = "2021"
+
+#[dependencies]
+#stcpdefines = { workspace = true }
+#stcptypes = { workspace = true }
+
+[lib]
+name = "debug"
+path = "src/mod.rs"
+crate-type = ["rlib"]
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []
+

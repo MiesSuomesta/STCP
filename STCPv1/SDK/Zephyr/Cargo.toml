@@ -1,0 +1,51 @@
+[workspace]
+resolver = "2"
+members = [
+    "globals",
+    "utils",
+    "debug",
+    "zephyr-sys",
+    "zephyr-misc",
+    "io-wrapper",
+    "stcp-defines",
+    "stcp-types",
+    "stcp-threads",
+    "stcp-crypto",
+    "stcp-client-lib/rust-client-lib",
+    "stcp-client-lib/rust-c-wrapper",
+    "stcp-server-lib/rust-server-lib",
+    "stcp-server-lib/rust-c-wrapper"
+]
+
+[workspace.dependencies]
+utils = { path = "utils" }
+globals = { path = "globals" }
+iowrapper = { path = "io-wrapper" }
+zephyrsys = { path = "zephyr-sys" }
+zephyrmisc = { path = "zephyr-misc" }
+stcpcrypto = { path = "stcp-crypto" }
+stcptypes = { path = "stcp-types" }
+stcpdefines = { path = "stcp-defines" }
+stcpthreads = { path = "stcp-threads" }
+debug = { path = "debug" }
+stcpclientlib = { path = "stcp-client-lib/rust-client-lib" }
+stcpserverlib = { path = "stcp-server-lib/rust-server-lib" }
+base64 = { version = "0.21", default-features = false, features = ["alloc"] }
+hex = { version = "0.4.3", default-features = false }
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+aes = { version = "0.8", default-features = false }
+aead = { version = "0.5", default-features = false }
+heapless = { version = "0.7", default-features = false }
+spin = { version = "0.9", default-features = false, features = ["mutex", "spin_mutex"] }
+dlmalloc = { version = "0.2", default-features = false }
+p256 = { version = "0.13", default-features = false, features = ["ecdh", "arithmetic"] }
+libc = { version = "0.2" }
+getrandom = { version = "0.2", default-features = false, features = ["custom" ] }
+rand = { version = "0.9", default-features = false }
+rand_core = { version = "0.6", default-features = false, features = ["getrandom"] }
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"

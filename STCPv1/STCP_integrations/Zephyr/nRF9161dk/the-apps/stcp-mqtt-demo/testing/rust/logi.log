@@ -1,0 +1,97 @@
+STCP MQTT proxy listening on 7777
+STCP client connected
+Connected to Mosquitto
+STCP handshake..
+[STCP][UNK] ========================================================
+[STCP][UNK] === START SERVER =======================================
+[STCP][UNK] ========================================================
+[STCP][UNK] Server Checks passed starting
+[STCP][UNK] Generate keys ===================================
+[STCP][UNK] Starting keypair generation
+[STCP][UNK] Sess ptr inside generate_keypair: 0x703ef37fd8c0
+[STCP][UNK] Calling C keypair creation
+[STCP][UNK] sizeof pubkey 64
+[STCP][UNK] sizeof secret 32
+[STCP][UNK] Session for server: true
+[STCP][UNK] Public  key X: B3 B6 DD E1 5D B3 EE 54 4A 0D B9 EC 22 2A AF 24 CB BB 18 75 18 34 19 C6 F0 F3 91 44 A4 BB 88 78 
+[STCP][UNK] Public  key Y: C2 BF 89 7D A0 92 86 FE 3D 48 78 1A B9 02 C4 3F B7 85 2D 38 D4 0B 7F C6 48 39 B1 70 3C E2 0B 26 
+[STCP][UNK] Private key  : 01 B7 81 F1 14 A1 A5 DD 4B BD 73 66 43 D4 22 FE 3B 8E 35 14 21 73 F3 C5 24 8F 85 3E 82 9B FF 76 
+[STCP][UNK] Called C keypair creation, ret 0
+[STCP][UNK] Server Generate keys
+[STCP][UNK] =S= Generated Keys... ret: 0
+[STCP][UNK] Server handshake: Public key receiving ....
+[STCP][UNK] Received public key, rc 64, ret_len 64
+[STCP][UNK] RX PUBKEY FRAME: 20 15 CB 04 C3 C3 D9 A6 DB 85 97 4D 56 1A 46 E5 A7 09 D6 95 3A 6A 81 40 08 A2 D7 29 42 F9 12 E7 01 BE D3 69 36 A7 2C 9A 43 DC DF 9F B9 B2 F6 71 39 30 6D CB 3B 26 E7 89 39 25 18 3E 9C 14 10 B4 
+[STCP][UNK] [server] Public key recv: 64
+[STCP][UNK] Server handshake: Public key sending ....
+[STCP][UNK] Sending as server true
+[STCP][UNK] Sending public key ==================================
+[STCP][UNK] TX PUBKEY FRAME: B3 B6 DD E1 5D B3 EE 54 4A 0D B9 EC 22 2A AF 24 CB BB 18 75 18 34 19 C6 F0 F3 91 44 A4 BB 88 78 C2 BF 89 7D A0 92 86 FE 3D 48 78 1A B9 02 C4 3F B7 85 2D 38 D4 0B 7F C6 48 39 B1 70 3C E2 0B 26 
+[STCP][UNK] Public key sent: 64, 64
+[STCP][UNK] [server] Public key sent: 64
+[STCP][UNK] Client PK try: 1 => 1
+[STCP][UNK] =S= Peer Public key: 20 15 CB 04 C3 C3 D9 A6 DB 85 97 4D 56 1A 46 E5 A7 09 D6 95 3A 6A 81 40 08 A2 D7 29 42 F9 12 E7 01 BE D3 69 36 A7 2C 9A 43 DC DF 9F B9 B2 F6 71 39 30 6D CB 3B 26 E7 89 39 25 18 3E 9C 14 10 B4 
+[STCP][UNK] Starting to create shared key
+[STCP][UNK] Peer pub X: 20 15 CB 04 C3 C3 D9 A6 DB 85 97 4D 56 1A 46 E5 A7 09 D6 95 3A 6A 81 40 08 A2 D7 29 42 F9 12 E7 
+[STCP][UNK] Peer pub Y: 01 BE D3 69 36 A7 2C 9A 43 DC DF 9F B9 B2 F6 71 39 30 6D CB 3B 26 E7 89 39 25 18 3E 9C 14 10 B4 
+[STCP][UNK] Peer key prepared
+[STCP][UNK] Calling C shared key calc...
+[STCP][UNK] Called C shared key calc, ret -1
+[STCP][UNK] ❌ Shared key computation failed
+[STCP][UNK] =S= Shared key calculation returned: -1
+[STCP][UNK] Initialising with AES....
+[STCP][UNK] ====== WITH AES ======
+[STCP][UNK] ==== Server HS complete => AES MODE =====
+[STCP][UNK] ==== Server HS complete => AES MODE =====
+[STCP][UNK] ==== Server HS complete => AES MODE =====
+STCP handshake OK: 1
+STCP handshake DONE
+STCP handling loop starts...
+STCP client connected
+Connected to Mosquitto
+STCP handshake..
+[STCP][UNK] ========================================================
+[STCP][UNK] === START SERVER =======================================
+[STCP][UNK] ========================================================
+[STCP][UNK] Server Checks passed starting
+[STCP][UNK] Generate keys ===================================
+[STCP][UNK] Starting keypair generation
+[STCP][UNK] Sess ptr inside generate_keypair: 0x703ef35fc8c0
+[STCP][UNK] Calling C keypair creation
+[STCP][UNK] sizeof pubkey 64
+[STCP][UNK] sizeof secret 32
+[STCP][UNK] Session for server: true
+[STCP][UNK] Public  key X: 2A 5B EF A5 48 92 D4 90 76 A4 C0 36 6F E6 32 E4 74 A1 5C 24 EB 2B A4 39 47 7E 69 90 8A 92 7C 0A 
+[STCP][UNK] Public  key Y: 23 4A 8C 94 95 53 40 AD A6 B7 3B 73 83 64 1D C1 B1 00 C4 C5 DC B2 3A D2 74 4A 7D 34 1C 87 89 6E 
+[STCP][UNK] Private key  : 4A 7B F3 85 D0 25 56 A1 8E 30 7C E6 EC 7F 71 6E 74 61 94 F8 6D 22 2D 0D DF 22 6A B7 9B 71 1A DD 
+[STCP][UNK] Called C keypair creation, ret 0
+[STCP][UNK] Server Generate keys
+[STCP][UNK] =S= Generated Keys... ret: 0
+[STCP][UNK] Server handshake: Public key receiving ....
+[STCP][UNK] Received public key, rc 64, ret_len 64
+[STCP][UNK] RX PUBKEY FRAME: 7E 70 F0 79 E7 8E 3D 48 6E C5 9E F4 99 49 A8 59 17 09 9A 43 08 68 B2 44 8A 56 4E F8 6E 8B 22 05 92 E1 07 CC D1 34 4B 4E DA 9A 77 48 60 F6 B3 AE 89 17 B5 E6 0C 87 C2 9E EB 61 AF 85 29 02 3C 0C 
+[STCP][UNK] [server] Public key recv: 64
+[STCP][UNK] Server handshake: Public key sending ....
+[STCP][UNK] Sending as server true
+[STCP][UNK] Sending public key ==================================
+[STCP][UNK] TX PUBKEY FRAME: 2A 5B EF A5 48 92 D4 90 76 A4 C0 36 6F E6 32 E4 74 A1 5C 24 EB 2B A4 39 47 7E 69 90 8A 92 7C 0A 23 4A 8C 94 95 53 40 AD A6 B7 3B 73 83 64 1D C1 B1 00 C4 C5 DC B2 3A D2 74 4A 7D 34 1C 87 89 6E 
+[STCP][UNK] Public key sent: 64, 64
+[STCP][UNK] [server] Public key sent: 64
+[STCP][UNK] Client PK try: 1 => 1
+[STCP][UNK] =S= Peer Public key: 7E 70 F0 79 E7 8E 3D 48 6E C5 9E F4 99 49 A8 59 17 09 9A 43 08 68 B2 44 8A 56 4E F8 6E 8B 22 05 92 E1 07 CC D1 34 4B 4E DA 9A 77 48 60 F6 B3 AE 89 17 B5 E6 0C 87 C2 9E EB 61 AF 85 29 02 3C 0C 
+[STCP][UNK] Starting to create shared key
+[STCP][UNK] Peer pub X: 7E 70 F0 79 E7 8E 3D 48 6E C5 9E F4 99 49 A8 59 17 09 9A 43 08 68 B2 44 8A 56 4E F8 6E 8B 22 05 
+[STCP][UNK] Peer pub Y: 92 E1 07 CC D1 34 4B 4E DA 9A 77 48 60 F6 B3 AE 89 17 B5 E6 0C 87 C2 9E EB 61 AF 85 29 02 3C 0C 
+[STCP][UNK] Peer key prepared
+[STCP][UNK] Calling C shared key calc...
+[STCP][UNK] Called C shared key calc, ret -1
+[STCP][UNK] ❌ Shared key computation failed
+[STCP][UNK] =S= Shared key calculation returned: -1
+[STCP][UNK] Initialising with AES....
+[STCP][UNK] ====== WITH AES ======
+[STCP][UNK] ==== Server HS complete => AES MODE =====
+[STCP][UNK] ==== Server HS complete => AES MODE =====
+[STCP][UNK] ==== Server HS complete => AES MODE =====
+STCP handshake OK: 1
+STCP handshake DONE
+STCP handling loop starts...

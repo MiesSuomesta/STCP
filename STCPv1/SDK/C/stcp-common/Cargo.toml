@@ -1,0 +1,20 @@
+[package]
+name = "stcpcommon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aes = { workspace = true }
+openssl = { workspace = true }
+rand = { workspace = true }
+base64 = { workspace = true }
+hex = { workspace = true }
+tokio = { workspace = true }
+rand_core = { workspace = true }
+ring = { workspace = true }
+
+[lib]
+name = "stcpcommon"
+path = "src/mod.rs"
+crate-type = ["rlib", "staticlib"]
+

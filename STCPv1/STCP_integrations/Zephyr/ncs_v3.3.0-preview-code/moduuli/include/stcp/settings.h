@@ -1,0 +1,7 @@
+#pragma once
+
+#define STCP_CONNECT_TO_ADDRESS_HOSTNAME    CONFIG_STCP_CONNECT_TO_HOST
+#define STCP_CONNECT_TO_ADDRESS_PORT        CONFIG_STCP_CONNECT_TO_PORT
+
+// The APN for SIM, consult your ISP
+#define STCP_LTE_APN                        CONFIG_STCP_LTE_APN_NAME

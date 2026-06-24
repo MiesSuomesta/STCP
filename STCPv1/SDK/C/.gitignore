@@ -1,0 +1,32 @@
+# Build output
+/target/
+/build/
+!/sdk/
+*.zip
+
+# IDE/editor files
+*.swp
+*.swo
+*.bak
+*.tmp
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Compiled libraries
+*.a
+*.o
+
+# Cargo lock file if not needed (optional)
+# Cargo.lock
+
+# STCP-generated headers (copied from wrapper include/)
+stcp-client-lib/rust-c-wrapper/include/stcp_client.h
+stcp-server-lib/rust-c-wrapper/include/stcp_server.h
+
+# Toolchain etc.
+/tools/musl-cross*
+/dependencies/installations/*
+/dependencies/openssl-*
+/dependencies/zlib-*

@@ -1,0 +1,354 @@
+🔧 Asennetaan toolchain muuttujat...
+🔧 Asennettu toolchain muuttujat OK
+🔧 Asennettu toolchan configuraatio on seuraava:
+  PATH set as       : /home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin:/home/pomo/.cargo/bin:/home/pomo/.cargo/bin:/home/pomo/.local/bin:/home/pomo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/pomo/bin:/home/pomo/sdk/android-studio/bin:/home/pomo/sdk/flutter/bin:/opt/SEGGER/JLink:/home/pomo/bin:/home/pomo/sdk/android-studio/bin:/home/pomo/sdk/flutter/bin:/opt/SEGGER/JLink:/home/pomo/bin:/home/pomo/sdk/android-studio/bin:/home/pomo/sdk/flutter/bin:/opt/SEGGER/JLink
+  CFLAGS set as     : -fPIC
+  CXXFLAGS set as   : -fPIC
+
+  .cargo/config.toml: [target.x86_64-unknown-linux-musl]
+  .cargo/config.toml: linker = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-gcc"
+  .cargo/config.toml: ar = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-ar"
+  .cargo/config.toml: rustflags = ["-C", "target-feature=+crt-static", "-C", "relocation-model=pic", "-C", "link-arg=-Wl,-Bstatic"]
+  .cargo/config.toml: 
+  .cargo/config.toml: [env]
+  .cargo/config.toml: LD = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-ld"
+  .cargo/config.toml: NM = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-nm"
+  .cargo/config.toml: RANLIB = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-ranlib"
+  .cargo/config.toml: 
+  .cargo/config.toml: [build]
+  .cargo/config.toml: target = "x86_64-unknown-linux-musl"
+🧱 Build: RUST client lib ......
+🔧 Asennetaan toolchain muuttujat...
+🔧 Asennettu toolchain muuttujat OK
+🔧 Asennettu toolchan configuraatio on seuraava:
+  PATH set as       : /home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin:/home/pomo/.cargo/bin:/home/pomo/.cargo/bin:/home/pomo/.local/bin:/home/pomo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/pomo/bin:/home/pomo/sdk/android-studio/bin:/home/pomo/sdk/flutter/bin:/opt/SEGGER/JLink:/home/pomo/bin:/home/pomo/sdk/android-studio/bin:/home/pomo/sdk/flutter/bin:/opt/SEGGER/JLink:/home/pomo/bin:/home/pomo/sdk/android-studio/bin:/home/pomo/sdk/flutter/bin:/opt/SEGGER/JLink
+  CFLAGS set as     : -fPIC
+  CXXFLAGS set as   : -fPIC
+
+  .cargo/config.toml: [target.x86_64-unknown-linux-musl]
+  .cargo/config.toml: linker = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-gcc"
+  .cargo/config.toml: ar = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-ar"
+  .cargo/config.toml: rustflags = ["-C", "target-feature=+crt-static", "-C", "relocation-model=pic", "-C", "link-arg=-Wl,-Bstatic"]
+  .cargo/config.toml: 
+  .cargo/config.toml: [env]
+  .cargo/config.toml: LD = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-ld"
+  .cargo/config.toml: NM = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-nm"
+  .cargo/config.toml: RANLIB = "/home/pomo/git/stcp/ports/dect-nr+/musl-cross-compiled-libs/bin/x86_64-linux-musl-ranlib"
+  .cargo/config.toml: 
+  .cargo/config.toml: [build]
+  .cargo/config.toml: target = "x86_64-unknown-linux-musl"
+'../.cargo/config.toml' -> '.cargo/config.toml'
+warning: virtual workspace defaulting to `resolver = "1"` despite one or more workspace members being on edition 2021 which implies `resolver = "2"`
+note: to keep the current resolver, specify `workspace.resolver = "1"` in the workspace root's manifest
+note: to use the edition 2021 resolver, specify `workspace.resolver = "2"` in the workspace root's manifest
+note: for more details see https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions
+   Compiling stcpclientlib v0.0.1 (/home/pomo/git/stcp/ports/dect-nr+/stcp-client-lib/rust-client-lib)
+warning: unexpected `cfg` condition name: `cbindgen`
+ --> stcp-common/src/mod.rs:6:11
+  |
+6 | #[cfg(not(cbindgen))]
+  |           ^^^^^^^^ help: found config with similar value: `feature = "cbindgen"`
+  |
+  = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+  = help: consider using a Cargo feature instead
+  = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+           [lints.rust]
+           unexpected_cfgs = { level = "warn", check-cfg = ['cfg(cbindgen)'] }
+  = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(cbindgen)");` to the top of the `build.rs`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `std::str`
+ --> stcp-common/src/aes_lib.rs:1:5
+  |
+1 | use std::str;
+  |     ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `rand_core::le`
+ --> stcp-common/src/aes_lib.rs:4:5
+  |
+4 | use rand_core::le;
+  |     ^^^^^^^^^^^^^
+
+warning: unused import: `crate::defines_etc::*`
+ --> stcp-common/src/aes_lib.rs:5:5
+  |
+5 | use crate::defines_etc::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::dprint`
+ --> stcp-common/src/aes_lib.rs:6:5
+  |
+6 | use crate::dprint;
+  |     ^^^^^^^^^^^^^
+
+warning: unused import: `std::time::Duration`
+ --> stcp-common/src/utils.rs:1:5
+  |
+1 | use std::time::Duration;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `tokio::net::*`
+ --> stcp-common/src/utils.rs:3:5
+  |
+3 | use tokio::net::*;
+  |     ^^^^^^^^^^^^^
+
+warning: unused import: `tokio::io::*`
+ --> stcp-common/src/utils.rs:4:5
+  |
+4 | use tokio::io::*;
+  |     ^^^^^^^^^^^^
+
+warning: unused import: `crate::aes_lib as myAES`
+ --> stcp-common/src/utils.rs:6:5
+  |
+6 | use crate::aes_lib as myAES;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::utils as myUtils`
+ --> stcp-common/src/utils.rs:8:5
+  |
+8 | use crate::utils as myUtils;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `tokio::time::sleep`
+  --> stcp-common/src/utils.rs:12:5
+   |
+12 | use tokio::time::sleep;
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `buffer`
+  --> stcp-common/src/utils.rs:67:17
+   |
+67 |         let mut buffer = [0; 1024];
+   |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: variable does not need to be mutable
+  --> stcp-common/src/utils.rs:67:13
+   |
+67 |         let mut buffer = [0; 1024];
+   |             ----^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `buffer`
+   --> stcp-common/src/utils.rs:102:17
+    |
+102 |         let mut buffer = [0; 1024];
+    |                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: unused variable: `responseLen`
+   --> stcp-common/src/utils.rs:114:18
+    |
+114 |             let (responseLen, response) = self.read_from(theStream).await;
+    |                  ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_responseLen`
+
+warning: variable does not need to be mutable
+   --> stcp-common/src/utils.rs:102:13
+    |
+102 |         let mut buffer = [0; 1024];
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: constant `STCP_AES_IV_SIZE_IN_BYTES` is never used
+  --> stcp-common/src/stcp_elliptic_codec.rs:21:7
+   |
+21 | const STCP_AES_IV_SIZE_IN_BYTES: usize = 16;
+   |       ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: variable `theStream` should have a snake case name
+  --> stcp-common/src/utils.rs:28:49
+   |
+28 |     pub async fn read_from_functionality(&self, theStream: &mut TcpStream) -> std::io::Result<Option<Vec<u8>>> {
+   |                                                 ^^^^^^^^^ help: convert the identifier to snake case: `the_stream`
+   |
+   = note: `#[warn(non_snake_case)]` on by default
+
+warning: variable `nBytes` should have a snake case name
+  --> stcp-common/src/utils.rs:36:16
+   |
+36 |             Ok(nBytes) => {
+   |                ^^^^^^ help: convert the identifier to snake case: `n_bytes`
+
+warning: variable `theStream` should have a snake case name
+  --> stcp-common/src/utils.rs:46:35
+   |
+46 |     pub async fn read_from(&self, theStream: &mut TcpStream) -> (usize, Vec<u8>) {
+   |                                   ^^^^^^^^^ help: convert the identifier to snake case: `the_stream`
+
+warning: variable `theStream` should have a snake case name
+  --> stcp-common/src/utils.rs:64:9
+   |
+64 |         theStream: &mut TcpStream,  // Käytetään viitettä
+   |         ^^^^^^^^^ help: convert the identifier to snake case: `the_stream`
+
+warning: variable `theEC` should have a snake case name
+  --> stcp-common/src/utils.rs:65:13
+   |
+65 |         mut theEC: myEC::StcpEllipticCodec
+   |             ^^^^^ help: convert the identifier to snake case: `the_ec`
+
+warning: variable `theFirstPK` should have a snake case name
+  --> stcp-common/src/utils.rs:75:17
+   |
+75 |             let theFirstPK = theEC.my_public_key_to_raw_bytes();
+   |                 ^^^^^^^^^^ help: convert the identifier to snake case: `the_first_pk`
+
+warning: variable `responseLen` should have a snake case name
+  --> stcp-common/src/utils.rs:78:18
+   |
+78 |             let (responseLen, response) = self.read_from(theStream).await;
+   |                  ^^^^^^^^^^^ help: convert the identifier to snake case: `response_len`
+
+warning: variable `gotPK` should have a snake case name
+  --> stcp-common/src/utils.rs:83:21
+   |
+83 |                 let gotPK = !thepubkey.is_empty();
+   |                     ^^^^^ help: convert the identifier to snake case: `got_pk`
+
+warning: variable `gotSK` should have a snake case name
+  --> stcp-common/src/utils.rs:84:21
+   |
+84 |                 let gotSK = !thesharedkey.is_empty();
+   |                     ^^^^^ help: convert the identifier to snake case: `got_sk`
+
+warning: variable `theStream` should have a snake case name
+  --> stcp-common/src/utils.rs:99:9
+   |
+99 |         theStream: &mut TcpStream,  // Käytetään viitettä
+   |         ^^^^^^^^^ help: convert the identifier to snake case: `the_stream`
+
+warning: variable `theEC` should have a snake case name
+   --> stcp-common/src/utils.rs:100:13
+    |
+100 |         mut theEC: myEC::StcpEllipticCodec
+    |             ^^^^^ help: convert the identifier to snake case: `the_ec`
+
+warning: variable `theFirstPK` should have a snake case name
+   --> stcp-common/src/utils.rs:111:17
+    |
+111 |             let theFirstPK = theEC.my_public_key_to_raw_bytes();
+    |                 ^^^^^^^^^^ help: convert the identifier to snake case: `the_first_pk`
+
+warning: variable `responseLen` should have a snake case name
+   --> stcp-common/src/utils.rs:114:18
+    |
+114 |             let (responseLen, response) = self.read_from(theStream).await;
+    |                  ^^^^^^^^^^^ help: convert the identifier to snake case: `response_len`
+
+warning: variable `gotPK` should have a snake case name
+   --> stcp-common/src/utils.rs:118:17
+    |
+118 |             let gotPK = !thepubkey.is_empty();
+    |                 ^^^^^ help: convert the identifier to snake case: `got_pk`
+
+warning: variable `gotSK` should have a snake case name
+   --> stcp-common/src/utils.rs:119:17
+    |
+119 |             let gotSK = !thesharedkey.is_empty();
+    |                 ^^^^^ help: convert the identifier to snake case: `got_sk`
+
+warning: constant `STCP_IPv4_PACKET_PAYLOAD_MAX_SIZE` should have an upper case name
+  --> stcp-common/src/defines_etc.rs:31:11
+   |
+31 | pub const STCP_IPv4_PACKET_PAYLOAD_MAX_SIZE: usize = (1024 * 64) - 1;
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case (notice the capitalization): `STCP_IPV4_PACKET_PAYLOAD_MAX_SIZE`
+   |
+   = note: `#[warn(non_upper_case_globals)]` on by default
+
+warning: constant `STCP_IPv4_PACKET_HEADERS_MAX_SIZE` should have an upper case name
+  --> stcp-common/src/defines_etc.rs:32:11
+   |
+32 | pub const STCP_IPv4_PACKET_HEADERS_MAX_SIZE: usize = 60; // 60 bytes
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case (notice the capitalization): `STCP_IPV4_PACKET_HEADERS_MAX_SIZE`
+
+warning: constant `STCP_IPv4_PACKET_MAX_SIZE` should have an upper case name
+  --> stcp-common/src/defines_etc.rs:33:11
+   |
+33 | pub const STCP_IPv4_PACKET_MAX_SIZE: usize = STCP_IPv4_PACKET_PAYLOAD_MAX_SIZE - STCP_IPv4_PACKET_HEADERS_MAX_SIZE;
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case (notice the capitalization): `STCP_IPV4_PACKET_MAX_SIZE`
+
+warning: `stcpcommon` (lib) generated 35 warnings (run `cargo fix --lib -p stcpcommon` to apply 12 suggestions)
+warning: unused import: `std::env`
+ --> stcp-client-lib/rust-client-lib/build.rs:1:5
+  |
+1 | use std::env;
+  |     ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `std::path::PathBuf`
+ --> stcp-client-lib/rust-client-lib/build.rs:2:5
+  |
+2 | use std::path::PathBuf;
+  |     ^^^^^^^^^^^^^^^^^^
+
+warning: `stcpclientlib` (build script) generated 2 warnings
+warning: dropping unsupported crate type `cdylib` for target `x86_64-unknown-linux-musl`
+
+error[E0255]: the name `stcp_internal_connect` is defined multiple times
+  --> stcp-client-lib/rust-client-lib/src/lib.rs:21:1
+   |
+14 |     stcp_internal_connect,
+   |     --------------------- previous import of the value `stcp_internal_connect` here
+...
+21 | pub fn stcp_internal_connect(addr: *const c_char) -> *mut StcpConnection {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `stcp_internal_connect` redefined here
+   |
+   = note: `stcp_internal_connect` must be defined only once in the value namespace of this module
+help: you can use `as` to change the binding name of the import
+   |
+14 |     stcp_internal_connect as other_stcp_internal_connect,
+   |                           ++++++++++++++++++++++++++++++
+
+error[E0255]: the name `stcp_internal_disconnect` is defined multiple times
+   --> stcp-client-lib/rust-client-lib/src/lib.rs:119:1
+    |
+17  |     stcp_internal_disconnect,
+    |     ------------------------ previous import of the value `stcp_internal_disconnect` here
+...
+119 | pub fn stcp_internal_disconnect(conn: *mut StcpConnection) {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `stcp_internal_disconnect` redefined here
+    |
+    = note: `stcp_internal_disconnect` must be defined only once in the value namespace of this module
+help: you can use `as` to change the binding name of the import
+    |
+17  |     stcp_internal_disconnect as other_stcp_internal_disconnect,
+    |                              +++++++++++++++++++++++++++++++++
+
+error[E0432]: unresolved imports `crate::stcp_internal_send_message`, `crate::stcp_internal_receive_message`
+  --> stcp-client-lib/rust-client-lib/src/lib.rs:15:5
+   |
+15 |     stcp_internal_send_message,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |     |
+   |     no `stcp_internal_send_message` in the root
+   |     help: a similar name exists in the module: `stcp_internal_send`
+16 |     stcp_internal_receive_message,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no `stcp_internal_receive_message` in the root
+
+warning: unused imports: `stcp_internal_connect` and `stcp_internal_disconnect`
+  --> stcp-client-lib/rust-client-lib/src/lib.rs:14:5
+   |
+14 |     stcp_internal_connect,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+...
+17 |     stcp_internal_disconnect,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+Some errors have detailed explanations: E0255, E0432.
+For more information about an error, try `rustc --explain E0255`.
+warning: `stcpclientlib` (lib) generated 2 warnings
+error: could not compile `stcpclientlib` (lib) due to 3 previous errors; 2 warnings emitted

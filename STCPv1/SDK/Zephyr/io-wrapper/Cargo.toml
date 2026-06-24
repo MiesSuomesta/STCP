@@ -1,0 +1,28 @@
+[package]
+name = "iowrapper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stcpdefines = { workspace = true }
+stcptypes = { workspace = true }
+stcpcrypto = { workspace = true }
+zephyrsys = { workspace = true }
+libc = { workspace = true }
+spin = { workspace = true }
+utils = { workspace = true }
+debug = { workspace = true }
+heapless = { workspace = true }
+
+
+[lib]
+name = "iowrapper"
+path = "src/mod.rs"
+crate-type = ["rlib"]
+
+[features]
+default = ["linux"]
+std = []
+zephyr = []
+linux = []
+cbindgen = []

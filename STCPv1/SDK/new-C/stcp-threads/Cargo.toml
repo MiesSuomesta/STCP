@@ -1,0 +1,25 @@
+[package]
+name = "stcpthreads"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+stcpdefines = { workspace = true }
+stcptypes = { workspace = true }
+debug = { workspace = true }
+zephyrmisc = { workspace = true }
+spin = { workspace = true }
+iowrapper = { workspace = true }
+
+[lib]
+name = "stcpthreads"
+path = "src/mod.rs"
+crate-type = ["rlib", "staticlib"]
+
+[features]
+default = []
+std = []
+zephyr = []
+linux = []
+cbindgen = []
+

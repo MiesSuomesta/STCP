@@ -1,0 +1,18 @@
+[package]
+name = "the_stcp_kernel_module"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+aes-gcm = { version = "0.10", default-features = false, features = ["alloc", "aes"] }
+hkdf = { version = "0.12", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+byteorder = { version = "1", default-features = false }
+
+[features]
+stcp_debug = []
+

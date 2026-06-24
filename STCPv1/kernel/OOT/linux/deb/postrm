@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+PKG="paxsudos-stcp"
+VER="__VERSION__"
+
+# Remove dkms instances
+dkms remove -m "${PKG}" -v "${VER}" --all || true
+depmod -a || true
+exit 0
+

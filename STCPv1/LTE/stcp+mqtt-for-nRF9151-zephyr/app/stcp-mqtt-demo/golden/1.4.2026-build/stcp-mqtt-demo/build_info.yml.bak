@@ -1,0 +1,59 @@
+cmake:
+  application:
+    configuration-dir: '/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo'
+    source-dir: '/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo'
+  board:
+    name: 'nrf9151dk'
+    path:
+     - '/home/pomo/ncs/zephyr/boards/nordic/nrf9151dk'
+    qualifiers: 'nrf9151/ns'
+    revision: ''
+  devicetree:
+    bindings-dirs:
+     - '/home/pomo/ncs/nrf/dts/bindings'
+     - '/home/pomo/ncs/zephyr/boards/nordic/nrf9151dk/dts/bindings'
+     - '/home/pomo/ncs/zephyr/dts/bindings'
+    files:
+     - '/home/pomo/ncs/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns.dts'
+    include-dirs:
+     - '/home/pomo/ncs/nrf/include'
+     - '/home/pomo/ncs/nrf/dts/common'
+     - '/home/pomo/ncs/nrf/dts/riscv'
+     - '/home/pomo/ncs/nrf/dts/arm'
+     - '/home/pomo/ncs/nrf/dts'
+     - '/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/include'
+     - '/home/pomo/ncs/zephyr/boards/nordic/nrf9151dk/dts'
+     - '/home/pomo/ncs/zephyr/include'
+     - '/home/pomo/ncs/zephyr/include/zephyr'
+     - '/home/pomo/ncs/zephyr/dts/common'
+     - '/home/pomo/ncs/zephyr/dts/vendor'
+     - '/home/pomo/ncs/zephyr/dts/rx'
+     - '/home/pomo/ncs/zephyr/dts/x86'
+     - '/home/pomo/ncs/zephyr/dts/xtensa'
+     - '/home/pomo/ncs/zephyr/dts/sparc'
+     - '/home/pomo/ncs/zephyr/dts/riscv'
+     - '/home/pomo/ncs/zephyr/dts/posix'
+     - '/home/pomo/ncs/zephyr/dts/arm64'
+     - '/home/pomo/ncs/zephyr/dts/arm'
+     - '/home/pomo/ncs/zephyr/dts/arc'
+     - '/home/pomo/ncs/zephyr/dts'
+  images:
+   - name: 'tfm'
+     source-dir: '/home/pomo/ncs/modules/tee/tf-m/trusted-firmware-m'
+  kconfig:
+    files:
+     - '/home/pomo/ncs/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns_defconfig'
+     - '/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/prj.conf'
+     - '/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/build/stcp-mqtt-demo/zephyr/.config.sysbuild'
+    user-files:
+     - '/home/pomo/ncs/stcp-modeemi/app/stcp-mqtt-demo/prj.conf'
+  toolchain:
+    name: 'zephyr'
+    path: '/home/pomo/ncs/toolchains/11e0b0bee7/opt/zephyr-sdk'
+  vendor-specific:
+    nordic:
+      svdfile: '/home/pomo/ncs/modules/hal/nordic/nrfx/bsp/stable/mdk/nrf9120.svd'
+  zephyr:
+    version: '4.3.99'
+    zephyr-base: '/home/pomo/ncs/zephyr'
+version: '0.1.0'

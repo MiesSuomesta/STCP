@@ -1,0 +1,5 @@
+
+export CMAKE_MAKE_PROGRAM=/usr/bin/ninja
+export NINJA=/usr/bin/ninja
+
+west build -b nrf9161dk/nrf9161/ns -t menuconfig

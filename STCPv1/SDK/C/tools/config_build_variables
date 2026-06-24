@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "🔧 Settingup toolchain variables with PROJECT_ROOT as ${PROJECT_ROOT} ..."
+
+
+export TOOLCHAIN="${PROJECT_ROOT}/tools/musl-cross-compiled-libs"
+export TOOLCHAIN_TARGET=x86_64-linux-musl
+
+export TOOLCHAIN_CC=$TOOLCHAIN/bin/${TOOLCHAIN_TARGET}-gcc
+export TOOLCHAIN_CXX=$TOOLCHAIN/bin/${TOOLCHAIN_TARGET}-g++
+export TOOLCHAIN_LD=$TOOLCHAIN/bin/${TOOLCHAIN_TARGET}-ld
+export TOOLCHAIN_AR=$TOOLCHAIN/bin/${TOOLCHAIN_TARGET}-ar
+export TOOLCHAIN_RANLIB=$TOOLCHAIN/bin/${TOOLCHAIN_TARGET}-ranlib
+export TOOLCHAIN_NM=$TOOLCHAIN/bin/${TOOLCHAIN_TARGET}-nm
+
+export PATH="$TOOLCHAIN/bin:$HOME/.cargo/bin:$PATH"
+
+# Tarvittavat ympäristömuuttujat
+export GCC_LIB_BASE=$( echo $TOOLCHAIN/lib/gcc/x86_64-linux-musl/*/ )
+export RUSTFLAGS="-C target-feature=+crt-static -C relocation-model=pic -L$GCC_LIB_BASE"
+export OPENSSL_STATIC=1
+#export RUST_BACKTRACE=full
+export RUST_BACKTRACE=1
+export RING_BUILD_STATIC=yes
+export PKG_CONFIG_ALLOW_CROSS=1
+export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc
+export CC_x86_64_unknown_linux_musl="$TOOLCHAIN_CC"
+export CFLAGS_x86_64_unknown_linux_musl="-fPIC"
+export CFLAGS="-fPIC"
+export CXXFLAGS="-fPIC"
+
+# Riippuvuudet
+export DEP_MAIN_DIR="${PROJECT_ROOT}/dependencies"
+
+source ${DEP_MAIN_DIR}/config_*
+
+
+echo "🔧 Asennettu toolchain muuttujat OK"
+

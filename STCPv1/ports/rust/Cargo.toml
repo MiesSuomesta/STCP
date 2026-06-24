@@ -1,0 +1,25 @@
+[package]
+name = "stcp-rust"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+stcpCommon = { path = "stcpCommon" }
+aes = "0.8"
+openssl = "0.10"
+rand = "0.8"
+base64 = "0.21"
+hex = "0.4"
+tokio = { version = "1", features = ["full"] }
+rand_core = "0.6"
+ring = "0.16"
+
+[[bin]]
+name = "server"
+path = "theServer.rs"
+
+[[bin]]
+name = "client"
+path = "theClient.rs"

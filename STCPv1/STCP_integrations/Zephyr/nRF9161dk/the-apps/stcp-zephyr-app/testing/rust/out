@@ -1,0 +1,594 @@
+   Compiling the_stcp_kernel_module v0.1.0 (/home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust)
+warning: unused import: `core::ptr`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/linux_random.rs:4:5
+  |
+4 | use core::ptr;
+  |     ^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `crate::proto_session::ProtoSession`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/aes.rs:7:5
+  |
+7 | use crate::proto_session::ProtoSession;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/aes.rs:8:5
+  |
+8 | use crate::proto_session;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_dump`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/aes.rs:10:5
+   |
+10 | use crate::stcp_dump;
+   |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_dbg`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/aes.rs:11:5
+   |
+11 | use crate::stcp_dbg;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:9:5
+  |
+9 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:11:5
+   |
+11 | use crate::proto_session;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/debug.rs:4:5
+  |
+4 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/helpers.rs:10:5
+   |
+10 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `GlobalAlloc` and `Layout`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/system_memory_allocator.rs:3:19
+  |
+3 | use core::alloc::{GlobalAlloc, Layout};
+  |                   ^^^^^^^^^^^  ^^^^^^
+
+warning: unused import: `core::ptr::null_mut`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/system_memory_allocator.rs:4:5
+  |
+4 | use core::ptr::null_mut;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ffi::c_void`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/system_memory_allocator.rs:5:5
+  |
+5 | use core::ffi::c_void;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::PanicInfo`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/system_memory_allocator.rs:6:5
+  |
+6 | use core::panic::PanicInfo;
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `stcp_rust_kernel_alloc` and `stcp_rust_kernel_free`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/system_memory_allocator.rs:7:18
+  |
+7 | use crate::abi::{stcp_rust_kernel_alloc, stcp_rust_kernel_free};
+  |                  ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/session_handler.rs:4:5
+  |
+4 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `StcpMessageHeader` and `StcpMsgType`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:5:9
+  |
+5 |         StcpMsgType,
+  |         ^^^^^^^^^^^
+6 |         StcpEcdhPubKey,
+7 |         StcpMessageHeader,
+  |         ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes::StcpAesCodec`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:12:5
+   |
+12 | use crate::aes::StcpAesCodec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ECONNABORTED`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:18:35
+   |
+18 | use crate::errorit::{EBADF,EAGAIN,ECONNABORTED,EINVAL};
+   |                                   ^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:21:5
+   |
+21 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers::stcp_sleep_msec`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:23:5
+   |
+23 | use crate::helpers::stcp_sleep_msec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around `while` condition
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:197:9
+    |
+197 |   while ( (rc == -EAGAIN) && (tries < 10) ) {
+    |         ^^                               ^^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+197 -   while ( (rc == -EAGAIN) && (tries < 10) ) {
+197 +   while (rc == -EAGAIN) && (tries < 10)  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:203:6
+    |
+203 |   if (rc < 0) {
+    |      ^      ^
+    |
+help: remove these parentheses
+    |
+203 -   if (rc < 0) {
+203 +   if rc < 0  {
+    |
+
+warning: unnecessary parentheses around `while` condition
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:257:9
+    |
+257 |   while ( (rc == -EAGAIN) && (tries < 10) ) {
+    |         ^^                               ^^
+    |
+help: remove these parentheses
+    |
+257 -   while ( (rc == -EAGAIN) && (tries < 10) ) {
+257 +   while (rc == -EAGAIN) && (tries < 10)  {
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:263:6
+    |
+263 |   if (rc < 0) {
+    |      ^      ^
+    |
+help: remove these parentheses
+    |
+263 -   if (rc < 0) {
+263 +   if rc < 0  {
+    |
+
+warning: unused import: `crate::aes`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_message.rs:12:5
+   |
+12 | use crate::aes;
+   |     ^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_message.rs:15:5
+   |
+15 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_protocol_functions.rs:5:5
+  |
+5 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::types::STCP_MAX_TCP_PAYLOAD_SIZE`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_protocol_functions.rs:13:5
+   |
+13 | use crate::types::STCP_MAX_TCP_PAYLOAD_SIZE;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `alloc::vec::Vec`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_protocol_functions.rs:15:5
+   |
+15 | use alloc::vec::Vec;
+   |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::abi::stcp_exported_rust_ctx_alive_count`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_protocol_functions.rs:36:5
+   |
+36 | use crate::abi::stcp_exported_rust_ctx_alive_count;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/slice_helpers.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/tcp_helper_macros.rs:2:5
+  |
+2 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/tcp_io.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_recv`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:5:5
+  |
+5 | use crate::tcp_io::stcp_tcp_recv;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:9:5
+  |
+9 | use crate::aes;
+  |     ^^^^^^^^^^
+
+warning: unused import: `crate::aes::StcpAesCodec`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:10:5
+   |
+10 | use crate::aes::StcpAesCodec;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:11:5
+   |
+11 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::session_handler::rust_session_destroy`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:12:5
+   |
+12 | use crate::session_handler::rust_session_destroy;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::slice_helpers::StcpError`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:13:5
+   |
+13 | use crate::slice_helpers::StcpError;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::proto_session::ProtoSession`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:14:5
+   |
+14 | use crate::proto_session::ProtoSession;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::stcp_tcp_recv_until_buffer_full`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:17:5
+   |
+17 | use crate::stcp_tcp_recv_until_buffer_full;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ffi::c_int`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:3:5
+  |
+3 | use core::ffi::c_int;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::tcp_io::stcp_tcp_recv`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:5:5
+  |
+5 | use crate::tcp_io::stcp_tcp_recv;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::aes`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:11:5
+   |
+11 | use crate::aes;
+   |     ^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:13:5
+   |
+13 | use core::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::session_handler::rust_session_destroy`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:14:5
+   |
+14 | use crate::session_handler::rust_session_destroy;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::errorit::*`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:18:5
+   |
+18 | use crate::errorit::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers::*`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:20:5
+   |
+20 | use crate::helpers::*;
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::helpers`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:21:5
+   |
+21 | use crate::helpers;
+   |     ^^^^^^^^^^^^^^
+
+warning: unused import: `crate::slice_helpers::*`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:24:5
+   |
+24 | use crate::slice_helpers::*;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `TcpListener`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:27:16
+   |
+27 | use std::net::{TcpListener, TcpStream};
+   |                ^^^^^^^^^^^
+
+warning: unused import: `core::panic::Location`
+ --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/module_handlers.rs:3:5
+  |
+3 | use core::panic::Location;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `#[track_caller]` attribute cannot be used on macro defs
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/debug.rs:196:1
+    |
+196 | #[track_caller]
+    | ^^^^^^^^^^^^^^^
+    |
+    = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+    = help: `#[track_caller]` can only be applied to functions
+    = note: `#[warn(unused_attributes)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `ret` is never read
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:25:26
+   |
+25 |       let mut ret: i32 = 0;
+   |                          ^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/debug.rs:101:5
+    |
+101 |     unsafe {
+    |     ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `skBytes`
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:220:7
+    |
+220 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_skBytes`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `skBytes`
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:279:7
+    |
+279 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_skBytes`
+
+warning: unused variable: `msg_type`
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_message.rs:238:5
+    |
+238 |     msg_type: StcpMsgType,
+    |     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_msg_type`
+
+warning: variable does not need to be mutable
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:41:13
+   |
+41 |         let mut recv_len: c_int = 0;
+   |             ----^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `flags`
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:276:13
+    |
+276 |         let flags = u32::from_be_bytes(buf[i..i+4].try_into().ok()?);
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_flags`
+
+warning: unused variable: `msg_type`
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:289:13
+    |
+289 |         let msg_type = StcpMsgType::from_raw(msg_type_raw);
+    |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_msg_type`
+
+warning: value assigned to `i` is never read
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:293:9
+    |
+293 |         i += 4;
+    |         ^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `is_server`
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:49:16
+   |
+49 |     pub fn new(is_server: bool, transport_vp: *mut c_void) -> Self {
+   |                ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_is_server`
+
+warning: unused variable: `stream`
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:228:39
+    |
+228 |    pub fn recv_from_stream(&mut self, stream: &TcpStream) -> Result<Vec<u8>, StcpError>  {
+    |                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_stream`
+
+warning: variable `skBytes` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:220:7
+    |
+220 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: convert the identifier to snake case: `sk_bytes`
+    |
+    = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `skBytes` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:279:7
+    |
+279 |   let skBytes = s.shared_key.to_bytes_be();
+    |       ^^^^^^^ help: convert the identifier to snake case: `sk_bytes`
+
+warning: variable `atBuff` should have a snake case name
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:44:13
+   |
+44 |         let atBuff = &mut self.buffer[self.len..];
+   |             ^^^^^^ help: convert the identifier to snake case: `at_buff`
+
+warning: variable `pVer` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:170:21
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                     ^^^^ help: convert the identifier to snake case: `p_ver`
+
+warning: variable `pTag` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:170:32
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                ^^^^ help: convert the identifier to snake case: `p_tag`
+
+warning: variable `pType` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:170:43
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                           ^^^^^ help: convert the identifier to snake case: `p_type`
+
+warning: variable `pLen` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:170:63
+    |
+170 |     pub fn new_from(pVer: u32, pTag: u32, pType: StcpMsgType, pLen: u32) -> Self {
+    |                                                               ^^^^ help: convert the identifier to snake case: `p_len`
+
+warning: variable `STCP_MAGIC` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/types.rs:279:13
+    |
+279 |         let STCP_MAGIC = u32::from_be_bytes(*b"STCP");
+    |             ^^^^^^^^^^ help: convert the identifier to snake case: `stcp_magic`
+
+warning: variable `theSK` should have a snake case name
+  --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:65:37
+   |
+65 |     pub fn init_aes_with(&mut self, theSK: StcpEcdhSecret) {
+   |                                     ^^^^^ help: convert the identifier to snake case: `the_sk`
+
+warning: variable `newTransport` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:106:40
+    |
+106 |     pub fn set_transport_to(&mut self, newTransport: *mut c_void) {
+    |                                        ^^^^^^^^^^^^ help: convert the identifier to snake case: `new_transport`
+
+warning: variable `msgLen` should have a snake case name
+   --> /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/proto_session.rs:128:13
+    |
+128 |         let msgLen = header.msg_len;
+    |             ^^^^^^ help: convert the identifier to snake case: `msg_len`
+
+warning: `the_stcp_kernel_module` (lib) generated 75 warnings (run `cargo fix --lib -p the_stcp_kernel_module` to apply 61 suggestions)
+   Compiling stcp-test-server v0.1.0 (/home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/testing/rust)
+warning: unused import: `the_stcp_kernel_module::stcp_message::build_frame_and_send`
+ --> src/main.rs:3:5
+  |
+3 | use the_stcp_kernel_module::stcp_message::build_frame_and_send;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `the_stcp_kernel_module::debug::*`
+ --> src/main.rs:5:5
+  |
+5 | use the_stcp_kernel_module::debug::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `the_stcp_kernel_module::debug`
+ --> src/main.rs:6:5
+  |
+6 | use the_stcp_kernel_module::debug;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::ptr`
+  --> src/main.rs:14:5
+   |
+14 | use core::ptr;
+   |     ^^^^^^^^^
+
+warning: unused imports: `AsRawFd` and `FromRawFd`
+  --> src/main.rs:18:25
+   |
+18 | use std::os::unix::io::{AsRawFd, FromRawFd};
+   |                         ^^^^^^^  ^^^^^^^^^
+
+warning: unused import: `std::panic::Location`
+  --> src/main.rs:19:5
+   |
+19 | use std::panic::Location;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: `stcp-test-server` (bin "stcp-test-server") generated 6 warnings (run `cargo fix --bin "stcp-test-server" -p stcp-test-server` to apply 6 suggestions)
+    Finished `dev` profile [optimized + debuginfo] target(s) in 10.74s
+     Running `target/debug/stcp-test-server`
+=========================================
+ STCP Rust Test Server
+ Listening on 0.0.0.0:7777
+[STCP][UNK] stcp/RUST src/main.rs:205 stcp_test_server(): Logger enabled!
+=========================================
+Client connected: Ok(83.245.228.12:54988)
+=========================================
+ New STCP client: Ok(83.245.228.12:54988)
+ Transport ptr: 0x76a4e91fe000
+=========================================
+[STCP][UNK] stcp/RUST src/main.rs:232 stcp_test_server(): === HANDSHAKE START ===
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:231 the_stcp_kernel_module::stcp_handshake(): ========================================================
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:232 the_stcp_kernel_module::stcp_handshake(): === START SERVER =======================================
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:233 the_stcp_kernel_module::stcp_handshake(): ========================================================
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:245 the_stcp_kernel_module::stcp_handshake(): Server Checks passed starting
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:38 the_stcp_kernel_module::stcp_handshake(): Generate keys ===================================
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:22 the_stcp_kernel_module::crypto(): Starting keypair generation
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:23 the_stcp_kernel_module::crypto(): Sess ptr inside generate_keypair: 0x76a4e91fe0e0
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:24 the_stcp_kernel_module::crypto(): Calling C keypair creation
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:29 the_stcp_kernel_module::crypto(): sizeof pubkey 64
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:30 the_stcp_kernel_module::crypto(): sizeof secret 32
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:39 the_stcp_kernel_module::crypto(): Session for server: true
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:40 the_stcp_kernel_module::crypto(): DUMP[ Public  key X ]: 32 bytes: 45 B5 D3 E5 FD E7 AF A0 AB A7 89 87 BD C3 1F EF 22 37 A1 CA 00 00 F1 61 0D 0E D9 AB 08 2B E4 7C // E . . . . . . . . . . . . . . . " 7 . . . . . a . . . . . + . |
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:41 the_stcp_kernel_module::crypto(): DUMP[ Public  key Y ]: 32 bytes: 64 8E FD B5 ED E4 A2 E4 8E F5 05 15 39 50 37 76 30 77 F9 10 50 6C A5 84 89 C8 AA A4 2B C4 7B 09 // d . . . . . . . . . . . 9 P 7 v 0 w . . P l . . . . . . + . { .
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:42 the_stcp_kernel_module::crypto(): DUMP[ Private key   ]: 32 bytes: DF 8A 7E 4B A3 C0 F5 91 93 68 A5 79 5F 4E 96 6E 58 E4 B1 CA E9 7F 0C F9 9F F8 FE BE 96 74 74 51 // . . ~ K . . . . . h . y _ N . n X . . . . . . . . . . . . t t Q
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:44 the_stcp_kernel_module::crypto(): Called C keypair creation, ret 0
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:42 the_stcp_kernel_module::stcp_handshake(): Server Generate keys
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:255 the_stcp_kernel_module::stcp_handshake(): =S= Generated Keys... ret: 0
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:144 the_stcp_kernel_module::stcp_handshake(): Server handshake: Public key receiving ....
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:78 the_stcp_kernel_module::stcp_handshake(): Receiving as server true
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:82 the_stcp_kernel_module::stcp_handshake(): Receiving public key, 64 bytes ...
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:85 the_stcp_kernel_module::stcp_handshake(): Received public key, rc 0
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:150 the_stcp_kernel_module::stcp_handshake(): [server] Public key recv: 0
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:153 the_stcp_kernel_module::stcp_handshake(): Server handshake: Public key sending ....
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:57 the_stcp_kernel_module::stcp_handshake(): Sending as server true
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:58 the_stcp_kernel_module::stcp_handshake(): Sending public key ==================================
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:62 the_stcp_kernel_module::stcp_handshake(): DUMP[ TX PUBKEY FRAME ]: 64 bytes: 45 B5 D3 E5 FD E7 AF A0 AB A7 89 87 BD C3 1F EF 22 37 A1 CA 00 00 F1 61 0D 0E D9 AB 08 2B E4 7C 64 8E FD B5 ED E4 A2 E4 8E F5 05 15 39 50 37 76 30 77 F9 10 50 6C A5 84 89 C8 AA A4 2B C4 7B 09 // E . . . . . . . . . . . . . . . " 7 . . . . . a . . . . . + . | d . . . . . . . . . . . 9 P 7 v 0 w . . P l . . . . . . + . { .
+[STCP][UNK] stcp/RUST src/main.rs:85 stcp_test_server(): DUMP[ x86 TX buffer ]: 64 bytes: 45 B5 D3 E5 FD E7 AF A0 AB A7 89 87 BD C3 1F EF 22 37 A1 CA 00 00 F1 61 0D 0E D9 AB 08 2B E4 7C 64 8E FD B5 ED E4 A2 E4 8E F5 05 15 39 50 37 76 30 77 F9 10 50 6C A5 84 89 C8 AA A4 2B C4 7B 09 // E . . . . . . . . . . . . . . . " 7 . . . . . a . . . . . + . | d . . . . . . . . . . . 9 P 7 v 0 w . . P l . . . . . . + . { .
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:64 the_stcp_kernel_module::stcp_handshake(): Public key sent: 64, 64
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:159 the_stcp_kernel_module::stcp_handshake(): [server] Public key sent: 64
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:260 the_stcp_kernel_module::stcp_handshake(): Client PK try: 1 => 1
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/stcp_handshake.rs:271 the_stcp_kernel_module::stcp_handshake(): DUMP[ =S= Peer Public key ]: 64 bytes: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:54 the_stcp_kernel_module::crypto(): Starting to create shared key
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:61 the_stcp_kernel_module::crypto(): DUMP[ Peer pub X ]: 32 bytes: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:62 the_stcp_kernel_module::crypto(): DUMP[ Peer pub Y ]: 32 bytes: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 // . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:64 the_stcp_kernel_module::crypto(): Peer key prepared
+[STCP][UNK] stcp/RUST /home/pomo/uusi-modeemi/the-app/stcp-zephyr-app/rust/src/crypto.rs:66 the_stcp_kernel_module::crypto(): Calling C shared key calc...
+
+thread '<unnamed>' (760498) panicked at src/main.rs:145:65:
+called `Result::unwrap()` on an `Err` value: Error
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

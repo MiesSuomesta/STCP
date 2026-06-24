@@ -1,0 +1,65 @@
+Cargo.toml:[package]
+Cargo.toml:name = "the_stcp_kernel_module"
+Cargo.toml:version = "0.1.0"
+Cargo.toml:edition = "2024"
+Cargo.toml:[lib]
+Cargo.toml:path = "src/lib.rs"
+Cargo.toml:crate-type = ["staticlib", "rlib"]
+Cargo.toml:[dependencies]
+Cargo.toml:aes-gcm = { version = "0.10", default-features = false, features = ["alloc", "aes"] }
+Cargo.toml:hkdf = { version = "0.12", default-features = false }
+Cargo.toml:sha2 = { version = "0.10", default-features = false }
+Cargo.toml:byteorder = { version = "1", default-features = false }
+Cargo.toml:[features]
+Cargo.toml:stcp_debug = []
+mun.json:{
+mun.json:  "llvm-target": "x86_64-unknown-none-elf",
+mun.json:  "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
+mun.json:  "arch": "x86_64",
+mun.json:  "os": "none",
+mun.json:  "vendor": "unknown",
+mun.json:  "env": "",
+mun.json:  "linker-flavor": "ld.lld",
+mun.json:  "executables": false,
+mun.json:  "disable-redzone": true,
+mun.json:  "panic-strategy": "abort",
+mun.json:  "relocation-model": "static",
+mun.json:  "code-model": "kernel",
+mun.json:  "features": "-mmx,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2,-avx512f,-avx512dq,-avx512cd,-avx512bw,-avx512vl",
+mun.json:  "target-pointer-width": 64,
+mun.json:  "target-c-int-width": 32,
+mun.json:  "has-rpath": false,
+mun.json:  "position-independent-executables": false,
+mun.json:  "allows-weak-linkage": true
+mun.json:}
+.cargo/config.toml:[build]
+.cargo/config.toml:target = "mun.json"
+.cargo/config.toml:[unstable]
+.cargo/config.toml:build-std = ["core", "alloc"]
+.cargo/config.toml:build-std-features = ["compiler-builtins-mem"]
+.cargo/config.toml:[target."mun.json"]
+.cargo/config.toml:rustflags = [
+.cargo/config.toml:    "-C", "panic=abort",
+.cargo/config.toml:    "-C", "relocation-model=static",
+.cargo/config.toml:    "-C", "code-model=kernel",
+.cargo/config.toml:    "-C", "link-arg=-nostartfiles",
+.cargo/config.toml:    "-C", "link-arg=-nodefaultlibs",
+.cargo/config.toml:    "-C", "embed-bitcode=no",
+.cargo/config.toml:    "-C", "lto=no",
+.cargo/config.toml:    "-Z", "no-redzone=yes",
+.cargo/config.toml:    "-C", "force-frame-pointers=yes",
+.cargo/config.toml:    "-C", "llvm-args=-stackrealign",
+.cargo/config.toml:    "-Ctarget-feature=-sse",
+.cargo/config.toml:    "-Ctarget-feature=-sse2",
+.cargo/config.toml:    "-Ctarget-feature=-sse3",
+.cargo/config.toml:    "-Ctarget-feature=-ssse3",
+.cargo/config.toml:    "-Ctarget-feature=-sse4.1",
+.cargo/config.toml:    "-Ctarget-feature=-sse4.2",
+.cargo/config.toml:    "-Ctarget-feature=-avx",
+.cargo/config.toml:    "-Ctarget-feature=-avx2",
+.cargo/config.toml:]
+.cargo/config.toml:[profile.release]
+.cargo/config.toml:opt-level = "z"
+.cargo/config.toml:lto = true
+.cargo/config.toml:codegen-units = 1
+.cargo/config.toml:panic = "abort"

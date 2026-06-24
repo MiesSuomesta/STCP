@@ -1,0 +1,202 @@
+menu "STCP Configuration"
+
+config STCP
+    bool "Enable STCP LTE transport"
+    default y
+    depends on NET_SOCKETS
+    help
+      Enable STCP LTE transport.
+
+config MQTT_LIB_STCP
+    bool "STCP support for socket MQTT Library"
+    default y
+    depends on STCP && MQTT_LIB
+    help
+      Enable STCP support for socket MQTT Library
+
+config STCP_DEBUG
+    bool "Enable STCP debug"
+    default y
+    depends on STCP   # esimerkki: riippuvuudet kernelistä
+    help
+      Enable STCP debugs.
+
+config STCP_STATUS_MONITOR
+    bool "Enable STCP modem state monitor"
+    default y
+    depends on STCP
+    help
+      Enable status monitor. It gives STCP's
+      connectivity information
+
+config STCP_STATUS_MONITOR_LOG_INTERVAL
+    int "Enable STCP modem state monitor"
+    default 5
+    range 5 100000
+    depends on STCP_STATUS_MONITOR
+    help
+      Enable status monitor. It gives STCP's
+      connectivity information
+
+config STCP_STATUS_MONITOR_STATISTICS
+    bool "Enable STCP modem statistics"
+    default y
+    depends on STCP_STATUS_MONITOR
+    help
+      Collect statistics from real-life traffic
+
+config STCP_TESTING
+    bool "Enable STCP test support"
+    default y
+    depends on STCP
+    help
+      Enables the STCP Echo test server
+
+
+config STCP_TESTING_LOG
+    bool "Enable STCP test-mode logging"
+    default y
+    depends on STCP
+    help
+      Enables the STCP test-mode loggin even if
+      STCP_DEBUG is not enabled.
+
+      if not set completely off, and this setting 
+      is not enabled then logging follows STCP_DEBUG
+      setting.
+
+config STCP_TESTING_LOG_COMPLETELY_OFF
+    bool "Enable STCP test logging completely off"
+    default n
+    depends on STCP
+    help
+      Sets testing logging completely OFF if enabled.
+
+config STCP_TESTING_MODE 
+    int "Set STCP testmode, see help"
+    default 3
+    range 0 3
+    depends on STCP_TESTING
+    help
+      Select which testing mode the modem runs.
+
+      0 - Idle test
+          Modem connects to the testing server and stays idle.
+          Useful for testing LTE stability and watchdog behaviour.
+
+      1 - TCP max throughput
+          Raw TCP throughput test without STCP.
+
+      2 - STCP max throughput
+          STCP protocol throughput test running over TCP.
+
+      3 - MQTT max throughput
+          MQTT publish throughput test running over STCP.
+
+      The modem connects to the host defined by:
+
+          TESTING_PEER_HOSTNAME_TO_CONNECT
+          TESTING_PEER_PORT_TO_CONNECT
+
+      Normally the peer host runs the stcp-torture-server.
+
+config STCP_TESTING_PAYLOAD_FORMAT
+    string "Testing payload date format"
+    default "TEST PAYLOAD %Y-%m-%d %H:%M:%S"
+    depends on STCP_TESTING
+    help
+      Date format used to generate payload.
+      set DATE_TIME define ON, to be able to use
+      strftime() formatting rules for dynamic
+      messages.
+
+config STCP_TESTING_PEER_HOSTNAME_TO_CONNECT
+    string "Host IP to where the test server creates connection to"
+    default "lja.fi"
+    depends on STCP_TESTING
+    help
+      Cause the connection has to be from the modem, the hostname
+      an port is needed to create test connection to.
+
+config STCP_TESTING_PEER_PORT_TO_CONNECT
+    int "Port where the test server creates connection to"
+    default 7777
+    range 1 65535
+    depends on STCP_TESTING
+    help
+      Cause the connection has to be from the modem, the hostname
+      an port is needed to create test connection to.
+
+config STCP_DEBUG_LATENCY
+    bool "Enable STCP latency & timing debug"
+    default y
+    depends on STCP_DEBUG   # esimerkki: riippuvuudet kernelistä
+    help
+      Enable STCP latency and timing debugs.
+
+config STCP_WATCHDOG_ENABLE
+    bool "Enable STCP watchdog"
+    default y
+    depends on STCP
+    help
+      Enable STCP watchdog thread that monitors
+      STCP activity and network health.
+
+config STCP_WATCHDOG_MAX_TIMEOUT
+    int "Watchdog timeout in seconds"
+    default 300
+    range 30 36000
+    depends on STCP_WATCHDOG_ENABLE
+    help
+      Maximum allowed inactivity time before
+      the watchdog triggers a modem reset.
+
+config STCP_WATCHDOG_CHECK_INTERVAL
+    int "Watchdog check interval in seconds"
+    default 15
+    range 5 36000
+    depends on STCP_WATCHDOG_ENABLE
+    help
+      Interval between watchdog health checks.
+
+config STCP_SELFTEST
+    bool "Enable STCP self-test"
+    default n
+    depends on STCP
+    help
+      Enable STCP self-test support.
+
+config STCP_AES_BYPASS
+    bool "Enable STCP AES bypass"
+    default n
+    depends on STCP   # esimerkki: riippuvuudet kernelistä
+    help
+      Bypass AES enc/decryption for development purposes.
+
+config STCP_CONNECT_TO_HOST
+    string "STCP Connect to hostname"
+    default "lja.fi"
+    depends on STCP
+    help
+      STCP Remote endpoint hostname.
+
+config STCP_CONNECT_TO_PORT
+    int "STCP Connect to tcp port"
+    default 7777
+    range 1 65535
+    depends on STCP
+    help
+      STCP Remote endpoint tcp port.
+
+config STCP_LTE_APN_NAME
+    string "The APN name to connect."
+    default "internet"
+    depends on STCP
+    help
+      The APN name to use to connect.
+
+      Ask from your ISP what is the right APN
+      name to use.
+
+
+endmenu

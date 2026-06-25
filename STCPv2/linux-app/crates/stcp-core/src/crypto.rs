@@ -1,10 +1,8 @@
-use aes_gcm::{
-    Aes256Gcm, Nonce, aead::{
-        Aead,
-        KeyInit,
-        OsRng,
-        rand_core::RngCore,
-    },
+
+use chacha20poly1305::{
+    aead::{Aead, KeyInit, OsRng, rand_core::RngCore},
+    ChaCha20Poly1305,
+    Nonce,
 };
 
 use x25519_dalek::{PublicKey, StaticSecret};
@@ -24,7 +22,7 @@ pub struct CryptoContext {
     own_public_key_32: PublicKey,
     derived_aes_key: [u8; AES_KEY_LEN],
     aes_ready: bool,
-    cipher: Option<Aes256Gcm>,
+    cipher: Option<ChaCha20Poly1305>,
 }
 
 impl std::fmt::Debug for CryptoContext {
@@ -79,10 +77,8 @@ impl CryptoContext {
         self.derived_aes_key = shared.to_bytes();
 
         self.cipher = Some(
-            Aes256Gcm::new_from_slice(&self.derived_aes_key)
-                .map_err(|e| StcpError::Crypto(format!(
-                    "AES init failed: {e:?}"
-                )))?
+            ChaCha20Poly1305::new_from_slice(&self.derived_aes_key)
+                .map_err(|e| StcpError::Crypto(format!("ChaCha init failed: {e:?}")))?
         );
 
         self.aes_ready = true;
@@ -94,7 +90,7 @@ impl CryptoContext {
         self.aes_ready
     }
 
-    fn cipher(&self) -> Result<&Aes256Gcm, StcpError> {
+    fn cipher(&self) -> Result<&ChaCha20Poly1305, StcpError> {
         if !self.aes_ready {
             return Err(StcpError::Crypto(
                 "AES key is not ready".to_string(),

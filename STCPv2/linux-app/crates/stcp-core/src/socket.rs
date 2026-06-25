@@ -644,4 +644,3 @@ fn sockaddr_in_to_socket_addr(addr: libc::sockaddr_in) -> SocketAddr {
 
     SocketAddr::V4(SocketAddrV4::new(ip, port))
 }
-

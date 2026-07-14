@@ -13,4 +13,3 @@ rustflags = [
 
 [unstable]
 build-std = ["core", "alloc"]
-build-std-features = ["compiler-builtins-mem"]

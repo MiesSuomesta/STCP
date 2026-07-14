@@ -28,6 +28,16 @@ RUSTFLAGS_KERNEL := \
 
 all: module
 
+remove-module:
+	sudo rmmod stcp
+
+install-module: module
+	sudo insmod stcp.ko
+	sudo dmesg | tail -n 10
+
+reinstall: remove-module install-module
+	@echo Jees...
+
 module: rust-core
 	$(MAKE) -C "$(KDIR)" M="$(PWD)" LLVM="$(LLVM)" V="$(V)" modules
 

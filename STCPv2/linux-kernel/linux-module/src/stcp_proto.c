@@ -10,30 +10,19 @@
 #include "stcp_rust_ffi.h"
 #include "stcp_socket.h"
 
-static void stcp_proto_destroy(struct sock *sk)
+static int stcp_proto_hash(struct sock *sk)
 {
-	/*
-	 * Rust-konteksti vapautetaan stcp_release()-funktiossa.
-	 * Täällä ei saa vapauttaa sitä uudelleen.
-	 */
+	return 0;
 }
 
 static void stcp_proto_unhash(struct sock *sk)
 {
-	/*
-	 * STCP ei käytä kernelin socket-hash-taulua.
-	 *
-	 * sk_common_release() vaatii kuitenkin aina toimivan
-	 * unhash-callbackin.
-	 */
+	/* STCP does not use a kernel socket hash table yet. */
 }
 
-static int stcp_proto_hash(struct sock *sk)
+static void stcp_proto_destroy(struct sock *sk)
 {
-	/*
-	 * Ei varsinaista kernelin hash-taulua vielä.
-	 */
-	return 0;
+	/* Rust context is released by stcp_release(). */
 }
 
 struct proto stcp_proto = {

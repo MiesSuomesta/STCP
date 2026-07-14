@@ -4,20 +4,31 @@ use alloc::{
     sync::Arc,
 };
 
-use core::sync::atomic::{
-    AtomicBool,
-    AtomicUsize,
-    Ordering,
+use core::{
+    ffi::c_void,
+    sync::atomic::{
+        AtomicBool,
+        AtomicUsize,
+        Ordering,
+    },
 };
 
-use crate::spinlock::SpinLock;
+use crate::{
+    packet::STCP_PUBLIC_KEY_LEN,
+    spinlock::SpinLock,
+};
+
+unsafe extern "C" {
+    fn stcp_kernel_random_bytes(buffer: *mut c_void, len: usize);
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketState {
     New,
     Bound,
     Listening,
-    Connected,
+    Handshake,
+    Ready,
     Closed,
 }
 
@@ -96,6 +107,9 @@ pub struct ContextInner {
     pub accept_queue: VecDeque<Box<StcpContext>>,
     pub connection: Option<EndpointConnection>,
     pub owner: usize,
+    pub own_public_key: [u8; STCP_PUBLIC_KEY_LEN],
+    pub peer_public_key: Option<[u8; STCP_PUBLIC_KEY_LEN]>,
+    pub peer_handshake_done: bool,
     pub rx_app_data: VecDeque<u8>,
     pub rx_message_ready: bool,
     pub peer_eof: bool,
@@ -104,6 +118,19 @@ pub struct ContextInner {
 pub struct StcpContext {
     pub proto: u8,
     pub inner: SpinLock<ContextInner>,
+}
+
+fn generate_public_key() -> [u8; STCP_PUBLIC_KEY_LEN] {
+    let mut key = [0u8; STCP_PUBLIC_KEY_LEN];
+
+    unsafe {
+        stcp_kernel_random_bytes(
+            key.as_mut_ptr().cast(),
+            key.len(),
+        );
+    }
+
+    key
 }
 
 impl StcpContext {
@@ -118,6 +145,9 @@ impl StcpContext {
                 accept_queue: VecDeque::new(),
                 connection: None,
                 owner: 0,
+                own_public_key: generate_public_key(),
+                peer_public_key: None,
+                peer_handshake_done: false,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
                 peer_eof: false,
@@ -134,7 +164,7 @@ impl StcpContext {
         Self {
             proto,
             inner: SpinLock::new(ContextInner {
-                state: SocketState::Connected,
+                state: SocketState::Handshake,
                 local: Some(local),
                 peer: Some(peer),
                 backlog: 0,
@@ -144,6 +174,9 @@ impl StcpContext {
                     side: Side::B,
                 }),
                 owner: 0,
+                own_public_key: generate_public_key(),
+                peer_public_key: None,
+                peer_handshake_done: false,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
                 peer_eof: false,

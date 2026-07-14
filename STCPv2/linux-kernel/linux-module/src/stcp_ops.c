@@ -248,7 +248,6 @@ static int stcp_recvmsg(
 {
 	struct stcp_sock *ssk;
 	u8 *buffer;
-	size_t recv_len;
 	ssize_t ret;
 	int wait_ret;
 
@@ -258,19 +257,18 @@ static int stcp_recvmsg(
 	if (!len)
 		return 0;
 
-	ssk = stcp_sk(sock->sk);
+	/*
+	 * SOCK_STREAM recv() may return fewer bytes than requested.
+	 * Do not reject a large userspace buffer with -EMSGSIZE;
+	 * cap only the temporary kernel allocation.
+	 */
+	len = min_t(size_t, len, STCP_IO_BUFFER_MAX);
 
+	ssk = stcp_sk(sock->sk);
 	if (!ssk->rust_ctx)
 		return -EINVAL;
 
-	/*
-	 * SOCK_STREAM recv() saa palauttaa vähemmän dataa kuin käyttäjä pyytää.
-	 * Rajataan vain väliaikaisen kernel-bufferin koko.
-	 */
-	recv_len = min_t(size_t, len, STCP_IO_BUFFER_MAX);
-
-	buffer = kmalloc(recv_len, GFP_KERNEL);
-
+	buffer = kmalloc(len, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -278,7 +276,7 @@ static int stcp_recvmsg(
 		ret = stcp_rust_recv(
 			ssk->rust_ctx,
 			buffer,
-			recv_len,
+			len,
 			flags
 		);
 
@@ -299,20 +297,11 @@ static int stcp_recvmsg(
 		}
 	}
 
-	if (ret > 0) {
-		if (ret > recv_len) {
-			ret = -EIO;
-		} else if (copy_to_iter(
-			       buffer,
-			       ret,
-			       &msg->msg_iter
-			   ) != ret) {
-			ret = -EFAULT;
-		}
-	}
+	if (ret > 0 &&
+	    copy_to_iter(buffer, ret, &msg->msg_iter) != ret)
+		ret = -EFAULT;
 
 	kfree(buffer);
-
 	return ret;
 }
 

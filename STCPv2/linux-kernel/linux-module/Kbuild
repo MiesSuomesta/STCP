@@ -2,7 +2,6 @@ obj-m += stcp.o
 
 stcp-y := \
 	src/stcp_module.o \
-	src/panic.o \
 	src/stcp_proto.o \
 	src/stcp_ops.o \
 	src/stcp_memory.o \

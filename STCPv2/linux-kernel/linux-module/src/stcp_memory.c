@@ -1,5 +1,7 @@
 #include "stcp_socket.h"
+
 #include <linux/gfp.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
@@ -14,6 +16,12 @@ void *stcp_rust_kernel_alloc(size_t size)
 void stcp_rust_kernel_free(void *ptr)
 {
 	kfree(ptr);
+}
+
+void stcp_kernel_random_bytes(void *buffer, size_t len)
+{
+	if (buffer && len)
+		get_random_bytes(buffer, len);
 }
 
 void stcp_kernel_wake_accept(void *owner)

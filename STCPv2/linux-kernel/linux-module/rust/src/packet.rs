@@ -5,12 +5,15 @@ use crate::error::StcpError;
 pub const STCP_MAGIC: [u8; 4] = *b"STCP";
 pub const STCP_VERSION: u8 = 2;
 pub const STCP_HEADER_LEN: usize = 16;
+pub const STCP_PUBLIC_KEY_LEN: usize = 64;
 pub const STCP_FRAME_PAYLOAD_LEN: usize = 64 * 1024;
 pub const STCP_MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PacketType {
+    PublicKey = 1,
+    HandshakeDone = 2,
     DataChunk = 3,
     DataChunkEnd = 4,
     Close = 5,
@@ -19,6 +22,8 @@ pub enum PacketType {
 impl PacketType {
     pub fn from_u8(value: u8) -> Result<Self, StcpError> {
         match value {
+            1 => Ok(Self::PublicKey),
+            2 => Ok(Self::HandshakeDone),
             3 => Ok(Self::DataChunk),
             4 => Ok(Self::DataChunkEnd),
             5 => Ok(Self::Close),

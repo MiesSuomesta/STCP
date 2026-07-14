@@ -1,5 +1,6 @@
 use alloc::{
     boxed::Box,
+    collections::VecDeque,
     sync::Arc,
     vec::Vec,
 };
@@ -11,6 +12,13 @@ use core::{
 
 use crate::{
     error::StcpError,
+    packet::{
+        encode_frame,
+        Header,
+        PacketType,
+        STCP_FRAME_PAYLOAD_LEN,
+        STCP_HEADER_LEN,
+    },
     spinlock::SpinLock,
     state::{
         Address,
@@ -211,35 +219,30 @@ pub fn send(
     ctx: &StcpContext,
     data: &[u8],
 ) -> Result<usize, StcpError> {
-    let (shared, side) = {
-        let inner = ctx.inner.lock();
-
-        if inner.state != SocketState::Connected {
-            return Err(StcpError::InvalidState);
-        }
-
-        let endpoint = inner
-            .connection
-            .as_ref()
-            .ok_or(StcpError::InvalidState)?;
-
-        (endpoint.shared.clone(), endpoint.side)
-    };
+    let (shared, side) = connection_for(ctx)?;
 
     if shared.peer_closed(side) {
         return Err(StcpError::Closed);
     }
 
-    match side {
-        Side::A => {
-            let mut queue = shared.a_to_b.lock();
-            queue.extend(data.iter().copied());
-        }
-        Side::B => {
-            let mut queue = shared.b_to_a.lock();
-            queue.extend(data.iter().copied());
-        }
+    let mut encoded = Vec::new();
+    let mut position = 0usize;
+
+    while position < data.len() {
+        let end = (position + STCP_FRAME_PAYLOAD_LEN).min(data.len());
+        let packet_type = if end == data.len() {
+            PacketType::DataChunkEnd
+        } else {
+            PacketType::DataChunk
+        };
+
+        let frame = encode_frame(packet_type, &data[position..end])?;
+        encoded.extend_from_slice(&frame);
+        position = end;
     }
+
+    let queue = outgoing_queue(&shared, side);
+    queue.lock().extend(encoded);
 
     wake_recv(shared.peer_owner(side));
     Ok(data.len())
@@ -249,54 +252,147 @@ pub fn recv(
     ctx: &StcpContext,
     output: &mut [u8],
 ) -> Result<usize, StcpError> {
-    let (shared, side) = {
-        let inner = ctx.inner.lock();
+    if output.is_empty() {
+        return Ok(0);
+    }
 
-        if inner.state != SocketState::Connected {
-            return Err(StcpError::InvalidState);
+    fill_application_buffer(ctx)?;
+
+    let mut inner = ctx.inner.lock();
+
+    if inner.rx_message_ready && !inner.rx_app_data.is_empty() {
+        let count = output.len().min(inner.rx_app_data.len());
+
+        for slot in output.iter_mut().take(count) {
+            *slot = inner.rx_app_data.pop_front().unwrap_or_default();
         }
 
-        let endpoint = inner
-            .connection
-            .as_ref()
-            .ok_or(StcpError::InvalidState)?;
-
-        (endpoint.shared.clone(), endpoint.side)
-    };
-
-    let count = match side {
-        Side::A => {
-            let mut queue = shared.b_to_a.lock();
-            copy_from_queue(&mut queue, output)
+        if inner.rx_app_data.is_empty() {
+            inner.rx_message_ready = false;
         }
-        Side::B => {
-            let mut queue = shared.a_to_b.lock();
-            copy_from_queue(&mut queue, output)
-        }
-    };
 
-    if count != 0 {
         return Ok(count);
     }
 
-    if shared.peer_closed(side) {
+    if inner.peer_eof {
         return Ok(0);
     }
 
     Err(StcpError::Again)
 }
 
-fn copy_from_queue(
-    queue: &mut alloc::collections::VecDeque<u8>,
-    output: &mut [u8],
-) -> usize {
-    let count = output.len().min(queue.len());
+fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
+    {
+        let inner = ctx.inner.lock();
 
-    for slot in output.iter_mut().take(count) {
-        *slot = queue.pop_front().unwrap_or_default();
+        if inner.rx_message_ready || inner.peer_eof {
+            return Ok(());
+        }
     }
 
-    count
+    let (shared, side) = connection_for(ctx)?;
+    let queue = incoming_queue(&shared, side);
+    let mut wire = queue.lock();
+    let mut assembled = VecDeque::new();
+    let mut message_ready = false;
+    let mut peer_eof = false;
+
+    loop {
+        if wire.len() < STCP_HEADER_LEN {
+            break;
+        }
+
+        let mut header_bytes = [0u8; STCP_HEADER_LEN];
+
+        for (index, byte) in wire.iter().take(STCP_HEADER_LEN).enumerate() {
+            header_bytes[index] = *byte;
+        }
+
+        let header = Header::decode(&header_bytes)?;
+        let frame_len = STCP_HEADER_LEN + header.payload_len;
+
+        if wire.len() < frame_len {
+            break;
+        }
+
+        for _ in 0..STCP_HEADER_LEN {
+            let _ = wire.pop_front();
+        }
+
+        match header.packet_type {
+            PacketType::DataChunk | PacketType::DataChunkEnd => {
+                for _ in 0..header.payload_len {
+                    assembled.push_back(
+                        wire.pop_front().ok_or(StcpError::Protocol)?,
+                    );
+                }
+
+                if header.packet_type == PacketType::DataChunkEnd {
+                    message_ready = true;
+                    break;
+                }
+            }
+            PacketType::Close => {
+                for _ in 0..header.payload_len {
+                    let _ = wire.pop_front();
+                }
+
+                peer_eof = true;
+                break;
+            }
+        }
+    }
+
+    drop(wire);
+
+    if message_ready || peer_eof {
+        let mut inner = ctx.inner.lock();
+
+        inner.rx_app_data.extend(assembled);
+        inner.rx_message_ready = message_ready;
+        inner.peer_eof = peer_eof;
+    }
+
+    Ok(())
+}
+
+fn connection_for(
+    ctx: &StcpContext,
+) -> Result<(Arc<Connection>, Side), StcpError> {
+    let inner = ctx.inner.lock();
+
+    if inner.state != SocketState::Connected &&
+       inner.state != SocketState::Closed
+    {
+        return Err(StcpError::InvalidState);
+    }
+
+    let endpoint = inner
+        .connection
+        .as_ref()
+        .ok_or(StcpError::InvalidState)?;
+
+    Ok((endpoint.shared.clone(), endpoint.side))
+}
+
+fn outgoing_queue(
+    shared: &Arc<Connection>,
+    side: Side,
+) -> &SpinLock<VecDeque<u8>> {
+    match side {
+        Side::A => &shared.a_to_b,
+        Side::B => &shared.b_to_a,
+    }
+}
+
+fn incoming_queue(
+    shared: &Arc<Connection>,
+    side: Side,
+) -> &SpinLock<VecDeque<u8>> {
+    match side {
+        Side::A => &shared.b_to_a,
+        Side::B => &shared.a_to_b,
+    }
 }
 
 pub fn has_accept(ctx: &StcpContext) -> bool {
@@ -305,22 +401,20 @@ pub fn has_accept(ctx: &StcpContext) -> bool {
 }
 
 pub fn has_data(ctx: &StcpContext) -> bool {
-    let (shared, side) = {
+    {
         let inner = ctx.inner.lock();
 
-        let Some(endpoint) = &inner.connection else {
-            return false;
-        };
+        if inner.rx_message_ready || inner.peer_eof {
+            return true;
+        }
+    }
 
-        (endpoint.shared.clone(), endpoint.side)
+    let Ok((shared, side)) = connection_for(ctx) else {
+        return false;
     };
 
-    let queue_has_data = match side {
-        Side::A => !shared.b_to_a.lock().is_empty(),
-        Side::B => !shared.a_to_b.lock().is_empty(),
-    };
-
-    queue_has_data || shared.peer_closed(side)
+    !incoming_queue(&shared, side).lock().is_empty() ||
+        shared.peer_closed(side)
 }
 
 pub fn is_connected(ctx: &StcpContext) -> bool {
@@ -343,6 +437,12 @@ pub fn shutdown(
     };
 
     if let Some((shared, side)) = connection {
+        if let Ok(close_frame) = encode_frame(PacketType::Close, &[]) {
+            outgoing_queue(&shared, side)
+                .lock()
+                .extend(close_frame);
+        }
+
         shared.close(side);
         wake_recv(shared.peer_owner(side));
     }

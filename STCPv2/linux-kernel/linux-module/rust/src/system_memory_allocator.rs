@@ -36,8 +36,14 @@ unsafe impl GlobalAlloc for KernelAlloc {
 #[global_allocator]
 static GLOBAL_ALLOC: KernelAlloc = KernelAlloc;
 
+unsafe {
+    fn stcp_kernel_panic() -> !;
+}
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    unsafe {
+        stcp_kernel_panic()
+    }
 }
 

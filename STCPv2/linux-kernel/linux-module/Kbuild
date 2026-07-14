@@ -1,0 +1,3 @@
+obj-m += stcp.o
+stcp-y := src/module.o src/proto.o src/socket.o src/rust_shim.o src/debug.o src/rust_alloc.o rust_core.o
+ccflags-y += -I$(src)/include

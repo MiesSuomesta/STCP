@@ -9,9 +9,6 @@ name = "stcp_kernel_core"
 path = "src/lib.rs"
 crate-type = ["staticlib"]
 
-[profile.dev]
-panic = "abort"
-
 [profile.release]
 panic = "abort"
 opt-level = 3

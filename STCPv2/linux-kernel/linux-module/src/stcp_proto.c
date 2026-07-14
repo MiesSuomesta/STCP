@@ -1,6 +1,8 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/net.h>
+#include <linux/slab.h>
+
 #include <net/sock.h>
 
 #include "stcp.h"
@@ -9,20 +11,27 @@
 #include "stcp_socket.h"
 
 struct proto stcp_proto = {
-	.name = "STCP",
-	.owner = THIS_MODULE,
+	.name     = "STCP",
+	.owner    = THIS_MODULE,
 	.obj_size = sizeof(struct stcp_sock),
 };
 
-static int stcp_create(struct net *net, struct socket *sock, int protocol, int kern)
+static int stcp_create(
+	struct net *net,
+	struct socket *sock,
+	int protocol,
+	int kern
+)
 {
 	struct sock *sk;
 	struct stcp_sock *ssk;
 
 	if (!sock)
 		return -EINVAL;
+
 	if (sock->type != SOCK_STREAM)
 		return -ESOCKTNOSUPPORT;
+
 	if (protocol != 0 && protocol != STCP_PROTO_ID)
 		return -EPROTONOSUPPORT;
 
@@ -35,6 +44,9 @@ static int stcp_create(struct net *net, struct socket *sock, int protocol, int k
 	sock->state = SS_UNCONNECTED;
 
 	ssk = stcp_sk(sk);
+	init_waitqueue_head(&ssk->accept_wq);
+	init_waitqueue_head(&ssk->recv_wq);
+
 	ssk->rust_ctx = stcp_rust_create((u8)protocol);
 	if (!ssk->rust_ctx) {
 		sock_orphan(sk);
@@ -43,18 +55,20 @@ static int stcp_create(struct net *net, struct socket *sock, int protocol, int k
 		return -ENOMEM;
 	}
 
-	init_waitqueue_head(&ssk->accept_wq);
-	init_waitqueue_head(&ssk->recv_wq);
+	stcp_rust_set_owner(ssk->rust_ctx, ssk);
 	return 0;
 }
 
 static struct net_proto_family stcp_family_ops = {
 	.family = PF_STCP,
 	.create = stcp_create,
-	.owner = THIS_MODULE,
+	.owner  = THIS_MODULE,
 };
 
-struct sock *stcp_alloc_child_sock(struct net *net, struct socket *newsock)
+struct sock *stcp_alloc_child_sock(
+	struct net *net,
+	struct socket *newsock
+)
 {
 	struct sock *newsk;
 	struct stcp_sock *ssk;
@@ -74,19 +88,25 @@ struct sock *stcp_alloc_child_sock(struct net *net, struct socket *newsock)
 	ssk->rust_ctx = NULL;
 	init_waitqueue_head(&ssk->accept_wq);
 	init_waitqueue_head(&ssk->recv_wq);
+
 	return newsk;
 }
 
 int stcp_proto_register(void)
 {
-	int ret = proto_register(&stcp_proto, 1);
+	int ret;
+
+	ret = proto_register(&stcp_proto, 1);
 	if (ret)
 		return ret;
 
 	ret = sock_register(&stcp_family_ops);
-	if (ret)
+	if (ret) {
 		proto_unregister(&stcp_proto);
-	return ret;
+		return ret;
+	}
+
+	return 0;
 }
 
 void stcp_proto_unregister(void)

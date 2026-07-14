@@ -1,0 +1,10 @@
+/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/rust/target/x86_64-unknown-none/release/deps/stcp_kernel_core-87f093649ea4477b.d: src/lib.rs src/error.rs src/ffi.rs src/state.rs src/transport.rs src/system_memory_allocator.rs
+
+/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/rust/target/x86_64-unknown-none/release/deps/libstcp_kernel_core-87f093649ea4477b.a: src/lib.rs src/error.rs src/ffi.rs src/state.rs src/transport.rs src/system_memory_allocator.rs
+
+src/lib.rs:
+src/error.rs:
+src/ffi.rs:
+src/state.rs:
+src/transport.rs:
+src/system_memory_allocator.rs:

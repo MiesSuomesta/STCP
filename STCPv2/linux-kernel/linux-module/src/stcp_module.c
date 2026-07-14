@@ -6,7 +6,9 @@
 
 static int __init stcp_module_init(void)
 {
-	int ret = stcp_rust_init();
+	int ret;
+
+	ret = stcp_rust_init();
 	if (ret)
 		return ret;
 
@@ -16,7 +18,7 @@ static int __init stcp_module_init(void)
 		return ret;
 	}
 
-	pr_info("stcp: simple Rust-backed transport loaded\n");
+	pr_info("stcp: loopback BSD transport loaded\n");
 	return 0;
 }
 
@@ -24,10 +26,12 @@ static void __exit stcp_module_exit(void)
 {
 	stcp_proto_unregister();
 	stcp_rust_exit();
-	pr_info("stcp: simple Rust-backed transport unloaded\n");
+	pr_info("stcp: loopback BSD transport unloaded\n");
 }
 
 module_init(stcp_module_init);
 module_exit(stcp_module_exit);
+
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Simple Rust-backed STCP BSD socket skeleton");
+MODULE_AUTHOR("STCPv2");
+MODULE_DESCRIPTION("Rust-backed STCP BSD socket loopback implementation");

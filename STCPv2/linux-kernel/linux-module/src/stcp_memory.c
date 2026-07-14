@@ -1,30 +1,33 @@
+#include "stcp_socket.h"
+#include <linux/gfp.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 
-void *stcp_kernel_memcpy(
-    void *dst,
-    const void *src,
-    size_t len
-)
+void *stcp_rust_kernel_alloc(size_t size)
 {
-    unsigned char *d = dst;
-    const unsigned char *s = src;
+	if (!size)
+		size = 1;
 
-    while (len--)
-        *d++ = *s++;
-
-    return dst;
+	return kmalloc(size, GFP_KERNEL);
 }
 
-void *stcp_kernel_memset(
-    void *dst,
-    int value,
-    size_t len
-)
+void stcp_rust_kernel_free(void *ptr)
 {
-    unsigned char *d = dst;
+	kfree(ptr);
+}
 
-    while (len--)
-        *d++ = (unsigned char)value;
+void stcp_kernel_wake_accept(void *owner)
+{
+	struct stcp_sock *ssk = owner;
 
-    return dst;
+	if (ssk)
+		wake_up_interruptible_all(&ssk->accept_wq);
+}
+
+void stcp_kernel_wake_recv(void *owner)
+{
+	struct stcp_sock *ssk = owner;
+
+	if (ssk)
+		wake_up_interruptible_all(&ssk->recv_wq);
 }

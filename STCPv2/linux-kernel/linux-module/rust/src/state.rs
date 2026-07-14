@@ -96,6 +96,9 @@ pub struct ContextInner {
     pub accept_queue: VecDeque<Box<StcpContext>>,
     pub connection: Option<EndpointConnection>,
     pub owner: usize,
+    pub rx_app_data: VecDeque<u8>,
+    pub rx_message_ready: bool,
+    pub peer_eof: bool,
 }
 
 pub struct StcpContext {
@@ -115,6 +118,9 @@ impl StcpContext {
                 accept_queue: VecDeque::new(),
                 connection: None,
                 owner: 0,
+                rx_app_data: VecDeque::new(),
+                rx_message_ready: false,
+                peer_eof: false,
             }),
         }
     }
@@ -138,6 +144,9 @@ impl StcpContext {
                     side: Side::B,
                 }),
                 owner: 0,
+                rx_app_data: VecDeque::new(),
+                rx_message_ready: false,
+                peer_eof: false,
             }),
         }
     }

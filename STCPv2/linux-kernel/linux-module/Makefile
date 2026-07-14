@@ -10,6 +10,7 @@ RUST_OBJ_DIR   := $(PWD)/.rust-objects
 RUST_CORE_OBJ  := $(PWD)/src/rust_core.o
 
 CARGO      ?= cargo
+RUSTUP     ?= rustup
 RUSTUP_TOOLCHAIN ?= nightly
 LLVM_AR    ?= llvm-ar
 LD_LLD     ?= ld.lld
@@ -24,7 +25,7 @@ module: rust-core
 rust: check-tools
 	cd $(RUST_DIR) && \
 	RUSTFLAGS="-C relocation-model=static -C panic=abort" \
-	$(CARGO) +$(RUSTUP_TOOLCHAIN) build \
+	$(RUSTUP) run "$(RUSTUP_TOOLCHAIN)" cargo build \
 		-Zbuild-std=core,alloc \
 		--target $(RUST_TARGET) \
 		--release
@@ -47,10 +48,27 @@ rust-core: rust
 	@echo "Rust core valmis: $(RUST_CORE_OBJ)"
 
 check-tools:
-	@command -v "$(CARGO)" >/dev/null || { echo "Virhe: cargo puuttuu"; exit 1; }
-	@command -v "$(LLVM_AR)" >/dev/null || { echo "Virhe: $(LLVM_AR) puuttuu"; exit 1; }
-	@command -v "$(LD_LLD)" >/dev/null || { echo "Virhe: $(LD_LLD) puuttuu"; exit 1; }
-	@test -d "$(KDIR)" || { echo "Virhe: kernel build-hakemisto puuttuu: $(KDIR)"; exit 1; }
+	@command -v "$(RUSTUP)" >/dev/null || { \
+		echo "Virhe: rustup puuttuu"; \
+		exit 1; \
+	}
+	@"$(RUSTUP)" toolchain list | grep -q '^$(RUST_TOOLCHAIN)' || { \
+		echo "Virhe: Rust-toolchain $(RUST_TOOLCHAIN) puuttuu"; \
+		echo "Asenna: rustup toolchain install $(RUST_TOOLCHAIN)"; \
+		exit 1; \
+	}
+	@command -v "$(LLVM_AR)" >/dev/null || { \
+		echo "Virhe: $(LLVM_AR) puuttuu"; \
+		exit 1; \
+	}
+	@command -v "$(LD_LLD)" >/dev/null || { \
+		echo "Virhe: $(LD_LLD) puuttuu"; \
+		exit 1; \
+	}
+	@test -d "$(KDIR)" || { \
+		echo "Virhe: kernel build-hakemisto puuttuu: $(KDIR)"; \
+		exit 1; \
+	}
 
 clean:
 	cd $(RUST_DIR) && $(CARGO) clean

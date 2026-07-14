@@ -18,6 +18,7 @@ use crate::{
         PacketType,
         STCP_FRAME_PAYLOAD_LEN,
         STCP_HEADER_LEN,
+        STCP_PUBLIC_KEY_LEN,
     },
     spinlock::SpinLock,
     state::{
@@ -168,6 +169,21 @@ pub fn connect(
         shared.clone(),
     ));
 
+    {
+        let mut inner = ctx.inner.lock();
+
+        inner.peer = Some(target);
+        inner.state = SocketState::Handshake;
+        inner.connection = Some(EndpointConnection {
+            shared: shared.clone(),
+            side: Side::A,
+        });
+
+        shared.set_owner(Side::A, inner.owner);
+    }
+
+    perform_symmetric_handshake(ctx, child.as_ref())?;
+
     let listener_owner = {
         let mut inner = listener.inner.lock();
 
@@ -183,20 +199,139 @@ pub fn connect(
         inner.owner
     };
 
-    {
-        let mut inner = ctx.inner.lock();
+    wake_accept(listener_owner);
+    Ok(())
+}
 
-        inner.peer = Some(target);
-        inner.state = SocketState::Connected;
-        inner.connection = Some(EndpointConnection {
-            shared: shared.clone(),
-            side: Side::A,
-        });
+fn perform_symmetric_handshake(
+    client: &StcpContext,
+    server: &StcpContext,
+) -> Result<(), StcpError> {
+    send_public_key(client)?;
+    send_public_key(server)?;
 
-        shared.set_owner(Side::A, inner.owner);
+    process_handshake_frames(client)?;
+    process_handshake_frames(server)?;
+
+    process_handshake_frames(client)?;
+    process_handshake_frames(server)?;
+
+    if !is_ready(client) || !is_ready(server) {
+        return Err(StcpError::Protocol);
     }
 
-    wake_accept(listener_owner);
+    Ok(())
+}
+
+fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
+    let (shared, side, public_key) = {
+        let inner = ctx.inner.lock();
+
+        if inner.state != SocketState::Handshake {
+            return Err(StcpError::InvalidState);
+        }
+
+        let endpoint = inner
+            .connection
+            .as_ref()
+            .ok_or(StcpError::InvalidState)?;
+
+        (
+            endpoint.shared.clone(),
+            endpoint.side,
+            inner.own_public_key,
+        )
+    };
+
+    let frame = encode_frame(
+        PacketType::PublicKey,
+        &public_key,
+    )?;
+
+    outgoing_queue(&shared, side)
+        .lock()
+        .extend(frame);
+
+    Ok(())
+}
+
+fn process_handshake_frames(
+    ctx: &StcpContext,
+) -> Result<(), StcpError> {
+    let (shared, side) = connection_for_handshake(ctx)?;
+    let queue = incoming_queue(&shared, side);
+    let mut wire = queue.lock();
+    let mut received_key: Option<[u8; STCP_PUBLIC_KEY_LEN]> = None;
+    let mut received_done = false;
+
+    loop {
+        if wire.len() < STCP_HEADER_LEN {
+            break;
+        }
+
+        let header = peek_header(&wire)?;
+        let frame_len = STCP_HEADER_LEN + header.payload_len;
+
+        if wire.len() < frame_len {
+            break;
+        }
+
+        match header.packet_type {
+            PacketType::PublicKey => {
+                if header.payload_len != STCP_PUBLIC_KEY_LEN {
+                    return Err(StcpError::Protocol);
+                }
+
+                remove_header(&mut wire);
+
+                let mut key = [0u8; STCP_PUBLIC_KEY_LEN];
+                for byte in &mut key {
+                    *byte = wire
+                        .pop_front()
+                        .ok_or(StcpError::Protocol)?;
+                }
+
+                received_key = Some(key);
+            }
+            PacketType::HandshakeDone => {
+                if header.payload_len != 0 {
+                    return Err(StcpError::Protocol);
+                }
+
+                remove_header(&mut wire);
+                received_done = true;
+            }
+            _ => break,
+        }
+    }
+
+    drop(wire);
+
+    if let Some(key) = received_key {
+        {
+            let mut inner = ctx.inner.lock();
+            inner.peer_public_key = Some(key);
+        }
+
+        let done = encode_frame(PacketType::HandshakeDone, &[])?;
+        outgoing_queue(&shared, side)
+            .lock()
+            .extend(done);
+    }
+
+    if received_done {
+        let mut inner = ctx.inner.lock();
+        inner.peer_handshake_done = true;
+    }
+
+    let mut inner = ctx.inner.lock();
+
+    if inner.peer_public_key.is_some() &&
+       inner.peer_handshake_done
+    {
+        inner.state = SocketState::Ready;
+    }
+
     Ok(())
 }
 
@@ -219,7 +354,7 @@ pub fn send(
     ctx: &StcpContext,
     data: &[u8],
 ) -> Result<usize, StcpError> {
-    let (shared, side) = connection_for(ctx)?;
+    let (shared, side) = ready_connection(ctx)?;
 
     if shared.peer_closed(side) {
         return Err(StcpError::Closed);
@@ -241,8 +376,9 @@ pub fn send(
         position = end;
     }
 
-    let queue = outgoing_queue(&shared, side);
-    queue.lock().extend(encoded);
+    outgoing_queue(&shared, side)
+        .lock()
+        .extend(encoded);
 
     wake_recv(shared.peer_owner(side));
     Ok(data.len())
@@ -285,12 +421,18 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     {
         let inner = ctx.inner.lock();
 
+        if inner.state != SocketState::Ready &&
+           inner.state != SocketState::Closed
+        {
+            return Err(StcpError::InvalidState);
+        }
+
         if inner.rx_message_ready || inner.peer_eof {
             return Ok(());
         }
     }
 
-    let (shared, side) = connection_for(ctx)?;
+    let (shared, side) = connection_for_data(ctx)?;
     let queue = incoming_queue(&shared, side);
     let mut wire = queue.lock();
     let mut assembled = VecDeque::new();
@@ -302,25 +444,17 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
             break;
         }
 
-        let mut header_bytes = [0u8; STCP_HEADER_LEN];
-
-        for (index, byte) in wire.iter().take(STCP_HEADER_LEN).enumerate() {
-            header_bytes[index] = *byte;
-        }
-
-        let header = Header::decode(&header_bytes)?;
+        let header = peek_header(&wire)?;
         let frame_len = STCP_HEADER_LEN + header.payload_len;
 
         if wire.len() < frame_len {
             break;
         }
 
-        for _ in 0..STCP_HEADER_LEN {
-            let _ = wire.pop_front();
-        }
-
         match header.packet_type {
             PacketType::DataChunk | PacketType::DataChunkEnd => {
+                remove_header(&mut wire);
+
                 for _ in 0..header.payload_len {
                     assembled.push_back(
                         wire.pop_front().ok_or(StcpError::Protocol)?,
@@ -333,12 +467,17 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 }
             }
             PacketType::Close => {
+                remove_header(&mut wire);
+
                 for _ in 0..header.payload_len {
                     let _ = wire.pop_front();
                 }
 
                 peer_eof = true;
                 break;
+            }
+            PacketType::PublicKey | PacketType::HandshakeDone => {
+                return Err(StcpError::Protocol);
             }
         }
     }
@@ -356,12 +495,66 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     Ok(())
 }
 
-fn connection_for(
+fn peek_header(
+    wire: &VecDeque<u8>,
+) -> Result<Header, StcpError> {
+    let mut header_bytes = [0u8; STCP_HEADER_LEN];
+
+    for (index, byte) in wire.iter().take(STCP_HEADER_LEN).enumerate() {
+        header_bytes[index] = *byte;
+    }
+
+    Header::decode(&header_bytes)
+}
+
+fn remove_header(wire: &mut VecDeque<u8>) {
+    for _ in 0..STCP_HEADER_LEN {
+        let _ = wire.pop_front();
+    }
+}
+
+fn connection_for_handshake(
     ctx: &StcpContext,
 ) -> Result<(Arc<Connection>, Side), StcpError> {
     let inner = ctx.inner.lock();
 
-    if inner.state != SocketState::Connected &&
+    if inner.state != SocketState::Handshake &&
+       inner.state != SocketState::Ready
+    {
+        return Err(StcpError::InvalidState);
+    }
+
+    let endpoint = inner
+        .connection
+        .as_ref()
+        .ok_or(StcpError::InvalidState)?;
+
+    Ok((endpoint.shared.clone(), endpoint.side))
+}
+
+fn ready_connection(
+    ctx: &StcpContext,
+) -> Result<(Arc<Connection>, Side), StcpError> {
+    let inner = ctx.inner.lock();
+
+    if inner.state != SocketState::Ready {
+        return Err(StcpError::InvalidState);
+    }
+
+    let endpoint = inner
+        .connection
+        .as_ref()
+        .ok_or(StcpError::InvalidState)?;
+
+    Ok((endpoint.shared.clone(), endpoint.side))
+}
+
+fn connection_for_data(
+    ctx: &StcpContext,
+) -> Result<(Arc<Connection>, Side), StcpError> {
+    let inner = ctx.inner.lock();
+
+    if inner.state != SocketState::Ready &&
        inner.state != SocketState::Closed
     {
         return Err(StcpError::InvalidState);
@@ -409,7 +602,7 @@ pub fn has_data(ctx: &StcpContext) -> bool {
         }
     }
 
-    let Ok((shared, side)) = connection_for(ctx) else {
+    let Ok((shared, side)) = connection_for_data(ctx) else {
         return false;
     };
 
@@ -418,7 +611,11 @@ pub fn has_data(ctx: &StcpContext) -> bool {
 }
 
 pub fn is_connected(ctx: &StcpContext) -> bool {
-    ctx.inner.lock().state == SocketState::Connected
+    is_ready(ctx)
+}
+
+fn is_ready(ctx: &StcpContext) -> bool {
+    ctx.inner.lock().state == SocketState::Ready
 }
 
 pub fn shutdown(

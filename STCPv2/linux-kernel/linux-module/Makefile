@@ -28,16 +28,6 @@ RUSTFLAGS_KERNEL := \
 
 all: module
 
-remove-module:
-	sudo rmmod stcp
-
-install-module: module
-	sudo insmod stcp.ko
-	sudo dmesg | tail -n 10
-
-reinstall: remove-module install-module
-	@echo Jees...
-
 module: rust-core
 	$(MAKE) -C "$(KDIR)" M="$(PWD)" LLVM="$(LLVM)" V="$(V)" modules
 
@@ -87,138 +77,42 @@ clean:
 distclean: clean
 	cd "$(RUST_DIR)" && "$(RUSTUP)" run "$(RUSTUP_TOOLCHAIN)" cargo clean
 
-#
-# Testaus
-#
-
 TEST_DIR        := $(PWD)/testing
 TEST_BASIC_SRC  := $(TEST_DIR)/stcp_test.c
 TEST_BASIC_BIN  := $(TEST_DIR)/stcp_test
 TEST_LARGE_SRC  := $(TEST_DIR)/stcp_large_test.c
 TEST_LARGE_BIN  := $(TEST_DIR)/stcp_large_test
+TEST_CC         ?= cc
+TEST_TIMEOUT    ?= 20
+SUDO            ?= sudo
 
-TEST_CC      ?= gcc
-TEST_TIMEOUT ?= 20
-SUDO         ?= sudo
-
-.PHONY: \
-	test \
-	test-build \
-	test-basic \
-	test-large \
-	test-load \
-	test-unload \
-	test-clean
+.PHONY: test test-build test-clean
 
 test: module test-build
 	@set -e; \
-	cleanup() { \
-		$(SUDO) rmmod stcp 2>/dev/null || true; \
-	}; \
+	cleanup() { $(SUDO) rmmod stcp 2>/dev/null || true; }; \
 	trap cleanup EXIT INT TERM; \
-	\
-	if grep -q '^stcp ' /proc/modules; then \
-		echo "Poistetaan ennestään ladattu STCP-moduuli..."; \
-		$(SUDO) rmmod stcp; \
-	fi; \
-	\
-	echo "Ladataan stcp.ko..."; \
+	if grep -q '^stcp ' /proc/modules; then $(SUDO) rmmod stcp; fi; \
 	$(SUDO) insmod "$(PWD)/stcp.ko"; \
-	\
-	echo; \
-	echo "=== Basic STCP test ==="; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" server & \
-	server_pid=$$!; \
+	echo "=== Basic STCP handshake test ==="; \
+	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" server & server_pid=$$!; \
 	sleep 1; \
 	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" client; \
 	wait $$server_pid; \
-	\
-	echo; \
-	echo "=== Large framed STCP test ==="; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_LARGE_BIN)" server & \
-	server_pid=$$!; \
+	echo "=== Large framed handshake test ==="; \
+	timeout "$(TEST_TIMEOUT)"s "$(TEST_LARGE_BIN)" server & server_pid=$$!; \
 	sleep 1; \
 	timeout "$(TEST_TIMEOUT)"s "$(TEST_LARGE_BIN)" client; \
 	wait $$server_pid; \
-	\
-	echo; \
-	echo "Kaikki STCP-testit menivät läpi."
+	echo "All STCP handshake tests passed"
 
 test-build: $(TEST_BASIC_BIN) $(TEST_LARGE_BIN)
 
 $(TEST_BASIC_BIN): $(TEST_BASIC_SRC)
-	$(TEST_CC) \
-		-O2 \
-		-g \
-		-Wall \
-		-Wextra \
-		-Werror \
-		"$<" \
-		-o "$@"
+	$(TEST_CC) -O2 -g -Wall -Wextra "$<" -o "$@"
 
 $(TEST_LARGE_BIN): $(TEST_LARGE_SRC)
-	$(TEST_CC) \
-		-O2 \
-		-g \
-		-Wall \
-		-Wextra \
-		-Werror \
-		"$<" \
-		-o "$@"
-
-test-basic: module $(TEST_BASIC_BIN)
-	@set -e; \
-	cleanup() { \
-		$(SUDO) rmmod stcp 2>/dev/null || true; \
-	}; \
-	trap cleanup EXIT INT TERM; \
-	\
-	if grep -q '^stcp ' /proc/modules; then \
-		$(SUDO) rmmod stcp; \
-	fi; \
-	\
-	$(SUDO) insmod "$(PWD)/stcp.ko"; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" server & \
-	server_pid=$$!; \
-	sleep 1; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" client; \
-	wait $$server_pid; \
-	echo "Basic STCP test OK"
-
-test-large: module $(TEST_LARGE_BIN)
-	@set -e; \
-	cleanup() { \
-		$(SUDO) rmmod stcp 2>/dev/null || true; \
-	}; \
-	trap cleanup EXIT INT TERM; \
-	\
-	if grep -q '^stcp ' /proc/modules; then \
-		$(SUDO) rmmod stcp; \
-	fi; \
-	\
-	$(SUDO) insmod "$(PWD)/stcp.ko"; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_LARGE_BIN)" server & \
-	server_pid=$$!; \
-	sleep 1; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_LARGE_BIN)" client; \
-	wait $$server_pid; \
-	echo "Large STCP test OK"
-
-test-load: module
-	@if grep -q '^stcp ' /proc/modules; then \
-		echo "STCP-moduuli on jo ladattu"; \
-	else \
-		$(SUDO) insmod "$(PWD)/stcp.ko"; \
-	fi
-
-test-unload:
-	@if grep -q '^stcp ' /proc/modules; then \
-		$(SUDO) rmmod stcp; \
-	else \
-		echo "STCP-moduulia ei ole ladattu"; \
-	fi
+	$(TEST_CC) -O2 -g -Wall -Wextra "$<" -o "$@"
 
 test-clean:
-	rm -f \
-		"$(TEST_BASIC_BIN)" \
-		"$(TEST_LARGE_BIN)"
+	rm -f "$(TEST_BASIC_BIN)" "$(TEST_LARGE_BIN)"

@@ -1,5 +1,5 @@
-#include <zephyr/kernel.h>
-#include "stcp/debug.h"
+#include <linux/slab.h>
+//#include <zephyr/kernel.h>
 
 /*
  * Yksinkertaiset wrapperit Rustin globaalille allokaattorille.
@@ -15,7 +15,7 @@ int debug_memory_alloc = 0;
 
 void *stcp_rust_kernel_alloc(size_t pSize)
 {
-    void *p = k_malloc(pSize);
+    void *p = kmalloc(pSize, GFP_KERNEL);
     if (p) {
         memset(p, 0, pSize);
     }
@@ -37,5 +37,5 @@ void stcp_rust_kernel_free(void *pFrom)
     }
 #endif
 
-    k_free(pFrom);
+    kfree(pFrom);
 }

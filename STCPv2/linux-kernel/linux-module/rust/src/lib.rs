@@ -1,12 +1,10 @@
 #![no_std]
 extern crate alloc;
-
 mod error;
 mod ffi;
-mod packet;
 mod state;
 mod transport;
-mod crypto;
-mod system_memory_allocator;
+pub use error::StcpError;
+pub use state::StcpContext;
 
-pub use ffi::*;
+mod system_memory_allocator;

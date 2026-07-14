@@ -7,6 +7,7 @@ use core::{
 };
 
 use crate::{
+    error::StcpError,
     state::StcpContext,
     transport,
 };
@@ -15,13 +16,33 @@ const EAGAIN: c_int = -11;
 const EINVAL: c_int = -22;
 
 #[inline]
-fn ctx_from_ptr<'a>(
-    ptr: *mut c_void,
-) -> Result<&'a mut StcpContext, c_int> {
-    unsafe {
-        ptr.cast::<StcpContext>()
-            .as_mut()
-            .ok_or(EINVAL)
+fn with_ctx<R>(
+    raw: *mut c_void,
+    operation: impl FnOnce(&mut StcpContext) -> R,
+) -> Result<R, c_int> {
+    let ctx_ptr = raw.cast::<StcpContext>();
+
+    if ctx_ptr.is_null() {
+        return Err(EINVAL);
+    }
+
+    // SAFETY:
+    // `raw` must point to a live StcpContext created by stcp_rust_create().
+    // The context must not be released or mutably accessed concurrently.
+    let ctx = unsafe { &mut *ctx_ptr };
+
+    Ok(operation(ctx))
+}
+
+#[inline]
+fn with_ctx_result(
+    raw: *mut c_void,
+    operation: impl FnOnce(&mut StcpContext) -> Result<(), StcpError>,
+) -> c_int {
+    match with_ctx(raw, operation) {
+        Ok(Ok(())) => 0,
+        Ok(Err(error)) => error.errno(),
+        Err(errno) => errno,
     }
 }
 
@@ -44,73 +65,58 @@ pub extern "C" fn stcp_rust_create(
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn stcp_rust_release(
-    ptr: *mut c_void,
+    raw: *mut c_void,
 ) {
-    if ptr.is_null() {
+    if raw.is_null() {
         return;
     }
 
-    let ctx = unsafe {
-            Box::from_raw(ptr.cast::<StcpContext>())
-        };
-
-    drop(ctx);
+    // SAFETY:
+    // `raw` must have been returned by stcp_rust_create().
+    // This function must be called exactly once for that allocation.
+    unsafe {
+        drop(Box::from_raw(
+            raw.cast::<StcpContext>(),
+        ));
+    }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_bind(
-    ptr: *mut c_void,
+    raw: *mut c_void,
     addr: u32,
     port: u16,
 ) -> c_int {
-    let result = ctx_from_ptr(ptr).and_then(|ctx| {
+    with_ctx_result(raw, |ctx| {
         transport::bind(ctx, addr, port)
-            .map_err(|err| err.errno())
-    });
-
-    match result {
-        Ok(()) => 0,
-        Err(errno) => errno,
-    }
+    })
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_listen(
-    ptr: *mut c_void,
+    raw: *mut c_void,
     backlog: c_int,
 ) -> c_int {
-    let result = ctx_from_ptr(ptr).and_then(|ctx| {
+    with_ctx_result(raw, |ctx| {
         transport::listen(ctx, backlog)
-            .map_err(|err| err.errno())
-    });
-
-    match result {
-        Ok(()) => 0,
-        Err(errno) => errno,
-    }
+    })
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_connect(
-    ptr: *mut c_void,
+    raw: *mut c_void,
     addr: u32,
     port: u16,
     _flags: c_int,
 ) -> c_int {
-    let result = ctx_from_ptr(ptr).and_then(|ctx| {
+    with_ctx_result(raw, |ctx| {
         transport::connect(ctx, addr, port)
-            .map_err(|err| err.errno())
-    });
-
-    match result {
-        Ok(()) => 0,
-        Err(errno) => errno,
-    }
+    })
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_accept(
-    ptr: *mut c_void,
+    raw: *mut c_void,
     out_ctx: *mut *mut c_void,
     _flags: c_int,
 ) -> c_int {
@@ -118,15 +124,13 @@ pub extern "C" fn stcp_rust_accept(
         return EINVAL;
     }
 
-    let ctx = match ctx_from_ptr(ptr) {
-        Ok(ctx) => ctx,
-        Err(errno) => return errno,
-    };
-
-    match ctx.accept_queue.pop_front() {
-        Some(child) => {
+    match with_ctx(raw, |ctx| ctx.accept_queue.pop_front()) {
+        Ok(Some(child)) => {
             let child_ptr = Box::into_raw(child).cast();
 
+            // SAFETY:
+            // `out_ctx` was checked for null and must point to writable
+            // storage for one context pointer.
             unsafe {
                 ptr::write(out_ctx, child_ptr);
             }
@@ -134,13 +138,14 @@ pub extern "C" fn stcp_rust_accept(
             0
         }
 
-        None => EAGAIN,
+        Ok(None) => EAGAIN,
+        Err(errno) => errno,
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_send(
-    ptr: *mut c_void,
+    raw: *mut c_void,
     buffer: *const u8,
     len: usize,
     _flags: c_int,
@@ -149,24 +154,29 @@ pub extern "C" fn stcp_rust_send(
         return EINVAL as isize;
     }
 
-    let ctx = match ctx_from_ptr(ptr) {
-        Ok(ctx) => ctx,
-        Err(errno) => return errno as isize,
+    let data = if len == 0 {
+        &[]
+    } else {
+        // SAFETY:
+        // `buffer` must point to at least `len` readable bytes for the
+        // duration of this call.
+        unsafe {
+            slice::from_raw_parts(buffer, len)
+        }
     };
 
-    let data = unsafe {
-        slice::from_raw_parts(buffer, len)
-    };
-
-    match transport::send(ctx, data) {
-        Ok(bytes_sent) => bytes_sent as isize,
-        Err(err) => err.errno() as isize,
+    match with_ctx(raw, |ctx| {
+        transport::send(ctx, data)
+    }) {
+        Ok(Ok(bytes_sent)) => bytes_sent as isize,
+        Ok(Err(error)) => error.errno() as isize,
+        Err(errno) => errno as isize,
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_recv(
-    ptr: *mut c_void,
+    raw: *mut c_void,
     buffer: *mut u8,
     len: usize,
     _flags: c_int,
@@ -175,24 +185,32 @@ pub extern "C" fn stcp_rust_recv(
         return EINVAL as isize;
     }
 
-    let ctx = match ctx_from_ptr(ptr) {
-        Ok(ctx) => ctx,
-        Err(errno) => return errno as isize,
+    let output = if len == 0 {
+        &mut []
+    } else {
+        // SAFETY:
+        // `buffer` must point to at least `len` writable bytes for the
+        // duration of this call.
+        unsafe {
+            slice::from_raw_parts_mut(buffer, len)
+        }
     };
 
-    let output = unsafe {
-        slice::from_raw_parts_mut(buffer, len)
-    };
-
-    match transport::recv(ctx, output) {
-        Ok(bytes_received) => bytes_received as isize,
-        Err(err) => err.errno() as isize,
+    match with_ctx(raw, |ctx| {
+        transport::recv(ctx, output)
+    }) {
+        Ok(Ok(bytes_received)) => bytes_received as isize,
+        Ok(Err(error)) => error.errno() as isize,
+        Err(errno) => errno as isize,
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_shutdown(
-    _ptr: *mut c_void,
-    _how: c_int,
+    raw: *mut c_void,
+    how: c_int,
 ) {
+    let _ = with_ctx(raw, |ctx| {
+        transport::shutdown(ctx, how);
+    });
 }

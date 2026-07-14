@@ -1,25 +1,62 @@
-ifneq ($(KERNELRELEASE),)
-obj-m += stcp.o
-stcp-y := src/module.o src/proto.o src/socket.o src/rust_shim.o src/debug.o
-ccflags-y += -I$(src)/include
-# Rust object is linked after building rust/target/stcp-kernel-core.o.
-stcp-y += rust_core.o
-else
 KDIR ?= /lib/modules/$(shell uname -r)/build
 PWD  := $(shell pwd)
 
-.PHONY: all rust module clean
-all: rust module
+RUST_DIR       := $(PWD)/rust
+RUST_TARGET    := x86_64-unknown-none
+RUST_PROFILE   := release
+RUST_OUT_DIR   := $(RUST_DIR)/target/$(RUST_TARGET)/$(RUST_PROFILE)
+RUST_STATICLIB := $(RUST_OUT_DIR)/libstcp_kernel_core.a
+RUST_OBJ_DIR   := $(PWD)/.rust-objects
+RUST_CORE_OBJ  := $(PWD)/src/rust_core.o
 
-rust:
-	$(MAKE) -C rust
-	cp rust/target/stcp-kernel-core.o rust_core.o
+CARGO      ?= cargo
+RUSTUP_TOOLCHAIN ?= nightly
+LLVM_AR    ?= llvm-ar
+LD_LLD     ?= ld.lld
 
-module:
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+.PHONY: all module rust rust-core check-tools clean distclean
+
+all: module
+
+module: rust-core
+	$(MAKE) -C $(KDIR) M=$(PWD) LLVM=$(LLVM) V=$(V) modules
+
+rust: check-tools
+	cd $(RUST_DIR) && \
+	RUSTFLAGS="-C relocation-model=static -C panic=abort" \
+	$(CARGO) +$(RUSTUP_TOOLCHAIN) build \
+		-Zbuild-std=core,alloc \
+		--target $(RUST_TARGET) \
+		--release
+
+rust-core: rust
+	@test -f "$(RUST_STATICLIB)" || { \
+		echo "Virhe: Rust-staticlib puuttuu: $(RUST_STATICLIB)"; \
+		exit 1; \
+	}
+	rm -rf "$(RUST_OBJ_DIR)"
+	mkdir -p "$(RUST_OBJ_DIR)"
+	cd "$(RUST_OBJ_DIR)" && "$(LLVM_AR)" x "$(RUST_STATICLIB)"
+	@set -e; \
+	objs="$$(find "$(RUST_OBJ_DIR)" -type f -name '*.o' -print)"; \
+	if [ -z "$$objs" ]; then \
+		echo "Virhe: staticlib ei sisältänyt objektitiedostoja"; \
+		exit 1; \
+	fi; \
+	"$(LD_LLD)" -r $$objs -o "$(RUST_CORE_OBJ)"
+	@echo "Rust core valmis: $(RUST_CORE_OBJ)"
+
+check-tools:
+	@command -v "$(CARGO)" >/dev/null || { echo "Virhe: cargo puuttuu"; exit 1; }
+	@command -v "$(LLVM_AR)" >/dev/null || { echo "Virhe: $(LLVM_AR) puuttuu"; exit 1; }
+	@command -v "$(LD_LLD)" >/dev/null || { echo "Virhe: $(LD_LLD) puuttuu"; exit 1; }
+	@test -d "$(KDIR)" || { echo "Virhe: kernel build-hakemisto puuttuu: $(KDIR)"; exit 1; }
 
 clean:
-	$(MAKE) -C $(KDIR) M=$(PWD) clean
-	$(MAKE) -C rust clean
-	rm -f rust_core.o
-endif
+	cd $(RUST_DIR) && $(CARGO) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) LLVM=$(LLVM) clean
+	rm -rf "$(RUST_OBJ_DIR)"
+	rm -f "$(RUST_CORE_OBJ)"
+
+distclean: clean
+	cd "$(RUST_DIR)" && "$(CARGO)" clean

@@ -5,6 +5,7 @@ extern crate alloc;
 mod allocator;
 mod error;
 mod ffi;
+mod packet;
 mod spinlock;
 mod state;
 mod transport;

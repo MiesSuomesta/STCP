@@ -50,11 +50,40 @@ fi
 echo "Lähde-IP:       $SRC_IP"
 echo "Verkkoliitäntä: $IFACE"
 
-# Herätetään ARP/neighbor-taulu.
-ping -c 1 -W 1 "$DEST_IP" >/dev/null 2>&1 || true
+# Täytetään ARP/neighbor-taulu.
+ping -c 1 -W 1 -I "$IFACE" "$DEST_IP" >/dev/null 2>&1 || true
 
-DEST_MAC="$(ip neigh show "$DEST_IP" dev "$IFACE" |
-    awk '$0 !~ /FAILED|INCOMPLETE/ { print $5; exit }')"
+DEST_MAC="$(
+    ip neigh show to "$DEST_IP" dev "$IFACE" 2>/dev/null |
+    awk '
+        {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "lladdr" && (i + 1) <= NF) {
+                    print $(i + 1)
+                    exit
+                }
+            }
+        }
+    '
+)"
+
+if [[ -z "$DEST_MAC" ]] && command -v arping >/dev/null 2>&1; then
+    arping -c 1 -w 2 -I "$IFACE" "$DEST_IP" >/dev/null 2>&1 || true
+
+    DEST_MAC="$(
+        ip neigh show to "$DEST_IP" dev "$IFACE" 2>/dev/null |
+        awk '
+            {
+                for (i = 1; i <= NF; i++) {
+                    if ($i == "lladdr" && (i + 1) <= NF) {
+                        print $(i + 1)
+                        exit
+                    }
+                }
+            }
+        '
+    )"
+fi
 
 # Jos tavallinen ping ei täyttänyt neighbor-taulua, kokeillaan arpingia.
 if [[ -z "$DEST_MAC" ]] && command -v arping >/dev/null 2>&1; then

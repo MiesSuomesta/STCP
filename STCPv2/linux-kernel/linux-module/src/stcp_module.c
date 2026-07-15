@@ -11,7 +11,7 @@ static atomic_t drop_budget = ATOMIC_INIT(0);
 module_param(drop_first_data, bool, 0644);
 MODULE_PARM_DESC(drop_first_data, "Drop the first DATA frame to test retransmission");
 
-bool stcp_kernel_should_drop_data(void)
+static bool stcp_kernel_should_drop_data(void)
 {
 	return atomic_cmpxchg(&drop_budget, 1, 0) == 1;
 }

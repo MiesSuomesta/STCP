@@ -71,20 +71,23 @@ check-tools:
 
 clean:
 	$(MAKE) -C "$(KDIR)" M="$(PWD)" LLVM="$(LLVM)" clean
+	cd rust && cargo clean
 	rm -rf "$(RUST_OBJ_DIR)"
 	rm -f "$(RUST_CORE_OBJ)"
 
 distclean: clean
 	cd "$(RUST_DIR)" && "$(RUSTUP)" run "$(RUSTUP_TOOLCHAIN)" cargo clean
 
-TEST_DIR        := $(PWD)/testing
-TEST_BASIC_SRC  := $(TEST_DIR)/stcp_test.c
-TEST_BASIC_BIN  := $(TEST_DIR)/stcp_test
-TEST_LARGE_SRC  := $(TEST_DIR)/stcp_large_test.c
-TEST_LARGE_BIN  := $(TEST_DIR)/stcp_large_test
-TEST_CC         ?= cc
-TEST_TIMEOUT    ?= 20
-SUDO            ?= sudo
+TEST_DIR              := $(PWD)/testing
+TEST_BASIC_SRC        := $(TEST_DIR)/stcp_test.c
+TEST_BASIC_BIN        := $(TEST_DIR)/stcp_test
+TEST_LARGE_SRC        := $(TEST_DIR)/stcp_large_test.c
+TEST_LARGE_BIN        := $(TEST_DIR)/stcp_large_test
+TEST_PROT_SELECT_SRC  := $(TEST_DIR)/stcp_protocol_select.c
+TEST_PROT_SELECT_BIN  := $(TEST_DIR)/stcp_protocol_select
+TEST_CC               ?= gcc
+TEST_TIMEOUT          ?= 20
+SUDO                  ?= sudo
 
 .PHONY: test test-build test-clean
 
@@ -108,7 +111,10 @@ test: module test-build
 	wait $$server_pid; \
 	echo "All STCP window/retransmission tests passed"
 
-test-build: $(TEST_BASIC_BIN) $(TEST_LARGE_BIN)
+test-build: $(TEST_BASIC_BIN) $(TEST_LARGE_BIN) $(TEST_PROT_SELECT_BIN)
+
+$(TEST_PROT_SELECT_BIN): $(TEST_PROT_SELECT_SRC)
+	$(TEST_CC) -O2 -g -Wall -Wextra "$<" -o "$@"
 
 $(TEST_BASIC_BIN): $(TEST_BASIC_SRC)
 	$(TEST_CC) -O2 -g -Wall -Wextra "$<" -o "$@"

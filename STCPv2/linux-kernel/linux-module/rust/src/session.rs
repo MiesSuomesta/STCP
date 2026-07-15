@@ -17,8 +17,6 @@ use crate::{
     },
     carrier::{
         incoming_queue,
-        outgoing_queue,
-        transmit,
         wake_accept,
         wake_recv,
     },
@@ -65,6 +63,27 @@ pub fn set_owner(ctx: &StcpContext, owner: usize) {
     if let Some(endpoint) = &inner.connection {
         endpoint.shared.set_owner(endpoint.side, owner);
     }
+}
+
+fn send_frame(
+    ctx: &StcpContext,
+    shared: &Arc<Connection>,
+    side: Side,
+    frame: &[u8],
+    flags: i32,
+) -> Result<(), StcpError> {
+    let carrier_ptr = {
+        let inner = ctx.inner.lock();
+        inner.carrier
+    };
+
+    crate::carrier::transmit(
+        shared,
+        side,
+        carrier_ptr,
+        frame,
+        flags,
+    )
 }
 
 pub fn bind(
@@ -252,7 +271,7 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
         &public_key,
     )?;
 
-    outgoing_queue(&shared, side).lock().extend(frame);
+    send_frame(ctx, &shared, side, &frame, 0)?;
     Ok(())
 }
 
@@ -319,7 +338,7 @@ fn process_handshake_frames(
         }
 
         let done = encode_frame(PacketType::HandshakeDone, &[])?;
-        outgoing_queue(&shared, side).lock().extend(done);
+        send_frame(ctx, &shared, side, &done, 0)?;
     }
 
     if received_done {
@@ -442,7 +461,7 @@ pub fn send(
             frame
         };
 
-        transmit(&shared, side, &frame, true);
+        send_frame(ctx, &shared, side, &frame, 0)?;
         position = end;
     }
 
@@ -815,7 +834,7 @@ fn queue_ack(
         sequence,
         &[],
     )?;
-    outgoing_queue(&shared, side).lock().extend(frame);
+    send_frame(ctx, &shared, side, &frame, 0)?;
     wake_recv(shared.peer_owner(side));
     Ok(())
 }
@@ -831,7 +850,7 @@ fn queue_pong(
         0,
         &[],
     )?;
-    outgoing_queue(&shared, side).lock().extend(frame);
+    send_frame(ctx, &shared, side, &frame, 0)?;
     wake_recv(shared.peer_owner(side));
     Ok(())
 }
@@ -901,6 +920,16 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
         }
     }
 
+    let carrier_ptr = {
+        let inner = ctx.inner.lock();
+        inner.carrier
+    };
+
+    if !crate::carrier::reliability_required(carrier_ptr) {
+        process_control_frames(ctx)?;
+        return Ok(true);
+    }
+
     process_control_frames(ctx)?;
 
     let (shared, side) = connection_for_data(ctx)?;
@@ -928,7 +957,7 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     }
 
     for frame in retransmit {
-        transmit(&shared, side, &frame, false);
+        send_frame(ctx, &shared, side, &frame, 0)?;
     }
 
     Ok(true)
@@ -1070,7 +1099,7 @@ pub fn shutdown(
             acknowledgment,
             &[],
         ) {
-            outgoing_queue(&shared, side).lock().extend(close_frame);
+            let _ = send_frame(ctx, &shared, side, &close_frame, 0);
         }
 
         shared.close(side);

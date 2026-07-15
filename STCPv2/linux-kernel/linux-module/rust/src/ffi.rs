@@ -9,7 +9,7 @@ use core::{
 use crate::{
     error::StcpError,
     state::StcpContext,
-    transport,
+    session,
 };
 
 const EAGAIN: c_int = -11;
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn stcp_rust_release(
     }
 
     let ctx = unsafe { &*raw.cast::<StcpContext>() };
-    transport::release(ctx);
+    session::release(ctx);
 
     unsafe {
         drop(Box::from_raw(
@@ -85,7 +85,7 @@ pub extern "C" fn stcp_rust_set_owner(
     owner: *mut c_void,
 ) {
     let _ = with_ctx(raw, |ctx| {
-        transport::set_owner(ctx, owner as usize);
+        session::set_owner(ctx, owner as usize);
     });
 }
 
@@ -96,7 +96,7 @@ pub extern "C" fn stcp_rust_bind(
     port: u16,
 ) -> c_int {
     with_ctx_result(raw, |ctx| {
-        transport::bind(ctx, addr, port)
+        session::bind(ctx, addr, port)
     })
 }
 
@@ -106,7 +106,7 @@ pub extern "C" fn stcp_rust_listen(
     backlog: c_int,
 ) -> c_int {
     with_ctx_result(raw, |ctx| {
-        transport::listen(ctx, backlog)
+        session::listen(ctx, backlog)
     })
 }
 
@@ -118,7 +118,7 @@ pub extern "C" fn stcp_rust_connect(
     _flags: c_int,
 ) -> c_int {
     with_ctx_result(raw, |ctx| {
-        transport::connect(ctx, addr, port)
+        session::connect(ctx, addr, port)
     })
 }
 
@@ -132,7 +132,7 @@ pub extern "C" fn stcp_rust_accept(
         return EINVAL;
     }
 
-    match with_ctx(raw, transport::accept) {
+    match with_ctx(raw, session::accept) {
         Ok(Ok(child)) => {
             let child_ptr = Box::into_raw(child).cast();
 
@@ -166,7 +166,7 @@ pub extern "C" fn stcp_rust_send(
         }
     };
 
-    match with_ctx(raw, |ctx| transport::send(ctx, data)) {
+    match with_ctx(raw, |ctx| session::send(ctx, data)) {
         Ok(Ok(bytes_sent)) => bytes_sent as isize,
         Ok(Err(error)) => error.errno() as isize,
         Err(errno) => errno as isize,
@@ -192,7 +192,7 @@ pub extern "C" fn stcp_rust_recv(
         }
     };
 
-    match with_ctx(raw, |ctx| transport::recv(ctx, output)) {
+    match with_ctx(raw, |ctx| session::recv(ctx, output)) {
         Ok(Ok(bytes_received)) => bytes_received as isize,
         Ok(Err(error)) => error.errno() as isize,
         Err(errno) => errno as isize,
@@ -203,7 +203,7 @@ pub extern "C" fn stcp_rust_recv(
 pub extern "C" fn stcp_rust_has_accept(
     raw: *mut c_void,
 ) -> c_int {
-    match with_ctx(raw, transport::has_accept) {
+    match with_ctx(raw, session::has_accept) {
         Ok(true) => 1,
         Ok(false) => 0,
         Err(errno) => errno,
@@ -214,7 +214,7 @@ pub extern "C" fn stcp_rust_has_accept(
 pub extern "C" fn stcp_rust_has_data(
     raw: *mut c_void,
 ) -> c_int {
-    match with_ctx(raw, transport::has_data) {
+    match with_ctx(raw, session::has_data) {
         Ok(true) => 1,
         Ok(false) => 0,
         Err(errno) => errno,
@@ -225,7 +225,7 @@ pub extern "C" fn stcp_rust_has_data(
 pub extern "C" fn stcp_rust_is_connected(
     raw: *mut c_void,
 ) -> c_int {
-    match with_ctx(raw, transport::is_connected) {
+    match with_ctx(raw, session::is_connected) {
         Ok(true) => 1,
         Ok(false) => 0,
         Err(errno) => errno,
@@ -238,7 +238,7 @@ pub extern "C" fn stcp_rust_shutdown(
     how: c_int,
 ) {
     let _ = with_ctx(raw, |ctx| {
-        transport::shutdown(ctx, how);
+        session::shutdown(ctx, how);
     });
 }
 

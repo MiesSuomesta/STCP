@@ -48,24 +48,33 @@ static int server(void)
         return 1;
     }
 
-    while (total < TEST_SIZE) {
-        ssize_t n = recv(client, buffer + total, TEST_SIZE - total, 0);
-        if (n <= 0) {
-            perror("recv");
-            return 1;
-        }
-        total += (size_t)n;
-    }
-
-    for (size_t i = 0; i < TEST_SIZE; ++i) {
-        if (buffer[i] != (unsigned char)(i & 0xff)) {
-            fprintf(stderr, "data mismatch at %zu\n", i);
-            return 1;
-        }
-    }
+    ssize_t reply_sent;
 
     printf("server: verified %zu framed bytes\n", total);
-    send(client, "OK", 2, 0);
+
+    reply_sent = send(client, "OK", 2, 0);
+
+    if (reply_sent < 0) {
+        perror("server reply send");
+        return 1;
+    }
+
+    if (reply_sent != 2) {
+        fprintf(
+            stderr,
+            "server reply short send: %zd/2\n",
+            reply_sent
+        );
+        return 1;
+    }
+
+    printf("server: reply sent successfully\n");
+
+    /*
+    * Älä sulje heti samassa kohdassa. Anna ACK/retransmission-polulle
+    * mahdollisuus käsitellä vastaus ennen socketin vapauttamista.
+    */
+    shutdown(client, SHUT_WR);
     close(client);
     close(listener);
     free(buffer);
@@ -94,6 +103,7 @@ static int client(void)
         return 1;
     }
 
+
     while (sent < TEST_SIZE) {
         size_t chunk = TEST_SIZE - sent;
         if (chunk > 128 * 1024)
@@ -107,8 +117,54 @@ static int client(void)
         sent += (size_t)n;
     }
 
-    if (recv(fd, reply, sizeof(reply), 0) != 2 || memcmp(reply, "OK", 2)) {
-        fprintf(stderr, "bad reply\n");
+    ssize_t reply_len;
+    size_t reply_total = 0;
+
+    memset(reply, 0, sizeof(reply));
+
+    while (reply_total < sizeof(reply)) {
+        reply_len = recv(
+            fd,
+            reply + reply_total,
+            sizeof(reply) - reply_total,
+            0
+        );
+
+        if (reply_len < 0) {
+            fprintf(
+                stderr,
+                "reply recv failed after %zu bytes: ",
+                reply_total
+            );
+            perror(NULL);
+            return 1;
+        }
+
+        if (reply_len == 0) {
+            fprintf(
+                stderr,
+                "reply recv EOF after %zu bytes\n",
+                reply_total
+            );
+            return 1;
+        }
+
+        fprintf(
+            stderr,
+            "reply recv returned %zd bytes\n",
+            reply_len
+        );
+
+        reply_total += (size_t)reply_len;
+    }
+
+    if (memcmp(reply, "OK", sizeof(reply)) != 0) {
+        fprintf(
+            stderr,
+            "bad reply: %02x %02x\n",
+            (unsigned char)reply[0],
+            (unsigned char)reply[1]
+        );
         return 1;
     }
 

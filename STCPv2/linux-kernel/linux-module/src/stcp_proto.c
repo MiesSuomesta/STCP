@@ -2,6 +2,8 @@
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
+#include <linux/workqueue.h>
 
 #include <net/sock.h>
 
@@ -23,6 +25,54 @@ static void stcp_proto_unhash(struct sock *sk)
 static void stcp_proto_destroy(struct sock *sk)
 {
 	/* Rust context is released by stcp_release(). */
+}
+
+
+#define STCP_RETRANSMIT_INTERVAL_MS 100
+
+static void stcp_retransmit_workfn(struct work_struct *work)
+{
+	struct stcp_sock *ssk;
+
+	ssk = container_of(
+		to_delayed_work(work),
+		struct stcp_sock,
+		retransmit_work
+	);
+
+	if (!READ_ONCE(ssk->rust_ctx))
+		return;
+
+	if (stcp_rust_tick(ssk->rust_ctx) > 0) {
+		schedule_delayed_work(
+			&ssk->retransmit_work,
+			msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
+		);
+	} else {
+		WRITE_ONCE(ssk->retransmit_work_started, false);
+	}
+}
+
+void stcp_start_retransmit_work(struct stcp_sock *ssk)
+{
+	if (!ssk || !ssk->rust_ctx || ssk->retransmit_work_started)
+		return;
+
+	ssk->retransmit_work_started = true;
+
+	schedule_delayed_work(
+		&ssk->retransmit_work,
+		msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
+	);
+}
+
+void stcp_stop_retransmit_work(struct stcp_sock *ssk)
+{
+	if (!ssk || !ssk->retransmit_work_started)
+		return;
+
+	cancel_delayed_work_sync(&ssk->retransmit_work);
+	ssk->retransmit_work_started = false;
 }
 
 struct proto stcp_proto = {
@@ -64,6 +114,8 @@ static int stcp_create(
 	ssk = stcp_sk(sk);
 	init_waitqueue_head(&ssk->accept_wq);
 	init_waitqueue_head(&ssk->recv_wq);
+	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);
+	ssk->retransmit_work_started = false;
 
 	ssk->rust_ctx = stcp_rust_create((u8)protocol);
 	if (!ssk->rust_ctx) {
@@ -74,6 +126,7 @@ static int stcp_create(
 	}
 
 	stcp_rust_set_owner(ssk->rust_ctx, ssk);
+	stcp_start_retransmit_work(ssk);
 	return 0;
 }
 
@@ -106,6 +159,8 @@ struct sock *stcp_alloc_child_sock(
 	ssk->rust_ctx = NULL;
 	init_waitqueue_head(&ssk->accept_wq);
 	init_waitqueue_head(&ssk->recv_wq);
+	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);
+	ssk->retransmit_work_started = false;
 
 	return newsk;
 }

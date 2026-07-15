@@ -95,7 +95,7 @@ test: module test-build
 	if grep -q '^stcp ' /proc/modules; then $(SUDO) rmmod stcp; fi; \
 	$(SUDO) modprobe libcurve25519; \
 	$(SUDO) modprobe libchacha20poly1305; \
-	$(SUDO) insmod "$(PWD)/stcp.ko"; \
+	$(SUDO) insmod "$(PWD)/stcp.ko" drop_first_data=1; \
 	echo "=== Basic STCP handshake test ==="; \
 	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" server & server_pid=$$!; \
 	sleep 1; \
@@ -106,7 +106,7 @@ test: module test-build
 	sleep 1; \
 	timeout "$(TEST_TIMEOUT)"s "$(TEST_LARGE_BIN)" client; \
 	wait $$server_pid; \
-	echo "All STCP handshake tests passed"
+	echo "All STCP window/retransmission tests passed"
 
 test-build: $(TEST_BASIC_BIN) $(TEST_LARGE_BIN)
 

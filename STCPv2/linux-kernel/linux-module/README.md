@@ -65,3 +65,28 @@ acknowledgment numbers. Authenticated DATA frames generate ACK control frames.
 PING/PONG, CLOSE, and RESET packet types are parsed in the session layer. This
 phase still uses strict in-order delivery; retransmission and sliding windows
 are intentionally deferred.
+
+
+## Sliding-window and retransmission phase
+
+This version adds:
+
+- an eight-frame send window,
+- cumulative ACK processing,
+- retained pending frames,
+- per-socket delayed-work retransmission ticks,
+- retransmission after approximately 300 ms,
+- a five-retry limit,
+- duplicate frame suppression,
+- automatic loss injection with `drop_first_data=1`.
+
+The standard `make test` target loads the module with one intentionally dropped
+DATA frame, so successful tests confirm that retransmission works.
+
+
+## Large-message sequence validation fix
+
+The receive parser now accounts for encrypted DATA frames already collected
+during the same parsing pass. Previously every frame was compared against the
+same initial `expected_rx_sequence`, causing the second frame of a multi-frame
+message to be rejected as a protocol error.

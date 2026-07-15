@@ -32,6 +32,8 @@ static int stcp_release(struct socket *sock)
 
 	ssk = stcp_sk(sk);
 
+	stcp_stop_retransmit_work(ssk);
+
 	if (ssk->rust_ctx) {
 		stcp_rust_set_owner(ssk->rust_ctx, NULL);
 		stcp_rust_release(ssk->rust_ctx);
@@ -191,6 +193,7 @@ static int stcp_accept(
 	child = stcp_sk(newsk);
 	child->rust_ctx = accepted_ctx;
 	stcp_rust_set_owner(child->rust_ctx, child);
+	stcp_start_retransmit_work(child);
 
 	newsock->state = SS_CONNECTED;
 	return 0;

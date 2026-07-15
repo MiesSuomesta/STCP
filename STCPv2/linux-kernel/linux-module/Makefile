@@ -93,6 +93,8 @@ test: module test-build
 	cleanup() { $(SUDO) rmmod stcp 2>/dev/null || true; }; \
 	trap cleanup EXIT INT TERM; \
 	if grep -q '^stcp ' /proc/modules; then $(SUDO) rmmod stcp; fi; \
+	$(SUDO) modprobe libcurve25519; \
+	$(SUDO) modprobe libchacha20poly1305; \
 	$(SUDO) insmod "$(PWD)/stcp.ko"; \
 	echo "=== Basic STCP handshake test ==="; \
 	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" server & server_pid=$$!; \
@@ -137,3 +139,4 @@ module-install: module module-install-support
 
 module-reload: module-remove module-install
 	echo "Reload done"
+

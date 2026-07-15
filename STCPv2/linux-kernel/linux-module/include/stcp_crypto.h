@@ -1,23 +1,9 @@
 #pragma once
 
-#include <crypto/aead.h>
-#include <crypto/kpp.h>
-
-#include <linux/completion.h>
-#include <linux/crypto.h>
-#include <linux/err.h>
-#include <linux/errno.h>
-#include <linux/gfp.h>
-#include <linux/kernel.h>
-#include <linux/random.h>
-#include <linux/scatterlist.h>
-#include <linux/slab.h>
-#include <linux/string.h>
 #include <linux/types.h>
 
 #define STCP_CURVE25519_KEY_LEN 32
 #define STCP_AEAD_KEY_LEN       32
-#define STCP_AEAD_NONCE_LEN     12
 #define STCP_AEAD_TAG_LEN       16
 
 int stcp_kernel_x25519_keypair(
@@ -26,14 +12,14 @@ int stcp_kernel_x25519_keypair(
 );
 
 int stcp_kernel_x25519_shared(
+	u8 shared_key[STCP_CURVE25519_KEY_LEN],
 	const u8 private_key[STCP_CURVE25519_KEY_LEN],
-	const u8 peer_public_key[STCP_CURVE25519_KEY_LEN],
-	u8 shared_key[STCP_CURVE25519_KEY_LEN]
+	const u8 peer_public_key[STCP_CURVE25519_KEY_LEN]
 );
 
 int stcp_kernel_chacha_encrypt(
 	const u8 key[STCP_AEAD_KEY_LEN],
-	u64 nonce_counter,
+	u64 nonce,
 	const u8 *associated_data,
 	size_t associated_data_len,
 	const u8 *plaintext,
@@ -44,7 +30,7 @@ int stcp_kernel_chacha_encrypt(
 
 int stcp_kernel_chacha_decrypt(
 	const u8 key[STCP_AEAD_KEY_LEN],
-	u64 nonce_counter,
+	u64 nonce,
 	const u8 *associated_data,
 	size_t associated_data_len,
 	const u8 *ciphertext_and_tag,

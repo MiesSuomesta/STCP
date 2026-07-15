@@ -116,3 +116,24 @@ $(TEST_LARGE_BIN): $(TEST_LARGE_SRC)
 
 test-clean:
 	rm -f "$(TEST_BASIC_BIN)" "$(TEST_LARGE_BIN)"
+
+#
+# Moduuli funkkarit
+#
+.PHONY: module-remove module-install module-reload module-install-support
+
+module-install-support:
+	echo "Installing support modules..."
+	$(SUDO) modprobe libcurve25519       || true
+	$(SUDO) modprobe libchacha20poly1305 || true
+
+module-remove:
+	echo "Removing module..."
+	$(SUDO) rmmod "$(PWD)/stcp.ko" || true
+
+module-install: module module-install-support
+	echo "Installing module..."
+	$(SUDO) insmod "$(PWD)/stcp.ko" || true
+
+module-reload: module-remove module-install
+	echo "Reload done"

@@ -1,0 +1,150 @@
+[ 2654.008905] stcp: Unknown symbol curve25519 (err -2)
+[ 2654.008923] stcp: Unknown symbol chacha20poly1305_encrypt (err -2)
+[ 2654.008938] stcp: Unknown symbol chacha20poly1305_decrypt (err -2)
+[ 2672.301728] kobject: 'lo' (000000005364fb4f): kobject_add_internal: parent: 'net', set: 'devices'
+[ 2672.302163] kobject: 'lo' (000000005364fb4f): kobject_uevent_env
+[ 2672.302192] kobject: 'lo' (000000005364fb4f): fill_kobj_path: path = '/devices/virtual/net/lo'
+[ 2672.302248] kobject: 'queues' (00000000230826f5): kobject_add_internal: parent: 'lo', set: '<NULL>'
+[ 2672.302264] kobject: 'queues' (00000000230826f5): kobject_uevent_env
+[ 2672.302270] kobject: 'queues' (00000000230826f5): kobject_uevent_env: filter function caused the event to drop!
+[ 2672.302282] kobject: 'rx-0' (00000000a8abd35c): kobject_add_internal: parent: 'queues', set: 'queues'
+[ 2672.302310] kobject: 'rx-0' (00000000a8abd35c): kobject_uevent_env
+[ 2672.302325] kobject: 'rx-0' (00000000a8abd35c): fill_kobj_path: path = '/devices/virtual/net/lo/queues/rx-0'
+[ 2672.302370] kobject: 'tx-0' (00000000f02cac51): kobject_add_internal: parent: 'queues', set: 'queues'
+[ 2672.302415] kobject: 'tx-0' (00000000f02cac51): kobject_uevent_env
+[ 2672.302431] kobject: 'tx-0' (00000000f02cac51): fill_kobj_path: path = '/devices/virtual/net/lo/queues/tx-0'
+[ 2701.653829] kobject: 'rx-0' (00000000224058d2): kobject_cleanup, parent 000000001a152732
+[ 2701.653860] kobject: 'rx-0' (00000000224058d2): auto cleanup kobject_del
+[ 2701.653877] kobject: 'rx-0' (00000000224058d2): auto cleanup 'remove' event
+[ 2701.653884] kobject: 'rx-0' (00000000224058d2): kobject_uevent_env
+[ 2701.653891] kobject: 'rx-0' (00000000224058d2): kobject_uevent_env: uevent_suppress caused the event to drop!
+[ 2701.653904] kobject: 'rx-0' (00000000224058d2): calling ktype release
+[ 2701.653911] kobject: 'rx-0': free name
+[ 2701.653945] kobject: 'tx-0' (000000003f4f7e30): kobject_cleanup, parent 000000001a152732
+[ 2701.653953] kobject: 'tx-0' (000000003f4f7e30): auto cleanup kobject_del
+[ 2701.653959] kobject: 'tx-0' (000000003f4f7e30): auto cleanup 'remove' event
+[ 2701.653965] kobject: 'tx-0' (000000003f4f7e30): kobject_uevent_env
+[ 2701.653970] kobject: 'tx-0' (000000003f4f7e30): kobject_uevent_env: uevent_suppress caused the event to drop!
+[ 2701.653982] kobject: 'tx-0' (000000003f4f7e30): calling ktype release
+[ 2701.653988] kobject: 'tx-0': free name
+[ 2701.654003] kobject: 'queues' (000000001a152732): kobject_cleanup, parent 0000000000000000
+[ 2701.654011] kobject: 'queues' (000000001a152732): calling ktype release
+[ 2701.654017] kobject: 'queues' (000000001a152732): kset_release
+[ 2701.654026] kobject: 'queues': free name
+[ 2701.654386] kobject: 'lo' (0000000060fa59e2): kobject_uevent_env
+[ 2701.654393] kobject: 'lo' (0000000060fa59e2): kobject_uevent_env: uevent_suppress caused the event to drop!
+[ 2701.680009] kobject: 'lo' (0000000060fa59e2): kobject_cleanup, parent 0000000000000000
+[ 2701.680040] kobject: 'lo' (0000000060fa59e2): calling ktype release
+[ 2701.680055] kobject: 'lo': free name
+[ 2718.432275] kobject: 'lo' (000000008ef4136e): kobject_add_internal: parent: 'net', set: 'devices'
+[ 2718.432708] kobject: 'lo' (000000008ef4136e): kobject_uevent_env
+[ 2718.432748] kobject: 'lo' (000000008ef4136e): fill_kobj_path: path = '/devices/virtual/net/lo'
+[ 2718.432803] kobject: 'queues' (000000002d3b201b): kobject_add_internal: parent: 'lo', set: '<NULL>'
+[ 2718.432823] kobject: 'queues' (000000002d3b201b): kobject_uevent_env
+[ 2718.432830] kobject: 'queues' (000000002d3b201b): kobject_uevent_env: filter function caused the event to drop!
+[ 2718.432843] kobject: 'rx-0' (000000005af9954b): kobject_add_internal: parent: 'queues', set: 'queues'
+[ 2718.432871] kobject: 'rx-0' (000000005af9954b): kobject_uevent_env
+[ 2718.432886] kobject: 'rx-0' (000000005af9954b): fill_kobj_path: path = '/devices/virtual/net/lo/queues/rx-0'
+[ 2718.432927] kobject: 'tx-0' (0000000017161054): kobject_add_internal: parent: 'queues', set: 'queues'
+[ 2718.432975] kobject: 'tx-0' (0000000017161054): kobject_uevent_env
+[ 2718.432990] kobject: 'tx-0' (0000000017161054): fill_kobj_path: path = '/devices/virtual/net/lo/queues/tx-0'
+                 U __asan_memset
+                 U __asan_register_globals
+                 U __asan_report_load1_noabort
+                 U __asan_report_load2_noabort
+                 U __asan_report_load4_noabort
+                 U __asan_report_load8_noabort
+                 U __asan_report_store4_noabort
+                 U __asan_report_store8_noabort
+                 U __asan_unregister_globals
+                 U chacha20poly1305_decrypt
+                 U chacha20poly1305_encrypt
+                 U __check_object_size
+                 U _copy_from_iter
+                 U _copy_to_iter
+                 U curve25519
+                 U curve25519_generate_public
+                 U __fentry__
+                 U finish_wait
+                 U get_random_bytes
+                 U init_wait_entry
+                 U __init_waitqueue_head
+                 U iov_iter_revert
+                 U __kasan_check_write
+                 U kfree
+                 U __kmalloc_noprof
+                 U prepare_to_wait_event
+                 U _printk
+                 U proto_register
+                 U proto_unregister
+                 U _raw_write_lock_bh
+                 U _raw_write_unlock_bh
+                 U __ref_stack_chk_guard
+                 U schedule
+                 U __SCT__might_resched
+                 U sk_alloc
+                 U sk_common_release
+                 U sk_free
+                 U sock_gettstamp
+                 U sock_init_data
+                 U sock_no_getname
+                 U sock_no_ioctl
+                 U sock_no_mmap
+                 U sock_no_socketpair
+                 U sock_register
+                 U sock_unregister
+                 U __stack_chk_fail
+                 U validate_usercopy_range
+                 U wait_for_random_bytes
+                 U __wake_up
+                 U __x86_indirect_thunk_r11
+                 U __x86_return_thunk
+                 U chacha20poly1305_decrypt
+                 U chacha20poly1305_encrypt
+                 U curve25519
+                 U curve25519_generate_public
+0000000000000000 T __pfx_ecc_get_curve25519
+0000000000000000 T ecc_get_curve25519
+0000000000000000 T __pfx_ecc_get_curve
+0000000000000000 T ecc_get_curve
+0000000000000000 T __pfx_chacha_block_generic
+0000000000000000 T chacha_block_generic
+0000000000000000 t __pfx_chacha_permute
+0000000000000000 t chacha_permute
+0000000000000000 T __pfx_hchacha_block_generic
+0000000000000000 T hchacha_block_generic
+0000000000000000 T __pfx_fb_bl_default_curve
+0000000000000000 T fb_bl_default_curve
+0000000000000000 t __pfx_show_bl_curve
+0000000000000000 t show_bl_curve
+0000000000000000 t __pfx_store_bl_curve
+0000000000000000 t store_bl_curve
+0000000000000000 r __ksymtab_chacha_block_generic
+0000000000000000 r __ksymtab_ecc_get_curve
+0000000000000000 r __ksymtab_ecc_get_curve25519
+0000000000000000 r __ksymtab_fb_bl_default_curve
+0000000000000000 r __ksymtab_hchacha_block_generic
+0000000000000000 r __flags_chacha_block_generic
+0000000000000000 r __flags_ecc_get_curve
+0000000000000000 r __flags_ecc_get_curve25519
+0000000000000000 r __flags_fb_bl_default_curve
+0000000000000000 r __flags_hchacha_block_generic
+0000000000000000 t curve25519_g_x
+0000000000000000 t curve25519_p
+0000000000000000 t curve25519_a
+0000000000000000 t dev_attr_bl_curve
+0000000000000000 r colorop_curve_1d_type_names	[drm]
+0000000000000000 r __kstrtab_drm_plane_colorop_curve_1d_init	[drm]
+0000000000000000 r __kstrtabns_drm_plane_colorop_curve_1d_init	[drm]
+0000000000000000 r __ksymtab_drm_plane_colorop_curve_1d_init	[drm]
+0000000000000000 r __flags_drm_plane_colorop_curve_1d_init	[drm]
+0000000000000000 r __kstrtab_drm_plane_colorop_curve_1d_lut_init	[drm]
+0000000000000000 r __kstrtabns_drm_plane_colorop_curve_1d_lut_init	[drm]
+0000000000000000 r __ksymtab_drm_plane_colorop_curve_1d_lut_init	[drm]
+0000000000000000 r __flags_drm_plane_colorop_curve_1d_lut_init	[drm]
+0000000000000000 T drm_plane_colorop_curve_1d_init	[drm]
+0000000000000000 T drm_plane_colorop_curve_1d_lut_init	[drm]
+0000000000000000 t __pfx_drm_plane_colorop_curve_1d_init	[drm]
+0000000000000000 t __pfx_drm_plane_colorop_curve_1d_lut_init	[drm]
+0000000000000000 t __pfx_drm_get_colorop_curve_1d_type_name	[drm]
+0000000000000000 t drm_get_colorop_curve_1d_type_name	[drm]

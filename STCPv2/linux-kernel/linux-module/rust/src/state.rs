@@ -17,6 +17,7 @@ use crate::{
     spinlock::SpinLock,
 };
 
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketState {
     New,
@@ -130,6 +131,7 @@ pub struct ContextInner {
     pub rx_app_data: VecDeque<u8>,
     pub rx_message_ready: bool,
     pub peer_eof: bool,
+    pub carrier: usize,
 }
 
 pub struct StcpContext {
@@ -165,6 +167,7 @@ impl StcpContext {
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
                 peer_eof: false,
+                carrier: 0,
             }),
         })
     }
@@ -204,6 +207,7 @@ impl StcpContext {
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
                 peer_eof: false,
+                carrier: 0,
             }),
         })
     }

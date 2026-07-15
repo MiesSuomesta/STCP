@@ -12,7 +12,6 @@ use crate::{
     session,
 };
 
-const EAGAIN: c_int = -11;
 const EINVAL: c_int = -22;
 
 #[inline]
@@ -53,12 +52,28 @@ pub extern "C" fn stcp_rust_exit() {}
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_create(
     proto: u8,
-) -> *mut c_void {
-    let Ok(ctx) = StcpContext::new(proto) else {
-        return core::ptr::null_mut();
+    out_ctx: *mut *mut c_void,
+) -> c_int {
+    if out_ctx.is_null() {
+        return EINVAL;
+    }
+
+    unsafe {
+        ptr::write(out_ctx, ptr::null_mut());
+    }
+
+    let ctx = match StcpContext::new(proto) {
+        Ok(ctx) => ctx,
+        Err(error) => return error.errno(),
     };
 
-    Box::into_raw(Box::new(ctx)).cast()
+    let raw = Box::into_raw(Box::new(ctx)).cast();
+
+    unsafe {
+        ptr::write(out_ctx, raw);
+    }
+
+    0
 }
 
 #[unsafe(no_mangle)]
@@ -86,6 +101,19 @@ pub extern "C" fn stcp_rust_set_owner(
 ) {
     let _ = with_ctx(raw, |ctx| {
         session::set_owner(ctx, owner as usize);
+    });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_set_carrier(
+    raw: *mut c_void,
+    carrier: *mut c_void,
+) {
+    let _ = with_ctx(raw, |ctx| {
+        crate::carrier::set_carrier(
+            ctx,
+            carrier as usize,
+        );
     });
 }
 

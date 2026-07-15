@@ -1,92 +1,124 @@
-# STCP directional session keys
+# STCP carrier selection by socket protocol number
 
-This stage extends the working X25519 + ChaCha20-Poly1305 transport with:
+Carrier selection is now per BSD socket, using the third argument of
+`socket()`.
 
-- HKDF-SHA256 key derivation implemented in `no_std` Rust
-- separate client-to-server and server-to-client keys
-- both directions start nonce counters from zero because keys are distinct
-- exact monotonically increasing receive nonce checks
-- TX nonce advances only after successful encryption
-- RX nonce advances only after successful authentication
-- replay, reordering and skipped nonces are rejected
-- module-load crypto selftest
-- tampered authentication tag selftest
-- wrong-direction key selftest
-- key material zeroing on drop
+```c
+socket(AF_STCP, SOCK_STREAM, STCP_PROTO_TCP);
+socket(AF_STCP, SOCK_STREAM, STCP_PROTO_UDP);
+```
 
-The BSD socket wrappers and loopback carrier are unchanged.
+## Protocol numbers
 
-## Build and test
+```c
+#define STCP_PROTO_DEFAULT 0
+#define STCP_PROTO_TCP     253
+#define STCP_PROTO_UDP     254
+```
+
+Protocol `0` defaults to the TCP carrier.
+
+## Normal BSD address handling
+
+No local or remote address is supplied to the module.
+
+Applications use ordinary operations:
+
+```c
+fd = socket(AF_STCP, SOCK_STREAM, STCP_PROTO_TCP);
+
+bind(fd, ...);
+listen(fd, ...);
+accept(fd, ...);
+```
+
+or:
+
+```c
+fd = socket(AF_STCP, SOCK_STREAM, STCP_PROTO_UDP);
+
+bind(fd, ...);
+connect(fd, ...);
+```
+
+The STCP socket owns its own kernel TCP or UDP carrier socket.
+
+## Reliability
+
+TCP carrier:
+
+- STCP framing and encryption remain active.
+- STCP retransmission is disabled.
+- TCP provides reliable ordered delivery.
+
+UDP carrier:
+
+- STCP ACKs remain active.
+- send window and retransmission remain active.
+- duplicate suppression remains active.
+- out-of-order buffering remains active.
+
+## Current UDP server limitation
+
+UDP `listen()` and `accept()` still return `-EOPNOTSUPP`. The next phase adds
+connection IDs and peer demultiplexing so one bound UDP socket can accept
+multiple STCP sessions.
+
+## Quick protocol-selection test
 
 ```bash
-make LLVM=1 V=1 test
+cc -O2 -Wall testing/stcp_protocol_select.c \
+    -o testing/stcp_protocol_select
+
+./testing/stcp_protocol_select
 ```
 
-The test target loads:
-
-```bash
-modprobe libcurve25519
-modprobe libchacha20poly1305
-```
-
-before inserting `stcp.ko`.
-
-Expected kernel log includes:
+Expected:
 
 ```text
-stcp: directional crypto selftest passed
+created STCP/TCP fd=... and STCP/UDP fd=...
 ```
 
-## Wire protection
+## Integration
 
-Each data frame authenticates its complete 16-byte STCP header as AAD. The wire
-payload is:
+This archive is a focused integration package. Replace/adapt the supplied
+`stcp_carrier.c`, protocol-number `stcp_create()` logic, Rust carrier file, and
+the listed integration points in your current working tree.
 
-```text
-8-byte big-endian nonce || ciphertext || 16-byte Poly1305 tag
+
+## Fixed integration details
+
+This revision fixes the missing per-context carrier pointer.
+
+Add to `ContextInner`:
+
+```rust
+pub carrier: usize,
 ```
 
-A receiver accepts only the exact expected nonce. The expected nonce is updated
-only after successful Poly1305 authentication.
+Initialize it to zero in every constructor and expose it through
+`stcp_rust_set_carrier()`.
 
+All `carrier::transmit()` calls now use:
 
-## Layered architecture phase
+```rust
+transmit(
+    &shared,
+    side,
+    carrier_ptr,
+    &frame,
+    0,
+)?;
+```
 
-The Rust implementation has been reorganized into explicit `session`, `frame`,
-`crypto`, and `carrier` layers. The existing loopback behavior and tests remain
-unchanged. The next carrier can be implemented without changing the BSD socket,
-session, frame, or crypto interfaces.
+The C socket creation and accept paths must call:
 
+```c
+stcp_rust_set_carrier(ssk->rust_ctx, ssk->carrier);
+```
 
-## Sequence and ACK protocol phase
+and:
 
-The STCP header is now 32 bytes and carries explicit 64-bit sequence and
-acknowledgment numbers. Authenticated DATA frames generate ACK control frames.
-PING/PONG, CLOSE, and RESET packet types are parsed in the session layer. This
-phase still uses strict in-order delivery; retransmission and sliding windows
-are intentionally deferred.
-
-
-## Sliding-window and retransmission phase
-
-This version adds:
-
-- an eight-frame send window,
-- cumulative ACK processing,
-- retained pending frames,
-- per-socket delayed-work retransmission ticks,
-- retransmission after approximately 300 ms,
-- a five-retry limit,
-- duplicate frame suppression,
-- automatic loss injection with `drop_first_data=1`.
-
-The standard `make test` target loads the module with one intentionally dropped
-DATA frame, so successful tests confirm that retransmission works.
-
-
-## Large-message sequence validation fix
-
-The receive parser now accounts for encrypted DATA frames already collected
-during the same parsing pass. Previously every frame was compared against the
-same initial `expected_rx_sequence`, causing the second frame of a multi-frame
-message to be rejected as a protocol error.
+```c
+stcp_rust_set_carrier(child->rust_ctx, child->carrier);
+```

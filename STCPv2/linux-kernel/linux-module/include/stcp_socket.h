@@ -8,6 +8,7 @@
 struct stcp_sock {
 	struct sock sk;
 	void *rust_ctx;
+	struct stcp_carrier *carrier;
 
 	wait_queue_head_t accept_wq;
 	wait_queue_head_t recv_wq;

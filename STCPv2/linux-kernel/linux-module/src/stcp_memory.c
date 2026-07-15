@@ -5,19 +5,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-void *stcp_rust_kernel_alloc(size_t size)
-{
-	if (!size)
-		size = 1;
-
-	return kmalloc(size, GFP_KERNEL);
-}
-
-void stcp_rust_kernel_free(void *ptr)
-{
-	kfree(ptr);
-}
-
 void stcp_kernel_random_bytes(void *buffer, size_t len)
 {
 	if (buffer && len)

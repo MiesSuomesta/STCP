@@ -4,7 +4,7 @@ use crate::error::StcpError;
 
 pub const STCP_MAGIC: [u8; 4] = *b"STCP";
 pub const STCP_VERSION: u8 = 2;
-pub const STCP_HEADER_LEN: usize = 16;
+pub const STCP_HEADER_LEN: usize = 32;
 pub const STCP_PUBLIC_KEY_LEN: usize = 64;
 pub const STCP_NONCE_LEN: usize = 8;
 pub const STCP_AUTH_TAG_LEN: usize = 16;
@@ -18,7 +18,11 @@ pub enum PacketType {
     HandshakeDone = 2,
     DataChunk = 3,
     DataChunkEnd = 4,
-    Close = 5,
+    Ack = 5,
+    Ping = 6,
+    Pong = 7,
+    Close = 8,
+    Reset = 9,
 }
 
 impl PacketType {
@@ -28,7 +32,11 @@ impl PacketType {
             2 => Ok(Self::HandshakeDone),
             3 => Ok(Self::DataChunk),
             4 => Ok(Self::DataChunkEnd),
-            5 => Ok(Self::Close),
+            5 => Ok(Self::Ack),
+            6 => Ok(Self::Ping),
+            7 => Ok(Self::Pong),
+            8 => Ok(Self::Close),
+            9 => Ok(Self::Reset),
             _ => Err(StcpError::Protocol),
         }
     }
@@ -39,10 +47,24 @@ pub struct Header {
     pub packet_type: PacketType,
     pub flags: u16,
     pub payload_len: usize,
+    pub sequence: u64,
+    pub acknowledgment: u64,
 }
 
 impl Header {
-    pub fn new(packet_type: PacketType, payload_len: usize) -> Result<Self, StcpError> {
+    pub fn new(
+        packet_type: PacketType,
+        payload_len: usize,
+    ) -> Result<Self, StcpError> {
+        Self::with_numbers(packet_type, payload_len, 0, 0)
+    }
+
+    pub fn with_numbers(
+        packet_type: PacketType,
+        payload_len: usize,
+        sequence: u64,
+        acknowledgment: u64,
+    ) -> Result<Self, StcpError> {
         if payload_len > STCP_MAX_PAYLOAD_LEN {
             return Err(StcpError::Protocol);
         }
@@ -51,6 +73,8 @@ impl Header {
             packet_type,
             flags: 0,
             payload_len,
+            sequence,
+            acknowledgment,
         })
     }
 
@@ -62,6 +86,8 @@ impl Header {
         output[5] = STCP_VERSION;
         output[6..8].copy_from_slice(&self.flags.to_be_bytes());
         output[8..16].copy_from_slice(&(self.payload_len as u64).to_be_bytes());
+        output[16..24].copy_from_slice(&self.sequence.to_be_bytes());
+        output[24..32].copy_from_slice(&self.acknowledgment.to_be_bytes());
 
         output
     }
@@ -70,22 +96,21 @@ impl Header {
         if input.len() < STCP_HEADER_LEN {
             return Err(StcpError::Again);
         }
-
-        if input[0..4] != STCP_MAGIC {
-            return Err(StcpError::Protocol);
-        }
-
-        if input[5] != STCP_VERSION {
+        if input[0..4] != STCP_MAGIC || input[5] != STCP_VERSION {
             return Err(StcpError::Protocol);
         }
 
         let packet_type = PacketType::from_u8(input[4])?;
         let flags = u16::from_be_bytes([input[6], input[7]]);
         let payload_len = u64::from_be_bytes(
-            input[8..16]
-                .try_into()
-                .map_err(|_| StcpError::Protocol)?,
+            input[8..16].try_into().map_err(|_| StcpError::Protocol)?,
         ) as usize;
+        let sequence = u64::from_be_bytes(
+            input[16..24].try_into().map_err(|_| StcpError::Protocol)?,
+        );
+        let acknowledgment = u64::from_be_bytes(
+            input[24..32].try_into().map_err(|_| StcpError::Protocol)?,
+        );
 
         if payload_len > STCP_MAX_PAYLOAD_LEN {
             return Err(StcpError::Protocol);
@@ -95,6 +120,8 @@ impl Header {
             packet_type,
             flags,
             payload_len,
+            sequence,
+            acknowledgment,
         })
     }
 }
@@ -103,35 +130,50 @@ pub fn encode_frame(
     packet_type: PacketType,
     payload: &[u8],
 ) -> Result<Vec<u8>, StcpError> {
-    let header = Header::new(packet_type, payload.len())?.encode();
-    let mut frame = Vec::with_capacity(STCP_HEADER_LEN + payload.len());
+    encode_control_frame(packet_type, 0, 0, payload)
+}
 
+pub fn encode_control_frame(
+    packet_type: PacketType,
+    sequence: u64,
+    acknowledgment: u64,
+    payload: &[u8],
+) -> Result<Vec<u8>, StcpError> {
+    let header = Header::with_numbers(
+        packet_type,
+        payload.len(),
+        sequence,
+        acknowledgment,
+    )?.encode();
+    let mut frame = Vec::new();
+    frame.try_reserve_exact(STCP_HEADER_LEN + payload.len())
+        .map_err(|_| StcpError::NoMem)?;
     frame.extend_from_slice(&header);
     frame.extend_from_slice(payload);
-
     Ok(frame)
 }
 
-
 pub fn encode_encrypted_frame(
     packet_type: PacketType,
+    sequence: u64,
+    acknowledgment: u64,
     nonce: u64,
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, StcpError> {
     let payload_len = STCP_NONCE_LEN
         .checked_add(ciphertext.len())
         .ok_or(StcpError::Protocol)?;
-
-    let header = Header::new(packet_type, payload_len)?.encode();
+    let header = Header::with_numbers(
+        packet_type,
+        payload_len,
+        sequence,
+        acknowledgment,
+    )?.encode();
     let mut frame = Vec::new();
-
-    frame
-        .try_reserve_exact(STCP_HEADER_LEN + payload_len)
+    frame.try_reserve_exact(STCP_HEADER_LEN + payload_len)
         .map_err(|_| StcpError::NoMem)?;
-
     frame.extend_from_slice(&header);
     frame.extend_from_slice(&nonce.to_be_bytes());
     frame.extend_from_slice(ciphertext);
-
     Ok(frame)
 }

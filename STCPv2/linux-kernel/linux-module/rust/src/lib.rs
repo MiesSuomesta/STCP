@@ -6,6 +6,7 @@ mod allocator;
 mod crypto;
 mod error;
 mod ffi;
+mod kdf;
 mod packet;
 mod spinlock;
 mod state;

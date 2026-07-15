@@ -7,10 +7,11 @@ mod crypto;
 mod error;
 mod ffi;
 mod kdf;
-mod packet;
+mod carrier;
+mod frame;
 mod spinlock;
 mod state;
-mod transport;
+mod session;
 
 pub use error::StcpError;
 pub use state::StcpContext;

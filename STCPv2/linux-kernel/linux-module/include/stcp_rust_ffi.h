@@ -4,9 +4,10 @@
 #include <linux/types.h>
 
 int stcp_rust_init(void);
+int stcp_rust_crypto_selftest(void);
 void stcp_rust_exit(void);
 
-int stcp_rust_create(u8 proto, void **out_ctx);
+void *stcp_rust_create(u8 proto);
 void stcp_rust_release(void *ctx);
 void stcp_rust_set_owner(void *ctx, void *owner);
 

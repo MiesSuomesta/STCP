@@ -41,10 +41,8 @@ static int stcp_create(
 	int kern
 )
 {
-	struct stcp_sock *ssk;
 	struct sock *sk;
-	void *rust_ctx = NULL;
-	int ret;
+	struct stcp_sock *ssk;
 
 	if (!sock)
 		return -EINVAL;
@@ -55,14 +53,7 @@ static int stcp_create(
 	if (protocol != 0 && protocol != STCP_PROTO_ID)
 		return -EPROTONOSUPPORT;
 
-	sk = sk_alloc(
-		net,
-		PF_STCP,
-		GFP_KERNEL,
-		&stcp_proto,
-		kern
-	);
-
+	sk = sk_alloc(net, PF_STCP, GFP_KERNEL, &stcp_proto, kern);
 	if (!sk)
 		return -ENOMEM;
 
@@ -71,39 +62,18 @@ static int stcp_create(
 	sock->state = SS_UNCONNECTED;
 
 	ssk = stcp_sk(sk);
-
 	init_waitqueue_head(&ssk->accept_wq);
 	init_waitqueue_head(&ssk->recv_wq);
 
-	ret = stcp_rust_create(
-		(u8)protocol,
-		&rust_ctx
-	);
-
-	if (ret) {
-		pr_err(
-			"stcp: Rust context creation failed: %d\n",
-			ret
-		);
-
+	ssk->rust_ctx = stcp_rust_create((u8)protocol);
+	if (!ssk->rust_ctx) {
 		sock_orphan(sk);
 		sock->sk = NULL;
 		sk_free(sk);
-
-		return ret;
+		return -ENOMEM;
 	}
 
-	if (!rust_ctx) {
-		sock_orphan(sk);
-		sock->sk = NULL;
-		sk_free(sk);
-
-		return -EIO;
-	}
-
-	ssk->rust_ctx = rust_ctx;
 	stcp_rust_set_owner(ssk->rust_ctx, ssk);
-
 	return 0;
 }
 

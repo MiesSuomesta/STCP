@@ -169,8 +169,7 @@ pub fn connect(
         target,
         client_local,
         shared.clone(),
-    )
-    .ok_or(StcpError::NoMem)?;
+    )?;
 
     let child = Box::new(child_ctx);
 
@@ -185,7 +184,7 @@ pub fn connect(
         });
 
         inner.tx_nonce = 0;
-        inner.expected_rx_nonce = 1u64 << 63;
+        inner.expected_rx_nonce = 0;
         shared.set_owner(Side::A, inner.owner);
     }
 
@@ -317,7 +316,8 @@ fn process_handshake_frames(
     if let Some(key) = received_key {
         {
             let mut inner = ctx.inner.lock();
-            inner.crypto.derive_shared_key(&key)?;
+            let role = inner.role;
+            inner.crypto.derive_session_keys(&key, role)?;
         }
 
         let done = encode_frame(PacketType::HandshakeDone, &[])?;
@@ -384,10 +384,6 @@ pub fn send(
             }
 
             let nonce = inner.tx_nonce;
-            inner.tx_nonce = inner
-                .tx_nonce
-                .checked_add(1)
-                .ok_or(StcpError::Crypto)?;
 
             let encrypted_len = plaintext
                 .len()
@@ -404,6 +400,7 @@ pub fn send(
                 &header,
                 plaintext,
             )?;
+            inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
 
             (nonce, header, ciphertext)
         };
@@ -559,11 +556,6 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 return Err(StcpError::Protocol);
             }
 
-            inner.expected_rx_nonce = inner
-                .expected_rx_nonce
-                .checked_add(1)
-                .ok_or(StcpError::Crypto)?;
-
             let aad = header.encode();
 
             match inner.crypto.decrypt(
@@ -571,7 +563,10 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 &aad,
                 &ciphertext,
             ) {
-                Ok(plaintext) => plaintext,
+                Ok(plaintext) => {
+                    inner.expected_rx_nonce = inner.expected_rx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+                    plaintext
+                },
                 Err(error) => {
                     inner.state = SocketState::Error;
                     return Err(error);

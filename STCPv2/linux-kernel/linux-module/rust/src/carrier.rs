@@ -11,6 +11,7 @@ use crate::{
 };
 
 unsafe extern "C" {
+    fn stcp_kernel_should_drop_data() -> bool;
     fn stcp_kernel_wake_accept(owner: *mut c_void);
     fn stcp_kernel_wake_recv(owner: *mut c_void);
 }
@@ -49,4 +50,28 @@ pub(crate) fn incoming_queue(
         Side::A => &shared.b_to_a,
         Side::B => &shared.a_to_b,
     }
+}
+
+
+pub(crate) fn transmit(
+    shared: &Arc<Connection>,
+    side: Side,
+    bytes: &[u8],
+    may_drop_for_test: bool,
+) {
+    if may_drop_for_test {
+        let drop_frame = unsafe {
+            stcp_kernel_should_drop_data()
+        };
+
+        if drop_frame {
+            return;
+        }
+    }
+
+    outgoing_queue(shared, side)
+        .lock()
+        .extend(bytes.iter().copied());
+
+    wake_recv(shared.peer_owner(side));
 }

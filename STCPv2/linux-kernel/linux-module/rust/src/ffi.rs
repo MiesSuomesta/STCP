@@ -232,6 +232,19 @@ pub extern "C" fn stcp_rust_is_connected(
     }
 }
 
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_tick(
+    raw: *mut c_void,
+) -> c_int {
+    match with_ctx(raw, session::tick) {
+        Ok(Ok(true)) => 1,
+        Ok(Ok(false)) => 0,
+        Ok(Err(error)) => error.errno(),
+        Err(errno) => errno,
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_shutdown(
     raw: *mut c_void,

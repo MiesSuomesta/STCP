@@ -53,28 +53,12 @@ pub extern "C" fn stcp_rust_exit() {}
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_create(
     proto: u8,
-    out_ctx: *mut *mut c_void,
-) -> c_int {
-    if out_ctx.is_null() {
-        return EINVAL;
-    }
-
-    unsafe {
-        ptr::write(out_ctx, ptr::null_mut());
-    }
-
-    let ctx = match StcpContext::new(proto) {
-        Ok(ctx) => ctx,
-        Err(error) => return error.errno(),
+) -> *mut c_void {
+    let Ok(ctx) = StcpContext::new(proto) else {
+        return core::ptr::null_mut();
     };
 
-    let raw = Box::into_raw(Box::new(ctx)).cast();
-
-    unsafe {
-        ptr::write(out_ctx, raw);
-    }
-
-    0
+    Box::into_raw(Box::new(ctx)).cast()
 }
 
 #[unsafe(no_mangle)]
@@ -256,4 +240,9 @@ pub extern "C" fn stcp_rust_shutdown(
     let _ = with_ctx(raw, |ctx| {
         transport::shutdown(ctx, how);
     });
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_crypto_selftest() -> c_int {
+    match crate::crypto::selftest() { Ok(()) => 0, Err(e) => e.errno() }
 }

@@ -11,9 +11,8 @@ use core::sync::atomic::{
 };
 
 use crate::{
-    crypto::CryptoContext,
+    crypto::{CryptoContext, Role},
     spinlock::SpinLock,
-    StcpError,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,6 +102,7 @@ pub struct ContextInner {
     pub connection: Option<EndpointConnection>,
     pub owner: usize,
     pub crypto: CryptoContext,
+    pub role: Role,
     pub peer_handshake_done: bool,
     pub tx_nonce: u64,
     pub expected_rx_nonce: u64,
@@ -117,7 +117,7 @@ pub struct StcpContext {
 }
 
 impl StcpContext {
-    pub fn new(proto: u8) -> Result<Self, StcpError> {
+    pub fn new(proto: u8) -> Result<Self, crate::error::StcpError> {
         let crypto = CryptoContext::new()?;
 
         Ok(Self {
@@ -131,9 +131,10 @@ impl StcpContext {
                 connection: None,
                 owner: 0,
                 crypto,
+                role: Role::Client,
                 peer_handshake_done: false,
                 tx_nonce: 0,
-                expected_rx_nonce: 1u64 << 63,
+                expected_rx_nonce: 0,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
                 peer_eof: false,
@@ -146,10 +147,10 @@ impl StcpContext {
         local: Address,
         peer: Address,
         shared: Arc<Connection>,
-    ) -> Option<Self> {
-        let crypto = CryptoContext::new().ok()?;
+    ) -> Result<Self, crate::error::StcpError> {
+        let crypto = CryptoContext::new()?;
 
-        Some(Self {
+        Ok(Self {
             proto,
             inner: SpinLock::new(ContextInner {
                 state: SocketState::Handshake,
@@ -163,8 +164,9 @@ impl StcpContext {
                 }),
                 owner: 0,
                 crypto,
+                role: Role::Server,
                 peer_handshake_done: false,
-                tx_nonce: 1u64 << 63,
+                tx_nonce: 0,
                 expected_rx_nonce: 0,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,

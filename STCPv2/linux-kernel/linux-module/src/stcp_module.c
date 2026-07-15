@@ -12,6 +12,15 @@ static int __init stcp_module_init(void)
 	if (ret)
 		return ret;
 
+	ret = stcp_rust_crypto_selftest();
+	if (ret) {
+		pr_err("stcp: crypto selftest failed: %d\n", ret);
+		stcp_rust_exit();
+		return ret;
+	}
+
+	pr_info("stcp: directional crypto selftest passed\n");
+
 	ret = stcp_proto_register();
 	if (ret) {
 		stcp_rust_exit();

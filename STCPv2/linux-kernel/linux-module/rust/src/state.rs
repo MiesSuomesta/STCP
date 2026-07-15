@@ -2,6 +2,7 @@ use alloc::{
     boxed::Box,
     collections::VecDeque,
     sync::Arc,
+    vec::Vec,
 };
 
 use core::sync::atomic::{
@@ -12,6 +13,7 @@ use core::sync::atomic::{
 
 use crate::{
     crypto::{CryptoContext, Role},
+    frame::Header,
     spinlock::SpinLock,
 };
 
@@ -93,6 +95,19 @@ pub struct EndpointConnection {
     pub side: Side,
 }
 
+pub struct PendingFrame {
+    pub sequence: u64,
+    pub bytes: Vec<u8>,
+    pub age_ticks: u32,
+    pub retries: u8,
+}
+
+pub struct BufferedFrame {
+    pub header: Header,
+    pub nonce: u64,
+    pub ciphertext: Vec<u8>,
+}
+
 pub struct ContextInner {
     pub state: SocketState,
     pub local: Option<Address>,
@@ -109,6 +124,8 @@ pub struct ContextInner {
     pub tx_sequence: u64,
     pub expected_rx_sequence: u64,
     pub highest_acked_sequence: Option<u64>,
+    pub pending_frames: VecDeque<PendingFrame>,
+    pub out_of_order_frames: Vec<BufferedFrame>,
     pub last_rx_sequence: Option<u64>,
     pub rx_app_data: VecDeque<u8>,
     pub rx_message_ready: bool,
@@ -142,6 +159,8 @@ impl StcpContext {
                 tx_sequence: 0,
                 expected_rx_sequence: 0,
                 highest_acked_sequence: None,
+                pending_frames: VecDeque::new(),
+                out_of_order_frames: Vec::new(),
                 last_rx_sequence: None,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
@@ -179,6 +198,8 @@ impl StcpContext {
                 tx_sequence: 0,
                 expected_rx_sequence: 0,
                 highest_acked_sequence: None,
+                pending_frames: VecDeque::new(),
+                out_of_order_frames: Vec::new(),
                 last_rx_sequence: None,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,

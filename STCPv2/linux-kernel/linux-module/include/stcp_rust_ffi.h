@@ -24,5 +24,6 @@ int stcp_rust_has_data(void *ctx);
 int stcp_rust_is_connected(void *ctx);
 
 void stcp_rust_shutdown(void *ctx, int how);
+int stcp_rust_tick(void *ctx);
 
 #endif

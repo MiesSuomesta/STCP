@@ -48,3 +48,11 @@ payload is:
 
 A receiver accepts only the exact expected nonce. The expected nonce is updated
 only after successful Poly1305 authentication.
+
+
+## Layered architecture phase
+
+The Rust implementation has been reorganized into explicit `session`, `frame`,
+`crypto`, and `carrier` layers. The existing loopback behavior and tests remain
+unchanged. The next carrier can be implemented without changing the BSD socket,
+session, frame, or crypto interfaces.

@@ -4,10 +4,12 @@ pub enum StcpError {
     AddressInUse,
     ConnectionRefused,
     Protocol,
+    Crypto,
     Closed,
     Again,
     NoMem,
     Unsupported,
+    Kernel(i32),
 }
 
 impl StcpError {
@@ -17,10 +19,20 @@ impl StcpError {
             Self::AddressInUse => -98,
             Self::ConnectionRefused => -111,
             Self::Protocol => -71,
+            Self::Crypto => -74,
             Self::Closed => -107,
             Self::Again => -11,
             Self::NoMem => -12,
             Self::Unsupported => -95,
+            Self::Kernel(err) => err,
+        }
+    }
+
+    pub const fn from_kernel_errno(errno: i32) -> Self {
+        match errno {
+            -12 => Self::NoMem,
+            -74 => Self::Crypto,
+            other => Self::Kernel(other),
         }
     }
 }

@@ -6,6 +6,8 @@ pub const STCP_MAGIC: [u8; 4] = *b"STCP";
 pub const STCP_VERSION: u8 = 2;
 pub const STCP_HEADER_LEN: usize = 16;
 pub const STCP_PUBLIC_KEY_LEN: usize = 64;
+pub const STCP_NONCE_LEN: usize = 8;
+pub const STCP_AUTH_TAG_LEN: usize = 16;
 pub const STCP_FRAME_PAYLOAD_LEN: usize = 64 * 1024;
 pub const STCP_MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 
@@ -106,6 +108,30 @@ pub fn encode_frame(
 
     frame.extend_from_slice(&header);
     frame.extend_from_slice(payload);
+
+    Ok(frame)
+}
+
+
+pub fn encode_encrypted_frame(
+    packet_type: PacketType,
+    nonce: u64,
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, StcpError> {
+    let payload_len = STCP_NONCE_LEN
+        .checked_add(ciphertext.len())
+        .ok_or(StcpError::Protocol)?;
+
+    let header = Header::new(packet_type, payload_len)?.encode();
+    let mut frame = Vec::new();
+
+    frame
+        .try_reserve_exact(STCP_HEADER_LEN + payload_len)
+        .map_err(|_| StcpError::NoMem)?;
+
+    frame.extend_from_slice(&header);
+    frame.extend_from_slice(&nonce.to_be_bytes());
+    frame.extend_from_slice(ciphertext);
 
     Ok(frame)
 }

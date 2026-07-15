@@ -4,23 +4,17 @@ use alloc::{
     sync::Arc,
 };
 
-use core::{
-    ffi::c_void,
-    sync::atomic::{
-        AtomicBool,
-        AtomicUsize,
-        Ordering,
-    },
+use core::sync::atomic::{
+    AtomicBool,
+    AtomicUsize,
+    Ordering,
 };
 
 use crate::{
-    packet::STCP_PUBLIC_KEY_LEN,
+    crypto::CryptoContext,
     spinlock::SpinLock,
+    StcpError,
 };
-
-unsafe extern "C" {
-    fn stcp_kernel_random_bytes(buffer: *mut c_void, len: usize);
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketState {
@@ -30,6 +24,7 @@ pub enum SocketState {
     Handshake,
     Ready,
     Closed,
+    Error,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -107,9 +102,10 @@ pub struct ContextInner {
     pub accept_queue: VecDeque<Box<StcpContext>>,
     pub connection: Option<EndpointConnection>,
     pub owner: usize,
-    pub own_public_key: [u8; STCP_PUBLIC_KEY_LEN],
-    pub peer_public_key: Option<[u8; STCP_PUBLIC_KEY_LEN]>,
+    pub crypto: CryptoContext,
     pub peer_handshake_done: bool,
+    pub tx_nonce: u64,
+    pub expected_rx_nonce: u64,
     pub rx_app_data: VecDeque<u8>,
     pub rx_message_ready: bool,
     pub peer_eof: bool,
@@ -120,22 +116,11 @@ pub struct StcpContext {
     pub inner: SpinLock<ContextInner>,
 }
 
-fn generate_public_key() -> [u8; STCP_PUBLIC_KEY_LEN] {
-    let mut key = [0u8; STCP_PUBLIC_KEY_LEN];
-
-    unsafe {
-        stcp_kernel_random_bytes(
-            key.as_mut_ptr().cast(),
-            key.len(),
-        );
-    }
-
-    key
-}
-
 impl StcpContext {
-    pub fn new(proto: u8) -> Self {
-        Self {
+    pub fn new(proto: u8) -> Result<Self, StcpError> {
+        let crypto = CryptoContext::new()?;
+
+        Ok(Self {
             proto,
             inner: SpinLock::new(ContextInner {
                 state: SocketState::New,
@@ -145,14 +130,15 @@ impl StcpContext {
                 accept_queue: VecDeque::new(),
                 connection: None,
                 owner: 0,
-                own_public_key: generate_public_key(),
-                peer_public_key: None,
+                crypto,
                 peer_handshake_done: false,
+                tx_nonce: 0,
+                expected_rx_nonce: 1u64 << 63,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
                 peer_eof: false,
             }),
-        }
+        })
     }
 
     pub fn connected_child(
@@ -160,8 +146,10 @@ impl StcpContext {
         local: Address,
         peer: Address,
         shared: Arc<Connection>,
-    ) -> Self {
-        Self {
+    ) -> Option<Self> {
+        let crypto = CryptoContext::new().ok()?;
+
+        Some(Self {
             proto,
             inner: SpinLock::new(ContextInner {
                 state: SocketState::Handshake,
@@ -174,13 +162,14 @@ impl StcpContext {
                     side: Side::B,
                 }),
                 owner: 0,
-                own_public_key: generate_public_key(),
-                peer_public_key: None,
+                crypto,
                 peer_handshake_done: false,
+                tx_nonce: 1u64 << 63,
+                expected_rx_nonce: 0,
                 rx_app_data: VecDeque::new(),
                 rx_message_ready: false,
                 peer_eof: false,
             }),
-        }
+        })
     }
 }

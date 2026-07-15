@@ -56,3 +56,12 @@ The Rust implementation has been reorganized into explicit `session`, `frame`,
 `crypto`, and `carrier` layers. The existing loopback behavior and tests remain
 unchanged. The next carrier can be implemented without changing the BSD socket,
 session, frame, or crypto interfaces.
+
+
+## Sequence and ACK protocol phase
+
+The STCP header is now 32 bytes and carries explicit 64-bit sequence and
+acknowledgment numbers. Authenticated DATA frames generate ACK control frames.
+PING/PONG, CLOSE, and RESET packet types are parsed in the session layer. This
+phase still uses strict in-order delivery; retransmission and sliding windows
+are intentionally deferred.

@@ -23,6 +23,7 @@ use crate::{
     },
     error::StcpError,
     frame::{
+        encode_control_frame,
         encode_encrypted_frame,
         encode_frame,
         Header,
@@ -169,6 +170,10 @@ pub fn connect(
 
         inner.tx_nonce = 0;
         inner.expected_rx_nonce = 0;
+        inner.tx_sequence = 0;
+        inner.expected_rx_sequence = 0;
+        inner.highest_acked_sequence = None;
+        inner.last_rx_sequence = None;
         shared.set_owner(Side::A, inner.owner);
     }
 
@@ -341,6 +346,8 @@ pub fn send(
     ctx: &StcpContext,
     data: &[u8],
 ) -> Result<usize, StcpError> {
+    process_control_frames(ctx)?;
+
     let (shared, side) = ready_connection(ctx)?;
 
     if shared.peer_closed(side) {
@@ -357,40 +364,51 @@ pub fn send(
         } else {
             PacketType::DataChunk
         };
-
         let plaintext = &data[position..end];
 
-        let (nonce, header, ciphertext) = {
+        let (sequence, acknowledgment, nonce, ciphertext) = {
             let mut inner = ctx.inner.lock();
 
             if inner.state != SocketState::Ready {
                 return Err(StcpError::InvalidState);
             }
 
+            let sequence = inner.tx_sequence;
             let nonce = inner.tx_nonce;
-
+            let acknowledgment = inner.last_rx_sequence.unwrap_or(0);
             let encrypted_len = plaintext
                 .len()
                 .checked_add(CHACHA_TAG_LEN)
                 .ok_or(StcpError::Protocol)?;
-
             let payload_len = NONCE_LEN
                 .checked_add(encrypted_len)
                 .ok_or(StcpError::Protocol)?;
-
-            let header = Header::new(packet_type, payload_len)?.encode();
+            let header = Header::with_numbers(
+                packet_type,
+                payload_len,
+                sequence,
+                acknowledgment,
+            )?.encode();
             let ciphertext = inner.crypto.encrypt(
                 nonce,
                 &header,
                 plaintext,
             )?;
-            inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
 
-            (nonce, header, ciphertext)
+            inner.tx_nonce = inner.tx_nonce
+                .checked_add(1)
+                .ok_or(StcpError::Crypto)?;
+            inner.tx_sequence = inner.tx_sequence
+                .checked_add(1)
+                .ok_or(StcpError::Protocol)?;
+
+            (sequence, acknowledgment, nonce, ciphertext)
         };
 
         let frame = encode_encrypted_frame(
             packet_type,
+            sequence,
+            acknowledgment,
             nonce,
             &ciphertext,
         )?;
@@ -475,6 +493,10 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
 
         match header.packet_type {
             PacketType::DataChunk | PacketType::DataChunkEnd => {
+                if header.sequence != current_expected_sequence(ctx) {
+                    return protocol_error(ctx);
+                }
+
                 if header.payload_len < NONCE_LEN + CHACHA_TAG_LEN {
                     return protocol_error(ctx);
                 }
@@ -510,6 +532,34 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                     break;
                 }
             }
+            PacketType::Ack => {
+                if header.payload_len != 0 {
+                    return protocol_error(ctx);
+                }
+                remove_header(&mut wire);
+                update_acknowledgment(ctx, header.acknowledgment)?;
+            }
+            PacketType::Ping => {
+                if header.payload_len != 0 {
+                    return protocol_error(ctx);
+                }
+                remove_header(&mut wire);
+                queue_pong(ctx, header.sequence)?;
+            }
+            PacketType::Pong => {
+                if header.payload_len != 0 {
+                    return protocol_error(ctx);
+                }
+                remove_header(&mut wire);
+            }
+            PacketType::Reset => {
+                remove_header(&mut wire);
+                for _ in 0..header.payload_len {
+                    let _ = wire.pop_front();
+                }
+                drop(wire);
+                return protocol_error(ctx);
+            }
             PacketType::Close => {
                 remove_header(&mut wire);
 
@@ -535,7 +585,9 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         let plaintext = {
             let mut inner = ctx.inner.lock();
 
-            if nonce != inner.expected_rx_nonce {
+            if nonce != inner.expected_rx_nonce ||
+               header.sequence != inner.expected_rx_sequence
+            {
                 inner.state = SocketState::Error;
                 return Err(StcpError::Protocol);
             }
@@ -548,7 +600,13 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 &ciphertext,
             ) {
                 Ok(plaintext) => {
-                    inner.expected_rx_nonce = inner.expected_rx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+                    inner.expected_rx_nonce = inner.expected_rx_nonce
+                        .checked_add(1)
+                        .ok_or(StcpError::Crypto)?;
+                    inner.expected_rx_sequence = inner.expected_rx_sequence
+                        .checked_add(1)
+                        .ok_or(StcpError::Protocol)?;
+                    inner.last_rx_sequence = Some(header.sequence);
                     plaintext
                 },
                 Err(error) => {
@@ -559,6 +617,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         };
 
         assembled.extend(plaintext);
+        queue_ack(ctx, header.sequence)?;
 
         if header.packet_type == PacketType::DataChunkEnd {
             message_ready = true;
@@ -570,6 +629,112 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         inner.rx_app_data.extend(assembled);
         inner.rx_message_ready = message_ready;
         inner.peer_eof = peer_eof;
+    }
+
+    Ok(())
+}
+
+fn current_expected_sequence(ctx: &StcpContext) -> u64 {
+    ctx.inner.lock().expected_rx_sequence
+}
+
+fn update_acknowledgment(
+    ctx: &StcpContext,
+    acknowledgment: u64,
+) -> Result<(), StcpError> {
+    let mut inner = ctx.inner.lock();
+
+    if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
+        inner.state = SocketState::Error;
+        return Err(StcpError::Protocol);
+    }
+
+    if inner.highest_acked_sequence
+        .map(|previous| acknowledgment > previous)
+        .unwrap_or(true)
+    {
+        inner.highest_acked_sequence = Some(acknowledgment);
+    }
+
+    Ok(())
+}
+
+fn queue_ack(
+    ctx: &StcpContext,
+    sequence: u64,
+) -> Result<(), StcpError> {
+    let (shared, side) = connection_for_data(ctx)?;
+    let frame = encode_control_frame(
+        PacketType::Ack,
+        0,
+        sequence,
+        &[],
+    )?;
+    outgoing_queue(&shared, side).lock().extend(frame);
+    wake_recv(shared.peer_owner(side));
+    Ok(())
+}
+
+fn queue_pong(
+    ctx: &StcpContext,
+    ping_sequence: u64,
+) -> Result<(), StcpError> {
+    let (shared, side) = connection_for_data(ctx)?;
+    let frame = encode_control_frame(
+        PacketType::Pong,
+        ping_sequence,
+        0,
+        &[],
+    )?;
+    outgoing_queue(&shared, side).lock().extend(frame);
+    wake_recv(shared.peer_owner(side));
+    Ok(())
+}
+
+fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> {
+    let (shared, side) = connection_for_data(ctx)?;
+    let queue = incoming_queue(&shared, side);
+    let mut wire = queue.lock();
+
+    loop {
+        if wire.len() < STCP_HEADER_LEN {
+            break;
+        }
+
+        let header = peek_header(&wire)?;
+        let frame_len = STCP_HEADER_LEN
+            .checked_add(header.payload_len)
+            .ok_or(StcpError::Protocol)?;
+
+        if wire.len() < frame_len {
+            break;
+        }
+
+        match header.packet_type {
+            PacketType::Ack => {
+                if header.payload_len != 0 {
+                    return protocol_error(ctx);
+                }
+                remove_header(&mut wire);
+                update_acknowledgment(ctx, header.acknowledgment)?;
+            }
+            PacketType::Ping => {
+                if header.payload_len != 0 {
+                    return protocol_error(ctx);
+                }
+                remove_header(&mut wire);
+                drop(wire);
+                queue_pong(ctx, header.sequence)?;
+                return Ok(());
+            }
+            PacketType::Pong => {
+                if header.payload_len != 0 {
+                    return protocol_error(ctx);
+                }
+                remove_header(&mut wire);
+            }
+            _ => break,
+        }
     }
 
     Ok(())
@@ -704,10 +869,14 @@ pub fn shutdown(
     };
 
     if let Some((shared, side)) = connection {
-        if let Ok(close_frame) = encode_frame(PacketType::Close, &[]) {
-            outgoing_queue(&shared, side)
-                .lock()
-                .extend(close_frame);
+        let acknowledgment = ctx.inner.lock().last_rx_sequence.unwrap_or(0);
+        if let Ok(close_frame) = encode_control_frame(
+            PacketType::Close,
+            0,
+            acknowledgment,
+            &[],
+        ) {
+            outgoing_queue(&shared, side).lock().extend(close_frame);
         }
 
         shared.close(side);

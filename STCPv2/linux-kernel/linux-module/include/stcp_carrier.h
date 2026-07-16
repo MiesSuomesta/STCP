@@ -19,6 +19,18 @@ void stcp_carrier_destroy(
 	struct stcp_carrier *carrier
 );
 
+struct stcp_carrier *stcp_carrier_create_udp_child(
+	struct stcp_carrier *listener,
+	void *child_rust_ctx,
+	u32 peer_addr,
+	u16 peer_port
+);
+
+void stcp_carrier_set_owner(
+	struct stcp_carrier *carrier,
+	void *owner
+);
+
 bool stcp_carrier_needs_reliability(
 	const struct stcp_carrier *carrier
 );

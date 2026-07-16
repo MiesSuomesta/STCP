@@ -118,6 +118,16 @@ pub extern "C" fn stcp_rust_set_carrier(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_get_carrier(
+    raw: *mut c_void,
+) -> *mut c_void {
+    match with_ctx(raw, |ctx| ctx.inner.lock().carrier) {
+        Ok(carrier) => carrier as *mut c_void,
+        Err(_) => core::ptr::null_mut(),
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_bind(
     raw: *mut c_void,
     addr: u32,

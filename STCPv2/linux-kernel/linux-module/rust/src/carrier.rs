@@ -16,6 +16,13 @@ use crate::{
 
 unsafe extern "C" {
     fn stcp_carrier_needs_reliability(carrier: *const c_void) -> bool;
+    fn stcp_carrier_create_udp_child(
+        listener: *mut c_void,
+        child_rust_ctx: *mut c_void,
+        peer_addr: u32,
+        peer_port: u16,
+    ) -> *mut c_void;
+    fn stcp_carrier_destroy(carrier: *mut c_void);
     fn stcp_carrier_send(
         carrier: *mut c_void,
         data: *const u8,
@@ -159,7 +166,7 @@ fn create_udp_child(
     peer_addr: u32,
     peer_port: u16,
 ) -> Result<usize, StcpError> {
-    let (local, backlog, owner) = {
+    let (local, backlog, owner, listener_carrier) = {
         let inner = listener.inner.lock();
         if inner.state != SocketState::Listening {
             return Err(StcpError::InvalidState);
@@ -168,6 +175,7 @@ fn create_udp_child(
             inner.local.ok_or(StcpError::InvalidState)?,
             inner.backlog,
             inner.owner,
+            inner.carrier,
         )
     };
 
@@ -198,6 +206,30 @@ fn create_udp_child(
     }
 
     let child_ptr = Box::into_raw(child) as usize;
+
+    if listener_carrier == 0 {
+        unsafe { drop(Box::from_raw(child_ptr as *mut StcpContext)) };
+        return Err(StcpError::Kernel(-107));
+    }
+
+    let child_carrier = unsafe {
+        stcp_carrier_create_udp_child(
+            listener_carrier as *mut c_void,
+            child_ptr as *mut c_void,
+            peer_addr,
+            peer_port,
+        )
+    };
+
+    if child_carrier.is_null() {
+        unsafe { drop(Box::from_raw(child_ptr as *mut StcpContext)) };
+        return Err(StcpError::NoMem);
+    }
+
+    {
+        let child_ref = unsafe { &*(child_ptr as *const StcpContext) };
+        child_ref.inner.lock().carrier = child_carrier as usize;
+    }
 
     UDP_SESSIONS.lock().push(UdpSessionEntry {
         listener: listener_ptr,

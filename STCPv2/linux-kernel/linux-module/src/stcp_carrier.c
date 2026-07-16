@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
@@ -498,9 +499,18 @@ ssize_t stcp_carrier_send(
 
 		data_frame = stcp_is_data_frame(data, len);
 
-		/* Pretend success: reliability must recover the intentionally lost frame. */
-		if (data_frame && stcp_test_should_drop_data())
+		/* Pretend success: reliability must recover intentionally lost frames. */
+		if (data_frame &&
+		    (stcp_test_should_drop_data() ||
+		     stcp_test_should_drop_percent()))
 			return (ssize_t)len;
+
+		if (data_frame) {
+			u32 delay_ms = stcp_test_take_delay_ms();
+
+			if (delay_ms)
+				msleep(delay_ms);
+		}
 
 		mutex_lock(&carrier->test_lock);
 

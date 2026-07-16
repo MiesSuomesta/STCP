@@ -4,6 +4,7 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/kthread.h>
+#include <linux/mutex.h>
 #include <linux/net.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
@@ -13,6 +14,7 @@
 #include <net/sock.h>
 
 #include "stcp_carrier.h"
+#include "stcp_test.h"
 
 #define STCP_CARRIER_RX_BUFFER_SIZE (128 * 1024)
 
@@ -30,6 +32,11 @@ struct stcp_carrier {
 	bool has_peer;
 	bool listening;
 	bool connected;
+
+	/* Deterministic reliability test state, protected per carrier. */
+	struct mutex test_lock;
+	u8 *held_frame;
+	size_t held_frame_len;
 };
 
 extern int stcp_rust_carrier_receive_from(
@@ -50,6 +57,7 @@ extern int stcp_rust_get_udp_peer(
 
 extern void stcp_kernel_wake_recv(void *owner);
 
+
 static int stcp_sockaddr(
 	u32 address,
 	u16 port,
@@ -69,12 +77,51 @@ static int stcp_sockaddr(
 	return 0;
 }
 
+static bool stcp_is_data_frame(const u8 *data, size_t len)
+{
+	if (!data || len < 5)
+		return false;
+
+	return data[0] == 'S' && data[1] == 'T' &&
+	       data[2] == 'C' && data[3] == 'P' &&
+	       (data[4] == 3 || data[4] == 4);
+}
+
+static ssize_t stcp_udp_send_one(
+	struct stcp_carrier *carrier,
+	const u8 *data,
+	size_t len,
+	int flags
+)
+{
+	struct msghdr message = {
+		.msg_flags = flags,
+		.msg_name = &carrier->peer,
+		.msg_namelen = sizeof(struct sockaddr_in),
+	};
+	struct kvec vector = {
+		.iov_base = (void *)data,
+		.iov_len = len,
+	};
+	int ret;
+
+	ret = kernel_sendmsg(carrier->socket, &message, &vector, 1, len);
+	if (ret < 0)
+		return ret;
+
+	return (size_t)ret == len ? ret : -EIO;
+}
+
 static void stcp_carrier_free_root(struct stcp_carrier *carrier)
 {
 	if (carrier->receiver) {
 		kthread_stop(carrier->receiver);
 		carrier->receiver = NULL;
 	}
+
+	kfree_sensitive(carrier->held_frame);
+	carrier->held_frame = NULL;
+	carrier->held_frame_len = 0;
 
 	if (carrier->socket) {
 		sock_release(carrier->socket);
@@ -204,6 +251,7 @@ struct stcp_carrier *stcp_carrier_create(
 	carrier->rust_ctx = rust_ctx;
 	carrier->owner = owner;
 	refcount_set(&carrier->refs, 1);
+	mutex_init(&carrier->test_lock);
 
 	switch (kind) {
 	case STCP_CARRIER_TCP:
@@ -245,6 +293,7 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 		return ERR_PTR(-ENOMEM);
 
 	refcount_inc(&listener->refs);
+	mutex_init(&child->test_lock);
 	child->kind = STCP_CARRIER_UDP;
 	child->socket = listener->socket;
 	child->parent = listener;
@@ -275,6 +324,9 @@ void stcp_carrier_destroy(struct stcp_carrier *carrier)
 		struct stcp_carrier *parent = carrier->parent;
 		carrier->parent = NULL;
 		carrier->socket = NULL;
+		kfree_sensitive(carrier->held_frame);
+		carrier->held_frame = NULL;
+		carrier->held_frame_len = 0;
 		kfree(carrier);
 		stcp_carrier_put_root(parent);
 		return;
@@ -408,6 +460,7 @@ int stcp_carrier_accept(
 	child->owner = child_owner;
 	child->connected = true;
 	refcount_set(&child->refs, 1);
+	mutex_init(&child->test_lock);
 
 	ret = stcp_carrier_start_receiver(child);
 	if (ret) {
@@ -437,17 +490,59 @@ ssize_t stcp_carrier_send(
 		return -EINVAL;
 
 	if (carrier->kind == STCP_CARRIER_UDP) {
-		int ret;
+		ssize_t ret;
+		bool data_frame;
+
 		if (!carrier->has_peer)
 			return -ENOTCONN;
-		message.msg_name = &carrier->peer;
-		message.msg_namelen = sizeof(struct sockaddr_in);
-		vector.iov_base = (void *)data;
-		vector.iov_len = len;
-		ret = kernel_sendmsg(carrier->socket, &message, &vector, 1, len);
-		if (ret < 0)
-			return ret;
-		return (size_t)ret == len ? ret : -EIO;
+
+		data_frame = stcp_is_data_frame(data, len);
+
+		/* Pretend success: reliability must recover the intentionally lost frame. */
+		if (data_frame && stcp_test_should_drop_data())
+			return (ssize_t)len;
+
+		mutex_lock(&carrier->test_lock);
+
+		/*
+		 * Hold the first DATA frame. The next DATA frame is sent first and the
+		 * held frame second, creating deterministic packet reordering.
+		 */
+		if (data_frame && !carrier->held_frame &&
+		    stcp_test_should_reorder_data()) {
+			carrier->held_frame = kmemdup(data, len, GFP_KERNEL);
+			if (!carrier->held_frame) {
+				mutex_unlock(&carrier->test_lock);
+				return -ENOMEM;
+			}
+			carrier->held_frame_len = len;
+			mutex_unlock(&carrier->test_lock);
+			return (ssize_t)len;
+		}
+
+		ret = stcp_udp_send_one(carrier, data, len, flags);
+		if (ret >= 0 && data_frame && carrier->held_frame) {
+			ssize_t held_ret = stcp_udp_send_one(
+				carrier,
+				carrier->held_frame,
+				carrier->held_frame_len,
+				flags
+			);
+			kfree_sensitive(carrier->held_frame);
+			carrier->held_frame = NULL;
+			carrier->held_frame_len = 0;
+			if (held_ret < 0)
+				ret = held_ret;
+		}
+
+		if (ret >= 0 && data_frame && stcp_test_should_duplicate_data()) {
+			ssize_t duplicate_ret = stcp_udp_send_one(carrier, data, len, flags);
+			if (duplicate_ret < 0)
+				ret = duplicate_ret;
+		}
+
+		mutex_unlock(&carrier->test_lock);
+		return ret;
 	}
 
 	while (position < len) {

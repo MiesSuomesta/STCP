@@ -279,6 +279,18 @@ pub extern "C" fn stcp_rust_is_connected(
 
 
 #[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_can_send(
+    raw: *mut c_void,
+    len: usize,
+) -> c_int {
+    match with_ctx(raw, |ctx| session::can_send(ctx, len)) {
+        Ok(true) => 1,
+        Ok(false) => 0,
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_tick(
     raw: *mut c_void,
 ) -> c_int {

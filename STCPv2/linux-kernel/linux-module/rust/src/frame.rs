@@ -8,7 +8,7 @@ pub const STCP_HEADER_LEN: usize = 40;
 pub const STCP_PUBLIC_KEY_LEN: usize = 64;
 pub const STCP_NONCE_LEN: usize = 8;
 pub const STCP_AUTH_TAG_LEN: usize = 16;
-pub const STCP_FRAME_PAYLOAD_LEN: usize = 64 * 1024;
+pub const STCP_FRAME_PAYLOAD_LEN: usize = 60 * 1024;
 pub const STCP_MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
 
 #[repr(u8)]

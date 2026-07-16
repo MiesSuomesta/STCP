@@ -439,6 +439,26 @@ pub fn accept(
         .ok_or(StcpError::Again)
 }
 
+pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
+    if progress_handshake(ctx).is_err() {
+        return false;
+    }
+
+    if process_control_frames(ctx).is_err() {
+        return false;
+    }
+
+    let frame_count = if data_len == 0 {
+        0
+    } else {
+        data_len.div_ceil(STCP_FRAME_PAYLOAD_LEN)
+    };
+
+    let inner = ctx.inner.lock();
+    inner.state == SocketState::Ready &&
+        inner.pending_frames.len() + frame_count <= STCP_SEND_WINDOW
+}
+
 pub fn send(
     ctx: &StcpContext,
     data: &[u8],

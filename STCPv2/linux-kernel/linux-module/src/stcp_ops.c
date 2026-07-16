@@ -12,6 +12,7 @@
 #include <net/sock.h>
 
 #include "stcp.h"
+#include "stcp_carrier.h"
 #include "stcp_proto.h"
 #include "stcp_rust_ffi.h"
 #include "stcp_socket.h"
@@ -20,8 +21,10 @@
 
 static int stcp_release(struct socket *sock)
 {
-	struct sock *sk;
+	struct stcp_carrier *carrier;
 	struct stcp_sock *ssk;
+	struct sock *sk;
+	void *rust_ctx;
 
 	if (!sock)
 		return -EINVAL;
@@ -32,19 +35,36 @@ static int stcp_release(struct socket *sock)
 
 	ssk = stcp_sk(sk);
 
+	/* Prevent new operations from finding this socket during teardown. */
+	sock->sk = NULL;
+
 	stcp_stop_retransmit_work(ssk);
 
-	if (ssk->rust_ctx) {
-		stcp_rust_set_owner(ssk->rust_ctx, NULL);
-		stcp_rust_release(ssk->rust_ctx);
-		ssk->rust_ctx = NULL;
+	rust_ctx = ssk->rust_ctx;
+	carrier = ssk->carrier;
+	ssk->rust_ctx = NULL;
+	ssk->carrier = NULL;
+
+	if (rust_ctx) {
+		/*
+		 * Detach every C pointer from Rust before stopping/freeing the
+		 * carrier.  Rust release is a local teardown and sends no frames.
+		 */
+		stcp_rust_set_owner(rust_ctx, NULL);
+		stcp_rust_set_carrier(rust_ctx, NULL);
 	}
+
+	/* kthread_stop() synchronizes with any receiver callback. */
+	if (carrier)
+		stcp_carrier_destroy(carrier);
+
+	if (rust_ctx)
+		stcp_rust_release(rust_ctx);
 
 	wake_up_interruptible_all(&ssk->accept_wq);
 	wake_up_interruptible_all(&ssk->recv_wq);
 
 	sock_orphan(sk);
-	sock->sk = NULL;
 	sk_common_release(sk);
 
 	return 0;
@@ -58,6 +78,7 @@ static int stcp_bind(
 {
 	struct sockaddr_in *sin;
 	struct stcp_sock *ssk;
+	int ret;
 
 	if (!sock || !sock->sk || !addr)
 		return -EINVAL;
@@ -70,8 +91,17 @@ static int stcp_bind(
 		return -EAFNOSUPPORT;
 
 	ssk = stcp_sk(sock->sk);
-	if (!ssk->rust_ctx)
+	if (!ssk->rust_ctx || !ssk->carrier)
 		return -EINVAL;
+
+	ret = stcp_carrier_bind(
+		ssk->carrier,
+		(__force u32)sin->sin_addr.s_addr,
+		(__force u16)sin->sin_port
+	);
+
+	if (ret)
+		return ret;
 
 	return stcp_rust_bind(
 		ssk->rust_ctx,
@@ -83,15 +113,27 @@ static int stcp_bind(
 static int stcp_listen(struct socket *sock, int backlog)
 {
 	struct stcp_sock *ssk;
+	int ret;
 
 	if (!sock || !sock->sk)
 		return -EINVAL;
 
 	ssk = stcp_sk(sock->sk);
-	if (!ssk->rust_ctx)
+	if (!ssk->rust_ctx || !ssk->carrier)
 		return -EINVAL;
 
-	return stcp_rust_listen(ssk->rust_ctx, backlog);
+	ret = stcp_carrier_listen(
+		ssk->carrier,
+		backlog
+	);
+
+	if (ret)
+		return ret;
+
+	return stcp_rust_listen(
+		ssk->rust_ctx,
+		backlog
+	);
 }
 
 static int stcp_connect(
@@ -116,20 +158,35 @@ static int stcp_connect(
 		return -EAFNOSUPPORT;
 
 	ssk = stcp_sk(sock->sk);
-	if (!ssk->rust_ctx)
+	if (!ssk->rust_ctx || !ssk->carrier)
 		return -EINVAL;
+
+	ret = stcp_carrier_connect(
+		ssk->carrier,
+		(__force u32)sin->sin_addr.s_addr,
+		(__force u16)sin->sin_port,
+		flags
+	);
+
+	if (ret)
+		return ret;
 
 	ret = stcp_rust_connect(
 		ssk->rust_ctx,
 		(__force u32)sin->sin_addr.s_addr,
 		(__force u16)sin->sin_port,
 		flags
-	);
+	);		
 
-	if (!ret)
-		sock->state = SS_CONNECTED;
+	if (ret)
+		return ret;
 
-	return ret;
+	ret = stcp_rust_start_handshake(ssk->rust_ctx);
+	if (ret)
+		return ret;
+
+	sock->state = SS_CONNECTED;
+	return 0;
 }
 
 static int stcp_accept(
@@ -192,7 +249,45 @@ static int stcp_accept(
 
 	child = stcp_sk(newsk);
 	child->rust_ctx = accepted_ctx;
+
+	ret = stcp_carrier_accept(
+		listener->carrier,
+		child->rust_ctx,
+		child,
+		&child->carrier,
+		flags
+	);
+
+	if (ret) {
+		stcp_rust_set_owner(child->rust_ctx, NULL);
+		stcp_rust_set_carrier(child->rust_ctx, NULL);
+		stcp_rust_release(child->rust_ctx);
+		child->rust_ctx = NULL;
+		newsock->sk = NULL;
+		sk_free(newsk);
+		return ret;
+	}
+
+	stcp_rust_set_carrier(
+		child->rust_ctx,
+		child->carrier
+	);
+
 	stcp_rust_set_owner(child->rust_ctx, child);
+
+	ret = stcp_rust_start_handshake(child->rust_ctx);
+	if (ret) {
+		stcp_rust_set_owner(child->rust_ctx, NULL);
+		stcp_rust_set_carrier(child->rust_ctx, NULL);
+		stcp_carrier_destroy(child->carrier);
+		child->carrier = NULL;
+		stcp_rust_release(child->rust_ctx);
+		child->rust_ctx = NULL;
+		newsock->sk = NULL;
+		sk_free(newsk);
+		return ret;
+	}
+
 	stcp_start_retransmit_work(child);
 
 	newsock->state = SS_CONNECTED;
@@ -319,7 +414,13 @@ static int stcp_shutdown(struct socket *sock, int how)
 	if (!ssk->rust_ctx)
 		return -EINVAL;
 
+	/* Send the protocol Close frame while the carrier is still alive. */
 	stcp_rust_shutdown(ssk->rust_ctx, how);
+
+	stcp_carrier_shutdown(
+		ssk->carrier,
+		how
+	);
 	wake_up_interruptible_all(&ssk->recv_wq);
 
 	return 0;

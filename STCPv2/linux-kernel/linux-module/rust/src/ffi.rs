@@ -151,6 +151,13 @@ pub extern "C" fn stcp_rust_connect(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_start_handshake(
+    raw: *mut c_void,
+) -> c_int {
+    with_ctx_result(raw, session::start_handshake)
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_accept(
     raw: *mut c_void,
     out_ctx: *mut *mut c_void,

@@ -19,12 +19,13 @@ int stcp_rust_is_connected(void *ctx);
 int stcp_rust_bind(void *ctx, u32 addr, u16 port);
 int stcp_rust_listen(void *ctx, int backlog);
 int stcp_rust_connect(void *ctx, u32 addr, u16 port, int flags);
+int stcp_rust_start_handshake(void *ctx);
 int stcp_rust_accept(void *ctx, void **out_ctx, int flags);
 int stcp_rust_has_accept(void *ctx);
 
 ssize_t stcp_rust_send(void *ctx, const u8 *data, size_t len, int flags);
 ssize_t stcp_rust_recv(void *ctx, u8 *data, size_t len, int flags);
-int stcp_rust_shutdown(void *ctx, int how);
+void stcp_rust_shutdown(void *ctx, int how);
 int stcp_rust_tick(void *ctx);
 int stcp_rust_crypto_selftest(void);
 

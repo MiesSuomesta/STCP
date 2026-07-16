@@ -154,6 +154,8 @@ static int stcp_create(
 	ssk->carrier = NULL;
 	init_waitqueue_head(&ssk->accept_wq);
 	init_waitqueue_head(&ssk->recv_wq);
+	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);
+	ssk->retransmit_work_started = false;
 
 	ret = stcp_rust_create(
 		(u8)protocol,

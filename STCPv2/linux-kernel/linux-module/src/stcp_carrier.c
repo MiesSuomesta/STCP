@@ -36,21 +36,23 @@ extern int stcp_rust_carrier_receive(
 extern void stcp_kernel_wake_recv(void *owner);
 
 static int stcp_sockaddr(
-        u32 address,
-        u16 port,
-        struct sockaddr_unsized *result_in
+	u32 address,
+	u16 port,
+	struct sockaddr_storage *storage
 )
 {
-        struct sockaddr_in *result = (struct sockaddr_in *)result_in;
-        if (!result)
-                return -EINVAL;
+	struct sockaddr_in *result;
 
-        memset(result, 0, sizeof(*result));
-        result->sin_family = AF_INET;
-        result->sin_addr.s_addr = (__force __be32)address;
-        result->sin_port = (__force __be16)port;
+	if (!storage)
+		return -EINVAL;
 
-        return 0;
+	memset(storage, 0, sizeof(*storage));
+	result = (struct sockaddr_in *)storage;
+	result->sin_family = AF_INET;
+	result->sin_addr.s_addr = (__force __be32)address;
+	result->sin_port = (__force __be16)port;
+
+	return 0;
 }
 
 static int stcp_receiver_thread(void *argument)
@@ -243,7 +245,7 @@ int stcp_carrier_bind(
 	u16 port
 )
 {
-	struct sockaddr_unsized socket_address;
+	struct sockaddr_storage socket_address;
 	int ret;
 
 	if (!carrier)
@@ -260,7 +262,7 @@ int stcp_carrier_bind(
 	return kernel_bind(
 		carrier->socket,
 		(struct sockaddr_unsized *)&socket_address,
-		sizeof(socket_address)
+		sizeof(struct sockaddr_in)
 	);
 }
 
@@ -290,7 +292,7 @@ int stcp_carrier_connect(
 	int flags
 )
 {
-	struct sockaddr_unsized socket_address;
+	struct sockaddr_storage socket_address;
 	int ret;
 
 	if (!carrier)
@@ -307,7 +309,7 @@ int stcp_carrier_connect(
 	ret = kernel_connect(
 		carrier->socket,
 		(struct sockaddr_unsized *)&socket_address,
-		sizeof(socket_address),
+		sizeof(struct sockaddr_in),
 		flags
 	);
 

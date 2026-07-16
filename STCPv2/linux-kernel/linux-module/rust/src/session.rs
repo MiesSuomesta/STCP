@@ -205,8 +205,6 @@ pub fn connect(
         shared.set_owner(Side::A, inner.owner);
     }
 
-    perform_symmetric_handshake(ctx, child.as_ref())?;
-
     let listener_owner = {
         let mut inner = listener.inner.lock();
 
@@ -226,21 +224,27 @@ pub fn connect(
     Ok(())
 }
 
-fn perform_symmetric_handshake(
-    client: &StcpContext,
-    server: &StcpContext,
-) -> Result<(), StcpError> {
-    send_public_key(client)?;
-    send_public_key(server)?;
+pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
+    {
+        let inner = ctx.inner.lock();
 
-    process_handshake_frames(client)?;
-    process_handshake_frames(server)?;
+        if inner.state != SocketState::Handshake {
+            return Err(StcpError::InvalidState);
+        }
 
-    process_handshake_frames(client)?;
-    process_handshake_frames(server)?;
+        if inner.carrier == 0 {
+            return Err(StcpError::Kernel(-107));
+        }
+    }
 
-    if !is_ready(client) || !is_ready(server) {
-        return Err(StcpError::Protocol);
+    send_public_key(ctx)
+}
+
+pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
+    let state = ctx.inner.lock().state;
+
+    if state == SocketState::Handshake {
+        process_handshake_frames(ctx)?;
     }
 
     Ok(())
@@ -374,6 +378,12 @@ pub fn send(
     ctx: &StcpContext,
     data: &[u8],
 ) -> Result<usize, StcpError> {
+    progress_handshake(ctx)?;
+
+    if !is_ready(ctx) {
+        return Err(StcpError::Again);
+    }
+
     process_control_frames(ctx)?;
 
     let (shared, side) = ready_connection(ctx)?;
@@ -472,6 +482,8 @@ pub fn recv(
     ctx: &StcpContext,
     output: &mut [u8],
 ) -> Result<usize, StcpError> {
+    progress_handshake(ctx)?;
+
     if output.is_empty() {
         return Ok(0);
     }
@@ -1047,6 +1059,8 @@ pub fn has_accept(ctx: &StcpContext) -> bool {
 }
 
 pub fn has_data(ctx: &StcpContext) -> bool {
+    let _ = progress_handshake(ctx);
+
     {
         let inner = ctx.inner.lock();
 
@@ -1064,6 +1078,7 @@ pub fn has_data(ctx: &StcpContext) -> bool {
 }
 
 pub fn is_connected(ctx: &StcpContext) -> bool {
+    let _ = progress_handshake(ctx);
     is_ready(ctx)
 }
 
@@ -1108,14 +1123,35 @@ pub fn shutdown(
 }
 
 pub fn release(ctx: &StcpContext) {
-    let local = {
-        let inner = ctx.inner.lock();
+    /*
+     * Final release is a local teardown only.  It must never call
+     * shutdown() or send a Close frame: the C carrier may already be
+     * detached/stopped and the peer may already have disappeared.
+     */
+    let (local, connection) = {
+        let mut inner = ctx.inner.lock();
 
-        if inner.state == SocketState::Listening {
+        let local = if inner.state == SocketState::Listening {
             inner.local
         } else {
             None
-        }
+        };
+
+        let connection = inner.connection.take().map(|endpoint| {
+            (endpoint.shared, endpoint.side)
+        });
+
+        inner.state = SocketState::Closed;
+        inner.owner = 0;
+        inner.carrier = 0;
+        inner.accept_queue.clear();
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
+        inner.rx_app_data.clear();
+        inner.rx_message_ready = false;
+        inner.peer_eof = true;
+
+        (local, connection)
     };
 
     if let Some(address) = local {
@@ -1127,5 +1163,9 @@ pub fn release(ctx: &StcpContext) {
         });
     }
 
-    shutdown(ctx, 2);
+    if let Some((shared, side)) = connection {
+        shared.set_owner(side, 0);
+        shared.close(side);
+        wake_recv(shared.peer_owner(side));
+    }
 }

@@ -132,6 +132,9 @@ pub struct ContextInner {
     pub rx_message_ready: bool,
     pub peer_eof: bool,
     pub carrier: usize,
+    pub connection_id: u64,
+    pub udp_peer_addr: u32,
+    pub udp_peer_port: u16,
 }
 
 pub struct StcpContext {
@@ -168,6 +171,9 @@ impl StcpContext {
                 rx_message_ready: false,
                 peer_eof: false,
                 carrier: 0,
+                connection_id: 0,
+                udp_peer_addr: 0,
+                udp_peer_port: 0,
             }),
         })
     }
@@ -208,6 +214,9 @@ impl StcpContext {
                 rx_message_ready: false,
                 peer_eof: false,
                 carrier: 0,
+                connection_id: 0,
+                udp_peer_addr: 0,
+                udp_peer_port: 0,
             }),
         })
     }

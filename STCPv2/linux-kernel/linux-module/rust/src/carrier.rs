@@ -173,6 +173,10 @@ pub extern "C" fn stcp_rust_carrier_receive(
         .lock()
         .extend(bytes.iter().copied());
 
+    if let Err(error) = crate::session::progress_handshake(ctx) {
+        return error.errno();
+    }
+
     wake_recv(owner);
     0
 }

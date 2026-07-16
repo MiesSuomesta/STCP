@@ -55,6 +55,11 @@ static LISTENERS: SpinLock<Vec<ListenerEntry>> =
 
 static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
 
+unsafe extern "C" {
+    fn stcp_carrier_destroy(carrier: *mut core::ffi::c_void);
+}
+
+
 const STCP_SEND_WINDOW: usize = 8;
 const STCP_RETRANSMIT_AFTER_TICKS: u32 = 3;
 const STCP_MAX_RETRIES: u8 = 5;
@@ -1214,7 +1219,7 @@ pub fn release(ctx: &StcpContext) {
      * shutdown() or send a Close frame: the C carrier may already be
      * detached/stopped and the peer may already have disappeared.
      */
-    let (local, connection) = {
+    let (local, connection, queued_children) = {
         let mut inner = ctx.inner.lock();
 
         let local = if inner.state == SocketState::Listening {
@@ -1230,15 +1235,24 @@ pub fn release(ctx: &StcpContext) {
         inner.state = SocketState::Closed;
         inner.owner = 0;
         inner.carrier = 0;
-        inner.accept_queue.clear();
+        let queued_children = inner.accept_queue.drain(..).collect::<Vec<_>>();
         inner.pending_frames.clear();
         inner.out_of_order_frames.clear();
         inner.rx_app_data.clear();
         inner.rx_message_ready = false;
         inner.peer_eof = true;
 
-        (local, connection)
+        (local, connection, queued_children)
     };
+
+    for child in queued_children {
+        let carrier = child.inner.lock().carrier;
+        if carrier != 0 {
+            unsafe { stcp_carrier_destroy(carrier as *mut core::ffi::c_void) };
+            child.inner.lock().carrier = 0;
+        }
+        drop(child);
+    }
 
     if let Some(address) = local {
         let ctx_ptr = ptr::from_ref(ctx) as usize;

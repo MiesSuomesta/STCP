@@ -40,6 +40,8 @@ extern int stcp_rust_carrier_receive_from(
 	u16 peer_port
 );
 
+extern void *stcp_rust_get_carrier(void *rust_ctx);
+
 extern int stcp_rust_get_udp_peer(
 	void *rust_ctx,
 	u32 *out_addr,
@@ -225,6 +227,45 @@ struct stcp_carrier *stcp_carrier_create(
 	return carrier;
 }
 
+struct stcp_carrier *stcp_carrier_create_udp_child(
+	struct stcp_carrier *listener,
+	void *child_rust_ctx,
+	u32 peer_addr,
+	u16 peer_port
+)
+{
+	struct stcp_carrier *child;
+
+	if (!listener || listener->kind != STCP_CARRIER_UDP ||
+	    !listener->socket || !child_rust_ctx || !peer_port)
+		return ERR_PTR(-EINVAL);
+
+	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	if (!child)
+		return ERR_PTR(-ENOMEM);
+
+	refcount_inc(&listener->refs);
+	child->kind = STCP_CARRIER_UDP;
+	child->socket = listener->socket;
+	child->parent = listener;
+	child->rust_ctx = child_rust_ctx;
+	child->owner = NULL;
+	child->connected = true;
+	child->has_peer = true;
+	stcp_sockaddr(peer_addr, peer_port, &child->peer);
+
+	return child;
+}
+
+void stcp_carrier_set_owner(
+	struct stcp_carrier *carrier,
+	void *owner
+)
+{
+	if (carrier)
+		carrier->owner = owner;
+}
+
 void stcp_carrier_destroy(struct stcp_carrier *carrier)
 {
 	if (!carrier)
@@ -324,28 +365,31 @@ int stcp_carrier_accept(
 	*out_child = NULL;
 
 	if (listener->kind == STCP_CARRIER_UDP) {
-		u32 peer_addr;
-		u16 peer_port;
+		child = stcp_rust_get_carrier(child_rust_ctx);
+		if (child) {
+			stcp_carrier_set_owner(child, child_owner);
+			*out_child = child;
+			return 0;
+		}
 
-		ret = stcp_rust_get_udp_peer(child_rust_ctx, &peer_addr, &peer_port);
-		if (ret)
-			return ret;
+		/* Fallback for legacy children created before early UDP carrier setup. */
+		{
+			u32 peer_addr;
+			u16 peer_port;
 
-		child = kzalloc(sizeof(*child), GFP_KERNEL);
-		if (!child)
-			return -ENOMEM;
+			ret = stcp_rust_get_udp_peer(child_rust_ctx, &peer_addr, &peer_port);
+			if (ret)
+				return ret;
 
-		refcount_inc(&listener->refs);
-		child->kind = STCP_CARRIER_UDP;
-		child->socket = listener->socket;
-		child->parent = listener;
-		child->rust_ctx = child_rust_ctx;
-		child->owner = child_owner;
-		child->connected = true;
-		child->has_peer = true;
-		stcp_sockaddr(peer_addr, peer_port, &child->peer);
-		*out_child = child;
-		return 0;
+			child = stcp_carrier_create_udp_child(
+				listener, child_rust_ctx, peer_addr, peer_port);
+			if (IS_ERR(child))
+				return PTR_ERR(child);
+
+			stcp_carrier_set_owner(child, child_owner);
+			*out_child = child;
+			return 0;
+		}
 	}
 
 	ret = kernel_accept(listener->socket, &accepted, flags);

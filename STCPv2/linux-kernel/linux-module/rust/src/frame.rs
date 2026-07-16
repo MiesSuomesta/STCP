@@ -4,7 +4,7 @@ use crate::error::StcpError;
 
 pub const STCP_MAGIC: [u8; 4] = *b"STCP";
 pub const STCP_VERSION: u8 = 2;
-pub const STCP_HEADER_LEN: usize = 32;
+pub const STCP_HEADER_LEN: usize = 40;
 pub const STCP_PUBLIC_KEY_LEN: usize = 64;
 pub const STCP_NONCE_LEN: usize = 8;
 pub const STCP_AUTH_TAG_LEN: usize = 16;
@@ -49,6 +49,7 @@ pub struct Header {
     pub payload_len: usize,
     pub sequence: u64,
     pub acknowledgment: u64,
+    pub connection_id: u64,
 }
 
 impl Header {
@@ -56,7 +57,7 @@ impl Header {
         packet_type: PacketType,
         payload_len: usize,
     ) -> Result<Self, StcpError> {
-        Self::with_numbers(packet_type, payload_len, 0, 0)
+        Self::with_numbers(packet_type, payload_len, 0, 0, 0)
     }
 
     pub fn with_numbers(
@@ -64,6 +65,7 @@ impl Header {
         payload_len: usize,
         sequence: u64,
         acknowledgment: u64,
+        connection_id: u64,
     ) -> Result<Self, StcpError> {
         if payload_len > STCP_MAX_PAYLOAD_LEN {
             return Err(StcpError::Protocol);
@@ -75,6 +77,7 @@ impl Header {
             payload_len,
             sequence,
             acknowledgment,
+            connection_id,
         })
     }
 
@@ -88,6 +91,7 @@ impl Header {
         output[8..16].copy_from_slice(&(self.payload_len as u64).to_be_bytes());
         output[16..24].copy_from_slice(&self.sequence.to_be_bytes());
         output[24..32].copy_from_slice(&self.acknowledgment.to_be_bytes());
+        output[32..40].copy_from_slice(&self.connection_id.to_be_bytes());
 
         output
     }
@@ -111,6 +115,9 @@ impl Header {
         let acknowledgment = u64::from_be_bytes(
             input[24..32].try_into().map_err(|_| StcpError::Protocol)?,
         );
+        let connection_id = u64::from_be_bytes(
+            input[32..40].try_into().map_err(|_| StcpError::Protocol)?,
+        );
 
         if payload_len > STCP_MAX_PAYLOAD_LEN {
             return Err(StcpError::Protocol);
@@ -122,21 +129,24 @@ impl Header {
             payload_len,
             sequence,
             acknowledgment,
+            connection_id,
         })
     }
 }
 
 pub fn encode_frame(
     packet_type: PacketType,
+    connection_id: u64,
     payload: &[u8],
 ) -> Result<Vec<u8>, StcpError> {
-    encode_control_frame(packet_type, 0, 0, payload)
+    encode_control_frame(packet_type, 0, 0, connection_id, payload)
 }
 
 pub fn encode_control_frame(
     packet_type: PacketType,
     sequence: u64,
     acknowledgment: u64,
+    connection_id: u64,
     payload: &[u8],
 ) -> Result<Vec<u8>, StcpError> {
     let header = Header::with_numbers(
@@ -144,6 +154,7 @@ pub fn encode_control_frame(
         payload.len(),
         sequence,
         acknowledgment,
+        connection_id,
     )?.encode();
     let mut frame = Vec::new();
     frame.try_reserve_exact(STCP_HEADER_LEN + payload.len())
@@ -157,6 +168,7 @@ pub fn encode_encrypted_frame(
     packet_type: PacketType,
     sequence: u64,
     acknowledgment: u64,
+    connection_id: u64,
     nonce: u64,
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, StcpError> {
@@ -168,6 +180,7 @@ pub fn encode_encrypted_frame(
         payload_len,
         sequence,
         acknowledgment,
+        connection_id,
     )?.encode();
     let mut frame = Vec::new();
     frame.try_reserve_exact(STCP_HEADER_LEN + payload_len)

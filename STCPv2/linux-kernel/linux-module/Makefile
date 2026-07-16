@@ -132,49 +132,6 @@ $(TEST_BASIC_BIN): $(TEST_BASIC_SRC)
 $(TEST_LARGE_BIN): $(TEST_LARGE_SRC)
 	$(TEST_CC) -O2 -g -Wall -Wextra "$<" -o "$@"
 
-test-udp: module test-build
-	@set -e; \
-	cleanup() { $(SUDO) rmmod stcp 2>/dev/null || true; }; \
-	trap cleanup EXIT INT TERM; \
-	if grep -q '^stcp ' /proc/modules; then $(SUDO) rmmod stcp; fi; \
-	$(SUDO) modprobe libcurve25519; \
-	$(SUDO) modprobe libchacha20poly1305; \
-	$(SUDO) insmod "$(PWD)/stcp.ko"; \
-	echo "=== UDP STCP two-client demux test ==="; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_UDP_BIN)" server 2 & server_pid=$$!; \
-	sleep 1; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_UDP_BIN)" client first & c1=$$!; \
-	timeout "$(TEST_TIMEOUT)"s "$(TEST_UDP_BIN)" client second & c2=$$!; \
-	wait $$c1; wait $$c2; wait $$server_pid; \
-	echo "UDP demux test passed"
-
-
-test-reliability: module test-build
-	@set -e; \
-	cleanup() { $(SUDO) rmmod stcp 2>/dev/null || true; }; \
-	trap cleanup EXIT INT TERM; \
-	run_case() { \
-		name="$$1"; params="$$2"; \
-		if grep -q '^stcp ' /proc/modules; then $(SUDO) rmmod stcp; fi; \
-		$(SUDO) modprobe libcurve25519; \
-		$(SUDO) modprobe libchacha20poly1305; \
-		echo "=== UDP reliability: $$name ==="; \
-		$(SUDO) insmod "$(PWD)/stcp.ko" $$params; \
-		timeout "$${RELIABILITY_TIMEOUT:-60}"s "$(TEST_RELIABILITY_BIN)" server & server_pid=$$!; \
-		sleep 1; \
-		timeout "$${RELIABILITY_TIMEOUT:-60}"s "$(TEST_RELIABILITY_BIN)" client; \
-		wait $$server_pid; \
-		$(SUDO) rmmod stcp; \
-	}; \
-	run_case baseline ""; \
-	run_case drop-first "drop_first_data=1"; \
-	run_case loss-10 "drop_percent=10"; \
-	run_case loss-30 "drop_percent=30"; \
-	run_case delay-250ms "delay_first_data_ms=250"; \
-	run_case duplicate "duplicate_first_data=1"; \
-	run_case reorder "reorder_first_pair=1"; \
-	echo "All adaptive UDP reliability tests passed"
-
 test-clean:
 	rm -f "$(TEST_BASIC_BIN)" "$(TEST_LARGE_BIN)" "$(TEST_UDP_BIN)" "$(TEST_RELIABILITY_BIN)"
 
@@ -199,4 +156,105 @@ module-install: module module-install-support
 module-reload: module-remove module-install
 	echo "Reload done"
 
+#
+# Testaus
+#
 
+.PHONY: \
+	test-basic \
+	test-large \
+	test-udp \
+	test-loss10 \
+	test-loss30 \
+	test-delay \
+	test-duplicate \
+	test-reorder \
+	test-all
+
+test-basic:
+	@./testing/run-basic.sh
+
+test-large:
+	@./testing/run-large.sh
+
+test-udp:
+	@./testing/run-udp.sh
+
+test-loss10:
+	@./testing/run-reliability.sh --loss 10
+
+test-loss30:
+	@./testing/run-reliability.sh --loss 30
+
+test-delay:
+	@./testing/run-reliability.sh --delay 250
+
+test-duplicate:
+	@./testing/run-reliability.sh --duplicate
+
+test-reorder:
+	@./testing/run-reliability.sh --reorder
+
+test-all: \
+	test-basic \
+	test-large \
+	test-udp \
+	test-loss10 \
+	test-loss30 \
+	test-delay \
+	test-duplicate \
+	test-reorder
+	@echo
+	@echo "============================================="
+	@echo "        ALL STCP TESTS PASSED"
+	@echo "============================================="
+
+TEST_STRESS_SRC := $(PWD)/stress/stcp_stress.c
+TEST_STRESS_BIN := $(PWD)/stress/stcp-stress
+
+.PHONY: \
+	stress-build \
+	stress-tcp \
+	stress-udp \
+	stress-all
+
+stress-build: $(TEST_STRESS_BIN)
+
+$(TEST_STRESS_BIN): $(TEST_STRESS_SRC)
+	$(TEST_CC) \
+		-O2 \
+		-g \
+		-Wall \
+		-Wextra \
+		-Werror \
+		-pthread \
+		"$<" \
+		-o "$@"
+
+stress-tcp: module stress-build
+	@set -e; \
+	cleanup() { \
+		$(SUDO) rmmod stcp 2>/dev/null || true; \
+	}; \
+	trap cleanup EXIT INT TERM; \
+	$(SUDO) modprobe libcurve25519; \
+	$(SUDO) modprobe libchacha20poly1305; \
+	$(SUDO) insmod "$(PWD)/stcp.ko" || true; \
+	bash "$(PWD)/stress/run-stress-tcp.sh"
+
+stress-udp: module stress-build
+	@set -e; \
+	cleanup() { \
+		$(SUDO) rmmod stcp 2>/dev/null || true; \
+	}; \
+	trap cleanup EXIT INT TERM; \
+	$(SUDO) modprobe libcurve25519; \
+	$(SUDO) modprobe libchacha20poly1305; \
+	$(SUDO) insmod "$(PWD)/stcp.ko" || true; \
+	bash "$(PWD)/stress/run-stress-udp.sh"
+
+stress-all: stress-tcp stress-udp
+	@echo
+	@echo "========================================"
+	@echo " ALL STCP STRESS TESTS PASSED"
+	@echo "========================================"

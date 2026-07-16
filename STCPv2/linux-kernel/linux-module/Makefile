@@ -160,16 +160,20 @@ test-reliability: module test-build
 		$(SUDO) modprobe libchacha20poly1305; \
 		echo "=== UDP reliability: $$name ==="; \
 		$(SUDO) insmod "$(PWD)/stcp.ko" $$params; \
-		timeout "$(TEST_TIMEOUT)"s "$(TEST_RELIABILITY_BIN)" server & server_pid=$$!; \
+		timeout "$${RELIABILITY_TIMEOUT:-60}"s "$(TEST_RELIABILITY_BIN)" server & server_pid=$$!; \
 		sleep 1; \
-		timeout "$(TEST_TIMEOUT)"s "$(TEST_RELIABILITY_BIN)" client; \
+		timeout "$${RELIABILITY_TIMEOUT:-60}"s "$(TEST_RELIABILITY_BIN)" client; \
 		wait $$server_pid; \
 		$(SUDO) rmmod stcp; \
 	}; \
-	run_case drop "drop_first_data=1"; \
+	run_case baseline ""; \
+	run_case drop-first "drop_first_data=1"; \
+	run_case loss-10 "drop_percent=10"; \
+	run_case loss-30 "drop_percent=30"; \
+	run_case delay-250ms "delay_first_data_ms=250"; \
 	run_case duplicate "duplicate_first_data=1"; \
 	run_case reorder "reorder_first_pair=1"; \
-	echo "All UDP reliability tests passed"
+	echo "All adaptive UDP reliability tests passed"
 
 test-clean:
 	rm -f "$(TEST_BASIC_BIN)" "$(TEST_LARGE_BIN)" "$(TEST_UDP_BIN)" "$(TEST_RELIABILITY_BIN)"

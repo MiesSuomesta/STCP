@@ -26,6 +26,7 @@ static int stcp_release(struct socket *sock)
 	struct stcp_sock *ssk;
 	struct sock *sk;
 	void *rust_ctx;
+	struct stcp_reliability_stats stats;
 
 	if (!sock)
 		return -EINVAL;
@@ -45,6 +46,26 @@ static int stcp_release(struct socket *sock)
 	carrier = ssk->carrier;
 	ssk->rust_ctx = NULL;
 	ssk->carrier = NULL;
+
+	if (rust_ctx &&
+	    stcp_rust_get_reliability_stats(rust_ctx, &stats) == 0 &&
+	    stats.sent_frames) {
+		pr_info(
+			"stcp: reliability srtt=%ums rttvar=%ums rto=%ums "
+			"sent=%llu acked=%llu retx=%llu dup=%llu reorder=%llu "
+			"timeouts=%llu samples=%llu\n",
+			stats.srtt_ms,
+			stats.rttvar_ms,
+			stats.rto_ms,
+			stats.sent_frames,
+			stats.acknowledged_frames,
+			stats.retransmitted_frames,
+			stats.duplicate_frames,
+			stats.reordered_frames,
+			stats.timeout_failures,
+			stats.rtt_samples
+		);
+	}
 
 	if (rust_ctx) {
 		/*

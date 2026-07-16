@@ -61,8 +61,48 @@ unsafe extern "C" {
 
 
 const STCP_SEND_WINDOW: usize = 8;
-const STCP_RETRANSMIT_AFTER_TICKS: u32 = 3;
-const STCP_MAX_RETRIES: u8 = 5;
+const STCP_TICK_MS: u32 = 100;
+const STCP_INITIAL_RTO_MS: u32 = 300;
+const STCP_MIN_RTO_MS: u32 = 100;
+const STCP_MAX_RTO_MS: u32 = 3_000;
+const STCP_MAX_RETRIES: u8 = 8;
+
+fn ms_to_ticks(ms: u32) -> u32 {
+    ms.saturating_add(STCP_TICK_MS - 1) / STCP_TICK_MS
+}
+
+fn clamp_rto(ms: u32) -> u32 {
+    ms.clamp(STCP_MIN_RTO_MS, STCP_MAX_RTO_MS)
+}
+
+fn update_rtt_estimator(inner: &mut crate::state::ContextInner, sample_ms: u32) {
+    let sample_ms = sample_ms.max(1);
+
+    match inner.srtt_ms {
+        None => {
+            inner.srtt_ms = Some(sample_ms);
+            inner.rttvar_ms = (sample_ms / 2).max(1);
+        }
+        Some(srtt) => {
+            let error = srtt.abs_diff(sample_ms);
+            inner.rttvar_ms = ((3 * inner.rttvar_ms) + error) / 4;
+            inner.srtt_ms = Some(((7 * srtt) + sample_ms) / 8);
+        }
+    }
+
+    let srtt = inner.srtt_ms.unwrap_or(sample_ms);
+    inner.rto_ms = clamp_rto(
+        srtt.saturating_add(4u32.saturating_mul(inner.rttvar_ms)),
+    );
+    inner.stats.rtt_samples = inner.stats.rtt_samples.saturating_add(1);
+}
+
+fn reset_reliability(inner: &mut crate::state::ContextInner) {
+    inner.srtt_ms = None;
+    inner.rttvar_ms = 0;
+    inner.rto_ms = STCP_INITIAL_RTO_MS;
+    inner.stats = crate::state::ReliabilityStats::new();
+}
 
 fn connection_id(ctx: &StcpContext) -> u64 {
     ctx.inner.lock().connection_id
@@ -208,6 +248,7 @@ pub fn connect(
         inner.tx_sequence = 0;
         inner.expected_rx_sequence = 0;
         inner.highest_acked_sequence = None;
+        reset_reliability(&mut inner);
         inner.pending_frames.clear();
         inner.out_of_order_frames.clear();
         inner.last_rx_sequence = None;
@@ -263,6 +304,7 @@ pub fn connect(
         inner.tx_sequence = 0;
         inner.expected_rx_sequence = 0;
         inner.highest_acked_sequence = None;
+        reset_reliability(&mut inner);
         inner.pending_frames.clear();
         inner.out_of_order_frames.clear();
         inner.last_rx_sequence = None;
@@ -548,12 +590,17 @@ pub fn send(
                 .checked_add(1)
                 .ok_or(StcpError::Protocol)?;
 
+            let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
+
             inner.pending_frames.push_back(PendingFrame {
                 sequence,
                 bytes: frame.clone(),
                 age_ticks: 0,
+                rto_ticks,
                 retries: 0,
+                retransmitted: false,
             });
+            inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
 
             frame
         };
@@ -766,11 +813,21 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         let expected = current_expected_sequence(ctx);
 
         if frame.header.sequence < expected {
+            {
+                let mut inner = ctx.inner.lock();
+                inner.stats.duplicate_frames =
+                    inner.stats.duplicate_frames.saturating_add(1);
+            }
             queue_ack(ctx, frame.header.sequence)?;
             continue;
         }
 
         if frame.header.sequence > expected {
+            {
+                let mut inner = ctx.inner.lock();
+                inner.stats.reordered_frames =
+                    inner.stats.reordered_frames.saturating_add(1);
+            }
             buffer_out_of_order_frame(ctx, frame)?;
             continue;
         }
@@ -936,7 +993,21 @@ fn update_acknowledgment(
         .map(|frame| frame.sequence <= acknowledgment)
         .unwrap_or(false)
     {
-        inner.pending_frames.pop_front();
+        if let Some(frame) = inner.pending_frames.pop_front() {
+            /*
+             * Karn's algorithm: never derive an RTT sample from a frame
+             * that has been retransmitted because the ACK is ambiguous.
+             */
+            if !frame.retransmitted {
+                let sample_ms = frame.age_ticks
+                    .max(1)
+                    .saturating_mul(STCP_TICK_MS);
+                update_rtt_estimator(&mut inner, sample_ms);
+            }
+
+            inner.stats.acknowledged_frames =
+                inner.stats.acknowledged_frames.saturating_add(1);
+        }
     }
 
     Ok(())
@@ -1058,22 +1129,48 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
 
     {
         let mut inner = ctx.inner.lock();
+        let mut retransmitted_count = 0u64;
+        let mut timed_out = false;
 
         for pending in &mut inner.pending_frames {
             pending.age_ticks = pending.age_ticks.saturating_add(1);
 
-            if pending.age_ticks < STCP_RETRANSMIT_AFTER_TICKS {
+            if pending.age_ticks < pending.rto_ticks {
                 continue;
             }
 
             if pending.retries >= STCP_MAX_RETRIES {
-                inner.state = SocketState::Error;
-                return Err(StcpError::Closed);
+                timed_out = true;
+                break;
             }
 
             pending.age_ticks = 0;
             pending.retries = pending.retries.saturating_add(1);
+            pending.retransmitted = true;
+
+            /*
+             * Exponential backoff is per frame. Clamp at the global
+             * maximum RTO so a dead peer eventually fails predictably.
+             */
+            pending.rto_ticks = pending.rto_ticks
+                .saturating_mul(2)
+                .min(ms_to_ticks(STCP_MAX_RTO_MS))
+                .max(1);
+
+            retransmitted_count = retransmitted_count.saturating_add(1);
             retransmit.push(pending.bytes.clone());
+        }
+
+        inner.stats.retransmitted_frames = inner
+            .stats
+            .retransmitted_frames
+            .saturating_add(retransmitted_count);
+
+        if timed_out {
+            inner.stats.timeout_failures =
+                inner.stats.timeout_failures.saturating_add(1);
+            inner.state = SocketState::Error;
+            return Err(StcpError::Closed);
         }
     }
 
@@ -1082,6 +1179,18 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     }
 
     Ok(true)
+}
+
+pub fn reliability_snapshot(
+    ctx: &StcpContext,
+) -> (u32, u32, u32, crate::state::ReliabilityStats) {
+    let inner = ctx.inner.lock();
+    (
+        inner.srtt_ms.unwrap_or(0),
+        inner.rttvar_ms,
+        inner.rto_ms,
+        inner.stats,
+    )
 }
 
 fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {

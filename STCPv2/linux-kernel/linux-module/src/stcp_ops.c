@@ -186,6 +186,13 @@ static int stcp_connect(
 	if (ret)
 		return ret;
 
+	/*
+	 * UDP reliability needs a timer on the active/client endpoint too.
+	 * Previously only accepted children started the retransmit worker, so
+	 * a lost client DATA frame could never be retransmitted.
+	 */
+	stcp_start_retransmit_work(ssk);
+
 	sock->state = SS_CONNECTED;
 	return 0;
 }
@@ -350,7 +357,7 @@ static int stcp_sendmsg(
 
 		wait_ret = wait_event_interruptible_timeout(
 			ssk->recv_wq,
-			stcp_rust_is_connected(ssk->rust_ctx) > 0,
+			stcp_rust_can_send(ssk->rust_ctx, len) > 0,
 			msecs_to_jiffies(10000)
 		);
 
@@ -360,7 +367,7 @@ static int stcp_sendmsg(
 		}
 
 		if (wait_ret == 0) {
-			pr_warn("stcp: send timed out waiting for handshake\n");
+			pr_warn("stcp: send timed out waiting for handshake/ACK window\n");
 			ret = -ETIMEDOUT;
 			break;
 		}

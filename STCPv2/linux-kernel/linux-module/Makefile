@@ -87,11 +87,13 @@ TEST_PROT_SELECT_SRC  := $(TEST_DIR)/stcp_protocol_select.c
 TEST_PROT_SELECT_BIN  := $(TEST_DIR)/stcp_protocol_select
 TEST_UDP_SRC          := $(TEST_DIR)/stcp_udp_test.c
 TEST_UDP_BIN          := $(TEST_DIR)/stcp_udp_test
+TEST_RELIABILITY_SRC  := $(TEST_DIR)/stcp_udp_reliability_test.c
+TEST_RELIABILITY_BIN  := $(TEST_DIR)/stcp_udp_reliability_test
 TEST_CC               ?= gcc
 TEST_TIMEOUT          ?= 20
 SUDO                  ?= sudo
 
-.PHONY: test test-udp test-build test-clean
+.PHONY: test test-udp test-reliability test-build test-clean
 
 test: module test-build
 	@set -e; \
@@ -113,7 +115,10 @@ test: module test-build
 	wait $$server_pid; \
 	echo "All STCP window/retransmission tests passed"
 
-test-build: $(TEST_BASIC_BIN) $(TEST_LARGE_BIN) $(TEST_PROT_SELECT_BIN) $(TEST_UDP_BIN)
+test-build: $(TEST_BASIC_BIN) $(TEST_LARGE_BIN) $(TEST_PROT_SELECT_BIN) $(TEST_UDP_BIN) $(TEST_RELIABILITY_BIN)
+
+$(TEST_RELIABILITY_BIN): $(TEST_RELIABILITY_SRC)
+	$(TEST_CC) -O2 -g -Wall -Wextra "$<" -o "$@"
 
 $(TEST_UDP_BIN): $(TEST_UDP_SRC)
 	$(TEST_CC) -O2 -g -Wall -Wextra "$<" -o "$@"
@@ -143,8 +148,31 @@ test-udp: module test-build
 	wait $$c1; wait $$c2; wait $$server_pid; \
 	echo "UDP demux test passed"
 
+
+test-reliability: module test-build
+	@set -e; \
+	cleanup() { $(SUDO) rmmod stcp 2>/dev/null || true; }; \
+	trap cleanup EXIT INT TERM; \
+	run_case() { \
+		name="$$1"; params="$$2"; \
+		if grep -q '^stcp ' /proc/modules; then $(SUDO) rmmod stcp; fi; \
+		$(SUDO) modprobe libcurve25519; \
+		$(SUDO) modprobe libchacha20poly1305; \
+		echo "=== UDP reliability: $$name ==="; \
+		$(SUDO) insmod "$(PWD)/stcp.ko" $$params; \
+		timeout "$(TEST_TIMEOUT)"s "$(TEST_RELIABILITY_BIN)" server & server_pid=$$!; \
+		sleep 1; \
+		timeout "$(TEST_TIMEOUT)"s "$(TEST_RELIABILITY_BIN)" client; \
+		wait $$server_pid; \
+		$(SUDO) rmmod stcp; \
+	}; \
+	run_case drop "drop_first_data=1"; \
+	run_case duplicate "duplicate_first_data=1"; \
+	run_case reorder "reorder_first_pair=1"; \
+	echo "All UDP reliability tests passed"
+
 test-clean:
-	rm -f "$(TEST_BASIC_BIN)" "$(TEST_LARGE_BIN)" "$(TEST_UDP_BIN)"
+	rm -f "$(TEST_BASIC_BIN)" "$(TEST_LARGE_BIN)" "$(TEST_UDP_BIN)" "$(TEST_RELIABILITY_BIN)"
 
 #
 # Moduuli funkkarit

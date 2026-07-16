@@ -16,6 +16,7 @@ void *stcp_rust_get_carrier(void *ctx);
 
 int stcp_rust_has_data(void *ctx);
 int stcp_rust_is_connected(void *ctx);
+int stcp_rust_can_send(void *ctx, size_t len);
 
 int stcp_rust_bind(void *ctx, u32 addr, u16 port);
 int stcp_rust_listen(void *ctx, int backlog);

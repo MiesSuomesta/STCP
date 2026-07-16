@@ -1,6 +1,7 @@
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/poll.h>
@@ -303,6 +304,7 @@ static int stcp_sendmsg(
 	struct stcp_sock *ssk;
 	u8 *buffer;
 	ssize_t ret;
+	long wait_ret;
 
 	if (!sock || !sock->sk || !msg)
 		return -EINVAL;
@@ -326,12 +328,45 @@ static int stcp_sendmsg(
 		return -EFAULT;
 	}
 
-	ret = stcp_rust_send(
-		ssk->rust_ctx,
-		buffer,
-		len,
-		msg->msg_flags
-	);
+	for (;;) {
+		ret = stcp_rust_send(
+			ssk->rust_ctx,
+			buffer,
+			len,
+			msg->msg_flags
+		);
+
+		if (ret != -EAGAIN)
+			break;
+
+		/*
+		 * The real carrier completes the STCP handshake asynchronously.
+		 * A blocking SOCK_STREAM send must wait until the Rust session
+		 * reaches Ready instead of exposing the internal -EAGAIN to the
+		 * application. Non-blocking callers still receive -EAGAIN.
+		 */
+		if (msg->msg_flags & MSG_DONTWAIT)
+			break;
+
+		wait_ret = wait_event_interruptible_timeout(
+			ssk->recv_wq,
+			stcp_rust_is_connected(ssk->rust_ctx) > 0,
+			msecs_to_jiffies(10000)
+		);
+
+		if (wait_ret < 0) {
+			ret = wait_ret;
+			break;
+		}
+
+		if (wait_ret == 0) {
+			pr_warn("stcp: send timed out waiting for handshake\n");
+			ret = -ETIMEDOUT;
+			break;
+		}
+
+		/* Ready: retry stcp_rust_send() with the same copied buffer. */
+	}
 
 	kfree(buffer);
 	return ret;

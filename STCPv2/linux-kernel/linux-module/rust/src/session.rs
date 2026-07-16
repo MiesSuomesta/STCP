@@ -488,6 +488,26 @@ pub fn recv(
         return Ok(0);
     }
 
+    /*
+     * accept() may return before the asynchronous carrier handshake has
+     * reached Ready.  For a blocking SOCK_STREAM recv this is not an
+     * invalid socket state: report Again so the C wrapper can sleep on
+     * recv_wq and retry after the carrier wakes it.
+     */
+    {
+        let inner = ctx.inner.lock();
+
+        if inner.state == SocketState::Handshake {
+            return Err(StcpError::Again);
+        }
+
+        if inner.state != SocketState::Ready &&
+           inner.state != SocketState::Closed
+        {
+            return Err(StcpError::InvalidState);
+        }
+    }
+
     fill_application_buffer(ctx)?;
 
     let mut inner = ctx.inner.lock();

@@ -5,6 +5,7 @@
 #include <linux/in.h>
 #include <linux/kthread.h>
 #include <linux/net.h>
+#include <linux/refcount.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
 
@@ -19,18 +20,30 @@ struct stcp_carrier {
 	enum stcp_carrier_kind kind;
 	struct socket *socket;
 	struct task_struct *receiver;
+	struct stcp_carrier *parent;
+	refcount_t refs;
 
 	void *rust_ctx;
 	void *owner;
 
+	struct sockaddr_storage peer;
+	bool has_peer;
 	bool listening;
 	bool connected;
 };
 
-extern int stcp_rust_carrier_receive(
+extern int stcp_rust_carrier_receive_from(
 	void *rust_ctx,
 	const u8 *data,
-	size_t len
+	size_t len,
+	u32 peer_addr,
+	u16 peer_port
+);
+
+extern int stcp_rust_get_udp_peer(
+	void *rust_ctx,
+	u32 *out_addr,
+	u16 *out_port
 );
 
 extern void stcp_kernel_wake_recv(void *owner);
@@ -51,8 +64,28 @@ static int stcp_sockaddr(
 	result->sin_family = AF_INET;
 	result->sin_addr.s_addr = (__force __be32)address;
 	result->sin_port = (__force __be16)port;
-
 	return 0;
+}
+
+static void stcp_carrier_free_root(struct stcp_carrier *carrier)
+{
+	if (carrier->receiver) {
+		kthread_stop(carrier->receiver);
+		carrier->receiver = NULL;
+	}
+
+	if (carrier->socket) {
+		sock_release(carrier->socket);
+		carrier->socket = NULL;
+	}
+
+	kfree(carrier);
+}
+
+static void stcp_carrier_put_root(struct stcp_carrier *carrier)
+{
+	if (carrier && refcount_dec_and_test(&carrier->refs))
+		stcp_carrier_free_root(carrier);
 }
 
 static int stcp_receiver_thread(void *argument)
@@ -60,23 +93,26 @@ static int stcp_receiver_thread(void *argument)
 	struct stcp_carrier *carrier = argument;
 	u8 *buffer;
 
-	buffer = kmalloc(
-		STCP_CARRIER_RX_BUFFER_SIZE,
-		GFP_KERNEL
-	);
+	buffer = kmalloc(STCP_CARRIER_RX_BUFFER_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
 	while (!kthread_should_stop()) {
+		struct sockaddr_storage peer;
 		struct msghdr message = {
 			.msg_flags = MSG_DONTWAIT,
+			.msg_name = &peer,
+			.msg_namelen = sizeof(peer),
 		};
 		struct kvec vector = {
 			.iov_base = buffer,
 			.iov_len = STCP_CARRIER_RX_BUFFER_SIZE,
 		};
+		u32 peer_addr = 0;
+		u16 peer_port = 0;
 		int ret;
 
+		memset(&peer, 0, sizeof(peer));
 		ret = kernel_recvmsg(
 			carrier->socket,
 			&message,
@@ -90,39 +126,34 @@ static int stcp_receiver_thread(void *argument)
 			msleep_interruptible(2);
 			continue;
 		}
-
 		if (ret == 0) {
 			if (carrier->kind == STCP_CARRIER_TCP)
 				break;
-
 			msleep_interruptible(2);
 			continue;
 		}
-
 		if (ret < 0) {
-			if (ret != -EINTR) {
-				pr_err_ratelimited(
-					"stcp: carrier recv failed: %d\n",
-					ret
-				);
-			}
-
+			if (ret != -EINTR)
+				pr_err_ratelimited("stcp: carrier recv failed: %d\n", ret);
 			msleep_interruptible(10);
 			continue;
 		}
 
-		ret = stcp_rust_carrier_receive(
+		if (peer.ss_family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&peer;
+			peer_addr = (__force u32)sin->sin_addr.s_addr;
+			peer_port = (__force u16)sin->sin_port;
+		}
+
+		ret = stcp_rust_carrier_receive_from(
 			carrier->rust_ctx,
 			buffer,
-			(size_t)ret
+			(size_t)ret,
+			peer_addr,
+			peer_port
 		);
-
-		if (ret) {
-			pr_err_ratelimited(
-				"stcp: Rust carrier receive failed: %d\n",
-				ret
-			);
-		}
+		if (ret)
+			pr_err_ratelimited("stcp: Rust carrier receive failed: %d\n", ret);
 
 		stcp_kernel_wake_recv(carrier->owner);
 	}
@@ -131,13 +162,10 @@ static int stcp_receiver_thread(void *argument)
 	return 0;
 }
 
-static int stcp_carrier_start_receiver(
-	struct stcp_carrier *carrier
-)
+static int stcp_carrier_start_receiver(struct stcp_carrier *carrier)
 {
 	if (!carrier || !carrier->socket)
 		return -EINVAL;
-
 	if (carrier->receiver)
 		return 0;
 
@@ -147,14 +175,11 @@ static int stcp_carrier_start_receiver(
 		"stcp-rx/%p",
 		carrier
 	);
-
 	if (IS_ERR(carrier->receiver)) {
 		int ret = PTR_ERR(carrier->receiver);
-
 		carrier->receiver = NULL;
 		return ret;
 	}
-
 	return 0;
 }
 
@@ -176,89 +201,62 @@ struct stcp_carrier *stcp_carrier_create(
 	carrier->kind = kind;
 	carrier->rust_ctx = rust_ctx;
 	carrier->owner = owner;
+	refcount_set(&carrier->refs, 1);
 
 	switch (kind) {
 	case STCP_CARRIER_TCP:
 		socket_type = SOCK_STREAM;
 		protocol = IPPROTO_TCP;
 		break;
-
 	case STCP_CARRIER_UDP:
 		socket_type = SOCK_DGRAM;
 		protocol = IPPROTO_UDP;
 		break;
-
 	default:
 		kfree(carrier);
 		return ERR_PTR(-EPROTONOSUPPORT);
 	}
 
-	ret = sock_create_kern(
-		&init_net,
-		AF_INET,
-		socket_type,
-		protocol,
-		&carrier->socket
-	);
-
+	ret = sock_create_kern(&init_net, AF_INET, socket_type, protocol, &carrier->socket);
 	if (ret) {
 		kfree(carrier);
 		return ERR_PTR(ret);
 	}
-
 	return carrier;
 }
 
-void stcp_carrier_destroy(
-	struct stcp_carrier *carrier
-)
+void stcp_carrier_destroy(struct stcp_carrier *carrier)
 {
 	if (!carrier)
 		return;
 
-	if (carrier->receiver) {
-		kthread_stop(carrier->receiver);
-		carrier->receiver = NULL;
-	}
-
-	if (carrier->socket) {
-		sock_release(carrier->socket);
+	if (carrier->parent) {
+		struct stcp_carrier *parent = carrier->parent;
+		carrier->parent = NULL;
 		carrier->socket = NULL;
+		kfree(carrier);
+		stcp_carrier_put_root(parent);
+		return;
 	}
 
-	kfree(carrier);
+	stcp_carrier_put_root(carrier);
 }
 
-bool stcp_carrier_needs_reliability(
-	const struct stcp_carrier *carrier
-)
+bool stcp_carrier_needs_reliability(const struct stcp_carrier *carrier)
 {
-	if (!carrier)
-		return false;
-
-	return carrier->kind == STCP_CARRIER_UDP;
+	return carrier && carrier->kind == STCP_CARRIER_UDP;
 }
 
-int stcp_carrier_bind(
-	struct stcp_carrier *carrier,
-	u32 address,
-	u16 port
-)
+int stcp_carrier_bind(struct stcp_carrier *carrier, u32 address, u16 port)
 {
 	struct sockaddr_storage socket_address;
 	int ret;
 
 	if (!carrier)
 		return -EINVAL;
-
-	ret = stcp_sockaddr(
-		address,
-		port,
-		&socket_address
-	);
+	ret = stcp_sockaddr(address, port, &socket_address);
 	if (ret)
 		return ret;
-
 	return kernel_bind(
 		carrier->socket,
 		(struct sockaddr_unsized *)&socket_address,
@@ -266,23 +264,16 @@ int stcp_carrier_bind(
 	);
 }
 
-int stcp_carrier_listen(
-	struct stcp_carrier *carrier,
-	int backlog
-)
+int stcp_carrier_listen(struct stcp_carrier *carrier, int backlog)
 {
 	if (!carrier)
 		return -EINVAL;
 
-	if (carrier->kind == STCP_CARRIER_UDP)
-		return -EOPNOTSUPP;
-
 	carrier->listening = true;
+	if (carrier->kind == STCP_CARRIER_UDP)
+		return stcp_carrier_start_receiver(carrier);
 
-	return kernel_listen(
-		carrier->socket,
-		backlog
-	);
+	return kernel_listen(carrier->socket, backlog);
 }
 
 int stcp_carrier_connect(
@@ -297,12 +288,7 @@ int stcp_carrier_connect(
 
 	if (!carrier)
 		return -EINVAL;
-
-	ret = stcp_sockaddr(
-		address,
-		port,
-		&socket_address
-	);
+	ret = stcp_sockaddr(address, port, &socket_address);
 	if (ret)
 		return ret;
 
@@ -312,10 +298,11 @@ int stcp_carrier_connect(
 		sizeof(struct sockaddr_in),
 		flags
 	);
-
 	if (ret)
 		return ret;
 
+	carrier->peer = socket_address;
+	carrier->has_peer = true;
 	carrier->connected = true;
 	return stcp_carrier_start_receiver(carrier);
 }
@@ -334,17 +321,34 @@ int stcp_carrier_accept(
 
 	if (!listener || !out_child)
 		return -EINVAL;
-
 	*out_child = NULL;
 
-	if (listener->kind == STCP_CARRIER_UDP)
-		return -EOPNOTSUPP;
+	if (listener->kind == STCP_CARRIER_UDP) {
+		u32 peer_addr;
+		u16 peer_port;
 
-	ret = kernel_accept(
-		listener->socket,
-		&accepted,
-		flags
-	);
+		ret = stcp_rust_get_udp_peer(child_rust_ctx, &peer_addr, &peer_port);
+		if (ret)
+			return ret;
+
+		child = kzalloc(sizeof(*child), GFP_KERNEL);
+		if (!child)
+			return -ENOMEM;
+
+		refcount_inc(&listener->refs);
+		child->kind = STCP_CARRIER_UDP;
+		child->socket = listener->socket;
+		child->parent = listener;
+		child->rust_ctx = child_rust_ctx;
+		child->owner = child_owner;
+		child->connected = true;
+		child->has_peer = true;
+		stcp_sockaddr(peer_addr, peer_port, &child->peer);
+		*out_child = child;
+		return 0;
+	}
+
+	ret = kernel_accept(listener->socket, &accepted, flags);
 	if (ret)
 		return ret;
 
@@ -359,13 +363,13 @@ int stcp_carrier_accept(
 	child->rust_ctx = child_rust_ctx;
 	child->owner = child_owner;
 	child->connected = true;
+	refcount_set(&child->refs, 1);
 
 	ret = stcp_carrier_start_receiver(child);
 	if (ret) {
 		stcp_carrier_destroy(child);
 		return ret;
 	}
-
 	*out_child = child;
 	return 0;
 }
@@ -377,47 +381,35 @@ ssize_t stcp_carrier_send(
 	int flags
 )
 {
-	struct msghdr message = {
-		.msg_flags = flags,
-	};
+	struct msghdr message = { .msg_flags = flags };
 	struct kvec vector;
 	size_t position = 0;
 
 	if (!carrier || !carrier->socket)
 		return -EINVAL;
-
 	if (!carrier->connected)
 		return -ENOTCONN;
-
 	if (!data && len)
 		return -EINVAL;
 
 	if (carrier->kind == STCP_CARRIER_UDP) {
 		int ret;
-
+		if (!carrier->has_peer)
+			return -ENOTCONN;
+		message.msg_name = &carrier->peer;
+		message.msg_namelen = sizeof(struct sockaddr_in);
 		vector.iov_base = (void *)data;
 		vector.iov_len = len;
-
-		ret = kernel_sendmsg(
-			carrier->socket,
-			&message,
-			&vector,
-			1,
-			len
-		);
-
+		ret = kernel_sendmsg(carrier->socket, &message, &vector, 1, len);
 		if (ret < 0)
 			return ret;
-
 		return (size_t)ret == len ? ret : -EIO;
 	}
 
 	while (position < len) {
 		int ret;
-
 		vector.iov_base = (void *)(data + position);
 		vector.iov_len = len - position;
-
 		ret = kernel_sendmsg(
 			carrier->socket,
 			&message,
@@ -425,29 +417,20 @@ ssize_t stcp_carrier_send(
 			1,
 			len - position
 		);
-
 		if (ret < 0)
 			return ret;
-
 		if (ret == 0)
 			return -EPIPE;
-
 		position += (size_t)ret;
 	}
-
 	return (ssize_t)position;
 }
 
-void stcp_carrier_shutdown(
-	struct stcp_carrier *carrier,
-	int how
-)
+void stcp_carrier_shutdown(struct stcp_carrier *carrier, int how)
 {
 	if (!carrier || !carrier->socket)
 		return;
-
-	kernel_sock_shutdown(
-		carrier->socket,
-		how
-	);
+	if (carrier->kind == STCP_CARRIER_UDP)
+		return;
+	kernel_sock_shutdown(carrier->socket, how);
 }

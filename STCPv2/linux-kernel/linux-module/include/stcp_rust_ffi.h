@@ -30,5 +30,7 @@ int stcp_rust_tick(void *ctx);
 int stcp_rust_crypto_selftest(void);
 
 int stcp_rust_carrier_receive(void *ctx, const u8 *data, size_t len);
+int stcp_rust_carrier_receive_from(void *ctx, const u8 *data, size_t len, u32 peer_addr, u16 peer_port);
+int stcp_rust_get_udp_peer(void *ctx, u32 *out_addr, u16 *out_port);
 
 #endif

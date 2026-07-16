@@ -7,6 +7,7 @@ use alloc::{
 
 use core::{
     ptr,
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 use crate::{
@@ -52,9 +53,15 @@ struct ListenerEntry {
 static LISTENERS: SpinLock<Vec<ListenerEntry>> =
     SpinLock::new(Vec::new());
 
+static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
+
 const STCP_SEND_WINDOW: usize = 8;
 const STCP_RETRANSMIT_AFTER_TICKS: u32 = 3;
 const STCP_MAX_RETRIES: u8 = 5;
+
+fn connection_id(ctx: &StcpContext) -> u64 {
+    ctx.inner.lock().connection_id
+}
 
 pub fn set_owner(ctx: &StcpContext, owner: usize) {
     let mut inner = ctx.inner.lock();
@@ -72,16 +79,23 @@ fn send_frame(
     frame: &[u8],
     flags: i32,
 ) -> Result<(), StcpError> {
-    let carrier_ptr = {
+    let (carrier_ptr, connection_id) = {
         let inner = ctx.inner.lock();
-        inner.carrier
+        (inner.carrier, inner.connection_id)
     };
+
+    if frame.len() < STCP_HEADER_LEN {
+        return Err(StcpError::Protocol);
+    }
+
+    let mut wire_frame = frame.to_vec();
+    wire_frame[32..40].copy_from_slice(&connection_id.to_be_bytes());
 
     crate::carrier::transmit(
         shared,
         side,
         carrier_ptr,
-        frame,
+        &wire_frame,
         flags,
     )
 }
@@ -153,7 +167,54 @@ pub fn connect(
     }
 
     let target = Address { addr, port };
+    let shared = Arc::new(Connection::new());
 
+    /*
+     * UDP is connectionless at the carrier layer. The client must not create
+     * or enqueue a server child through the in-kernel listener registry.
+     *
+     * The client sends the first PublicKey datagram with a fresh connection
+     * ID. The UDP listener creates the server child only when that datagram is
+     * received, because only then are the real peer address and port known.
+     */
+    if ctx.proto == 254 {
+        let mut inner = ctx.inner.lock();
+
+        inner.peer = Some(target);
+
+        if inner.connection_id == 0 {
+            inner.connection_id =
+                NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+
+            if inner.connection_id == 0 {
+                inner.connection_id =
+                    NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+
+        inner.state = SocketState::Handshake;
+        inner.connection = Some(EndpointConnection {
+            shared: shared.clone(),
+            side: Side::A,
+        });
+
+        inner.tx_nonce = 0;
+        inner.expected_rx_nonce = 0;
+        inner.tx_sequence = 0;
+        inner.expected_rx_sequence = 0;
+        inner.highest_acked_sequence = None;
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
+        inner.last_rx_sequence = None;
+
+        shared.set_owner(Side::A, inner.owner);
+        return Ok(());
+    }
+
+    /*
+     * The existing in-kernel paired transport path is retained for the
+     * non-UDP test/backend implementation.
+     */
     let listener_ptr = {
         let listeners = LISTENERS.lock();
 
@@ -167,8 +228,6 @@ pub fn connect(
     let listener = unsafe {
         &*(listener_ptr as *const StcpContext)
     };
-
-    let shared = Arc::new(Connection::new());
 
     let client_local = {
         let inner = ctx.inner.lock();
@@ -272,6 +331,7 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
 
     let frame = encode_frame(
         PacketType::PublicKey,
+        connection_id(ctx),
         &public_key,
     )?;
 
@@ -341,7 +401,7 @@ fn process_handshake_frames(
             inner.crypto.derive_session_keys(&key, role)?;
         }
 
-        let done = encode_frame(PacketType::HandshakeDone, &[])?;
+        let done = encode_frame(PacketType::HandshakeDone, connection_id(ctx), &[])?;
         send_frame(ctx, &shared, side, &done, 0)?;
     }
 
@@ -439,6 +499,7 @@ pub fn send(
                 payload_len,
                 sequence,
                 acknowledgment,
+                inner.connection_id,
             )?.encode();
             let ciphertext = inner.crypto.encrypt(
                 nonce,
@@ -450,6 +511,7 @@ pub fn send(
                 packet_type,
                 sequence,
                 acknowledgment,
+                inner.connection_id,
                 nonce,
                 &ciphertext,
             )?;
@@ -864,6 +926,7 @@ fn queue_ack(
         PacketType::Ack,
         0,
         sequence,
+        connection_id(ctx),
         &[],
     )?;
     send_frame(ctx, &shared, side, &frame, 0)?;
@@ -880,6 +943,7 @@ fn queue_pong(
         PacketType::Pong,
         ping_sequence,
         0,
+        connection_id(ctx),
         &[],
     )?;
     send_frame(ctx, &shared, side, &frame, 0)?;
@@ -1132,6 +1196,7 @@ pub fn shutdown(
             PacketType::Close,
             0,
             acknowledgment,
+            connection_id(ctx),
             &[],
         ) {
             let _ = send_frame(ctx, &shared, side, &close_frame, 0);
@@ -1143,6 +1208,7 @@ pub fn shutdown(
 }
 
 pub fn release(ctx: &StcpContext) {
+    crate::carrier::unregister_context(ctx);
     /*
      * Final release is a local teardown only.  It must never call
      * shutdown() or send a Close frame: the C carrier may already be

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -48,11 +49,61 @@ static int server(void)
         return 1;
     }
 
+    while (total < TEST_SIZE) {
+        ssize_t n = recv(
+            client,
+            buffer + total,
+            TEST_SIZE - total,
+            0
+        );
+
+        if (n < 0) {
+            perror("server recv");
+            close(client);
+            close(listener);
+            free(buffer);
+            return 1;
+        }
+
+        if (n == 0) {
+            fprintf(
+                stderr,
+                "server: unexpected EOF after %zu/%u bytes\n",
+                total,
+                TEST_SIZE
+            );
+            close(client);
+            close(listener);
+            free(buffer);
+            return 1;
+        }
+
+        total += (size_t)n;
+    }
+
+    for (size_t i = 0; i < TEST_SIZE; ++i) {
+        unsigned char expected = (unsigned char)(i & 0xff);
+
+        if (buffer[i] != expected) {
+            fprintf(
+                stderr,
+                "server: data mismatch at %zu: got=%u expected=%u\n",
+                i,
+                buffer[i],
+                expected
+            );
+            close(client);
+            close(listener);
+            free(buffer);
+            return 1;
+        }
+    }
+
     ssize_t reply_sent;
 
     printf("server: verified %zu framed bytes\n", total);
 
-    reply_sent = send(client, "OK", 2, 0);
+    reply_sent = send(client, "OK", 2, MSG_NOSIGNAL);
 
     if (reply_sent < 0) {
         perror("server reply send");
@@ -176,6 +227,8 @@ static int client(void)
 
 int main(int argc, char **argv)
 {
+    signal(SIGPIPE, SIG_IGN);
+
     if (argc != 2)
         return 2;
 

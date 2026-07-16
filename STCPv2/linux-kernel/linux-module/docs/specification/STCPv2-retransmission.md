@@ -34,3 +34,13 @@ drop_first_data=1
 
 drops the first DATA frame exactly once. The normal basic test therefore
 exercises the retransmission path.
+
+## Deterministic fault-injection modes
+
+The module supports three UDP-only test parameters:
+
+- `drop_first_data=1`: silently drops the first DATA frame;
+- `duplicate_first_data=1`: transmits the first DATA frame twice;
+- `reorder_first_pair=1`: holds the first DATA frame and sends it after the next DATA frame.
+
+These modes validate retransmission, duplicate suppression and the reorder queue.

@@ -100,7 +100,34 @@ pub struct PendingFrame {
     pub sequence: u64,
     pub bytes: Vec<u8>,
     pub age_ticks: u32,
+    pub rto_ticks: u32,
     pub retries: u8,
+    pub retransmitted: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ReliabilityStats {
+    pub sent_frames: u64,
+    pub acknowledged_frames: u64,
+    pub retransmitted_frames: u64,
+    pub duplicate_frames: u64,
+    pub reordered_frames: u64,
+    pub timeout_failures: u64,
+    pub rtt_samples: u64,
+}
+
+impl ReliabilityStats {
+    pub const fn new() -> Self {
+        Self {
+            sent_frames: 0,
+            acknowledged_frames: 0,
+            retransmitted_frames: 0,
+            duplicate_frames: 0,
+            reordered_frames: 0,
+            timeout_failures: 0,
+            rtt_samples: 0,
+        }
+    }
 }
 
 pub struct BufferedFrame {
@@ -125,6 +152,10 @@ pub struct ContextInner {
     pub tx_sequence: u64,
     pub expected_rx_sequence: u64,
     pub highest_acked_sequence: Option<u64>,
+    pub srtt_ms: Option<u32>,
+    pub rttvar_ms: u32,
+    pub rto_ms: u32,
+    pub stats: ReliabilityStats,
     pub pending_frames: VecDeque<PendingFrame>,
     pub out_of_order_frames: Vec<BufferedFrame>,
     pub last_rx_sequence: Option<u64>,
@@ -164,6 +195,10 @@ impl StcpContext {
                 tx_sequence: 0,
                 expected_rx_sequence: 0,
                 highest_acked_sequence: None,
+                srtt_ms: None,
+                rttvar_ms: 0,
+                rto_ms: 300,
+                stats: ReliabilityStats::new(),
                 pending_frames: VecDeque::new(),
                 out_of_order_frames: Vec::new(),
                 last_rx_sequence: None,
@@ -207,6 +242,10 @@ impl StcpContext {
                 tx_sequence: 0,
                 expected_rx_sequence: 0,
                 highest_acked_sequence: None,
+                srtt_ms: None,
+                rttvar_ms: 0,
+                rto_ms: 300,
+                stats: ReliabilityStats::new(),
                 pending_frames: VecDeque::new(),
                 out_of_order_frames: Vec::new(),
                 last_rx_sequence: None,

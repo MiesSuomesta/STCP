@@ -14,6 +14,21 @@ use crate::{
 
 const EINVAL: c_int = -22;
 
+#[repr(C)]
+pub struct StcpReliabilityStats {
+    pub srtt_ms: u32,
+    pub rttvar_ms: u32,
+    pub rto_ms: u32,
+    pub sent_frames: u64,
+    pub acknowledged_frames: u64,
+    pub retransmitted_frames: u64,
+    pub duplicate_frames: u64,
+    pub reordered_frames: u64,
+    pub timeout_failures: u64,
+    pub rtt_samples: u64,
+}
+
+
 #[inline]
 fn with_ctx<R>(
     raw: *mut c_void,
@@ -298,6 +313,41 @@ pub extern "C" fn stcp_rust_tick(
         Ok(Ok(true)) => 1,
         Ok(Ok(false)) => 0,
         Ok(Err(error)) => error.errno(),
+        Err(errno) => errno,
+    }
+}
+
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_get_reliability_stats(
+    raw: *mut c_void,
+    out_stats: *mut StcpReliabilityStats,
+) -> c_int {
+    if out_stats.is_null() {
+        return EINVAL;
+    }
+
+    match with_ctx(raw, session::reliability_snapshot) {
+        Ok((srtt_ms, rttvar_ms, rto_ms, stats)) => {
+            unsafe {
+                ptr::write(
+                    out_stats,
+                    StcpReliabilityStats {
+                        srtt_ms,
+                        rttvar_ms,
+                        rto_ms,
+                        sent_frames: stats.sent_frames,
+                        acknowledged_frames: stats.acknowledged_frames,
+                        retransmitted_frames: stats.retransmitted_frames,
+                        duplicate_frames: stats.duplicate_frames,
+                        reordered_frames: stats.reordered_frames,
+                        timeout_failures: stats.timeout_failures,
+                        rtt_samples: stats.rtt_samples,
+                    },
+                );
+            }
+            0
+        }
         Err(errno) => errno,
     }
 }

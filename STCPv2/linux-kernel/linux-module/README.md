@@ -145,3 +145,8 @@ cc -O2 -Wall testing/stcp_udp_test.c -o testing/stcp_udp_test
 ./testing/stcp_udp_test client second &
 wait
 ```
+
+
+## Adaptive retransmission timeout
+
+See `ADAPTIVE_RTO.md`. Run `make LLVM=1 V=1 test-reliability` to exercise baseline, packet loss, delay, duplicate and reorder cases.

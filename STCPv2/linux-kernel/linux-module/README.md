@@ -122,3 +122,26 @@ and:
 ```c
 stcp_rust_set_carrier(child->rust_ctx, child->carrier);
 ```
+
+## UDP listen/accept demultiplexing
+
+The UDP carrier now uses a 64-bit `connection_id` in the STCP v2 header. A
+single bound UDP listener socket receives all datagrams and routes them to
+child Rust sessions by `(connection_id, peer IPv4, peer port)`.
+
+- First `PublicKey` frame for a new connection creates a pending child session.
+- `accept()` attaches a lightweight child carrier that shares the listener UDP
+  socket through a reference count and stores its own peer address.
+- Unknown connection IDs and packets from a different peer tuple are dropped.
+- Existing sequence/ACK logic provides duplicate suppression and retransmission.
+- Child release unregisters its demux entry before the Rust context is freed.
+
+Test manually:
+
+```bash
+cc -O2 -Wall testing/stcp_udp_test.c -o testing/stcp_udp_test
+./testing/stcp_udp_test server 2 &
+./testing/stcp_udp_test client first &
+./testing/stcp_udp_test client second &
+wait
+```

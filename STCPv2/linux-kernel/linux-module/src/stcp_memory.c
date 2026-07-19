@@ -15,14 +15,14 @@ void stcp_kernel_wake_accept(void *owner)
 {
 	struct stcp_sock *ssk = owner;
 
-	if (ssk)
-		wake_up_interruptible_all(&ssk->accept_wq);
+	if (ssk && waitqueue_active(&ssk->accept_wq))
+		wake_up_interruptible(&ssk->accept_wq);
 }
 
 void stcp_kernel_wake_recv(void *owner)
 {
 	struct stcp_sock *ssk = owner;
 
-	if (ssk)
-		wake_up_interruptible_all(&ssk->recv_wq);
+	if (ssk && waitqueue_active(&ssk->recv_wq))
+		wake_up_interruptible(&ssk->recv_wq);
 }

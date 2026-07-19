@@ -1,0 +1,32 @@
+{
+  "bytes_received": 0,
+  "bytes_sent": 1048576,
+  "clients": 4,
+  "connections_failed": 0,
+  "connections_ok": 4,
+  "duration_seconds": 27.00354831599998,
+  "host": "127.0.0.1",
+  "latency_ms": {
+    "average": 0.0,
+    "maximum": 0.0,
+    "p50": 0.0,
+    "p95": 0.0,
+    "p99": 0.0,
+    "samples": 0
+  },
+  "mode": "throughput",
+  "operations_per_second": 0.0,
+  "payload_bytes": 262144,
+  "port": 7777,
+  "recvs_failed": 0,
+  "recvs_ok": 0,
+  "report_interval_seconds": 5.0,
+  "rx_mib_per_second": 0.0,
+  "sends_failed": 0,
+  "sends_ok": 4,
+  "server_accepts": 4,
+  "server_errors": 0,
+  "tx_mib_per_second": 0.037032170302133446,
+  "verify_failures": 0,
+  "verify_payload": true
+}

@@ -3,6 +3,7 @@
 extern crate alloc;
 
 mod allocator;
+mod byte_queue;
 mod crypto;
 mod error;
 mod ffi;

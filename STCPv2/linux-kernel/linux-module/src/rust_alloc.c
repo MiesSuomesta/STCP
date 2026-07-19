@@ -1,4 +1,5 @@
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 //#include <zephyr/kernel.h>
 
 /*
@@ -15,7 +16,7 @@ int debug_memory_alloc = 0;
 
 void *stcp_rust_kernel_alloc(size_t pSize)
 {
-    void *p = kmalloc(pSize, GFP_KERNEL);
+    void *p = kvmalloc(pSize, GFP_KERNEL | __GFP_NOWARN);
     if (p) {
         memset(p, 0, pSize);
     }
@@ -37,5 +38,5 @@ void stcp_rust_kernel_free(void *pFrom)
     }
 #endif
 
-    kfree(pFrom);
+    kvfree(pFrom);
 }

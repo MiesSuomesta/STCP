@@ -61,6 +61,10 @@ int stcp_carrier_accept(
 	int flags
 );
 
+int stcp_carrier_start_receiver_thread(
+	struct stcp_carrier *carrier
+);
+
 ssize_t stcp_carrier_send(
 	struct stcp_carrier *carrier,
 	const u8 *data,

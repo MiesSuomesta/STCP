@@ -16,8 +16,25 @@ impl CryptoContext{
  pub const fn public_key(&self)->[u8;64]{self.public_key}
  pub fn derive_session_keys(&mut self,peer:&[u8;64],role:Role)->Result<(),StcpError>{let mut shared=[0;32];let r=unsafe{stcp_kernel_x25519_shared(shared.as_mut_ptr(),self.secret_key.as_ptr(),peer.as_ptr())};if r!=0{return Err(StcpError::Kernel(r));}let mut local=[0u8;32];local.copy_from_slice(&self.public_key[..32]);let mut remote=[0u8;32];remote.copy_from_slice(&peer[..32]);let (client_pub,server_pub)=match role{Role::Client=>(&local,&remote),Role::Server=>(&remote,&local)};let (c2s,s2c)=derive_directional_keys(&shared,client_pub,server_pub)?;shared.fill(0);match role{Role::Client=>{self.tx_key=Some(c2s);self.rx_key=Some(s2c)},Role::Server=>{self.tx_key=Some(s2c);self.rx_key=Some(c2s)}}Ok(())}
  pub const fn ready(&self)->bool{self.tx_key.is_some()&&self.rx_key.is_some()}
- pub fn encrypt(&self,nonce:u64,aad:&[u8],plain:&[u8])->Result<Vec<u8>,StcpError>{let key=self.tx_key.as_ref().ok_or(StcpError::InvalidState)?;let mut out=Vec::new();out.try_reserve_exact(plain.len()+16).map_err(|_|StcpError::NoMem)?;out.resize(plain.len()+16,0);let r=unsafe{stcp_kernel_chacha_encrypt(key.as_ptr(),nonce,nc(aad),aad.len(),nc(plain),plain.len(),out.as_mut_ptr(),out.len())};if r!=0{out.fill(0);return Err(StcpError::Kernel(r));}Ok(out)}
- pub fn decrypt(&self,nonce:u64,aad:&[u8],cipher:&[u8])->Result<Vec<u8>,StcpError>{if cipher.len()<16{return Err(StcpError::Crypto);}let key=self.rx_key.as_ref().ok_or(StcpError::InvalidState)?;let mut out=Vec::new();out.try_reserve_exact(cipher.len()-16).map_err(|_|StcpError::NoMem)?;out.resize(cipher.len()-16,0);let r=unsafe{stcp_kernel_chacha_decrypt(key.as_ptr(),nonce,nc(aad),aad.len(),cipher.as_ptr(),cipher.len(),nm(&mut out),out.len())};if r!=0{out.fill(0);return Err(StcpError::Kernel(r));}Ok(out)}
+ pub fn encrypt_into(&self,nonce:u64,aad:&[u8],plain:&[u8],out:&mut[u8])->Result<usize,StcpError>{
+  let required=plain.len().checked_add(CHACHA_TAG_LEN).ok_or(StcpError::NoMem)?;
+  if out.len()<required{return Err(StcpError::NoMem);}
+  let key=self.tx_key.as_ref().ok_or(StcpError::InvalidState)?;
+  let r=unsafe{stcp_kernel_chacha_encrypt(key.as_ptr(),nonce,nc(aad),aad.len(),nc(plain),plain.len(),out.as_mut_ptr(),out.len())};
+  if r!=0{out[..required].fill(0);return Err(StcpError::Kernel(r));}
+  Ok(required)
+ }
+ pub fn decrypt_into(&self,nonce:u64,aad:&[u8],cipher:&[u8],out:&mut[u8])->Result<usize,StcpError>{
+  if cipher.len()<CHACHA_TAG_LEN{return Err(StcpError::Crypto);}
+  let required=cipher.len()-CHACHA_TAG_LEN;
+  if out.len()<required{return Err(StcpError::NoMem);}
+  let key=self.rx_key.as_ref().ok_or(StcpError::InvalidState)?;
+  let r=unsafe{stcp_kernel_chacha_decrypt(key.as_ptr(),nonce,nc(aad),aad.len(),cipher.as_ptr(),cipher.len(),out.as_mut_ptr(),out.len())};
+  if r!=0{out[..required].fill(0);return Err(StcpError::Kernel(r));}
+  Ok(required)
+ }
+ pub fn encrypt(&self,nonce:u64,aad:&[u8],plain:&[u8])->Result<Vec<u8>,StcpError>{let mut out=Vec::new();out.try_reserve_exact(plain.len()+CHACHA_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(plain.len()+CHACHA_TAG_LEN,0);let n=self.encrypt_into(nonce,aad,plain,&mut out)?;out.truncate(n);Ok(out)}
+ pub fn decrypt(&self,nonce:u64,aad:&[u8],cipher:&[u8])->Result<Vec<u8>,StcpError>{if cipher.len()<CHACHA_TAG_LEN{return Err(StcpError::Crypto);}let mut out=Vec::new();out.try_reserve_exact(cipher.len()-CHACHA_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(cipher.len()-CHACHA_TAG_LEN,0);let n=self.decrypt_into(nonce,aad,cipher,&mut out)?;out.truncate(n);Ok(out)}
 }
 impl Drop for CryptoContext{fn drop(&mut self){self.secret_key.fill(0);if let Some(k)=&mut self.tx_key{k.fill(0)}if let Some(k)=&mut self.rx_key{k.fill(0)}}}
 fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut u8{if x.is_empty(){core::ptr::null_mut()}else{x.as_mut_ptr()}}

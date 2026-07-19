@@ -21,14 +21,16 @@ use crate::{
         wake_accept,
         wake_recv,
     },
+    byte_queue::ByteQueue,
     error::StcpError,
     frame::{
         encode_control_frame,
-        encode_encrypted_frame,
         encode_frame,
         Header,
         PacketType,
         STCP_FRAME_PAYLOAD_LEN,
+        STCP_STREAM_FRAME_PAYLOAD_LEN,
+        STCP_UDP_FRAME_PAYLOAD_LEN,
         STCP_HEADER_LEN,
     },
     spinlock::SpinLock,
@@ -60,10 +62,10 @@ unsafe extern "C" {
 }
 
 
-const STCP_SEND_WINDOW: usize = 8;
-const STCP_TICK_MS: u32 = 100;
-const STCP_INITIAL_RTO_MS: u32 = 300;
-const STCP_MIN_RTO_MS: u32 = 100;
+const STCP_SEND_WINDOW: usize = 64;
+const STCP_TICK_MS: u32 = 20;
+const STCP_INITIAL_RTO_MS: u32 = 50;
+const STCP_MIN_RTO_MS: u32 = 20;
 const STCP_MAX_RTO_MS: u32 = 3_000;
 const STCP_MAX_RETRIES: u8 = 8;
 
@@ -133,14 +135,13 @@ fn send_frame(
         return Err(StcpError::Protocol);
     }
 
-    let mut wire_frame = frame.to_vec();
-    wire_frame[32..40].copy_from_slice(&connection_id.to_be_bytes());
-
+    /* Frames are encoded with the final connection id. Avoid a full-frame copy. */
+    let _ = connection_id;
     crate::carrier::transmit(
         shared,
         side,
         carrier_ptr,
-        &wire_frame,
+        frame,
         flags,
     )
 }
@@ -400,7 +401,25 @@ fn process_handshake_frames(
             break;
         }
 
-        let header = peek_header(&wire)?;
+        /*
+         * A TCP carrier is a byte stream, not a frame transport.  A stale or
+         * partial prefix must not permanently poison the receive queue.  The
+         * old code returned EPROTO while leaving the same byte at the front,
+         * causing every subsequent carrier receive to fail with -71.
+         *
+         * Resynchronise one byte at a time until a valid STCP v2 header is at
+         * the front.  Incomplete headers/frames remain queued for the next
+         * kernel_recvmsg() call.
+         */
+        let header = match peek_header(&wire) {
+            Ok(header) => header,
+            Err(StcpError::Again) => break,
+            Err(StcpError::Protocol) => {
+                wire.discard(1);
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         let frame_len = STCP_HEADER_LEN
             .checked_add(header.payload_len)
             .ok_or(StcpError::Protocol)?;
@@ -418,11 +437,8 @@ fn process_handshake_frames(
                 remove_header(&mut wire);
 
                 let mut key = [0u8; PUBLIC_KEY_WIRE_LEN];
-
-                for byte in &mut key {
-                    *byte = wire
-                        .pop_front()
-                        .ok_or(StcpError::Protocol)?;
+                if wire.read_into(&mut key) != PUBLIC_KEY_WIRE_LEN {
+                    return Err(StcpError::Protocol);
                 }
 
                 received_key = Some(key);
@@ -452,15 +468,26 @@ fn process_handshake_frames(
         send_frame(ctx, &shared, side, &done, 0)?;
     }
 
-    if received_done {
+    /*
+     * The session keys are fully usable as soon as the peer PublicKey has
+     * been validated and our HandshakeDone frame has been transmitted.
+     *
+     * Requiring a second HandshakeDone frame before entering Ready created a
+     * circular readiness dependency in the nonblocking socket path: poll()
+     * waited for Ready, while no application I/O progressed the remaining
+     * control frame.  HandshakeDone is still parsed and recorded, but it is
+     * no longer a prerequisite for using the already-derived traffic keys.
+     */
+    {
         let mut inner = ctx.inner.lock();
-        inner.peer_handshake_done = true;
-    }
 
-    let mut inner = ctx.inner.lock();
+        if received_done {
+            inner.peer_handshake_done = true;
+        }
 
-    if inner.crypto.ready() && inner.peer_handshake_done {
-        inner.state = SocketState::Ready;
+        if inner.crypto.ready() {
+            inner.state = SocketState::Ready;
+        }
     }
 
     Ok(())
@@ -481,6 +508,15 @@ pub fn accept(
         .ok_or(StcpError::Again)
 }
 
+#[inline]
+fn frame_payload_len(ctx: &StcpContext) -> usize {
+    if ctx.proto == 254 {
+        STCP_UDP_FRAME_PAYLOAD_LEN
+    } else {
+        STCP_STREAM_FRAME_PAYLOAD_LEN
+    }
+}
+
 pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
     if progress_handshake(ctx).is_err() {
         return false;
@@ -493,7 +529,7 @@ pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
     let frame_count = if data_len == 0 {
         0
     } else {
-        data_len.div_ceil(STCP_FRAME_PAYLOAD_LEN)
+        data_len.div_ceil(frame_payload_len(ctx))
     };
 
     let inner = ctx.inner.lock();
@@ -519,13 +555,15 @@ pub fn send(
         return Err(StcpError::Closed);
     }
 
+    let carrier_ptr = ctx.inner.lock().carrier;
+    let reliable = crate::carrier::reliability_required(carrier_ptr);
     let frame_count = if data.is_empty() {
         0
     } else {
-        data.len().div_ceil(STCP_FRAME_PAYLOAD_LEN)
+        data.len().div_ceil(frame_payload_len(ctx))
     };
 
-    {
+    if reliable {
         let inner = ctx.inner.lock();
 
         if inner.pending_frames.len() + frame_count > STCP_SEND_WINDOW {
@@ -533,10 +571,11 @@ pub fn send(
         }
     }
 
+    let payload_limit = frame_payload_len(ctx);
     let mut position = 0usize;
 
     while position < data.len() {
-        let end = (position + STCP_FRAME_PAYLOAD_LEN).min(data.len());
+        let end = (position + payload_limit).min(data.len());
         let packet_type = if end == data.len() {
             PacketType::DataChunkEnd
         } else {
@@ -568,20 +607,23 @@ pub fn send(
                 acknowledgment,
                 inner.connection_id,
             )?.encode();
-            let ciphertext = inner.crypto.encrypt(
+            let frame_len = STCP_HEADER_LEN
+                .checked_add(NONCE_LEN)
+                .and_then(|value| value.checked_add(encrypted_len))
+                .ok_or(StcpError::Protocol)?;
+            let mut frame = Vec::new();
+            frame.try_reserve_exact(frame_len).map_err(|_| StcpError::NoMem)?;
+            frame.resize(frame_len, 0);
+            frame[..STCP_HEADER_LEN].copy_from_slice(&header);
+            frame[STCP_HEADER_LEN..STCP_HEADER_LEN + NONCE_LEN]
+                .copy_from_slice(&nonce.to_be_bytes());
+            let encrypted_written = inner.crypto.encrypt_into(
                 nonce,
                 &header,
                 plaintext,
+                &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
             )?;
-
-            let frame = encode_encrypted_frame(
-                packet_type,
-                sequence,
-                acknowledgment,
-                inner.connection_id,
-                nonce,
-                &ciphertext,
-            )?;
+            frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
 
             inner.tx_nonce = inner.tx_nonce
                 .checked_add(1)
@@ -590,17 +632,28 @@ pub fn send(
                 .checked_add(1)
                 .ok_or(StcpError::Protocol)?;
 
-            let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
+            let frame: Arc<[u8]> = frame.into();
 
-            inner.pending_frames.push_back(PendingFrame {
-                sequence,
-                bytes: frame.clone(),
-                age_ticks: 0,
-                rto_ticks,
-                retries: 0,
-                retransmitted: false,
-            });
-            inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
+            /*
+             * TCP already provides ordered reliable delivery.  Retaining an
+             * Arc for every frame and exchanging STCP ACK frames on top of TCP
+             * doubles traffic and grows pending memory during long runs.
+             */
+            if reliable {
+                let rto_ticks = ms_to_ticks(
+                    inner.rto_ms.max(STCP_INITIAL_RTO_MS),
+                );
+                inner.pending_frames.push_back(PendingFrame {
+                    sequence,
+                    bytes: Arc::clone(&frame),
+                    age_ticks: 0,
+                    rto_ticks,
+                    retries: 0,
+                    retransmitted: false,
+                });
+                inner.stats.sent_frames =
+                    inner.stats.sent_frames.saturating_add(1);
+            }
 
             frame
         };
@@ -647,11 +700,7 @@ pub fn recv(
     let mut inner = ctx.inner.lock();
 
     if inner.rx_message_ready && !inner.rx_app_data.is_empty() {
-        let count = output.len().min(inner.rx_app_data.len());
-
-        for slot in output.iter_mut().take(count) {
-            *slot = inner.rx_app_data.pop_front().unwrap_or_default();
-        }
+        let count = inner.rx_app_data.read_into(output);
 
         if inner.rx_app_data.is_empty() {
             inner.rx_message_ready = false;
@@ -717,28 +766,13 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                     remove_header(&mut wire);
 
                     let mut nonce_bytes = [0u8; NONCE_LEN];
-
-                    for byte in &mut nonce_bytes {
-                        *byte = wire
-                            .pop_front()
-                            .ok_or(StcpError::Protocol)?;
+                    if wire.read_into(&mut nonce_bytes) != NONCE_LEN {
+                        return protocol_error(ctx);
                     }
 
                     let nonce = u64::from_be_bytes(nonce_bytes);
                     let ciphertext_len = header.payload_len - NONCE_LEN;
-                    let mut ciphertext = Vec::new();
-
-                    ciphertext
-                        .try_reserve_exact(ciphertext_len)
-                        .map_err(|_| StcpError::NoMem)?;
-
-                    for _ in 0..ciphertext_len {
-                        ciphertext.push(
-                            wire
-                                .pop_front()
-                                .ok_or(StcpError::Protocol)?,
-                        );
-                    }
+                    let ciphertext = wire.read_vec(ciphertext_len)?;
 
                     received_frames.push(BufferedFrame {
                         header,
@@ -776,9 +810,8 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 }
                 PacketType::Reset => {
                     remove_header(&mut wire);
-
-                    for _ in 0..header.payload_len {
-                        let _ = wire.pop_front();
+                    if wire.discard(header.payload_len) != header.payload_len {
+                        return protocol_error(ctx);
                     }
 
                     drop(wire);
@@ -786,9 +819,8 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 }
                 PacketType::Close => {
                     remove_header(&mut wire);
-
-                    for _ in 0..header.payload_len {
-                        let _ = wire.pop_front();
+                    if wire.discard(header.payload_len) != header.payload_len {
+                        return protocol_error(ctx);
                     }
 
                     peer_eof = true;
@@ -908,7 +940,7 @@ fn process_in_order_frame(
     let packet_type = frame.header.packet_type;
     let sequence = frame.header.sequence;
 
-    let plaintext = {
+    {
         let mut inner = ctx.inner.lock();
 
         if frame.header.sequence != inner.expected_rx_sequence {
@@ -926,36 +958,28 @@ fn process_in_order_frame(
         }
 
         let aad = frame.header.encode();
-
-        match inner.crypto.decrypt(
+        let plaintext = match inner.crypto.decrypt(
             frame.nonce,
             &aad,
             &frame.ciphertext,
         ) {
-            Ok(plaintext) => {
-                inner.expected_rx_nonce = inner
-                    .expected_rx_nonce
-                    .checked_add(1)
-                    .ok_or(StcpError::Crypto)?;
-
-                inner.expected_rx_sequence = inner
-                    .expected_rx_sequence
-                    .checked_add(1)
-                    .ok_or(StcpError::Protocol)?;
-
-                inner.last_rx_sequence = Some(sequence);
-                plaintext
-            }
+            Ok(plaintext) => plaintext,
             Err(error) => {
                 inner.state = SocketState::Error;
                 return Err(error);
             }
-        }
-    };
+        };
 
-    {
-        let mut inner = ctx.inner.lock();
-        inner.rx_app_data.extend(plaintext);
+        inner.expected_rx_nonce = inner
+            .expected_rx_nonce
+            .checked_add(1)
+            .ok_or(StcpError::Crypto)?;
+        inner.expected_rx_sequence = inner
+            .expected_rx_sequence
+            .checked_add(1)
+            .ok_or(StcpError::Protocol)?;
+        inner.last_rx_sequence = Some(sequence);
+        inner.rx_app_data.push_vec(plaintext)?;
 
         if packet_type == PacketType::DataChunkEnd {
             inner.rx_message_ready = true;
@@ -1017,6 +1041,12 @@ fn queue_ack(
     ctx: &StcpContext,
     sequence: u64,
 ) -> Result<(), StcpError> {
+    let carrier_ptr = ctx.inner.lock().carrier;
+
+    if !crate::carrier::reliability_required(carrier_ptr) {
+        return Ok(());
+    }
+
     let (shared, side) = connection_for_data(ctx)?;
     let frame = encode_control_frame(
         PacketType::Ack,
@@ -1199,21 +1229,19 @@ fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {
 }
 
 fn peek_header(
-    wire: &VecDeque<u8>,
+    wire: &ByteQueue,
 ) -> Result<Header, StcpError> {
     let mut header_bytes = [0u8; STCP_HEADER_LEN];
 
-    for (index, byte) in wire.iter().take(STCP_HEADER_LEN).enumerate() {
-        header_bytes[index] = *byte;
+    if wire.peek_prefix(&mut header_bytes) != STCP_HEADER_LEN {
+        return Err(StcpError::Again);
     }
 
     Header::decode(&header_bytes)
 }
 
-fn remove_header(wire: &mut VecDeque<u8>) {
-    for _ in 0..STCP_HEADER_LEN {
-        let _ = wire.pop_front();
-    }
+fn remove_header(wire: &mut ByteQueue) {
+    debug_assert_eq!(wire.discard(STCP_HEADER_LEN), STCP_HEADER_LEN);
 }
 
 fn connection_for_handshake(
@@ -1341,21 +1369,28 @@ pub fn shutdown(
     }
 }
 
+fn unregister_listener(ctx: &StcpContext) {
+    let ctx_ptr = ptr::from_ref(ctx) as usize;
+    let mut listeners = LISTENERS.lock();
+
+    /*
+     * Remove by context identity rather than by socket state/address.
+     * Release may run after a partial setup, an error transition, or after
+     * the state was already changed to Closed.
+     */
+    listeners.retain(|entry| entry.ctx != ctx_ptr);
+}
+
 pub fn release(ctx: &StcpContext) {
     crate::carrier::unregister_context(ctx);
-    /*
-     * Final release is a local teardown only.  It must never call
-     * shutdown() or send a Close frame: the C carrier may already be
-     * detached/stopped and the peer may already have disappeared.
-     */
-    let (local, connection, queued_children) = {
-        let mut inner = ctx.inner.lock();
+    unregister_listener(ctx);
 
-        let local = if inner.state == SocketState::Listening {
-            inner.local
-        } else {
-            None
-        };
+    /*
+     * Final release is local teardown only. It must not call shutdown(),
+     * send a Close frame, or touch a carrier that may already be detached.
+     */
+    let (connection, queued_children) = {
+        let mut inner = ctx.inner.lock();
 
         let connection = inner.connection.take().map(|endpoint| {
             (endpoint.shared, endpoint.side)
@@ -1364,32 +1399,37 @@ pub fn release(ctx: &StcpContext) {
         inner.state = SocketState::Closed;
         inner.owner = 0;
         inner.carrier = 0;
+
         let queued_children = inner.accept_queue.drain(..).collect::<Vec<_>>();
+
         inner.pending_frames.clear();
         inner.out_of_order_frames.clear();
         inner.rx_app_data.clear();
         inner.rx_message_ready = false;
         inner.peer_eof = true;
 
-        (local, connection, queued_children)
+        (connection, queued_children)
     };
 
     for child in queued_children {
-        let carrier = child.inner.lock().carrier;
+        let carrier = {
+            let mut child_inner = child.inner.lock();
+            let carrier = child_inner.carrier;
+            child_inner.carrier = 0;
+            child_inner.owner = 0;
+            child_inner.state = SocketState::Closed;
+            carrier
+        };
+
         if carrier != 0 {
-            unsafe { stcp_carrier_destroy(carrier as *mut core::ffi::c_void) };
-            child.inner.lock().carrier = 0;
+            unsafe {
+                stcp_carrier_destroy(
+                    carrier as *mut core::ffi::c_void,
+                )
+            };
         }
+
         drop(child);
-    }
-
-    if let Some(address) = local {
-        let ctx_ptr = ptr::from_ref(ctx) as usize;
-        let mut listeners = LISTENERS.lock();
-
-        listeners.retain(|entry| {
-            entry.ctx != ctx_ptr || entry.address != address
-        });
     }
 
     if let Some((shared, side)) = connection {

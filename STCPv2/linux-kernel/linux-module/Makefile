@@ -24,7 +24,11 @@ RUSTFLAGS_KERNEL := \
 	-C no-redzone=yes \
 	-Z plt=yes
 
-.PHONY: all module rust rust-core check-tools clean distclean check-relocations
+.PHONY: all module rust rust-core check-tools clean distclean check-relocations zip
+
+zip: clean test-clean
+	rm -f paketti.zip
+	zip -r paketti.zip .
 
 all: module
 

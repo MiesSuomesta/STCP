@@ -18,7 +18,7 @@
 #include "stcp_rust_ffi.h"
 #include "stcp_socket.h"
 
-#define STCP_IO_BUFFER_MAX (128 * 1024)
+#define STCP_IO_BUFFER_MAX (1024 * 1024)
 
 static int stcp_release(struct socket *sock)
 {
@@ -27,6 +27,8 @@ static int stcp_release(struct socket *sock)
 	struct sock *sk;
 	void *rust_ctx;
 	struct stcp_reliability_stats stats;
+	u8 *tx_buffer;
+	u8 *rx_buffer;
 
 	if (!sock)
 		return -EINVAL;
@@ -42,15 +44,14 @@ static int stcp_release(struct socket *sock)
 
 	stcp_stop_retransmit_work(ssk);
 
-	rust_ctx = ssk->rust_ctx;
-	carrier = ssk->carrier;
-	ssk->rust_ctx = NULL;
-	ssk->carrier = NULL;
+	/* Detach pointers exactly once, including concurrent error teardown. */
+	rust_ctx = xchg(&ssk->rust_ctx, NULL);
+	carrier = xchg(&ssk->carrier, NULL);
 
 	if (rust_ctx &&
 	    stcp_rust_get_reliability_stats(rust_ctx, &stats) == 0 &&
 	    stats.sent_frames) {
-		pr_info(
+		pr_debug(
 			"stcp: reliability srtt=%ums rttvar=%ums rto=%ums "
 			"sent=%llu acked=%llu retx=%llu dup=%llu reorder=%llu "
 			"timeouts=%llu samples=%llu\n",
@@ -76,12 +77,21 @@ static int stcp_release(struct socket *sock)
 		stcp_rust_set_carrier(rust_ctx, NULL);
 	}
 
-	/* kthread_stop() synchronizes with any receiver callback. */
+	/*
+	 * Root destroy stops the receiver immediately, even if UDP children keep
+	 * an inert reference to the root.  Therefore no callback can touch the
+	 * Rust context after this returns.
+	 */
 	if (carrier)
 		stcp_carrier_destroy(carrier);
 
 	if (rust_ctx)
 		stcp_rust_release(rust_ctx);
+
+	tx_buffer = xchg(&ssk->tx_buffer, NULL);
+	rx_buffer = xchg(&ssk->rx_buffer, NULL);
+	kfree_sensitive(tx_buffer);
+	kfree_sensitive(rx_buffer);
 
 	wake_up_interruptible_all(&ssk->accept_wq);
 	wake_up_interruptible_all(&ssk->recv_wq);
@@ -208,12 +218,25 @@ static int stcp_connect(
 		return ret;
 
 	/*
-	 * UDP reliability needs a timer on the active/client endpoint too.
-	 * Previously only accepted children started the retransmit worker, so
-	 * a lost client DATA frame could never be retransmitted.
+	 * Start RX only after Rust has a complete connection, carrier and owner.
+	 * Otherwise a queued PublicKey can be consumed against a half-initialized
+	 * context and the handshake never reaches Ready.
+	 */
+	ret = stcp_carrier_start_receiver_thread(ssk->carrier);
+	if (ret)
+		return ret;
+
+	/*
+	 * Do not wait for the crypto handshake inside connect().  The listener
+	 * application must first run accept() so the accepted carrier and Rust
+	 * owner can be attached; waiting here caused the stress clients to stall
+	 * at connect() with zero completed connections.
+	 *
+	 * The first send() remains correctly gated by stcp_rust_send(): it returns
+	 * -EAGAIN until the state reaches Ready.  Nonblocking userspace then waits
+	 * for EPOLLOUT on recv_wq, which the carrier wakes as handshake bytes arrive.
 	 */
 	stcp_start_retransmit_work(ssk);
-
 	sock->state = SS_CONNECTED;
 	return 0;
 }
@@ -279,12 +302,23 @@ static int stcp_accept(
 	child = stcp_sk(newsk);
 	child->rust_ctx = accepted_ctx;
 
+	/*
+	 * accepted_ctx has already been removed from the Rust listener queue.
+	 * Therefore the matching TCP child must be consumed atomically here.
+	 * Passing the outer listener's O_NONBLOCK flag can return -EAGAIN after
+	 * the Rust child was popped, permanently desynchronising the two queues
+	 * and leaving all clients stuck before handshake completion.
+	 *
+	 * kernel_connect() succeeded before the Rust child was queued, so the
+	 * corresponding TCP child is guaranteed to arrive. Use a blocking inner
+	 * accept even when the public STCP listener itself is nonblocking.
+	 */
 	ret = stcp_carrier_accept(
 		listener->carrier,
 		child->rust_ctx,
 		child,
 		&child->carrier,
-		flags
+		0
 	);
 
 	if (ret) {
@@ -317,6 +351,19 @@ static int stcp_accept(
 		return ret;
 	}
 
+	ret = stcp_carrier_start_receiver_thread(child->carrier);
+	if (ret) {
+		stcp_rust_set_owner(child->rust_ctx, NULL);
+		stcp_rust_set_carrier(child->rust_ctx, NULL);
+		stcp_carrier_destroy(child->carrier);
+		child->carrier = NULL;
+		stcp_rust_release(child->rust_ctx);
+		child->rust_ctx = NULL;
+		newsock->sk = NULL;
+		sk_free(newsk);
+		return ret;
+	}
+
 	stcp_start_retransmit_work(child);
 
 	newsock->state = SS_CONNECTED;
@@ -331,73 +378,67 @@ static int stcp_sendmsg(
 {
 	struct stcp_sock *ssk;
 	u8 *buffer;
-	ssize_t ret;
-	long wait_ret;
+	size_t total = 0;
+	ssize_t ret = 0;
 
 	if (!sock || !sock->sk || !msg)
 		return -EINVAL;
-
 	if (!len)
 		return 0;
-
-	if (len > STCP_IO_BUFFER_MAX)
-		return -EMSGSIZE;
 
 	ssk = stcp_sk(sock->sk);
 	if (!ssk->rust_ctx)
 		return -EINVAL;
 
-	buffer = kmalloc(len, GFP_KERNEL);
-	if (!buffer)
+	mutex_lock(&ssk->tx_lock);
+	if (!ssk->tx_buffer)
+		ssk->tx_buffer = kmalloc(STCP_IO_BUFFER_MAX, GFP_KERNEL);
+	buffer = ssk->tx_buffer;
+	if (!buffer) {
+		mutex_unlock(&ssk->tx_lock);
 		return -ENOMEM;
-
-	if (!copy_from_iter_full(buffer, len, &msg->msg_iter)) {
-		kfree(buffer);
-		return -EFAULT;
 	}
 
-	for (;;) {
-		ret = stcp_rust_send(
-			ssk->rust_ctx,
-			buffer,
-			len,
-			msg->msg_flags
-		);
+	while (total < len) {
+		size_t chunk = min_t(size_t, len - total, STCP_IO_BUFFER_MAX);
+		int wait_ret;
 
-		if (ret != -EAGAIN)
-			break;
-
-		/*
-		 * The real carrier completes the STCP handshake asynchronously.
-		 * A blocking SOCK_STREAM send must wait until the Rust session
-		 * reaches Ready instead of exposing the internal -EAGAIN to the
-		 * application. Non-blocking callers still receive -EAGAIN.
-		 */
-		if (msg->msg_flags & MSG_DONTWAIT)
-			break;
-
-		wait_ret = wait_event_interruptible_timeout(
-			ssk->recv_wq,
-			stcp_rust_can_send(ssk->rust_ctx, len) > 0,
-			msecs_to_jiffies(10000)
-		);
-
-		if (wait_ret < 0) {
-			ret = wait_ret;
+		if (!copy_from_iter_full(buffer, chunk, &msg->msg_iter)) {
+			ret = total ? (ssize_t)total : -EFAULT;
 			break;
 		}
 
-		if (wait_ret == 0) {
-			pr_warn("stcp: send timed out waiting for handshake/ACK window\n");
-			ret = -ETIMEDOUT;
-			break;
+		for (;;) {
+			ret = stcp_rust_send(ssk->rust_ctx, buffer, chunk,
+						 msg->msg_flags);
+			if (ret != -EAGAIN)
+				break;
+			if (msg->msg_flags & MSG_DONTWAIT)
+				break;
+			wait_ret = wait_event_interruptible(
+				ssk->recv_wq,
+				stcp_rust_can_send(ssk->rust_ctx, chunk) > 0
+			);
+			if (wait_ret < 0) {
+				ret = wait_ret;
+				break;
+			}
 		}
 
-		/* Ready: retry stcp_rust_send() with the same copied buffer. */
+		if (ret < 0) {
+			if (total)
+				ret = total;
+			break;
+		}
+		if (!ret)
+			break;
+		total += ret;
+		if ((size_t)ret < chunk)
+			break;
 	}
 
-	kfree(buffer);
-	return ret;
+	mutex_unlock(&ssk->tx_lock);
+	return total ? (int)total : (int)ret;
 }
 
 static int stcp_recvmsg(
@@ -429,9 +470,14 @@ static int stcp_recvmsg(
 	if (!ssk->rust_ctx)
 		return -EINVAL;
 
-	buffer = kmalloc(len, GFP_KERNEL);
-	if (!buffer)
+	mutex_lock(&ssk->rx_lock);
+	if (!ssk->rx_buffer)
+		ssk->rx_buffer = kmalloc(STCP_IO_BUFFER_MAX, GFP_KERNEL);
+	buffer = ssk->rx_buffer;
+	if (!buffer) {
+		mutex_unlock(&ssk->rx_lock);
 		return -ENOMEM;
+	}
 
 	for (;;) {
 		ret = stcp_rust_recv(
@@ -462,7 +508,7 @@ static int stcp_recvmsg(
 	    copy_to_iter(buffer, ret, &msg->msg_iter) != ret)
 		ret = -EFAULT;
 
-	kfree(buffer);
+	mutex_unlock(&ssk->rx_lock);
 	return ret;
 }
 

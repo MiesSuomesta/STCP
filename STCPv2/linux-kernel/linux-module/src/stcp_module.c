@@ -38,6 +38,15 @@ module_param(delay_first_data_ms, uint, 0644);
 MODULE_PARM_DESC(delay_first_data_ms,
 	"Delay the first UDP DATA frame by N milliseconds");
 
+bool stcp_test_active(void)
+{
+	return READ_ONCE(drop_first_data) ||
+	       READ_ONCE(duplicate_first_data) ||
+	       READ_ONCE(reorder_first_pair) ||
+	       READ_ONCE(drop_percent) != 0 ||
+	       READ_ONCE(delay_first_data_ms) != 0;
+}
+
 bool stcp_test_should_drop_data(void)
 {
 	return atomic_cmpxchg(&drop_budget, 1, 0) == 1;

@@ -12,6 +12,7 @@ use core::sync::atomic::{
 };
 
 use crate::{
+    byte_queue::ByteQueue,
     crypto::{CryptoContext, Role},
     frame::Header,
     spinlock::SpinLock,
@@ -42,8 +43,8 @@ pub enum Side {
 }
 
 pub struct Connection {
-    pub a_to_b: SpinLock<VecDeque<u8>>,
-    pub b_to_a: SpinLock<VecDeque<u8>>,
+    pub a_to_b: SpinLock<ByteQueue>,
+    pub b_to_a: SpinLock<ByteQueue>,
     pub a_closed: AtomicBool,
     pub b_closed: AtomicBool,
     pub owner_a: AtomicUsize,
@@ -53,8 +54,8 @@ pub struct Connection {
 impl Connection {
     pub fn new() -> Self {
         Self {
-            a_to_b: SpinLock::new(VecDeque::new()),
-            b_to_a: SpinLock::new(VecDeque::new()),
+            a_to_b: SpinLock::new(ByteQueue::new()),
+            b_to_a: SpinLock::new(ByteQueue::new()),
             a_closed: AtomicBool::new(false),
             b_closed: AtomicBool::new(false),
             owner_a: AtomicUsize::new(0),
@@ -98,7 +99,7 @@ pub struct EndpointConnection {
 
 pub struct PendingFrame {
     pub sequence: u64,
-    pub bytes: Vec<u8>,
+    pub bytes: Arc<[u8]>,
     pub age_ticks: u32,
     pub rto_ticks: u32,
     pub retries: u8,
@@ -159,7 +160,7 @@ pub struct ContextInner {
     pub pending_frames: VecDeque<PendingFrame>,
     pub out_of_order_frames: Vec<BufferedFrame>,
     pub last_rx_sequence: Option<u64>,
-    pub rx_app_data: VecDeque<u8>,
+    pub rx_app_data: ByteQueue,
     pub rx_message_ready: bool,
     pub peer_eof: bool,
     pub carrier: usize,
@@ -202,7 +203,7 @@ impl StcpContext {
                 pending_frames: VecDeque::new(),
                 out_of_order_frames: Vec::new(),
                 last_rx_sequence: None,
-                rx_app_data: VecDeque::new(),
+                rx_app_data: ByteQueue::new(),
                 rx_message_ready: false,
                 peer_eof: false,
                 carrier: 0,
@@ -249,7 +250,7 @@ impl StcpContext {
                 pending_frames: VecDeque::new(),
                 out_of_order_frames: Vec::new(),
                 last_rx_sequence: None,
-                rx_app_data: VecDeque::new(),
+                rx_app_data: ByteQueue::new(),
                 rx_message_ready: false,
                 peer_eof: false,
                 carrier: 0,

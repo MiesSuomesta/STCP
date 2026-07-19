@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
@@ -9,15 +10,18 @@
 #include <linux/net.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/socket.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <linux/tcp.h>
 
 #include "stcp_carrier.h"
 #include "stcp_test.h"
 
-#define STCP_CARRIER_RX_BUFFER_SIZE (128 * 1024)
+#define STCP_CARRIER_TCP_RX_BUFFER_SIZE (2 * 1024 * 1024)
+#define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
 
 struct stcp_carrier {
 	enum stcp_carrier_kind kind;
@@ -25,6 +29,12 @@ struct stcp_carrier {
 	struct task_struct *receiver;
 	struct stcp_carrier *parent;
 	refcount_t refs;
+
+	/* Serializes receiver start/stop and prevents stale task pointers. */
+	struct mutex lifecycle_lock;
+	struct completion stop_done;
+	bool stopping;
+	bool stopped;
 
 	void *rust_ctx;
 	void *owner;
@@ -57,6 +67,16 @@ extern int stcp_rust_get_udp_peer(
 );
 
 extern void stcp_kernel_wake_recv(void *owner);
+
+static struct stcp_carrier *stcp_carrier_root(
+	struct stcp_carrier *carrier
+)
+{
+	if (!carrier)
+		return NULL;
+
+	return carrier->parent ? carrier->parent : carrier;
+}
 
 
 static int stcp_sockaddr(
@@ -95,39 +115,131 @@ static ssize_t stcp_udp_send_one(
 	int flags
 )
 {
-	struct msghdr message = {
-		.msg_flags = flags,
-		.msg_name = &carrier->peer,
-		.msg_namelen = sizeof(struct sockaddr_in),
-	};
-	struct kvec vector = {
-		.iov_base = (void *)data,
-		.iov_len = len,
-	};
+	struct stcp_carrier *root = stcp_carrier_root(carrier);
+	struct msghdr message;
+	struct kvec vector;
 	int ret;
 
-	ret = kernel_sendmsg(carrier->socket, &message, &vector, 1, len);
-	if (ret < 0)
-		return ret;
+	if (!root || !data)
+		return -EINVAL;
 
-	return (size_t)ret == len ? ret : -EIO;
+	memset(&message, 0, sizeof(message));
+	message.msg_flags = flags;
+	message.msg_name = &carrier->peer;
+	message.msg_namelen = sizeof(struct sockaddr_in);
+
+	vector.iov_base = (void *)data;
+	vector.iov_len = len;
+
+	/*
+	 * Root shutdown and UDP sends are serialized by lifecycle_lock.  Child
+	 * carriers never own a socket pointer; they always use the refcounted
+	 * parent's socket while this lock is held.
+	 */
+	mutex_lock(&root->lifecycle_lock);
+
+	if (root->stopping || !root->socket) {
+		ret = -ESHUTDOWN;
+		goto out_unlock;
+	}
+
+	ret = kernel_sendmsg(root->socket, &message, &vector, 1, len);
+	if (ret >= 0 && (size_t)ret != len)
+		ret = -EIO;
+
+ out_unlock:
+	mutex_unlock(&root->lifecycle_lock);
+	return ret;
+}
+
+static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
+{
+	struct task_struct *receiver;
+	struct socket *socket;
+	bool wait_for_other = false;
+
+	if (!carrier || carrier->parent)
+		return false;
+
+	/*
+	 * Exactly one caller performs shutdown.  Concurrent destroy/free paths
+	 * wait for stop_done before they are allowed to release the root memory.
+	 */
+	mutex_lock(&carrier->lifecycle_lock);
+
+	if (carrier->stopped) {
+		mutex_unlock(&carrier->lifecycle_lock);
+		return true;
+	}
+
+	if (carrier->stopping) {
+		wait_for_other = true;
+		receiver = NULL;
+		socket = NULL;
+	} else {
+		carrier->stopping = true;
+		receiver = carrier->receiver;
+		carrier->receiver = NULL;
+		socket = carrier->socket;
+	}
+
+	mutex_unlock(&carrier->lifecycle_lock);
+
+	if (wait_for_other) {
+		wait_for_completion(&carrier->stop_done);
+		return true;
+	}
+
+	/* Wake kernel_recvmsg() before joining the thread. */
+	if (receiver && socket)
+		kernel_sock_shutdown(socket, SHUT_RDWR);
+
+	if (receiver && !IS_ERR(receiver)) {
+		if (WARN_ON_ONCE(receiver == current)) {
+			/* This path is forbidden; leak rather than free under RX. */
+			mutex_lock(&carrier->lifecycle_lock);
+			carrier->receiver = receiver;
+			carrier->stopping = false;
+			mutex_unlock(&carrier->lifecycle_lock);
+			return false;
+		}
+
+		kthread_stop(receiver);
+	}
+
+	/* No receiver callback can run after kthread_stop() returns. */
+	mutex_lock(&carrier->lifecycle_lock);
+	carrier->rust_ctx = NULL;
+	carrier->owner = NULL;
+	carrier->connected = false;
+	carrier->listening = false;
+	carrier->has_peer = false;
+	carrier->stopped = true;
+	mutex_unlock(&carrier->lifecycle_lock);
+
+	complete_all(&carrier->stop_done);
+	return true;
 }
 
 static void stcp_carrier_free_root(struct stcp_carrier *carrier)
 {
-	if (carrier->receiver) {
-		kthread_stop(carrier->receiver);
-		carrier->receiver = NULL;
-	}
+	struct socket *socket;
+
+	/* Idempotent: listener release normally stopped it already. */
+	if (!stcp_carrier_stop_root(carrier))
+		return;
+
+	mutex_lock(&carrier->lifecycle_lock);
+	socket = carrier->socket;
+	carrier->socket = NULL;
+	mutex_unlock(&carrier->lifecycle_lock);
 
 	kfree_sensitive(carrier->held_frame);
 	carrier->held_frame = NULL;
 	carrier->held_frame_len = 0;
 
-	if (carrier->socket) {
-		sock_release(carrier->socket);
-		carrier->socket = NULL;
-	}
+	if (socket)
+		sock_release(socket);
 
 	kfree(carrier);
 }
@@ -141,22 +253,35 @@ static void stcp_carrier_put_root(struct stcp_carrier *carrier)
 static int stcp_receiver_thread(void *argument)
 {
 	struct stcp_carrier *carrier = argument;
+	size_t buffer_size;
 	u8 *buffer;
 
-	buffer = kmalloc(STCP_CARRIER_RX_BUFFER_SIZE, GFP_KERNEL);
-	if (!buffer)
+	buffer_size = carrier->kind == STCP_CARRIER_UDP
+		? STCP_CARRIER_UDP_RX_BUFFER_SIZE
+		: STCP_CARRIER_TCP_RX_BUFFER_SIZE;
+
+	buffer = kvmalloc(buffer_size, GFP_KERNEL);
+	if (!buffer) {
+		/*
+		 * Do not let the task disappear while carrier->receiver still
+		 * references it.  Keep the kthread alive until its owner stops it.
+		 */
+		pr_err("stcp: carrier RX buffer allocation failed\n");
+		while (!kthread_should_stop())
+			schedule_timeout_interruptible(1);
 		return -ENOMEM;
+	}
 
 	while (!kthread_should_stop()) {
 		struct sockaddr_storage peer;
 		struct msghdr message = {
-			.msg_flags = MSG_DONTWAIT,
+			.msg_flags = 0,
 			.msg_name = &peer,
 			.msg_namelen = sizeof(peer),
 		};
 		struct kvec vector = {
 			.iov_base = buffer,
-			.iov_len = STCP_CARRIER_RX_BUFFER_SIZE,
+			.iov_len = buffer_size,
 		};
 		u32 peer_addr = 0;
 		u16 peer_port = 0;
@@ -168,24 +293,40 @@ static int stcp_receiver_thread(void *argument)
 			&message,
 			&vector,
 			1,
-			STCP_CARRIER_RX_BUFFER_SIZE,
-			MSG_DONTWAIT
+			buffer_size,
+			0
 		);
 
-		if (ret == -EAGAIN || ret == -EWOULDBLOCK) {
-			msleep_interruptible(2);
-			continue;
-		}
-		if (ret == 0) {
-			if (carrier->kind == STCP_CARRIER_TCP)
+		if (ret <= 0) {
+			if (kthread_should_stop())
 				break;
-			msleep_interruptible(2);
-			continue;
-		}
-		if (ret < 0) {
-			if (ret != -EINTR)
+
+			/*
+			 * TCP EOF and permanent disconnect errors are terminal.  The old
+			 * code kept one kthread and its RX buffer alive forever for every
+			 * closed stress-test connection.
+			 */
+			if (carrier->kind == STCP_CARRIER_TCP &&
+			    (ret == 0 || ret == -ESHUTDOWN || ret == -ENOTCONN ||
+			     ret == -ECONNRESET || ret == -EPIPE)) {
+				/*
+				 * Never let the receiver task exit on its own.
+				 * carrier->receiver is consumed later by kthread_stop();
+				 * returning here would leave a stale task pointer once the
+				 * kthread bookkeeping has been released. Park until the
+				 * owner performs the authoritative stop.
+				 */
+				while (!kthread_should_stop())
+					schedule_timeout_interruptible(HZ / 10 ?: 1);
+				break;
+			}
+
+			if (ret < 0 && ret != -EINTR && ret != -ERESTARTSYS &&
+			    ret != -EAGAIN)
 				pr_err_ratelimited("stcp: carrier recv failed: %d\n", ret);
-			msleep_interruptible(10);
+
+			/* Only transient errors retry; yield instead of spinning. */
+			schedule_timeout_interruptible(1);
 			continue;
 		}
 
@@ -202,35 +343,59 @@ static int stcp_receiver_thread(void *argument)
 			peer_addr,
 			peer_port
 		);
+
+		cond_resched();
 		if (ret)
 			pr_err_ratelimited("stcp: Rust carrier receive failed: %d\n", ret);
 
+		/*
+		 * Keep the carrier-side wake as a correctness fallback. During
+		 * handshake/accept the Rust owner may not yet be attached, so the
+		 * Rust wake can legitimately be a no-op. waitqueue_active() inside
+		 * stcp_kernel_wake_recv() keeps this cheap when nobody sleeps.
+		 */
 		stcp_kernel_wake_recv(carrier->owner);
 	}
 
-	kfree_sensitive(buffer);
+	kvfree_sensitive(buffer, buffer_size);
 	return 0;
 }
 
 static int stcp_carrier_start_receiver(struct stcp_carrier *carrier)
 {
+	struct task_struct *receiver;
+	int ret = 0;
+
 	if (!carrier || !carrier->socket)
 		return -EINVAL;
-	if (carrier->receiver)
-		return 0;
 
-	carrier->receiver = kthread_run(
+	mutex_lock(&carrier->lifecycle_lock);
+
+	if (carrier->stopping) {
+		ret = -ESHUTDOWN;
+		goto out_unlock;
+	}
+
+	if (carrier->receiver)
+		goto out_unlock;
+
+	receiver = kthread_run(
 		stcp_receiver_thread,
 		carrier,
 		"stcp-rx/%p",
 		carrier
 	);
-	if (IS_ERR(carrier->receiver)) {
-		int ret = PTR_ERR(carrier->receiver);
-		carrier->receiver = NULL;
-		return ret;
+
+	if (IS_ERR(receiver)) {
+		ret = PTR_ERR(receiver);
+		goto out_unlock;
 	}
-	return 0;
+
+	carrier->receiver = receiver;
+
+ out_unlock:
+	mutex_unlock(&carrier->lifecycle_lock);
+	return ret;
 }
 
 struct stcp_carrier *stcp_carrier_create(
@@ -252,6 +417,8 @@ struct stcp_carrier *stcp_carrier_create(
 	carrier->rust_ctx = rust_ctx;
 	carrier->owner = owner;
 	refcount_set(&carrier->refs, 1);
+	mutex_init(&carrier->lifecycle_lock);
+	init_completion(&carrier->stop_done);
 	mutex_init(&carrier->test_lock);
 
 	switch (kind) {
@@ -273,6 +440,8 @@ struct stcp_carrier *stcp_carrier_create(
 		kfree(carrier);
 		return ERR_PTR(ret);
 	}
+	if (kind == STCP_CARRIER_TCP)
+		tcp_sock_set_nodelay(carrier->socket->sk);
 	return carrier;
 }
 
@@ -286,17 +455,31 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	struct stcp_carrier *child;
 
 	if (!listener || listener->kind != STCP_CARRIER_UDP ||
-	    !listener->socket || !child_rust_ctx || !peer_port)
+	    !child_rust_ctx || !peer_port)
 		return ERR_PTR(-EINVAL);
 
 	child = kzalloc(sizeof(*child), GFP_KERNEL);
 	if (!child)
 		return ERR_PTR(-ENOMEM);
 
-	refcount_inc(&listener->refs);
+	/*
+	 * Acquire the parent reference only while the listener is live.  This
+	 * prevents accept racing root teardown from resurrecting a zero refcount.
+	 */
+	mutex_lock(&listener->lifecycle_lock);
+	if (listener->stopping || !listener->socket ||
+	    !refcount_inc_not_zero(&listener->refs)) {
+		mutex_unlock(&listener->lifecycle_lock);
+		kfree(child);
+		return ERR_PTR(-ESHUTDOWN);
+	}
+	mutex_unlock(&listener->lifecycle_lock);
+	mutex_init(&child->lifecycle_lock);
+	init_completion(&child->stop_done);
 	mutex_init(&child->test_lock);
 	child->kind = STCP_CARRIER_UDP;
-	child->socket = listener->socket;
+	/* UDP children borrow the root socket through parent; never copy it. */
+	child->socket = NULL;
 	child->parent = listener;
 	child->rust_ctx = child_rust_ctx;
 	child->owner = NULL;
@@ -333,6 +516,12 @@ void stcp_carrier_destroy(struct stcp_carrier *carrier)
 		return;
 	}
 
+	/*
+	 * A root/listener release must stop RX immediately, before its Rust
+	 * context is freed.  Child references keep only the inert root object
+	 * alive until their own release.
+	 */
+	stcp_carrier_stop_root(carrier);
 	stcp_carrier_put_root(carrier);
 }
 
@@ -346,8 +535,10 @@ int stcp_carrier_bind(struct stcp_carrier *carrier, u32 address, u16 port)
 	struct sockaddr_storage socket_address;
 	int ret;
 
-	if (!carrier)
+	if (!carrier || carrier->parent)
 		return -EINVAL;
+	if (carrier->stopping || !carrier->socket)
+		return -ESHUTDOWN;
 	ret = stcp_sockaddr(address, port, &socket_address);
 	if (ret)
 		return ret;
@@ -360,8 +551,10 @@ int stcp_carrier_bind(struct stcp_carrier *carrier, u32 address, u16 port)
 
 int stcp_carrier_listen(struct stcp_carrier *carrier, int backlog)
 {
-	if (!carrier)
+	if (!carrier || carrier->parent)
 		return -EINVAL;
+	if (carrier->stopping || !carrier->socket)
+		return -ESHUTDOWN;
 
 	carrier->listening = true;
 	if (carrier->kind == STCP_CARRIER_UDP)
@@ -380,8 +573,10 @@ int stcp_carrier_connect(
 	struct sockaddr_storage socket_address;
 	int ret;
 
-	if (!carrier)
+	if (!carrier || carrier->parent)
 		return -EINVAL;
+	if (carrier->stopping || !carrier->socket)
+		return -ESHUTDOWN;
 	ret = stcp_sockaddr(address, port, &socket_address);
 	if (ret)
 		return ret;
@@ -398,7 +593,7 @@ int stcp_carrier_connect(
 	carrier->peer = socket_address;
 	carrier->has_peer = true;
 	carrier->connected = true;
-	return stcp_carrier_start_receiver(carrier);
+	return 0;
 }
 
 int stcp_carrier_accept(
@@ -460,16 +655,23 @@ int stcp_carrier_accept(
 	child->rust_ctx = child_rust_ctx;
 	child->owner = child_owner;
 	child->connected = true;
+	tcp_sock_set_nodelay(child->socket->sk);
 	refcount_set(&child->refs, 1);
+	mutex_init(&child->lifecycle_lock);
+	init_completion(&child->stop_done);
 	mutex_init(&child->test_lock);
 
-	ret = stcp_carrier_start_receiver(child);
-	if (ret) {
-		stcp_carrier_destroy(child);
-		return ret;
-	}
 	*out_child = child;
 	return 0;
+}
+
+int stcp_carrier_start_receiver_thread(struct stcp_carrier *carrier)
+{
+	if (!carrier)
+		return -EINVAL;
+	if (carrier->kind == STCP_CARRIER_UDP && carrier->parent)
+		return 0;
+	return stcp_carrier_start_receiver(carrier);
 }
 
 ssize_t stcp_carrier_send(
@@ -483,7 +685,7 @@ ssize_t stcp_carrier_send(
 	struct kvec vector;
 	size_t position = 0;
 
-	if (!carrier || !carrier->socket)
+	if (!carrier)
 		return -EINVAL;
 	if (!carrier->connected)
 		return -ENOTCONN;
@@ -498,6 +700,10 @@ ssize_t stcp_carrier_send(
 			return -ENOTCONN;
 
 		data_frame = stcp_is_data_frame(data, len);
+
+		/* Normal production path: avoid the fault-injection mutex entirely. */
+		if (!stcp_test_active())
+			return stcp_udp_send_one(carrier, data, len, flags);
 
 		/* Pretend success: reliability must recover intentionally lost frames. */
 		if (data_frame &&
@@ -554,6 +760,9 @@ ssize_t stcp_carrier_send(
 		mutex_unlock(&carrier->test_lock);
 		return ret;
 	}
+
+	if (!carrier->socket)
+		return -ESHUTDOWN;
 
 	while (position < len) {
 		int ret;

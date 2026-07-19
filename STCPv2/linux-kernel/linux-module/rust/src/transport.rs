@@ -16,6 +16,7 @@ use crate::{
         NONCE_LEN,
         PUBLIC_KEY_WIRE_LEN,
     },
+    byte_queue::ByteQueue,
     error::StcpError,
     packet::{
         encode_encrypted_frame,
@@ -434,11 +435,7 @@ pub fn recv(
     let mut inner = ctx.inner.lock();
 
     if inner.rx_message_ready && !inner.rx_app_data.is_empty() {
-        let count = output.len().min(inner.rx_app_data.len());
-
-        for slot in output.iter_mut().take(count) {
-            *slot = inner.rx_app_data.pop_front().unwrap_or_default();
-        }
+        let count = inner.rx_app_data.read_into(output);
 
         if inner.rx_app_data.is_empty() {
             inner.rx_message_ready = false;
@@ -544,7 +541,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
 
     drop(wire);
 
-    let mut assembled = VecDeque::new();
+    let mut assembled = ByteQueue::new();
     let mut message_ready = false;
 
     for (header, nonce, ciphertext) in encrypted_frames {
@@ -574,7 +571,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
             }
         };
 
-        assembled.extend(plaintext);
+        assembled.push_slice(&plaintext)?;
 
         if header.packet_type == PacketType::DataChunkEnd {
             message_ready = true;
@@ -583,7 +580,17 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
 
     if message_ready || peer_eof {
         let mut inner = ctx.inner.lock();
-        inner.rx_app_data.extend(assembled);
+                let mut scratch = [0u8; 64 * 1024];
+
+        while !assembled.is_empty() {
+            let count = assembled.read_into(&mut scratch);
+
+            if count == 0 {
+                break;
+            }
+
+            inner.rx_app_data.push_slice(&scratch[..count])?;
+        }
         inner.rx_message_ready = message_ready;
         inner.peer_eof = peer_eof;
     }
@@ -597,18 +604,18 @@ fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {
 }
 
 fn peek_header(
-    wire: &VecDeque<u8>,
+    wire: &ByteQueue,
 ) -> Result<Header, StcpError> {
     let mut header_bytes = [0u8; STCP_HEADER_LEN];
 
-    for (index, byte) in wire.iter().take(STCP_HEADER_LEN).enumerate() {
-        header_bytes[index] = *byte;
+    if wire.peek_prefix(&mut header_bytes) != STCP_HEADER_LEN {
+        return Err(StcpError::Again);
     }
 
     Header::decode(&header_bytes)
 }
 
-fn remove_header(wire: &mut VecDeque<u8>) {
+fn remove_header(wire: &mut ByteQueue) {
     for _ in 0..STCP_HEADER_LEN {
         let _ = wire.pop_front();
     }
@@ -672,7 +679,7 @@ fn connection_for_data(
 fn outgoing_queue(
     shared: &Arc<Connection>,
     side: Side,
-) -> &SpinLock<VecDeque<u8>> {
+) -> &SpinLock<ByteQueue> {
     match side {
         Side::A => &shared.a_to_b,
         Side::B => &shared.b_to_a,
@@ -682,7 +689,7 @@ fn outgoing_queue(
 fn incoming_queue(
     shared: &Arc<Connection>,
     side: Side,
-) -> &SpinLock<VecDeque<u8>> {
+) -> &SpinLock<ByteQueue> {
     match side {
         Side::A => &shared.b_to_a,
         Side::B => &shared.a_to_b,
@@ -751,25 +758,35 @@ pub fn shutdown(
     }
 }
 
-pub fn release(ctx: &StcpContext) {
-    let local = {
-        let inner = ctx.inner.lock();
+fn unregister_listener(ctx: &StcpContext) {
+    let ctx_ptr = ptr::from_ref(ctx) as usize;
+    let mut listeners = LISTENERS.lock();
 
-        if inner.state == SocketState::Listening {
-            inner.local
-        } else {
-            None
-        }
+    listeners.retain(|entry| entry.ctx != ctx_ptr);
+}
+
+pub fn release(ctx: &StcpContext) {
+    unregister_listener(ctx);
+
+    /*
+     * Release is local teardown only. Do not call shutdown() here, because
+     * shutdown may enqueue a Close frame through a carrier whose peer or
+     * owner has already been released.
+     */
+    let connection = {
+        let mut inner = ctx.inner.lock();
+
+        inner.state = SocketState::Closed;
+        inner.owner = 0;
+
+        inner.connection.take().map(|endpoint| {
+            (endpoint.shared, endpoint.side)
+        })
     };
 
-    if let Some(address) = local {
-        let ctx_ptr = ptr::from_ref(ctx) as usize;
-        let mut listeners = LISTENERS.lock();
-
-        listeners.retain(|entry| {
-            entry.ctx != ctx_ptr || entry.address != address
-        });
+    if let Some((shared, side)) = connection {
+        shared.set_owner(side, 0);
+        shared.close(side);
+        wake_recv(shared.peer_owner(side));
     }
-
-    shutdown(ctx, 2);
 }

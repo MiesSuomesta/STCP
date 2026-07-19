@@ -13,6 +13,7 @@
 #include "stcp_proto.h"
 #include "stcp_rust_ffi.h"
 #include "stcp_socket.h"
+#include "stcp_users.h"
 
 static int stcp_protocol_to_carrier(
 	int protocol,
@@ -58,6 +59,7 @@ static void stcp_proto_destroy(struct sock *sk)
 static void stcp_retransmit_workfn(struct work_struct *work)
 {
 	struct stcp_sock *ssk;
+	void *rust_ctx;
 
 	ssk = container_of(
 		to_delayed_work(work),
@@ -65,11 +67,25 @@ static void stcp_retransmit_workfn(struct work_struct *work)
 		retransmit_work
 	);
 
-	if (!READ_ONCE(ssk->rust_ctx))
+	/*
+	 * release() clears retransmit_work_started before cancelling the work.
+	 * Check the flag before touching Rust and again before requeueing so an
+	 * in-flight callback cannot resurrect itself during socket teardown.
+	 */
+	if (!READ_ONCE(ssk->retransmit_work_started))
 		return;
 
-	if (stcp_rust_tick(ssk->rust_ctx) > 0) {
-		mod_delayed_work(system_wq,
+	rust_ctx = READ_ONCE(ssk->rust_ctx);
+	if (!rust_ctx) {
+		WRITE_ONCE(ssk->retransmit_work_started, false);
+		return;
+	}
+
+	if (stcp_rust_tick(rust_ctx) > 0 &&
+	    READ_ONCE(ssk->retransmit_work_started) &&
+	    READ_ONCE(ssk->rust_ctx) == rust_ctx) {
+		mod_delayed_work(
+			system_dfl_wq,
 			&ssk->retransmit_work,
 			msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
 		);
@@ -80,12 +96,15 @@ static void stcp_retransmit_workfn(struct work_struct *work)
 
 void stcp_start_retransmit_work(struct stcp_sock *ssk)
 {
-	if (!ssk || !ssk->rust_ctx || ssk->retransmit_work_started)
+	if (!ssk || !READ_ONCE(ssk->rust_ctx))
 		return;
 
-	ssk->retransmit_work_started = true;
+	/* Do not queue the same delayed work twice. */
+	if (xchg(&ssk->retransmit_work_started, true))
+		return;
 
-	mod_delayed_work(system_wq,
+	mod_delayed_work(
+		system_dfl_wq,
 		&ssk->retransmit_work,
 		msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
 	);
@@ -93,11 +112,16 @@ void stcp_start_retransmit_work(struct stcp_sock *ssk)
 
 void stcp_stop_retransmit_work(struct stcp_sock *ssk)
 {
-	if (!ssk || !ssk->retransmit_work_started)
+	if (!ssk)
 		return;
 
+	/*
+	 * Clear the run flag first.  A callback already executing on another CPU
+	 * will then return without requeueing itself.  Always cancel synchronously:
+	 * the flag may already be false while delayed_work is still pending.
+	 */
+	WRITE_ONCE(ssk->retransmit_work_started, false);
 	cancel_delayed_work_sync(&ssk->retransmit_work);
-	ssk->retransmit_work_started = false;
 }
 
 struct proto stcp_proto = {
@@ -192,6 +216,7 @@ static int stcp_create(
 		ssk->carrier
 	);
 
+	stcp_user_register(ssk);
 	return 0;
 
 error_release_rust:

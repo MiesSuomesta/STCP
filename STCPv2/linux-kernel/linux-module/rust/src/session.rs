@@ -62,6 +62,52 @@ unsafe extern "C" {
 }
 
 
+
+struct ParserGuard<'a> { ctx: &'a StcpContext }
+impl Drop for ParserGuard<'_> { fn drop(&mut self) { self.ctx.parser_busy.store(false, Ordering::Release); } }
+fn try_parser_guard(ctx: &StcpContext) -> Option<ParserGuard<'_>> {
+    ctx.parser_busy.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).ok().map(|_| ParserGuard { ctx })
+}
+struct WireFrame { header: Header, payload: Vec<u8> }
+fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Result<Option<WireFrame>, StcpError> {
+    let mut retries = 0usize;
+    loop {
+        retries = retries.saturating_add(1);
+        if retries > 1024 {
+            crate::carrier::debug_event(208, ctx, retries, queue.lock().len());
+            return Err(StcpError::Protocol);
+        }
+        let header = {
+            let mut wire = queue.lock();
+            if wire.len() < STCP_HEADER_LEN { return Ok(None); }
+            let header = match peek_header(&wire) {
+                Ok(header) => header,
+                Err(StcpError::Again) => return Ok(None),
+                Err(StcpError::Protocol) => { wire.discard(1); continue; }
+                Err(error) => return Err(error),
+            };
+            let frame_len = STCP_HEADER_LEN.checked_add(header.payload_len).ok_or(StcpError::Protocol)?;
+            if wire.len() < frame_len { return Ok(None); }
+            header
+        };
+        let mut payload = Vec::new();
+        payload.try_reserve_exact(header.payload_len).map_err(|_| StcpError::NoMem)?;
+        payload.resize(header.payload_len, 0);
+        crate::carrier::debug_event(203, ctx, header.packet_type as usize, header.payload_len);
+        {
+            let mut wire = queue.lock();
+            let current = peek_header(&wire)?;
+            if current.packet_type != header.packet_type || current.payload_len != header.payload_len || current.sequence != header.sequence || current.acknowledgment != header.acknowledgment || current.connection_id != header.connection_id {
+                continue;
+            }
+            remove_header(&mut wire)?;
+            let payload_len = payload.len();
+            if payload_len != 0 && wire.read_into(&mut payload) != payload_len { return Err(StcpError::Protocol); }
+        }
+        return Ok(Some(WireFrame { header, payload }));
+    }
+}
+
 const STCP_SEND_WINDOW: usize = 64;
 const STCP_TICK_MS: u32 = 20;
 const STCP_INITIAL_RTO_MS: u32 = 50;
@@ -387,109 +433,17 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
     Ok(())
 }
 
-fn process_handshake_frames(
-    ctx: &StcpContext,
-) -> Result<(), StcpError> {
-    let (shared, side) = connection_for_handshake(ctx)?;
-    let queue = incoming_queue(&shared, side);
-    let mut wire = queue.lock();
-    let mut received_key: Option<[u8; PUBLIC_KEY_WIRE_LEN]> = None;
-    let mut received_done = false;
-
-    loop {
-        if wire.len() < STCP_HEADER_LEN {
-            break;
-        }
-
-        /*
-         * A TCP carrier is a byte stream, not a frame transport.  A stale or
-         * partial prefix must not permanently poison the receive queue.  The
-         * old code returned EPROTO while leaving the same byte at the front,
-         * causing every subsequent carrier receive to fail with -71.
-         *
-         * Resynchronise one byte at a time until a valid STCP v2 header is at
-         * the front.  Incomplete headers/frames remain queued for the next
-         * kernel_recvmsg() call.
-         */
-        let header = match peek_header(&wire) {
-            Ok(header) => header,
-            Err(StcpError::Again) => break,
-            Err(StcpError::Protocol) => {
-                wire.discard(1);
-                continue;
-            }
-            Err(error) => return Err(error),
-        };
-        let frame_len = STCP_HEADER_LEN
-            .checked_add(header.payload_len)
-            .ok_or(StcpError::Protocol)?;
-
-        if wire.len() < frame_len {
-            break;
-        }
-
-        match header.packet_type {
-            PacketType::PublicKey => {
-                if header.payload_len != PUBLIC_KEY_WIRE_LEN {
-                    return Err(StcpError::Protocol);
-                }
-
-                remove_header(&mut wire);
-
-                let mut key = [0u8; PUBLIC_KEY_WIRE_LEN];
-                if wire.read_into(&mut key) != PUBLIC_KEY_WIRE_LEN {
-                    return Err(StcpError::Protocol);
-                }
-
-                received_key = Some(key);
-            }
-            PacketType::HandshakeDone => {
-                if header.payload_len != 0 {
-                    return Err(StcpError::Protocol);
-                }
-
-                remove_header(&mut wire);
-                received_done = true;
-            }
-            _ => break,
-        }
-    }
-
-    drop(wire);
-
-    if let Some(key) = received_key {
-        {
-            let mut inner = ctx.inner.lock();
-            let role = inner.role;
-            inner.crypto.derive_session_keys(&key, role)?;
-        }
-
-        let done = encode_frame(PacketType::HandshakeDone, connection_id(ctx), &[])?;
-        send_frame(ctx, &shared, side, &done, 0)?;
-    }
-
-    /*
-     * The session keys are fully usable as soon as the peer PublicKey has
-     * been validated and our HandshakeDone frame has been transmitted.
-     *
-     * Requiring a second HandshakeDone frame before entering Ready created a
-     * circular readiness dependency in the nonblocking socket path: poll()
-     * waited for Ready, while no application I/O progressed the remaining
-     * control frame.  HandshakeDone is still parsed and recorded, but it is
-     * no longer a prerequisite for using the already-derived traffic keys.
-     */
-    {
-        let mut inner = ctx.inner.lock();
-
-        if received_done {
-            inner.peer_handshake_done = true;
-        }
-
-        if inner.crypto.ready() {
-            inner.state = SocketState::Ready;
-        }
-    }
-
+fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
+    let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,1,0); return Ok(()); };
+    let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
+    let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
+    loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
+        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
+        PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} received_done=true; }
+        _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
+    }}
+    if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }
+    { let mut inner=ctx.inner.lock(); if received_done{inner.peer_handshake_done=true;} if inner.crypto.ready(){inner.state=SocketState::Ready;} }
     Ok(())
 }
 
@@ -669,7 +623,9 @@ pub fn recv(
     ctx: &StcpContext,
     output: &mut [u8],
 ) -> Result<usize, StcpError> {
+    crate::carrier::debug_event(101, ctx, output.len(), 0);
     progress_handshake(ctx)?;
+    crate::carrier::debug_event(102, ctx, 0, 0);
 
     if output.is_empty() {
         return Ok(0);
@@ -695,9 +651,12 @@ pub fn recv(
         }
     }
 
+    crate::carrier::debug_event(110, ctx, 0, 0);
     fill_application_buffer(ctx)?;
+    crate::carrier::debug_event(111, ctx, 0, 0);
 
     let mut inner = ctx.inner.lock();
+    crate::carrier::debug_event(112, ctx, inner.rx_app_data.len(), inner.rx_message_ready as usize);
 
     if inner.rx_message_ready && !inner.rx_app_data.is_empty() {
         let count = inner.rx_app_data.read_into(output);
@@ -717,183 +676,24 @@ pub fn recv(
 }
 
 fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
-    {
-        let inner = ctx.inner.lock();
-
-        if inner.state != SocketState::Ready &&
-           inner.state != SocketState::Closed
-        {
-            return Err(StcpError::InvalidState);
-        }
-
-        if inner.rx_message_ready || inner.peer_eof {
-            return Ok(());
-        }
-    }
-
-    let (shared, side) = connection_for_data(ctx)?;
-    let queue = incoming_queue(&shared, side);
-    let mut received_frames = Vec::new();
-    let mut peer_eof = false;
-
-    /*
-     * First remove all complete frames from the carrier queue.
-     * Do not validate DATA ordering while holding the carrier lock.
-     */
-    {
-        let mut wire = queue.lock();
-
-        loop {
-            if wire.len() < STCP_HEADER_LEN {
-                break;
-            }
-
-            /*
-             * TCP is a byte stream.  Never leave an invalid prefix parked at
-             * the head of the queue forever: discard one byte and search for
-             * the next complete STCP header.  Partial headers remain queued.
-             */
-            let header = match peek_header(&wire) {
-                Ok(header) => header,
-                Err(StcpError::Again) => break,
-                Err(StcpError::Protocol) => {
-                    wire.discard(1);
-                    continue;
-                }
-                Err(error) => return Err(error),
-            };
-            let frame_len = STCP_HEADER_LEN
-                .checked_add(header.payload_len)
-                .ok_or(StcpError::Protocol)?;
-
-            if wire.len() < frame_len {
-                break;
-            }
-
-            match header.packet_type {
-                PacketType::DataChunk | PacketType::DataChunkEnd => {
-                    if header.payload_len < NONCE_LEN + CHACHA_TAG_LEN {
-                        return protocol_error(ctx);
-                    }
-
-                    remove_header(&mut wire);
-
-                    let mut nonce_bytes = [0u8; NONCE_LEN];
-                    if wire.read_into(&mut nonce_bytes) != NONCE_LEN {
-                        return protocol_error(ctx);
-                    }
-
-                    let nonce = u64::from_be_bytes(nonce_bytes);
-                    let ciphertext_len = header.payload_len - NONCE_LEN;
-                    let ciphertext = wire.read_vec(ciphertext_len)?;
-
-                    received_frames.push(BufferedFrame {
-                        header,
-                        nonce,
-                        ciphertext,
-                    });
-                }
-                PacketType::Ack => {
-                    if header.payload_len != 0 {
-                        return protocol_error(ctx);
-                    }
-
-                    remove_header(&mut wire);
-                    update_acknowledgment(
-                        ctx,
-                        header.acknowledgment,
-                    )?;
-                }
-                PacketType::Ping => {
-                    if header.payload_len != 0 {
-                        return protocol_error(ctx);
-                    }
-
-                    remove_header(&mut wire);
-                    drop(wire);
-                    queue_pong(ctx, header.sequence)?;
-                    return fill_application_buffer(ctx);
-                }
-                PacketType::Pong => {
-                    if header.payload_len != 0 {
-                        return protocol_error(ctx);
-                    }
-
-                    remove_header(&mut wire);
-                }
-                PacketType::Reset => {
-                    remove_header(&mut wire);
-                    if wire.discard(header.payload_len) != header.payload_len {
-                        return protocol_error(ctx);
-                    }
-
-                    drop(wire);
-                    return protocol_error(ctx);
-                }
-                PacketType::Close => {
-                    remove_header(&mut wire);
-                    if wire.discard(header.payload_len) != header.payload_len {
-                        return protocol_error(ctx);
-                    }
-
-                    peer_eof = true;
-                    break;
-                }
-                PacketType::PublicKey |
-                PacketType::HandshakeDone => {
-                    return protocol_error(ctx);
-                }
-            }
-        }
-    }
-
-    /*
-     * Classify DATA frames:
-     *
-     * - old sequence: duplicate, ACK again;
-     * - future sequence: retain in the out-of-order buffer;
-     * - expected sequence: decrypt and deliver.
-     */
-    for frame in received_frames {
-        let expected = current_expected_sequence(ctx);
-
-        if frame.header.sequence < expected {
-            {
-                let mut inner = ctx.inner.lock();
-                inner.stats.duplicate_frames =
-                    inner.stats.duplicate_frames.saturating_add(1);
-            }
-            queue_ack(ctx, frame.header.sequence)?;
-            continue;
-        }
-
-        if frame.header.sequence > expected {
-            {
-                let mut inner = ctx.inner.lock();
-                inner.stats.reordered_frames =
-                    inner.stats.reordered_frames.saturating_add(1);
-            }
-            buffer_out_of_order_frame(ctx, frame)?;
-            continue;
-        }
-
-        process_in_order_frame(ctx, frame)?;
-
-        /*
-         * The newly accepted frame may close a gap. Drain every now
-         * contiguous frame from the out-of-order buffer.
-         */
-        while let Some(buffered) = take_next_buffered_frame(ctx) {
-            process_in_order_frame(ctx, buffered)?;
-        }
-    }
-
-    if peer_eof {
-        let mut inner = ctx.inner.lock();
-        inner.peer_eof = true;
-    }
-
-    Ok(())
+    { let inner=ctx.inner.lock(); if inner.state!=SocketState::Ready && inner.state!=SocketState::Closed{return Err(StcpError::InvalidState);} if inner.peer_eof{return Ok(());} }
+    let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,2,0); return Ok(()); };
+    let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
+    let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
+    crate::carrier::debug_event(120,ctx,0,0);
+    loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else {break;}; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
+      PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); let ciphertext=frame.payload[NONCE_LEN..].to_vec(); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext}); }
+      PacketType::Ack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_acks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_acks.push(header.acknowledgment); }
+      PacketType::Ping => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_pongs.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_pongs.push(header.sequence); }
+      PacketType::Pong => { if !frame.payload.is_empty(){return protocol_error(ctx);} }
+      PacketType::Reset => return protocol_error(ctx), PacketType::Close => {peer_eof=true;break;}
+      PacketType::PublicKey => {if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return protocol_error(ctx);}}
+      PacketType::HandshakeDone => {if !frame.payload.is_empty(){return protocol_error(ctx);} late_handshake_done=true;}
+    }}
+    crate::carrier::debug_event(123,ctx,deferred_acks.len(),deferred_pongs.len()); for a in deferred_acks{update_acknowledgment(ctx,a)?;} for seq in deferred_pongs{queue_pong(ctx,seq)?;} crate::carrier::debug_event(124,ctx,received_frames.len(),0);
+    for frame in received_frames { let expected=current_expected_sequence(ctx); if frame.header.sequence<expected{{let mut inner=ctx.inner.lock();inner.stats.duplicate_frames=inner.stats.duplicate_frames.saturating_add(1);}queue_ack(ctx,frame.header.sequence)?;continue;} if frame.header.sequence>expected{{let mut inner=ctx.inner.lock();inner.stats.reordered_frames=inner.stats.reordered_frames.saturating_add(1);}buffer_out_of_order_frame(ctx,frame)?;continue;} process_in_order_frame(ctx,frame)?; while let Some(buffered)=take_next_buffered_frame(ctx){process_in_order_frame(ctx,buffered)?;} }
+    if peer_eof||late_handshake_done{let mut inner=ctx.inner.lock();if peer_eof{inner.peer_eof=true;}if late_handshake_done{inner.peer_handshake_done=true;}}
+    crate::carrier::debug_event(299,ctx,0,0); Ok(())
 }
 
 fn buffer_out_of_order_frame(
@@ -952,9 +752,11 @@ fn process_in_order_frame(
 ) -> Result<(), StcpError> {
     let packet_type = frame.header.packet_type;
     let sequence = frame.header.sequence;
+    crate::carrier::debug_event(130, ctx, sequence as usize, packet_type as usize);
 
     {
         let mut inner = ctx.inner.lock();
+        crate::carrier::debug_event(131, ctx, inner.expected_rx_sequence as usize, frame.ciphertext.len());
 
         if frame.header.sequence != inner.expected_rx_sequence {
             inner.state = SocketState::Error;
@@ -999,7 +801,9 @@ fn process_in_order_frame(
         }
     }
 
+    crate::carrier::debug_event(132, ctx, sequence as usize, 0);
     queue_ack(ctx, sequence)?;
+    crate::carrier::debug_event(133, ctx, sequence as usize, 0);
     Ok(())
 }
 
@@ -1090,63 +894,7 @@ fn queue_pong(
     Ok(())
 }
 
-fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> {
-    let (shared, side) = connection_for_data(ctx)?;
-    let queue = incoming_queue(&shared, side);
-    let mut wire = queue.lock();
-
-    loop {
-        if wire.len() < STCP_HEADER_LEN {
-            break;
-        }
-
-        let header = match peek_header(&wire) {
-            Ok(header) => header,
-            Err(StcpError::Again) => break,
-            Err(StcpError::Protocol) => {
-                wire.discard(1);
-                continue;
-            }
-            Err(error) => return Err(error),
-        };
-        let frame_len = STCP_HEADER_LEN
-            .checked_add(header.payload_len)
-            .ok_or(StcpError::Protocol)?;
-
-        if wire.len() < frame_len {
-            break;
-        }
-
-        match header.packet_type {
-            PacketType::Ack => {
-                if header.payload_len != 0 {
-                    return protocol_error(ctx);
-                }
-                remove_header(&mut wire);
-                update_acknowledgment(ctx, header.acknowledgment)?;
-            }
-            PacketType::Ping => {
-                if header.payload_len != 0 {
-                    return protocol_error(ctx);
-                }
-                remove_header(&mut wire);
-                drop(wire);
-                queue_pong(ctx, header.sequence)?;
-                return Ok(());
-            }
-            PacketType::Pong => {
-                if header.payload_len != 0 {
-                    return protocol_error(ctx);
-                }
-                remove_header(&mut wire);
-            }
-            _ => break,
-        }
-    }
-
-    Ok(())
-}
-
+fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> { crate::carrier::debug_event(140,ctx,0,0); let result=fill_application_buffer(ctx); crate::carrier::debug_event(143,ctx,result.is_ok() as usize,0); result }
 
 pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     {
@@ -1261,8 +1009,16 @@ fn peek_header(
     Header::decode(&header_bytes)
 }
 
-fn remove_header(wire: &mut ByteQueue) {
-    debug_assert_eq!(wire.discard(STCP_HEADER_LEN), STCP_HEADER_LEN);
+fn remove_header(wire: &mut ByteQueue) -> Result<(), StcpError> {
+    /*
+     * This must never live inside debug_assert!: debug assertions are
+     * compiled out in release builds, which previously left zero-length
+     * control frames at the queue head forever.
+     */
+    if wire.discard(STCP_HEADER_LEN) != STCP_HEADER_LEN {
+        return Err(StcpError::Protocol);
+    }
+    Ok(())
 }
 
 fn connection_for_handshake(

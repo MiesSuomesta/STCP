@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Deterministic STCP end-to-end echo smoke test.
 
-The test validates one complete bind/listen/connect/accept/send/recv/echo cycle
-at a time and exits immediately on the first failure. It is intentionally not
-a throughput benchmark.
+Each server case runs in a separate process. This is intentional: an unfinished
+kernel socket release must not leave Python threads or descriptors behind, nor
+turn a successful echo into a shutdown failure.
 """
 from __future__ import annotations
 
 import argparse
+import multiprocessing as mp
 import queue
 import sys
-import threading
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -24,33 +24,6 @@ class CaseResult:
     stage: str
     detail: str = ""
     elapsed_ms: float = 0.0
-
-
-class SocketGroup:
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._sockets: set[NativeStcpSocket] = set()
-
-    def add(self, sock: NativeStcpSocket) -> NativeStcpSocket:
-        with self._lock:
-            self._sockets.add(sock)
-        return sock
-
-    def discard(self, sock: Optional[NativeStcpSocket]) -> None:
-        if sock is None:
-            return
-        with self._lock:
-            self._sockets.discard(sock)
-
-    def close_all(self) -> None:
-        with self._lock:
-            sockets = list(self._sockets)
-            self._sockets.clear()
-        for sock in sockets:
-            try:
-                sock.close()
-            except OSError:
-                pass
 
 
 def send_exact(sock: NativeStcpSocket, data: bytearray) -> None:
@@ -75,95 +48,181 @@ def recv_exact(sock: NativeStcpSocket, size: int) -> bytearray:
     return output
 
 
-def run_case(host: str, port: int, payload_size: int, timeout: float) -> CaseResult:
-    sockets = SocketGroup()
-    ready = threading.Event()
-    results: queue.Queue[CaseResult] = queue.Queue(maxsize=1)
+def _server_process(
+    host: str,
+    port: int,
+    payload_size: int,
+    timeout: float,
+    ready: mp.synchronize.Event,
+    results: mp.queues.Queue,
+) -> None:
+    listener: Optional[NativeStcpSocket] = None
+    conn: Optional[NativeStcpSocket] = None
     payload = payload_for(payload_size & 0xFFFF, payload_size)
+    server_stage = "server-socket"
+    try:
+        listener = create_stcp_socket(timeout)
+        server_stage = "server-bind"
+        listener.bind((host, port))
+        server_stage = "server-listen"
+        listener.listen(8)
+        ready.set()
 
-    def server() -> None:
-        listener: Optional[NativeStcpSocket] = None
-        conn: Optional[NativeStcpSocket] = None
+        server_stage = "server-accept"
+        results.put((None, "server-accept", "waiting"))
+        conn, _ = listener.accept()
+        results.put((None, "server-accept", "completed"))
+        server_stage = "server-recv"
+        results.put((None, "server-recv", "waiting"))
+        received = recv_exact(conn, payload_size)
+        results.put((None, "server-recv", f"completed {len(received)} bytes"))
+        if received != payload:
+            results.put((False, "server-verify", "received payload differs"))
+            return
+
+        server_stage = "server-send"
+        results.put((None, "server-send", "waiting"))
+        send_exact(conn, received)
+        results.put((None, "server-send", f"completed {len(received)} bytes"))
+        # Publish success before close(). A kernel release bug may block close,
+        # but it must not hide a completed end-to-end echo operation.
+        results.put((True, "server-echo", ""))
+    except BaseException as exc:
         try:
-            listener = sockets.add(create_stcp_socket(timeout))
-            listener.bind((host, port))
-            listener.listen(8)
-            ready.set()
+            results.put((False, server_stage, repr(exc)))
+        except BaseException:
+            pass
+        ready.set()
+    finally:
+        for sock in (conn, listener):
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
 
-            conn, _ = listener.accept()
-            sockets.add(conn)
-            received = recv_exact(conn, payload_size)
-            if received != payload:
-                results.put(CaseResult(False, "server-verify", "received payload differs"))
-                return
 
-            send_exact(conn, received)
-            results.put(CaseResult(True, "server-echo"))
-        except BaseException as exc:
-            # Closing the listener/connection is the normal cancellation path
-            # during cleanup. Preserve an already completed server result and
-            # do not turn EBADF from shutdown into a false test failure.
-            if results.empty():
-                results.put(CaseResult(False, "server", repr(exc)))
-            ready.set()
-        finally:
-            for sock in (conn, listener):
-                sockets.discard(sock)
-                if sock is not None:
-                    try:
-                        sock.close()
-                    except OSError:
-                        pass
+def _stop_process(process: mp.Process, grace: float = 0.25) -> None:
+    process.join(timeout=grace)
+    if not process.is_alive():
+        return
+    process.terminate()
+    process.join(timeout=1.0)
+    if process.is_alive():
+        process.kill()
+        process.join(timeout=1.0)
 
-    thread = threading.Thread(target=server, name="stcp-smoke-server", daemon=False)
-    thread.start()
+
+def run_case(host: str, port: int, payload_size: int, timeout: float) -> CaseResult:
+    # STCP is Linux-kernel-specific; fork also avoids pickling local test state.
+    context = mp.get_context("fork")
+    ready = context.Event()
+    results = context.Queue(maxsize=32)
+    process = context.Process(
+        target=_server_process,
+        args=(host, port, payload_size, timeout, ready, results),
+        name=f"stcp-smoke-server-{port}",
+        # Never let a server stuck in an uninterruptible kernel syscall keep
+        # the smoke-test parent alive after a reported failure.
+        daemon=True,
+    )
+    process.start()
 
     started = time.monotonic()
+    payload = payload_for(payload_size & 0xFFFF, payload_size)
     client: Optional[NativeStcpSocket] = None
     client_result: Optional[CaseResult] = None
+    server_result: Optional[CaseResult] = None
+    server_trace: list[str] = []
+    client_stage = "client-start"
+
+    def consume_server_messages(block: bool = False, wait: float = 0.0) -> None:
+        nonlocal server_result
+        first = True
+        while True:
+            try:
+                item = results.get(timeout=wait if block and first else 0.0)
+            except queue.Empty:
+                return
+            first = False
+            ok, stage, detail = item
+            if ok is None:
+                server_trace.append(f"{stage}: {detail}")
+            else:
+                server_result = CaseResult(bool(ok), str(stage), str(detail))
+
     try:
         if not ready.wait(timeout):
-            return CaseResult(False, "server-ready", f"timeout after {timeout:.1f}s")
-
-        if not results.empty():
-            return results.get_nowait()
-
-        client = sockets.add(create_stcp_socket(timeout))
-        client.connect((host, port))
-        send_exact(client, payload)
-        reply = recv_exact(client, payload_size)
-        if reply != payload:
-            client_result = CaseResult(False, "client-verify", "echoed payload differs")
+            client_result = CaseResult(False, "server-ready", f"timeout after {timeout:.1f}s")
         else:
-            client_result = CaseResult(True, "client-echo")
+            consume_server_messages()
+
+            if server_result is None or server_result.ok:
+                client_stage = "client-socket"
+                client = create_stcp_socket(timeout)
+                client_stage = "client-connect"
+                client.connect((host, port))
+                client_stage = "client-send"
+                send_exact(client, payload)
+                client_stage = "client-recv"
+                reply = recv_exact(client, payload_size)
+                client_stage = "client-verify"
+                if reply != payload:
+                    client_result = CaseResult(False, "client-verify", "echoed payload differs")
+                else:
+                    client_result = CaseResult(True, "client-echo")
     except BaseException as exc:
-        client_result = CaseResult(False, "client", repr(exc))
+        consume_server_messages()
+        trace = "; ".join(server_trace[-6:]) or "no server progress reported"
+        client_result = CaseResult(False, client_stage, f"{exc!r}; server trace: {trace}")
     finally:
-        sockets.discard(client)
         if client is not None:
             try:
                 client.close()
             except OSError:
                 pass
 
-    remaining = max(0.0, timeout - (time.monotonic() - started))
-    thread.join(timeout=remaining)
-    if thread.is_alive():
-        sockets.close_all()
-        thread.join(timeout=2.0)
-        if thread.is_alive():
-            return CaseResult(False, "shutdown", "server thread did not exit after socket cancellation")
+    # The server should publish its result promptly after echoing. Do not wait
+    # for its potentially broken kernel close/release path.
+    if server_result is None:
+        remaining = max(0.0, timeout - (time.monotonic() - started))
+        deadline = time.monotonic() + remaining
+        while server_result is None and time.monotonic() < deadline:
+            consume_server_messages(block=True, wait=min(0.1, max(0.0, deadline - time.monotonic())))
+        if server_result is None:
+            trace = "; ".join(server_trace[-6:]) or "no server progress reported"
+            server_result = CaseResult(False, "server-result", f"timeout after {timeout:.1f}s; trace: {trace}")
 
-    server_result = results.get_nowait() if not results.empty() else CaseResult(False, "server", "no result")
+    _stop_process(process)
+
+    # multiprocessing.Queue.join_thread() may wait forever when the server was
+    # killed while blocked in an STCP syscall. The result has already been
+    # consumed, so explicitly detach the feeder thread instead of joining it.
+    try:
+        results.cancel_join_thread()
+        results.close()
+    except (OSError, ValueError):
+        pass
+
     elapsed_ms = (time.monotonic() - started) * 1000.0
 
-    if client_result is None or not client_result.ok:
-        result = client_result or CaseResult(False, "client", "no result")
-        result.elapsed_ms = elapsed_ms
-        return result
-    if not server_result.ok:
+    # A listener setup error can occur before a client is created. Report the
+    # real server-side errno instead of masking it as ``client: no result``.
+    if client_result is None and server_result is not None and not server_result.ok:
         server_result.elapsed_ms = elapsed_ms
         return server_result
+
+    if client_result is None or not client_result.ok:
+        detail = "no result"
+        if process.exitcode not in (None, 0):
+            detail += f"; server process exitcode={process.exitcode}"
+        result = client_result or CaseResult(False, "client", detail)
+        result.elapsed_ms = elapsed_ms
+        return result
+    if server_result is None or not server_result.ok:
+        result = server_result or CaseResult(False, "server", "no result")
+        result.elapsed_ms = elapsed_ms
+        return result
 
     return CaseResult(True, "complete", elapsed_ms=elapsed_ms)
 

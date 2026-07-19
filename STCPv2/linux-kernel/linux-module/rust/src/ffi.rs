@@ -247,12 +247,19 @@ pub extern "C" fn stcp_rust_recv(
     let output = if len == 0 {
         &mut []
     } else {
-        unsafe {
-            slice::from_raw_parts_mut(buffer, len)
-        }
+        unsafe { slice::from_raw_parts_mut(buffer, len) }
     };
 
-    match with_ctx(raw, |ctx| session::recv(ctx, output)) {
+    match with_ctx(raw, |ctx| {
+        crate::carrier::debug_event(100, ctx, len, 0);
+        let result = session::recv(ctx, output);
+        let code = match &result {
+            Ok(n) => *n,
+            Err(e) => (-e.errno()) as usize,
+        };
+        crate::carrier::debug_event(199, ctx, code, result.is_ok() as usize);
+        result
+    }) {
         Ok(Ok(bytes_received)) => bytes_received as isize,
         Ok(Err(error)) => error.errno() as isize,
         Err(errno) => errno as isize,

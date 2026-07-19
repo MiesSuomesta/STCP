@@ -17,6 +17,7 @@
 #include "stcp_proto.h"
 #include "stcp_rust_ffi.h"
 #include "stcp_socket.h"
+#include "stcp_users.h"
 
 #define STCP_IO_BUFFER_MAX (1024 * 1024)
 
@@ -38,6 +39,9 @@ static int stcp_release(struct socket *sock)
 		return 0;
 
 	ssk = stcp_sk(sk);
+
+	/* Remove it from /proc/stcp/users before freeing the socket. */
+	stcp_user_unregister(ssk);
 
 	/* Prevent new operations from finding this socket during teardown. */
 	sock->sk = NULL;
@@ -203,6 +207,9 @@ static int stcp_connect(
 	if (ret)
 		return ret;
 
+	pr_info("stcp: connect enter sk=%px ctx=%px carrier=%px flags=0x%x\n",
+		sock->sk, ssk->rust_ctx, ssk->carrier, flags);
+
 	ret = stcp_rust_connect(
 		ssk->rust_ctx,
 		(__force u32)sin->sin_addr.s_addr,
@@ -210,21 +217,26 @@ static int stcp_connect(
 		flags
 	);		
 
-	if (ret)
-		return ret;
-
-	ret = stcp_rust_start_handshake(ssk->rust_ctx);
+	pr_info("stcp: connect rust result ctx=%px ret=%d\n",
+		ssk->rust_ctx, ret);
 	if (ret)
 		return ret;
 
 	/*
-	 * Start RX only after Rust has a complete connection, carrier and owner.
-	 * Otherwise a queued PublicKey can be consumed against a half-initialized
-	 * context and the handshake never reaches Ready.
+	 * The receiver must be running before the handshake can emit frames.
+	 * Otherwise the peer may send PublicKey/HandshakeDone and application data
+	 * while no carrier RX worker exists, leaving recv() asleep forever.
+	 * At this point connect(), carrier attachment and owner setup are complete.
 	 */
 	ret = stcp_carrier_start_receiver_thread(ssk->carrier);
 	if (ret)
 		return ret;
+
+	ret = stcp_rust_start_handshake(ssk->rust_ctx);
+	if (ret) {
+		stcp_carrier_shutdown(ssk->carrier, SHUT_RDWR);
+		return ret;
+	}
 
 	/*
 	 * Do not wait for the crypto handshake inside connect().  The listener
@@ -268,6 +280,7 @@ static int stcp_accept(
 			flags
 		);
 
+
 		if (ret != -EAGAIN)
 			break;
 
@@ -301,6 +314,8 @@ static int stcp_accept(
 
 	child = stcp_sk(newsk);
 	child->rust_ctx = accepted_ctx;
+	pr_info("stcp: accept rust child listener_ctx=%px child=%px child_ctx=%px\n",
+		listener->rust_ctx, child, child->rust_ctx);
 
 	/*
 	 * accepted_ctx has already been removed from the Rust listener queue.
@@ -338,19 +353,12 @@ static int stcp_accept(
 
 	stcp_rust_set_owner(child->rust_ctx, child);
 
-	ret = stcp_rust_start_handshake(child->rust_ctx);
-	if (ret) {
-		stcp_rust_set_owner(child->rust_ctx, NULL);
-		stcp_rust_set_carrier(child->rust_ctx, NULL);
-		stcp_carrier_destroy(child->carrier);
-		child->carrier = NULL;
-		stcp_rust_release(child->rust_ctx);
-		child->rust_ctx = NULL;
-		newsock->sk = NULL;
-		sk_free(newsk);
-		return ret;
-	}
-
+	/*
+	 * Start carrier RX before starting the accepted-side handshake. The peer
+	 * can already have handshake and DATA bytes queued in TCP by the time the
+	 * outer accept completes. Starting handshake first can therefore leave the
+	 * child waiting forever with no RX worker to consume those bytes.
+	 */
 	ret = stcp_carrier_start_receiver_thread(child->carrier);
 	if (ret) {
 		stcp_rust_set_owner(child->rust_ctx, NULL);
@@ -364,9 +372,25 @@ static int stcp_accept(
 		return ret;
 	}
 
+	ret = stcp_rust_start_handshake(child->rust_ctx);
+	if (ret) {
+		stcp_rust_set_owner(child->rust_ctx, NULL);
+		stcp_rust_set_carrier(child->rust_ctx, NULL);
+		stcp_carrier_destroy(child->carrier);
+		child->carrier = NULL;
+		stcp_rust_release(child->rust_ctx);
+		child->rust_ctx = NULL;
+		newsock->sk = NULL;
+		sk_free(newsk);
+		return ret;
+	}
+
 	stcp_start_retransmit_work(child);
+	stcp_user_register(child);
 
 	newsock->state = SS_CONNECTED;
+	pr_info("stcp: accept complete child=%px ctx=%px carrier=%px owner=%px\n",
+		child, child->rust_ctx, child->carrier, child);
 	return 0;
 }
 
@@ -408,9 +432,16 @@ static int stcp_sendmsg(
 			break;
 		}
 
+		pr_info("stcp: sendmsg enter sk=%px ssk=%px ctx=%px carrier=%px chunk=%zu total=%zu flags=0x%x can_send=%d\n",
+			sock->sk, ssk, ssk->rust_ctx, ssk->carrier, chunk, total,
+			msg->msg_flags, stcp_rust_can_send(ssk->rust_ctx, chunk));
+
 		for (;;) {
 			ret = stcp_rust_send(ssk->rust_ctx, buffer, chunk,
 						 msg->msg_flags);
+			pr_info("stcp: sendmsg rust result ctx=%px requested=%zu ret=%zd can_send=%d\n",
+				ssk->rust_ctx, chunk, ret,
+				stcp_rust_can_send(ssk->rust_ctx, chunk));
 			if (ret != -EAGAIN)
 				break;
 			if (msg->msg_flags & MSG_DONTWAIT)
@@ -479,6 +510,10 @@ static int stcp_recvmsg(
 		return -ENOMEM;
 	}
 
+	pr_info("stcp: recvmsg enter sk=%px ssk=%px ctx=%px carrier=%px len=%zu flags=0x%x has_data=%d\n",
+		sock->sk, ssk, ssk->rust_ctx, ssk->carrier, len, flags,
+		stcp_rust_has_data(ssk->rust_ctx));
+
 	for (;;) {
 		ret = stcp_rust_recv(
 			ssk->rust_ctx,
@@ -487,11 +522,17 @@ static int stcp_recvmsg(
 			flags
 		);
 
+		pr_info("stcp: recvmsg rust result ctx=%px ret=%zd has_data=%d\n",
+			ssk->rust_ctx, ret, stcp_rust_has_data(ssk->rust_ctx));
+
 		if (ret != -EAGAIN)
 			break;
 
 		if (flags & MSG_DONTWAIT)
 			break;
+
+		pr_info("stcp: recvmsg sleeping ssk=%px ctx=%px has_data=%d\n",
+			ssk, ssk->rust_ctx, stcp_rust_has_data(ssk->rust_ctx));
 
 		wait_ret = wait_event_interruptible(
 			ssk->recv_wq,

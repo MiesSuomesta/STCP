@@ -101,9 +101,9 @@ SUDO                  ?= sudo
 
 test: module test-build
 	@set -e; \
-	cleanup() { $(SUDO) rmmod stcp 2>/dev/null || true; }; \
+	cleanup() { SUDO="$(SUDO)" "$(PWD)/scripts/graceful-unload.sh" 2>/dev/null || true; }; \
 	trap cleanup EXIT INT TERM; \
-	if grep -q '^stcp ' /proc/modules; then $(SUDO) rmmod stcp; fi; \
+	if grep -q '^stcp ' /proc/modules; then SUDO="$(SUDO)" "$(PWD)/scripts/graceful-unload.sh"; fi; \
 	$(SUDO) modprobe libcurve25519; \
 	$(SUDO) modprobe libchacha20poly1305; \
 	$(SUDO) insmod "$(PWD)/stcp.ko" drop_first_data=1; \
@@ -142,16 +142,15 @@ test-clean:
 #
 # Moduuli funkkarit
 #
-.PHONY: module-remove module-install module-reload module-install-support
+.PHONY: module-stop module-shutdown module-remove module-install module-reload module-install-support
 
 module-install-support:
 	echo "Installing support modules..."
 	$(SUDO) modprobe libcurve25519       || true
 	$(SUDO) modprobe libchacha20poly1305 || true
 
-module-remove:
-	echo "Removing module..."
-	$(SUDO) rmmod "$(PWD)/stcp.ko" || true
+module-stop module-shutdown module-remove:
+	@SUDO="$(SUDO)" MODULE=stcp "$(PWD)/scripts/graceful-unload.sh"
 
 module-install: module module-install-support
 	echo "Installing module..."
@@ -238,7 +237,7 @@ $(TEST_STRESS_BIN): $(TEST_STRESS_SRC)
 stress-tcp: module stress-build
 	@set -e; \
 	cleanup() { \
-		$(SUDO) rmmod stcp 2>/dev/null || true; \
+		SUDO="$(SUDO)" "$(PWD)/scripts/graceful-unload.sh" 2>/dev/null || true; \
 	}; \
 	trap cleanup EXIT INT TERM; \
 	$(SUDO) modprobe libcurve25519; \
@@ -249,7 +248,7 @@ stress-tcp: module stress-build
 stress-udp: module stress-build
 	@set -e; \
 	cleanup() { \
-		$(SUDO) rmmod stcp 2>/dev/null || true; \
+		SUDO="$(SUDO)" "$(PWD)/scripts/graceful-unload.sh" 2>/dev/null || true; \
 	}; \
 	trap cleanup EXIT INT TERM; \
 	$(SUDO) modprobe libcurve25519; \

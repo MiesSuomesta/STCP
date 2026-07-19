@@ -173,12 +173,24 @@ class NativeStcpSocket:
         self.timeout = timeout
 
     def _wait(self, events: int) -> None:
+        # close() swaps fd to -1 before closing the original descriptor.  A
+        # concurrent shutdown must become a normal EBADF path, not an uncaught
+        # ValueError from select.poll.register().
+        fd = self.fd
+        if self._closed or fd < 0:
+            raise OSError(errno.EBADF, "STCP socket is closed")
+
         poller = select.poll()
-        poller.register(self.fd, events | select.POLLERR | select.POLLHUP)
+        try:
+            poller.register(fd, events | select.POLLERR | select.POLLHUP)
+        except ValueError as exc:
+            raise OSError(errno.EBADF, "STCP socket closed during poll setup") from exc
         timeout_ms = max(1, int(self.timeout * 1000))
         ready = poller.poll(timeout_ms)
         if not ready:
-            raise TimeoutError(f"fd {self.fd} timed out")
+            if self._closed or self.fd < 0:
+                raise OSError(errno.EBADF, "STCP socket closed while waiting")
+            raise TimeoutError(f"fd {fd} timed out")
 
         revents = ready[0][1]
         if revents & select.POLLNVAL:
@@ -301,61 +313,16 @@ class NativeStcpSocket:
 class StopState:
     def __init__(self) -> None:
         self.event = threading.Event()
-        self._lock = threading.Lock()
-        self._sockets: set[NativeStcpSocket] = set()
-
-    def register_socket(self, sock: NativeStcpSocket) -> None:
-        with self._lock:
-            if self.event.is_set():
-                sock.close()
-                raise InterruptedError("test is stopping")
-            self._sockets.add(sock)
-
-    def unregister_socket(self, sock: NativeStcpSocket) -> None:
-        with self._lock:
-            self._sockets.discard(sock)
 
     def stop(self) -> None:
         self.event.set()
-
-        # Closing every tracked descriptor interrupts poll(), accept(),
-        # send() and recv() immediately. This is essential because workers
-        # may otherwise remain blocked until their per-socket timeout expires.
-        with self._lock:
-            sockets = list(self._sockets)
-            self._sockets.clear()
-
-        for sock in sockets:
-            try:
-                sock.close()
-            except OSError:
-                pass
 
     def stopped(self) -> bool:
         return self.event.is_set()
 
 
-def create_stcp_socket(
-    timeout: float,
-    stop: Optional[StopState] = None,
-) -> NativeStcpSocket:
-    sock = NativeStcpSocket.create(timeout)
-    if stop is not None:
-        stop.register_socket(sock)
-    return sock
-
-
-def close_stcp_socket(
-    sock: Optional[NativeStcpSocket],
-    stop: StopState,
-) -> None:
-    if sock is None:
-        return
-    stop.unregister_socket(sock)
-    try:
-        sock.close()
-    except OSError:
-        pass
+def create_stcp_socket(timeout: float) -> NativeStcpSocket:
+    return NativeStcpSocket.create(timeout)
 
 
 def send_all(
@@ -446,7 +413,10 @@ def server_connection(
         if not stop.stopped():
             stats.add(server_errors=1)
     finally:
-        close_stcp_socket(conn, stop)
+        try:
+            conn.close()
+        except OSError:
+            pass
 
 
 def server_main(
@@ -469,7 +439,7 @@ def server_main(
                 handlers.discard(thread)
 
     try:
-        listener = create_stcp_socket(timeout=1.0, stop=stop)
+        listener = create_stcp_socket(timeout=1.0)
         listener.bind((host, port))
         listener.listen(backlog)
         ready.set()
@@ -477,10 +447,9 @@ def server_main(
         while not stop.stopped():
             try:
                 conn, _ = listener.accept()
-                stop.register_socket(conn)
             except socket.timeout:
                 continue
-            except (OSError, InterruptedError) as exc:
+            except OSError as exc:
                 if stop.stopped():
                     break
                 stats.add(server_errors=1)
@@ -496,7 +465,7 @@ def server_main(
                     stats,
                     recv_buffer_size,
                 ),
-                daemon=False,
+                daemon=True,
             )
             with handlers_lock:
                 handlers.add(thread)
@@ -508,7 +477,11 @@ def server_main(
         stop.stop()
         ready.set()
     finally:
-        close_stcp_socket(listener, stop)
+        if listener is not None:
+            try:
+                listener.close()
+            except OSError:
+                pass
 
         with handlers_lock:
             remaining_handlers = list(handlers)
@@ -679,7 +652,7 @@ def persistent_client(
     sock: Optional[NativeStcpSocket] = None
 
     try:
-        sock = create_stcp_socket(timeout, stop)
+        sock = create_stcp_socket(timeout)
         sock.connect((host, port))
         stats.add(connections_ok=1)
 
@@ -700,7 +673,11 @@ def persistent_client(
             stats.add(connections_failed=1)
             print(f"client {worker_id} connect/runtime error: {exc!r}", file=sys.stderr, flush=True)
     finally:
-        close_stcp_socket(sock, stop)
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
 
 
 def churn_client(
@@ -720,7 +697,7 @@ def churn_client(
         sock: Optional[NativeStcpSocket] = None
 
         try:
-            sock = create_stcp_socket(timeout, stop)
+            sock = create_stcp_socket(timeout)
             sock.connect((host, port))
             stats.add(connections_ok=1)
 
@@ -737,7 +714,11 @@ def churn_client(
             if not stop.stopped():
                 stats.add(connections_failed=1)
         finally:
-            close_stcp_socket(sock, stop)
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
 
 
 def mixed_client(
@@ -758,7 +739,7 @@ def mixed_client(
         sock: Optional[NativeStcpSocket] = None
 
         try:
-            sock = create_stcp_socket(timeout, stop)
+            sock = create_stcp_socket(timeout)
             sock.connect((host, port))
             stats.add(connections_ok=1)
 
@@ -780,7 +761,11 @@ def mixed_client(
             if not stop.stopped():
                 stats.add(connections_failed=1)
         finally:
-            close_stcp_socket(sock, stop)
+            if sock is not None:
+                try:
+                    sock.close()
+                except OSError:
+                    pass
 
 
 def percentile(values: list[float], percent: float) -> float:
@@ -951,7 +936,7 @@ def main() -> int:
             ready,
         ),
         name="stcp-server",
-        daemon=False,
+        daemon=True,
     )
     server.start()
 
@@ -995,7 +980,7 @@ def main() -> int:
             target=client_target,
             args=thread_args,
             name=f"stcp-client-{worker_id}",
-            daemon=False,
+            daemon=True,
         )
         clients.append(thread)
         thread.start()
@@ -1065,25 +1050,25 @@ def main() -> int:
                 break
 
     finally:
-        # stop() also closes every tracked descriptor, which wakes all
-        # blocking poll/accept/send/recv calls before threads are joined.
         stop.stop()
 
-        shutdown_deadline = time.monotonic() + max(3.0, args.timeout + 1.0)
-        all_threads = clients + [server]
+        # Use one shared shutdown deadline. Without this, N client threads
+        # can each consume the full timeout and a 20-second run may take
+        # roughly 40 seconds to finish.
+        shutdown_deadline = time.monotonic() + 2.0
 
-        for thread in all_threads:
-            remaining = max(0.0, shutdown_deadline - time.monotonic())
+        for thread in clients:
+            remaining = max(
+                0.0,
+                shutdown_deadline - time.monotonic(),
+            )
             thread.join(timeout=remaining)
 
-        alive = [thread.name for thread in all_threads if thread.is_alive()]
-        if alive:
-            print(
-                "shutdown failed; threads still alive: " + ", ".join(alive),
-                file=sys.stderr,
-                flush=True,
-            )
-            return 1
+        remaining = max(
+            0.0,
+            shutdown_deadline - time.monotonic(),
+        )
+        server.join(timeout=remaining)
 
     finished = time.monotonic()
     elapsed = max(finished - started, 1e-9)

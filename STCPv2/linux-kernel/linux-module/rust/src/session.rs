@@ -443,7 +443,40 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
     if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }
-    { let mut inner=ctx.inner.lock(); if received_done{inner.peer_handshake_done=true;} if inner.crypto.ready(){inner.state=SocketState::Ready;} }
+    {
+        let mut inner = ctx.inner.lock();
+
+        if received_done {
+            inner.peer_handshake_done = true;
+            crate::carrier::debug_event(251, ctx, 1, 0);
+        }
+
+        /*
+         * The local crypto context becoming ready only means that we have
+         * received and processed the peer public key.  It does NOT mean that
+         * the peer has finished installing its keys and accepted our
+         * HandshakeDone frame yet.
+         *
+         * Marking the socket Ready at that earlier point created an
+         * intermittent first-DATA race: connect() returned success and the
+         * client sent application bytes while the accepted child was still in
+         * Handshake.  The first frame could then be consumed as a handshake
+         * frame or left unprocessed until both userspace peers timed out.
+         */
+        if inner.crypto.ready() && inner.peer_handshake_done {
+            if inner.state != SocketState::Ready {
+                inner.state = SocketState::Ready;
+                crate::carrier::debug_event(252, ctx, 1, 0);
+            }
+        } else {
+            crate::carrier::debug_event(
+                250,
+                ctx,
+                inner.crypto.ready() as usize,
+                inner.peer_handshake_done as usize,
+            );
+        }
+    }
     Ok(())
 }
 

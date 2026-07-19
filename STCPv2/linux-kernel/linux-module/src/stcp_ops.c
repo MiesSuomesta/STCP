@@ -20,6 +20,8 @@
 #include "stcp_users.h"
 
 #define STCP_IO_BUFFER_MAX (1024 * 1024)
+#define STCP_CONNECT_TIMEOUT_MS 5000
+#define STCP_SEND_READY_TIMEOUT_MS 5000
 
 static int stcp_release(struct socket *sock)
 {
@@ -239,17 +241,47 @@ static int stcp_connect(
 	}
 
 	/*
-	 * Do not wait for the crypto handshake inside connect().  The listener
-	 * application must first run accept() so the accepted carrier and Rust
-	 * owner can be attached; waiting here caused the stress clients to stall
-	 * at connect() with zero completed connections.
+	 * connect() must not report success before the cryptographic handshake is
+	 * complete.  Returning 0 while can_send()==0 creates a race where the first
+	 * userspace send is accepted as a connected socket operation but returns
+	 * -EAGAIN, leaving an echo peer blocked in recv().
 	 *
-	 * The first send() remains correctly gated by stcp_rust_send(): it returns
-	 * -EAGAIN until the state reaches Ready.  Nonblocking userspace then waits
-	 * for EPOLLOUT on recv_wq, which the carrier wakes as handshake bytes arrive.
+	 * The accept side runs independently and carrier RX wakes recv_wq whenever
+	 * handshake state changes.  Nonblocking connect keeps normal socket
+	 * semantics and reports -EINPROGRESS until poll() observes Ready.
 	 */
 	stcp_start_retransmit_work(ssk);
+
+	if (stcp_rust_is_connected(ssk->rust_ctx) > 0) {
+		sock->state = SS_CONNECTED;
+		pr_info("stcp: connect ready immediately ctx=%px\n", ssk->rust_ctx);
+		return 0;
+	}
+
+	if (flags & O_NONBLOCK) {
+		sock->state = SS_CONNECTING;
+		pr_info("stcp: connect in progress ctx=%px\n", ssk->rust_ctx);
+		return -EINPROGRESS;
+	}
+
+	ret = wait_event_interruptible_timeout(
+		ssk->recv_wq,
+		stcp_rust_is_connected(ssk->rust_ctx) > 0,
+		msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS)
+	);
+	if (ret < 0) {
+		pr_info("stcp: connect interrupted ctx=%px ret=%d\n",
+			ssk->rust_ctx, ret);
+		return ret;
+	}
+	if (ret == 0) {
+		pr_info("stcp: connect handshake timeout ctx=%px\n", ssk->rust_ctx);
+		stcp_carrier_shutdown(ssk->carrier, SHUT_RDWR);
+		return -ETIMEDOUT;
+	}
+
 	sock->state = SS_CONNECTED;
+	pr_info("stcp: connect handshake complete ctx=%px\n", ssk->rust_ctx);
 	return 0;
 }
 
@@ -446,14 +478,26 @@ static int stcp_sendmsg(
 				break;
 			if (msg->msg_flags & MSG_DONTWAIT)
 				break;
-			wait_ret = wait_event_interruptible(
+			pr_info("stcp: sendmsg waiting for ready ctx=%px chunk=%zu\n",
+				ssk->rust_ctx, chunk);
+			wait_ret = wait_event_interruptible_timeout(
 				ssk->recv_wq,
-				stcp_rust_can_send(ssk->rust_ctx, chunk) > 0
+				stcp_rust_can_send(ssk->rust_ctx, chunk) > 0,
+				msecs_to_jiffies(STCP_SEND_READY_TIMEOUT_MS)
 			);
 			if (wait_ret < 0) {
 				ret = wait_ret;
 				break;
 			}
+			if (wait_ret == 0) {
+				pr_info("stcp: sendmsg ready timeout ctx=%px chunk=%zu\n",
+					ssk->rust_ctx, chunk);
+				ret = -ETIMEDOUT;
+				break;
+			}
+			pr_info("stcp: sendmsg ready wake ctx=%px can_send=%d\n",
+				ssk->rust_ctx,
+				stcp_rust_can_send(ssk->rust_ctx, chunk));
 		}
 
 		if (ret < 0) {

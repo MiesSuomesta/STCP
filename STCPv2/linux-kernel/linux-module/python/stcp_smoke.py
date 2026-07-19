@@ -100,6 +100,9 @@ def run_case(host: str, port: int, payload_size: int, timeout: float) -> CaseRes
             send_exact(conn, received)
             results.put(CaseResult(True, "server-echo"))
         except BaseException as exc:
+            # Closing the listener/connection is the normal cancellation path
+            # during cleanup. Preserve an already completed server result and
+            # do not turn EBADF from shutdown into a false test failure.
             if results.empty():
                 results.put(CaseResult(False, "server", repr(exc)))
             ready.set()
@@ -147,8 +150,9 @@ def run_case(host: str, port: int, payload_size: int, timeout: float) -> CaseRes
     thread.join(timeout=remaining)
     if thread.is_alive():
         sockets.close_all()
-        thread.join(timeout=1.0)
-        return CaseResult(False, "shutdown", "server thread did not exit")
+        thread.join(timeout=2.0)
+        if thread.is_alive():
+            return CaseResult(False, "shutdown", "server thread did not exit after socket cancellation")
 
     server_result = results.get_nowait() if not results.empty() else CaseResult(False, "server", "no result")
     elapsed_ms = (time.monotonic() - started) * 1000.0

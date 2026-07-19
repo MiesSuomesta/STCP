@@ -210,3 +210,21 @@ Additional Rust debug events:
 ## 2026-07-19: release-parser fix
 
 Fixed an infinite control-frame parser loop in release builds. `session.rs::remove_header()` previously called `ByteQueue::discard()` only inside `debug_assert_eq!`; release builds compile debug assertions out, so zero-payload frames such as HandshakeDone were never consumed. Header removal is now unconditional and returns a protocol error on a short discard. A bounded retry guard was also added to frame extraction to prevent any future queue race from creating an unbounded kernel busy loop.
+
+## Handshake readiness race fix
+
+Blocking `connect()` now waits until the Rust session reaches the connected/Ready
+state before returning success. Nonblocking connects return `-EINPROGRESS` and
+become writable through the existing poll waitqueue when the handshake completes.
+Blocking `sendmsg()` also uses a bounded readiness wait instead of waiting forever.
+This prevents the first 64-byte smoke-test send from racing ahead of handshake
+completion and leaving the echo server blocked in `recv()`.
+
+## 2026-07-19 handshake Ready race fix
+
+The Rust session now enters `SocketState::Ready` only after both conditions are true:
+
+- directional crypto keys have been derived, and
+- the peer's `HandshakeDone` frame has been received.
+
+Previously crypto readiness alone made `connect()` succeed, allowing the first DATA frame to race the accepted child's handshake completion. Debug events 250-252 expose the two readiness inputs and the final transition.

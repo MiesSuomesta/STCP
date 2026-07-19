@@ -1,6 +1,7 @@
 #include "stcp_socket.h"
 
 #include <linux/gfp.h>
+#include <linux/printk.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -30,6 +31,19 @@ void stcp_kernel_wake_recv(void *owner)
 	struct stcp_sock *ssk = owner;
 
 	/* See stcp_kernel_wake_accept(): wake_up itself is safe and cheap. */
-	if (ssk)
+	if (ssk) {
+		pr_info("stcp: wake_recv owner=%px ctx=%px waiters=%d\n",
+			ssk, ssk->rust_ctx, waitqueue_active(&ssk->recv_wq));
 		wake_up_interruptible_all(&ssk->recv_wq);
+	} else {
+		pr_info("stcp: wake_recv owner=NULL\n");
+	}
+}
+
+/* Numeric Rust datapath tracepoint. Kept allocation-free and safe in atomic context. */
+void stcp_kernel_debug_event(u32 event, unsigned long ctx,
+                             unsigned long arg0, unsigned long arg1)
+{
+	pr_info("stcp: rust event=%u ctx=%px arg0=%lu arg1=%lu\n",
+		event, (void *)ctx, arg0, arg1);
 }

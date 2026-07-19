@@ -5,6 +5,7 @@
 #include "stcp_proto.h"
 #include "stcp_rust_ffi.h"
 #include "stcp_test.h"
+#include "stcp_users.h"
 
 static bool drop_first_data;
 static bool duplicate_first_data;
@@ -113,8 +114,15 @@ static int __init stcp_module_init(void)
 
 	pr_info("stcp: directional crypto selftest passed\n");
 
+	ret = stcp_users_init();
+	if (ret) {
+		stcp_rust_exit();
+		return ret;
+	}
+
 	ret = stcp_proto_register();
 	if (ret) {
+		stcp_users_exit();
 		stcp_rust_exit();
 		return ret;
 	}
@@ -126,6 +134,7 @@ static int __init stcp_module_init(void)
 static void __exit stcp_module_exit(void)
 {
 	stcp_proto_unregister();
+	stcp_users_exit();
 	stcp_rust_exit();
 	pr_info("stcp: loopback BSD transport unloaded\n");
 }

@@ -285,6 +285,7 @@ static int stcp_receiver_thread(void *argument)
 		};
 		u32 peer_addr = 0;
 		u16 peer_port = 0;
+		ssize_t received_len;
 		int ret;
 
 		memset(&peer, 0, sizeof(peer));
@@ -330,19 +331,28 @@ static int stcp_receiver_thread(void *argument)
 			continue;
 		}
 
+		received_len = ret;
+
 		if (peer.ss_family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)&peer;
 			peer_addr = (__force u32)sin->sin_addr.s_addr;
 			peer_port = (__force u16)sin->sin_port;
 		}
 
+		pr_info("stcp: carrier RX carrier=%px ctx=%px owner=%px bytes=%zd peer=%pI4:%u kind=%d\n",
+			carrier, carrier->rust_ctx, carrier->owner, received_len,
+			&peer_addr, ntohs((__force __be16)peer_port), carrier->kind);
+
 		ret = stcp_rust_carrier_receive_from(
 			carrier->rust_ctx,
 			buffer,
-			(size_t)ret,
+			(size_t)received_len,
 			peer_addr,
 			peer_port
 		);
+
+		pr_info("stcp: carrier Rust RX carrier=%px ctx=%px owner=%px bytes=%zd ret=%d\n",
+			carrier, carrier->rust_ctx, carrier->owner, received_len, ret);
 
 		cond_resched();
 		if (ret)

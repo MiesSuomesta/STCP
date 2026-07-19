@@ -150,3 +150,63 @@ wait
 ## Adaptive retransmission timeout
 
 See `ADAPTIVE_RTO.md`. Run `make LLVM=1 V=1 test-reliability` to exercise baseline, packet loss, delay, duplicate and reorder cases.
+
+## Hallittu moduulin alasajo
+
+Moduuli listaa aktiivisten STCP-socketien omistajaprosessit tiedostossa
+`/proc/stcp/users`. Hallittu alasajo lähettää niille ensin `SIGTERM`-signaalin,
+odottaa socketien sulkeutumista, käyttää tarvittaessa `SIGKILL`-signaalia ja
+suorittaa lopuksi turvallisen `modprobe -r stcp` -komennon.
+
+```sh
+make module-stop
+# alias:
+make module-shutdown
+make module-remove
+```
+
+Odotusaikoja voi säätää tarvittaessa:
+
+```sh
+TERM_WAIT=10 KILL_WAIT=5 make module-stop
+```
+
+## Rust datapath debug events
+
+The patched build emits allocation-free numeric trace events through
+`stcp_kernel_debug_event()`:
+
+- 100/199: FFI recv enter/return
+- 101/102: session recv enter/handshake progressed
+- 110/111: fill_application_buffer enter/return
+- 112: application queue state
+- 120: wire parsing begins
+- 121: ACK deferred outside wire lock
+- 122: PONG deferred outside wire lock
+- 123/124: deferred controls and extracted DATA frame counts
+- 130-133: in-order DATA decrypt/store/ACK stages
+- 140-143: control-frame parser lock/deferred-action stages
+
+The lock order fix ensures that the carrier ByteQueue lock is never held while
+updating `ctx.inner` or synchronously transmitting ACK/PONG frames. This removes
+the queue-lock -> inner-lock / inner-lock -> carrier-send inversion.
+
+## Parser deadlock hardening
+
+This revision serializes handshake/control/data parsing per socket with
+`parser_busy`. A complete wire frame is now extracted in two phases:
+header inspection under the wire lock, allocation outside the lock, and a
+short validated consume under the lock. Crypto, ACK processing, PONG
+transmission, application buffering and debug printing run after releasing
+the wire lock. This removes the suspicious allocation-under-spinlock,
+wire-lock/inner-lock inversion and synchronous carrier callback paths.
+
+Additional Rust debug events:
+
+- 200-series: frame extraction and parser contention
+- 210: extracted frame type and payload length
+- 299: application parser completed
+
+## 2026-07-19: release-parser fix
+
+Fixed an infinite control-frame parser loop in release builds. `session.rs::remove_header()` previously called `ByteQueue::discard()` only inside `debug_assert_eq!`; release builds compile debug assertions out, so zero-payload frames such as HandshakeDone were never consumed. Header removal is now unconditional and returns a protocol error on a short discard. A bounded retry guard was also added to frame extraction to prevent any future queue race from creating an unbounded kernel busy loop.

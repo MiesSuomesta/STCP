@@ -4,6 +4,8 @@
 #include <linux/wait.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/list.h>
+#include <linux/types.h>
 #include <net/sock.h>
 
 struct stcp_sock {
@@ -21,6 +23,11 @@ struct stcp_sock {
 	struct mutex rx_lock;
 	u8 *tx_buffer;
 	u8 *rx_buffer;
+
+	/* Active-users registry used by the graceful unload helper. */
+	struct list_head user_node;
+	pid_t owner_tgid;
+	bool user_registered;
 };
 
 static inline struct stcp_sock *stcp_sk(struct sock *sk)

@@ -10,6 +10,7 @@ stcp-y := \
   src/stcp_module.o     \
   src/stcp_ops.o 	\
   src/stcp_proto.o      \
-  src/stcp_rust_ffi.o 
+  src/stcp_rust_ffi.o \
+  src/stcp_users.o 
 
 ccflags-y += -I$(src)/include

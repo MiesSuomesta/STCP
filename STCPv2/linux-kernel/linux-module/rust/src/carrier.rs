@@ -32,6 +32,7 @@ unsafe extern "C" {
     ) -> isize;
     fn stcp_kernel_wake_accept(owner: *mut c_void);
     fn stcp_kernel_wake_recv(owner: *mut c_void);
+    fn stcp_kernel_debug_event(event: u32, ctx: usize, arg0: usize, arg1: usize);
 }
 
 #[derive(Clone, Copy)]
@@ -44,6 +45,11 @@ struct UdpSessionEntry {
 }
 
 static UDP_SESSIONS: SpinLock<Vec<UdpSessionEntry>> = SpinLock::new(Vec::new());
+
+
+pub(crate) fn debug_event(event: u32, ctx: &StcpContext, arg0: usize, arg1: usize) {
+    unsafe { stcp_kernel_debug_event(event, ctx as *const StcpContext as usize, arg0, arg1) };
+}
 
 pub(crate) fn wake_accept(owner: usize) {
     if owner != 0 {

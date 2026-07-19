@@ -8,6 +8,7 @@ use alloc::{
 use core::ffi::{c_int, c_void};
 
 use crate::{
+    byte_queue::ByteQueue,
     error::StcpError,
     frame::{Header, PacketType, STCP_HEADER_LEN},
     spinlock::SpinLock,
@@ -59,7 +60,7 @@ pub(crate) fn wake_recv(owner: usize) {
 pub(crate) fn outgoing_queue(
     shared: &Arc<Connection>,
     side: Side,
-) -> &SpinLock<VecDeque<u8>> {
+) -> &SpinLock<ByteQueue> {
     match side {
         Side::A => &shared.a_to_b,
         Side::B => &shared.b_to_a,
@@ -69,7 +70,7 @@ pub(crate) fn outgoing_queue(
 pub(crate) fn incoming_queue(
     shared: &Arc<Connection>,
     side: Side,
-) -> &SpinLock<VecDeque<u8>> {
+) -> &SpinLock<ByteQueue> {
     match side {
         Side::A => &shared.b_to_a,
         Side::B => &shared.a_to_b,
@@ -99,7 +100,7 @@ pub(crate) fn transmit(
     if carrier == 0 {
         outgoing_queue(shared, side)
             .lock()
-            .extend(bytes.iter().copied());
+            .push_slice(bytes)?;
         wake_recv(shared.peer_owner(side));
         return Ok(());
     }
@@ -131,9 +132,12 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         (endpoint.shared.clone(), endpoint.side, inner.owner)
     };
 
-    incoming_queue(&shared, side)
+    if let Err(error) = incoming_queue(&shared, side)
         .lock()
-        .extend(bytes.iter().copied());
+        .push_slice(bytes)
+    {
+        return error.errno();
+    }
 
     if let Err(error) = crate::session::progress_handshake(ctx) {
         /* Before accept() attaches the UDP child carrier, ENOTCONN is expected. */

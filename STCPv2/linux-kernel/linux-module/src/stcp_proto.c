@@ -53,7 +53,7 @@ static void stcp_proto_destroy(struct sock *sk)
 }
 
 
-#define STCP_RETRANSMIT_INTERVAL_MS 100
+#define STCP_RETRANSMIT_INTERVAL_MS 20
 
 static void stcp_retransmit_workfn(struct work_struct *work)
 {
@@ -69,7 +69,7 @@ static void stcp_retransmit_workfn(struct work_struct *work)
 		return;
 
 	if (stcp_rust_tick(ssk->rust_ctx) > 0) {
-		schedule_delayed_work(
+		mod_delayed_work(system_wq,
 			&ssk->retransmit_work,
 			msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
 		);
@@ -85,7 +85,7 @@ void stcp_start_retransmit_work(struct stcp_sock *ssk)
 
 	ssk->retransmit_work_started = true;
 
-	schedule_delayed_work(
+	mod_delayed_work(system_wq,
 		&ssk->retransmit_work,
 		msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
 	);
@@ -156,6 +156,10 @@ static int stcp_create(
 	init_waitqueue_head(&ssk->recv_wq);
 	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);
 	ssk->retransmit_work_started = false;
+	mutex_init(&ssk->tx_lock);
+	mutex_init(&ssk->rx_lock);
+	ssk->tx_buffer = NULL;
+	ssk->rx_buffer = NULL;
 
 	ret = stcp_rust_create(
 		(u8)protocol,
@@ -233,6 +237,10 @@ struct sock *stcp_alloc_child_sock(
 	init_waitqueue_head(&ssk->recv_wq);
 	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);
 	ssk->retransmit_work_started = false;
+	mutex_init(&ssk->tx_lock);
+	mutex_init(&ssk->rx_lock);
+	ssk->tx_buffer = NULL;
+	ssk->rx_buffer = NULL;
 
 	return newsk;
 }

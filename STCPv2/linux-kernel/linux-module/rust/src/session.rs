@@ -748,7 +748,20 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 break;
             }
 
-            let header = peek_header(&wire)?;
+            /*
+             * TCP is a byte stream.  Never leave an invalid prefix parked at
+             * the head of the queue forever: discard one byte and search for
+             * the next complete STCP header.  Partial headers remain queued.
+             */
+            let header = match peek_header(&wire) {
+                Ok(header) => header,
+                Err(StcpError::Again) => break,
+                Err(StcpError::Protocol) => {
+                    wire.discard(1);
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
             let frame_len = STCP_HEADER_LEN
                 .checked_add(header.payload_len)
                 .ok_or(StcpError::Protocol)?;
@@ -1087,7 +1100,15 @@ fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> {
             break;
         }
 
-        let header = peek_header(&wire)?;
+        let header = match peek_header(&wire) {
+            Ok(header) => header,
+            Err(StcpError::Again) => break,
+            Err(StcpError::Protocol) => {
+                wire.discard(1);
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
         let frame_len = STCP_HEADER_LEN
             .checked_add(header.payload_len)
             .ok_or(StcpError::Protocol)?;
@@ -1305,22 +1326,29 @@ pub fn has_accept(ctx: &StcpContext) -> bool {
 }
 
 pub fn has_data(ctx: &StcpContext) -> bool {
-    let _ = progress_handshake(ctx);
-
-    {
-        let inner = ctx.inner.lock();
-
-        if inner.rx_message_ready || inner.peer_eof {
-            return true;
-        }
+    /*
+     * Readiness must describe bytes that recv() can return, not merely raw
+     * carrier bytes waiting in the TCP reassembly queue.  Returning true for
+     * a partial STCP frame makes wait_event()/poll wake immediately while
+     * session::recv() still returns EAGAIN.  That creates a tight kernel loop
+     * (typically 150-200% CPU in the Python stress test) and can starve the
+     * carrier receiver before the remaining frame bytes are processed.
+     *
+     * Parse every currently complete frame here.  A partial TCP frame remains
+     * queued and readiness stays false until the carrier appends more bytes
+     * and wakes recv_wq again.
+     */
+    if progress_handshake(ctx).is_err() {
+        return false;
     }
 
-    let Ok((shared, side)) = connection_for_data(ctx) else {
-        return false;
-    };
+    let state = ctx.inner.lock().state;
+    if state == SocketState::Ready || state == SocketState::Closed {
+        let _ = fill_application_buffer(ctx);
+    }
 
-    !incoming_queue(&shared, side).lock().is_empty() ||
-        shared.peer_closed(side)
+    let inner = ctx.inner.lock();
+    inner.rx_message_ready || inner.peer_eof
 }
 
 pub fn is_connected(ctx: &StcpContext) -> bool {

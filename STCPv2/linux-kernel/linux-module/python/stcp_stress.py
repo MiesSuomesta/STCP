@@ -185,12 +185,23 @@ class NativeStcpSocket:
             poller.register(fd, events | select.POLLERR | select.POLLHUP)
         except ValueError as exc:
             raise OSError(errno.EBADF, "STCP socket closed during poll setup") from exc
-        timeout_ms = max(1, int(self.timeout * 1000))
-        ready = poller.poll(timeout_ms)
-        if not ready:
-            if self._closed or self.fd < 0:
+
+        # Do not block for the complete socket timeout in one poll() call.
+        # Linux does not guarantee that close() in another thread wakes a
+        # concurrently blocked poll() for a custom protocol descriptor. Poll
+        # in short slices so shutdown is observed deterministically.
+        deadline = time.monotonic() + self.timeout
+        ready = []
+        while not ready:
+            if self._closed or self.fd != fd or fd < 0:
                 raise OSError(errno.EBADF, "STCP socket closed while waiting")
-            raise TimeoutError(f"fd {fd} timed out")
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"fd {fd} timed out")
+
+            slice_ms = max(1, min(100, int(remaining * 1000)))
+            ready = poller.poll(slice_ms)
 
         revents = ready[0][1]
         if revents & select.POLLNVAL:

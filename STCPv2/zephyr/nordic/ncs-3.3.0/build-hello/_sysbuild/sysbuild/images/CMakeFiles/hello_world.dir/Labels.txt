@@ -1,0 +1,13 @@
+# Target labels
+ hello_world
+# Source files and their labels
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/CMakeFiles/hello_world
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/CMakeFiles/hello_world.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/CMakeFiles/hello_world-complete.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-build.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-configure.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-download.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-install.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-mkdir.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-patch.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-update.rule

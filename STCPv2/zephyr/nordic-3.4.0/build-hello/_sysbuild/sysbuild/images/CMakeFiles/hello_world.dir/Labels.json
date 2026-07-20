@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/CMakeFiles/hello_world"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/CMakeFiles/hello_world.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/CMakeFiles/hello_world-complete.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-build.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-configure.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-download.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-install.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-mkdir.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-patch.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/_sysbuild/sysbuild/images/hello_world-prefix/src/hello_world-stamp/hello_world-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"hello_world"
+		],
+		"name" : "hello_world"
+	}
+}

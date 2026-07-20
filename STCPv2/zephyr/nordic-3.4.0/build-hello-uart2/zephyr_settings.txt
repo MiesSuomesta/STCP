@@ -1,0 +1,13 @@
+# WARNING. THIS FILE IS AUTO-GENERATED. DO NOT MODIFY!
+#
+# This file contains build system settings derived from your modules.
+#
+# Modules may be set via ZEPHYR_MODULES, ZEPHYR_EXTRA_MODULES,
+# and/or the west manifest file.
+#
+# See the Modules guide for more information.
+"BOARD_ROOT":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf"
+"DTS_ROOT":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf"
+"SNIPPET_ROOT":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf"
+"SOC_ROOT":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf"
+"MODULE_EXT_ROOT":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf"

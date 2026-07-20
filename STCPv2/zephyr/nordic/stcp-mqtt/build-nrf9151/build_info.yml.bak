@@ -1,0 +1,22 @@
+cmake:
+  board:
+    name: 'nrf9151dk'
+    path:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/boards/nordic/nrf9151dk'
+    qualifiers: 'nrf9151/ns'
+    revision: ''
+  images:
+   - name: 'stcp-mqtt'
+     source-dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt'
+     type: 'MAIN'
+  kconfig:
+    files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/empty.conf'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/empty.conf'
+    user-files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/empty.conf'
+version: '0.1.0'
+west:
+  command: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/.venv/lib/python3.13/site-packages/west/__main__.py build -p always -b nrf9151dk/nrf9151/ns /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt -d /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151 -- -DZEPHYR_EXTRA_MODULES=/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module -DEXTRA_CONF_FILE=/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/nrf9151.conf -DZEPHYR_SDK_INSTALL_DIR=/home/pomo/zephyr-sdk-0.16.8'
+  topdir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0'
+  version: '1.5.0'

@@ -1,0 +1,58 @@
+cmake:
+  application:
+    configuration-dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/samples/hello_world'
+    source-dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/samples/hello_world'
+  board:
+    name: 'nrf9151dk'
+    path:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/nordic/nrf9151dk'
+    qualifiers: 'nrf9151/ns'
+    revision: ''
+  devicetree:
+    bindings-dirs:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/dts/bindings'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/nordic/nrf9151dk/dts/bindings'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/bindings'
+    files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns.dts'
+    include-dirs:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/include'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/dts/common'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/dts/riscv'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/dts/arm'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/dts'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/nordic/nrf9151dk/dts'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/include'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/include/zephyr'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/common'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/vendor'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/rx'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/x86'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/xtensa'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/sparc'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/riscv'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/posix'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/arm64'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/arm'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts/arc'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/dts'
+  images:
+   - name: 'tfm'
+     source-dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/modules/tee/tf-m/trusted-firmware-m'
+  kconfig:
+    files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns_defconfig'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/samples/hello_world/prj.conf'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/hello_world/zephyr/.config.sysbuild'
+    user-files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/samples/hello_world/prj.conf'
+  toolchain:
+    name: 'zephyr'
+    path: '/home/pomo/zephyr-sdk-1.0.1'
+  vendor-specific:
+    nordic:
+      svdfile: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/modules/hal/nordic/nrfx/bsp/stable/mdk/nrf91/nrf9120/nrf9120.svd'
+  zephyr:
+    version: '4.4.0'
+    zephyr-base: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr'
+version: '0.1.0'

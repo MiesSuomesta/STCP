@@ -1,0 +1,2 @@
+# Load board Kconfig descriptions.
+osource "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/nordic/nrf9151dk/Kconfig.nrf9151dk"

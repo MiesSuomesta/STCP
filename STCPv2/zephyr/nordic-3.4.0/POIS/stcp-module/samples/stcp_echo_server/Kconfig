@@ -1,0 +1,27 @@
+mainmenu "STCP echo server"
+
+source "Kconfig.zephyr"
+
+menu "STCP echo server settings"
+
+config STCP_ECHO_PORT
+    int "Listening TCP carrier port"
+    default 6677
+    range 1 65535
+
+config STCP_ECHO_BACKLOG
+    int "Listen backlog"
+    default 4
+    range 1 16
+
+config STCP_ECHO_BUFFER_SIZE
+    int "Echo receive buffer size"
+    default 1024
+    range 64 8192
+
+config STCP_ECHO_LTE_TIMEOUT_SECONDS
+    int "LTE/PDN/IP startup timeout"
+    default 300
+    range 10 1800
+
+endmenu

@@ -1,0 +1,115 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:200 (message)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/kernel.cmake:129 (project)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/zephyr_default.cmake:145 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:66 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:92 (include_boilerplate)"
+      - "CMakeLists.txt:2 (find_package)"
+    message: |
+      The target system is: Generic - 4.4.0 - arm
+      The host system is: Linux - 7.2.0-rc1-next-20260703-rust-stcp-debug - x86_64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/kernel.cmake:129 (project)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/zephyr_default.cmake:145 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:66 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:92 (include_boilerplate)"
+      - "CMakeLists.txt:2 (find_package)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: /home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is GNU, found in:
+        /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build-nrf9151/CMakeFiles/3.31.6/CompilerIdC/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineCXXCompiler.cmake:126 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/kernel.cmake:129 (project)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/zephyr_default.cmake:145 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:66 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:92 (include_boilerplate)"
+      - "CMakeLists.txt:2 (find_package)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: /home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-g++ 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is GNU, found in:
+        /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build-nrf9151/CMakeFiles/3.31.6/CompilerIdCXX/a.out
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineCompilerId.cmake:1237 (message)"
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineASMCompiler.cmake:135 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/kernel.cmake:135 (enable_language)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules/zephyr_default.cmake:145 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:66 (include)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/zephyr-package/cmake/ZephyrConfig.cmake:92 (include_boilerplate)"
+      - "CMakeLists.txt:2 (find_package)"
+    message: |
+      Checking whether the ASM compiler is GNU using "--version" matched "(GNU assembler)|(GCC)|(Free Software Foundation)":
+      arm-zephyr-eabi-gcc (Zephyr SDK 1.0.1) 14.3.0
+      Copyright (C) 2024 Free Software Foundation, Inc.
+      This is free software; see the source for copying conditions.  There is NO
+      warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+      
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake-3.31/Modules/Internal/CheckSourceCompiles.cmake:108 (try_compile)"
+      - "/usr/share/cmake-3.31/Modules/Internal/CheckCompilerFlag.cmake:18 (cmake_check_source_compiles)"
+      - "/usr/share/cmake-3.31/Modules/CheckCCompilerFlag.cmake:56 (cmake_check_compiler_flag)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/modules/crypto/mbedtls/CMakeLists.txt:225 (CHECK_C_COMPILER_FLAG)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/modules/crypto/mbedtls/CMakeLists.txt:196 (set_gnu_base_compile_options)"
+      - "/home/pomo/git/STCP/STCPv2/zephyr/nordic/modules/crypto/mbedtls/library/CMakeLists.txt:195 (set_base_compile_options)"
+    checks:
+      - "Performing Test C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS"
+    directories:
+      source: "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build-nrf9151/CMakeFiles/CMakeScratch/TryCompile-PVXtEu"
+      binary: "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build-nrf9151/CMakeFiles/CMakeScratch/TryCompile-PVXtEu"
+    cmakeVariables:
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_MODULE_PATH: "/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/cmake/modules;/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/cmake/modules"
+    buildResult:
+      variable: "C_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS"
+      cached: true
+      stdout: |
+        Change Dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build-nrf9151/CMakeFiles/CMakeScratch/TryCompile-PVXtEu'
+        
+        Run Build Command(s): /usr/bin/ninja -v cmTC_cae47
+        [1/2] /home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc -DC_COMPILER_SUPPORTS_WFORMAT_SIGNEDNESS  -nostartfiles -nostdlib -isystem "/home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/../lib/gcc/arm-zephyr-eabi/14.3.0/include" -isystem "/home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/../lib/gcc/arm-zephyr-eabi/14.3.0/include" -Wl,--unresolved-symbols=ignore-in-object-files -Wl,--entry=0 -fuse-ld=bfd -std=c99   -Wformat-signedness -o CMakeFiles/cmTC_cae47.dir/src.c.obj -c /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build-nrf9151/CMakeFiles/CMakeScratch/TryCompile-PVXtEu/src.c
+        [2/2] : && /home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc -nostartfiles -nostdlib -isystem "/home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/../lib/gcc/arm-zephyr-eabi/14.3.0/include" -isystem "/home/pomo/zephyr-sdk-1.0.1/gnu/arm-zephyr-eabi/bin/../lib/gcc/arm-zephyr-eabi/14.3.0/include" -Wl,--unresolved-symbols=ignore-in-object-files -Wl,--entry=0 -fuse-ld=bfd  CMakeFiles/cmTC_cae47.dir/src.c.obj -o cmTC_cae47   && :
+        
+      exitCode: 0
+...

@@ -1,0 +1,2 @@
+"nrf":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/sysbuild"
+"mcuboot":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/bootloader/mcuboot":"/home/pomo/git/STCP/STCPv2/zephyr/nordic/bootloader/mcuboot/boot/zephyr/sysbuild"

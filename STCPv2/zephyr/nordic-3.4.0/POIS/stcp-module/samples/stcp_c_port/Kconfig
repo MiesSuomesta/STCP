@@ -1,0 +1,25 @@
+mainmenu "STCP C carrier test"
+
+source "Kconfig.zephyr"
+
+menu "STCP test settings"
+
+config STCP_TEST_REMOTE_IPV4
+    string "Remote IPv4 address"
+    default "192.168.1.100"
+
+config STCP_TEST_REMOTE_PORT
+    int "Remote TCP port"
+    default 6677
+    range 1 65535
+
+config STCP_TEST_MESSAGE
+    string "Message sent to echo server"
+    default "Hello from STCP on Zephyr"
+
+config STCP_TEST_RECV_TIMEOUT_MS
+    int "Receive timeout in milliseconds"
+    default 10000
+    range 100 120000
+
+endmenu

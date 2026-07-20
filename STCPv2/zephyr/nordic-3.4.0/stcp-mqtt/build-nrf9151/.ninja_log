@@ -1,0 +1,27 @@
+# ninja log v6
+4	40	1784544777972986890	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-mkdir	c1a2b5415d2d454f
+4	40	1784544777972986890	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-mkdir	c1a2b5415d2d454f
+40	74	1784544778008986731	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-download	b969099bf7d1f064
+40	74	1784544778008986731	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-download	b969099bf7d1f064
+74	116	1784544778044986572	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-update	81ef0db6605ab321
+74	116	1784544778044986572	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-update	81ef0db6605ab321
+116	154	1784544778088986377	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-patch	673d28045c97b8c0
+116	154	1784544778088986377	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-patch	673d28045c97b8c0
+154	187	1784544778120986236	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-configure	f3e3a2e4e4979de1
+154	187	1784544778120986236	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-configure	f3e3a2e4e4979de1
+187	35607	1784544778120986236	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-build	604d046150fc7880
+187	35607	1784544778120986236	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-build	604d046150fc7880
+35608	35626	1784544813545485137	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-install	b221d7ac7bb2ba99
+35608	35626	1784544813545485137	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-install	b221d7ac7bb2ba99
+35627	35676	1784544813608829439	_sysbuild/sysbuild/images/CMakeFiles/stcp-mqtt-complete	7298c9907f7e26a1
+35627	35676	1784544813608829439	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-done	7298c9907f7e26a1
+35627	35676	1784544813608829439	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/CMakeFiles/stcp-mqtt-complete	7298c9907f7e26a1
+35627	35676	1784544813608829439	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-done	7298c9907f7e26a1
+4	209	1784544823112787374	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-build	604d046150fc7880
+4	209	1784544823112787374	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-build	604d046150fc7880
+209	228	1784544823316786472	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-install	b221d7ac7bb2ba99
+209	228	1784544823316786472	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-install	b221d7ac7bb2ba99
+228	274	1784544823380786188	_sysbuild/sysbuild/images/CMakeFiles/stcp-mqtt-complete	7298c9907f7e26a1
+228	274	1784544823380786188	_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-done	7298c9907f7e26a1
+228	274	1784544823380786188	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/CMakeFiles/stcp-mqtt-complete	7298c9907f7e26a1
+228	274	1784544823380786188	/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-done	7298c9907f7e26a1

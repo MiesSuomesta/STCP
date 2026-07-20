@@ -1,0 +1,9 @@
+west:
+  command: /home/pomo/git/STCP/STCPv2/zephyr/nordic/.venv/bin/west build --no-sysbuild
+    -p always -d /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build-nrf9151
+    -b nrf9151dk/nrf9151/ns /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/samples/stcp_c_port
+    -- -DZEPHYR_EXTRA_MODULES=/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module
+    -DZEPHYR_SDK_INSTALL_DIR=/home/pomo/zephyr-sdk-1.0.1 -DEXTRA_CONF_FILE=/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/samples/stcp_c_port/nrf9151.conf
+    -DEXTRA_FLAGS=-I/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/../nrfxlib/nrf_modem/include
+  topdir: /home/pomo/git/STCP/STCPv2/zephyr/nordic
+  version: 1.5.0

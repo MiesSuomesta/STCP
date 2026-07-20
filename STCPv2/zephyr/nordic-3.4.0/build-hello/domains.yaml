@@ -1,0 +1,7 @@
+default: hello_world
+build_dir: /home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello
+domains:
+  - name: hello_world
+    build_dir: /home/pomo/git/STCP/STCPv2/zephyr/nordic/build-hello/hello_world
+flash_order:
+  - hello_world

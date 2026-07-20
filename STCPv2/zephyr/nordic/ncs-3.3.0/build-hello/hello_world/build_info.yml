@@ -1,0 +1,58 @@
+cmake:
+  application:
+    configuration-dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/samples/hello_world'
+    source-dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/samples/hello_world'
+  board:
+    name: 'nrf9151dk'
+    path:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/boards/nordic/nrf9151dk'
+    qualifiers: 'nrf9151/ns'
+    revision: ''
+  devicetree:
+    bindings-dirs:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/nrf/dts/bindings'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/boards/nordic/nrf9151dk/dts/bindings'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/bindings'
+    files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns.dts'
+    include-dirs:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/nrf/include'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/nrf/dts/common'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/nrf/dts/riscv'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/nrf/dts/arm'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/nrf/dts'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/boards/nordic/nrf9151dk/dts'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/include'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/include/zephyr'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/common'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/vendor'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/rx'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/x86'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/xtensa'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/sparc'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/riscv'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/posix'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/arm64'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/arm'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts/arc'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/dts'
+  images:
+   - name: 'tfm'
+     source-dir: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/modules/tee/tf-m/trusted-firmware-m'
+  kconfig:
+    files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns_defconfig'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/samples/hello_world/prj.conf'
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/hello_world/zephyr/.config.sysbuild'
+    user-files:
+     - '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/samples/hello_world/prj.conf'
+  toolchain:
+    name: 'zephyr'
+    path: '/home/pomo/zephyr-sdk-0.16.8'
+  vendor-specific:
+    nordic:
+      svdfile: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/modules/hal/nordic/nrfx/bsp/stable/mdk/nrf9120.svd'
+  zephyr:
+    version: '4.3.99'
+    zephyr-base: '/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr'
+version: '0.1.0'

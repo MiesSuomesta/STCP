@@ -1,0 +1,37 @@
+# Available runners configured by board.cmake.
+runners:
+- nrfutil
+- nrfjprog
+- jlink
+
+# Default flash runner if --runner is not given.
+flash-runner: nrfutil
+
+# Default debug runner if --runner is not given.
+debug-runner: jlink
+
+# Common runner configuration values.
+config:
+  board_dir: /home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/boards/nordic/nrf9151dk
+  # Build outputs:
+  elf_file: zephyr.elf
+  hex_file: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/merged.hex
+  bin_file: zephyr.bin
+  # Host tools:
+  gdb: /home/pomo/zephyr-sdk-0.16.8/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb
+  openocd: /home/pomo/zephyr-sdk-0.16.8/sysroots/x86_64-pokysdk-linux/usr/bin/openocd
+  openocd_search:
+    - /home/pomo/zephyr-sdk-0.16.8/sysroots/x86_64-pokysdk-linux/usr/share/openocd/scripts
+
+# Runner specific arguments
+args:
+  nrfutil:
+    []
+
+  nrfjprog:
+    []
+
+  jlink:
+    - --dt-flash=y
+    - --device=nRF9151_xxCA
+    - --speed=4000

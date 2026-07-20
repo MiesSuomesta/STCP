@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/CMakeFiles/tfm"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/CMakeFiles/tfm.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/CMakeFiles/tfm-complete.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-build.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-configure.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-download.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-install.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-mkdir.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-patch.rule"
+		},
+		{
+			"file" : "/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt/modules/trusted-firmware-m/tfm-prefix/src/tfm-stamp/tfm-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"tfm"
+		],
+		"name" : "tfm"
+	}
+}

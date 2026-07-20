@@ -1,0 +1,13 @@
+# Target labels
+ stcp-mqtt
+# Source files and their labels
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/CMakeFiles/stcp-mqtt
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/CMakeFiles/stcp-mqtt.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/CMakeFiles/stcp-mqtt-complete.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-build.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-configure.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-download.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-install.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-mkdir.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-patch.rule
+/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/_sysbuild/sysbuild/images/stcp-mqtt-prefix/src/stcp-mqtt-stamp/stcp-mqtt-update.rule

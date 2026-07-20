@@ -1,0 +1,11 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake-3.31/Modules/CMakeDetermineSystem.cmake:205 (message)"
+      - "CMakeLists.txt:22 (project)"
+    message: |
+      The system is: Linux - 7.2.0-rc1-next-20260703-rust-stcp-debug - x86_64
+...

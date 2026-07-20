@@ -1,0 +1,24 @@
+{
+  "nrfutil_device_version": "2.19.4",
+  "family": "NRF91_FAMILY",
+  "operations": [
+    {
+      "core": "NRFDL_DEVICE_CORE_APPLICATION",
+      "operation": {
+        "chip_erase_mode": "ERASE_RANGES_TOUCHED_BY_FIRMWARE",
+        "firmware": {
+          "file": "/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/build-hello/merged.hex"
+        },
+        "type": "program",
+        "verify": "VERIFY_READ"
+      }
+    },
+    {
+      "core": "NRFDL_DEVICE_CORE_APPLICATION",
+      "operation": {
+        "option": "RESET_PIN",
+        "type": "reset"
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+menuconfig STCP
+    bool "STCP socket offload (C carrier port)"
+    depends on NET_SOCKETS
+    select NET_SOCKETS_OFFLOAD
+    default n
+
+if STCP
+
+config STCP_SOCKET_PRIORITY
+    int "Socket provider priority"
+    default 20
+
+config STCP_MAX_SOCKETS
+    int "Maximum STCP sockets"
+    default 16
+    range 2 64
+
+config STCP_IO_TIMEOUT_MS
+    int "Blocking carrier I/O timeout (milliseconds)"
+    default 5000
+    range 1 60000
+
+config STCP_CONNECT_TIMEOUT_MS
+    int "Carrier connect timeout (milliseconds)"
+    default 60000
+    range 1000 300000
+
+config STCP_LOG_LEVEL
+    int "STCP log level"
+    default 3
+    range 0 4
+
+endif
+
+config STCP_LTE
+    bool "STCP nRF91 LTE transport initialization"
+    depends on STCP
+    depends on NRF_MODEM_LIB
+    depends on LTE_LINK_CONTROL
+    default y if SOC_NRF9151_LACA
+    help
+      Reuse the event-driven LTE, PDN and IP readiness logic from STCPv1.
+
+config STCP_LTE_READY_TIMEOUT_SECONDS
+    int "LTE/PDN/IP readiness timeout"
+    depends on STCP_LTE
+    default 300
+    range 10 1800

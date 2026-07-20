@@ -1,0 +1,41 @@
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 001 Device 002: ID 045b:0209 Hitachi, Ltd 
+Bus 001 Device 004: ID 046d:c077 Logitech, Inc. Mouse
+Bus 001 Device 005: ID 046d:c31c Logitech, Inc. Keyboard K120
+Bus 001 Device 012: ID 1366:1069 SEGGER J-Link
+Bus 002 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 003 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 004 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 005 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 006 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+Bus 007 Device 001: ID 1d6b:0001 Linux Foundation 1.1 root hub
+[    8.696140] cdc_acm 1-2.1:1.0: ttyACM0: USB ACM device
+[    8.696514] cdc_acm 1-2.1:1.2: ttyACM1: USB ACM device
+[ 9004.178894] cdc_acm 1-2.1:1.0: ttyACM0: USB ACM device
+[ 9004.180356] cdc_acm 1-2.1:1.2: ttyACM1: USB ACM device
+[ 9943.074202] cdc_acm 1-2.1:1.0: ttyACM0: USB ACM device
+[ 9943.076021] cdc_acm 1-2.1:1.2: ttyACM1: USB ACM device
+[12113.151902] cdc_acm 1-2.1:1.0: ttyACM0: USB ACM device
+[12113.153803] cdc_acm 1-2.1:1.2: ttyACM1: USB ACM device
+[12380.892481] cdc_acm 1-2.1:1.0: ttyACM0: USB ACM device
+[12380.894591] cdc_acm 1-2.1:1.2: ttyACM1: USB ACM device
+[13049.730733] cdc_acm 1-2.1:1.0: ttyACM0: USB ACM device
+[13049.732997] cdc_acm 1-2.1:1.2: ttyACM1: USB ACM device
+[13536.326295] cdc_acm 1-2.1:1.0: ttyACM0: USB ACM device
+[13536.327207] cdc_acm 1-2.1:1.2: ttyACM1: USB ACM device
+[    2.098824] usb 1-2.1: Product: J-Link
+[    2.432838] hid-generic 0003:1366:1069.0001: hiddev0,hidraw0: USB HID v1.00 Device [SEGGER J-Link] on usb-0000:00:12.2-2.1/input6
+[ 9004.176511] usb 1-2.1: Product: J-Link
+[ 9004.186550] hid-generic 0003:1366:1069.0005: hiddev0,hidraw0: USB HID v1.00 Device [SEGGER J-Link] on usb-0000:00:12.2-2.1/input6
+[ 9943.071693] usb 1-2.1: Product: J-Link
+[ 9943.080495] hid-generic 0003:1366:1069.0006: hiddev0,hidraw0: USB HID v1.00 Device [SEGGER J-Link] on usb-0000:00:12.2-2.1/input6
+[12113.149440] usb 1-2.1: Product: J-Link
+[12113.158211] hid-generic 0003:1366:1069.0007: hiddev0,hidraw0: USB HID v1.00 Device [SEGGER J-Link] on usb-0000:00:12.2-2.1/input6
+[12350.682787] usb 1-2.1: Product: J-Link
+[12380.891002] usb 1-2.1: Product: J-Link
+[12380.900183] hid-generic 0003:1366:1069.0008: hiddev0,hidraw0: USB HID v1.11 Device [SEGGER J-Link] on usb-0000:00:12.2-2.1/input6
+[13049.728018] usb 1-2.1: Product: J-Link
+[13049.737024] hid-generic 0003:1366:1069.0009: hiddev0,hidraw0: USB HID v1.11 Device [SEGGER J-Link] on usb-0000:00:12.2-2.1/input6
+[13536.323289] usb 1-2.1: Product: J-Link
+[13536.329807] hid-generic 0003:1366:1069.000A: hiddev0,hidraw0: USB HID v1.11 Device [SEGGER J-Link] on usb-0000:00:12.2-2.1/input6
+nrf9151dk

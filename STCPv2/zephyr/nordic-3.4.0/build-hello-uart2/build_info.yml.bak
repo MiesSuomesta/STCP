@@ -1,0 +1,5 @@
+west:
+  command: /home/pomo/git/STCP/STCPv2/zephyr/nordic/.venv/bin/west build -b nrf9151dk/nrf9151/ns
+    zephyr/samples/hello_world -d build-hello-uart2 -- -DDTC_OVERLAY_FILE=/tmp/uart2.overlay
+  topdir: /home/pomo/git/STCP/STCPv2/zephyr/nordic
+  version: 1.5.0

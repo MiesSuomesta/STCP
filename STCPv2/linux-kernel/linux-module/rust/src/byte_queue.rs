@@ -5,7 +5,7 @@ use alloc::{
 
 use crate::error::StcpError;
 
-pub const BYTE_QUEUE_CHUNK_SIZE: usize = 1024 * 1024;
+pub const BYTE_QUEUE_CHUNK_SIZE: usize = (1024 * 1024) + 64;
 
 pub struct ByteChunk {
     data: Vec<u8>,
@@ -166,6 +166,28 @@ impl ByteQueue {
         }
 
         requested - count
+    }
+
+    /// Detach the first owned chunk without copying when it exactly matches
+    /// `count`. This is the stream fast path for a complete frame payload.
+    pub fn take_exact_front_vec(&mut self, count: usize) -> Option<Vec<u8>> {
+        let front = self.chunks.front()?;
+        if front.offset != 0 || front.data.len() != count {
+            return None;
+        }
+
+        let chunk = self.chunks.pop_front()?;
+        self.len = self.len.saturating_sub(count);
+        Some(chunk.data)
+    }
+
+    /// Return exactly `count` bytes, detaching an exact front chunk when
+    /// possible and falling back to a copy for fragmented stream input.
+    pub fn take_or_read_vec(&mut self, count: usize) -> Result<Vec<u8>, StcpError> {
+        if let Some(buffer) = self.take_exact_front_vec(count) {
+            return Ok(buffer);
+        }
+        self.read_vec(count)
     }
 
     /// Copy exactly `count` bytes into one owned buffer.

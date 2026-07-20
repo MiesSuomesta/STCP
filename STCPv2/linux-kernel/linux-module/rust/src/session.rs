@@ -90,20 +90,20 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
             if wire.len() < frame_len { return Ok(None); }
             header
         };
-        let mut payload = Vec::new();
-        payload.try_reserve_exact(header.payload_len).map_err(|_| StcpError::NoMem)?;
-        payload.resize(header.payload_len, 0);
         crate::carrier::debug_event(203, ctx, header.packet_type as usize, header.payload_len);
-        {
+        let payload = {
             let mut wire = queue.lock();
             let current = peek_header(&wire)?;
             if current.packet_type != header.packet_type || current.payload_len != header.payload_len || current.sequence != header.sequence || current.acknowledgment != header.acknowledgment || current.connection_id != header.connection_id {
                 continue;
             }
             remove_header(&mut wire)?;
-            let payload_len = payload.len();
-            if payload_len != 0 && wire.read_into(&mut payload) != payload_len { return Err(StcpError::Protocol); }
-        }
+            if header.payload_len == 0 {
+                Vec::new()
+            } else {
+                wire.take_or_read_vec(header.payload_len)?
+            }
+        };
         return Ok(Some(WireFrame { header, payload }));
     }
 }
@@ -749,7 +749,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
     crate::carrier::debug_event(120,ctx,0,0);
-    const MAX_RX_BATCH_FRAMES: usize = 64;
+    const MAX_RX_BATCH_FRAMES: usize = 128;
     received_frames.try_reserve(MAX_RX_BATCH_FRAMES.min(8)).map_err(|_| StcpError::NoMem)?;
     let mut extracted = 0usize;
     loop {

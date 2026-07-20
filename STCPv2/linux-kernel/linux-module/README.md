@@ -313,3 +313,10 @@ so it could transition the socket to `Ready` before `was_connected` was stored.
 That made `became_connected` false and lost the only wakeup for blocking
 `connect()`. The carrier now compares side-effect-free state snapshots before
 and after `progress_receive()`.
+
+## 2026-07-20 RX batch/wakeup optimization
+
+- DATA frames parsed in batches of up to 64 frames per carrier callback.
+- Application receive waitqueue is woken once per parsed batch instead of once per message/frame.
+- EOF publication shares the same final batch wakeup.
+- ChaCha decrypt and owned wire payload zero-copy path from the previous performance build are retained.

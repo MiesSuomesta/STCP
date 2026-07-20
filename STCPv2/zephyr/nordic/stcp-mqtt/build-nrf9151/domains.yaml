@@ -1,7 +1,0 @@
-default: stcp-mqtt
-build_dir: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151
-domains:
-  - name: stcp-mqtt
-    build_dir: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-nrf9151/stcp-mqtt
-flash_order:
-  - stcp-mqtt

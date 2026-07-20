@@ -40,10 +40,12 @@ void stcp_kernel_wake_recv(void *owner)
 	}
 }
 
-/* Numeric Rust datapath tracepoint. Kept allocation-free and safe in atomic context. */
+/* Numeric Rust datapath tracing is disabled in performance builds. */
 void stcp_kernel_debug_event(u32 event, unsigned long ctx,
                              unsigned long arg0, unsigned long arg1)
 {
-	pr_info("stcp: rust event=%u ctx=%px arg0=%lu arg1=%lu\n",
-		event, (void *)ctx, arg0, arg1);
+	(void)event;
+	(void)ctx;
+	(void)arg0;
+	(void)arg1;
 }

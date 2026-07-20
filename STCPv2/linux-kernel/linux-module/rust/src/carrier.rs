@@ -47,8 +47,9 @@ struct UdpSessionEntry {
 static UDP_SESSIONS: SpinLock<Vec<UdpSessionEntry>> = SpinLock::new(Vec::new());
 
 
-pub(crate) fn debug_event(event: u32, ctx: &StcpContext, arg0: usize, arg1: usize) {
-    unsafe { stcp_kernel_debug_event(event, ctx as *const StcpContext as usize, arg0, arg1) };
+#[inline(always)]
+pub(crate) fn debug_event(_event: u32, _ctx: &StcpContext, _arg0: usize, _arg1: usize) {
+    // High-frequency numeric event tracing is disabled in performance builds.
 }
 
 pub(crate) fn wake_accept(owner: usize) {

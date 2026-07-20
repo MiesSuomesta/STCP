@@ -7,6 +7,7 @@ Reports progress periodically and writes a JSON summary.
 
 Examples:
     sudo ./stcp_stress.py --mode throughput --clients 16 --duration 180
+    sudo ./stcp_stress.py --udp --mode throughput --clients 16 --duration 180
     sudo ./stcp_stress.py --mode churn --clients 32 --duration 60
     sudo ./stcp_stress.py --mode mixed --clients 16 --duration 120
 """
@@ -33,7 +34,8 @@ from pathlib import Path
 from typing import Deque, Iterable, Optional
 
 AF_STCP = 45
-STCP_PROTOCOL = 253
+STCP_PROTOCOL_TCP = 253
+STCP_PROTOCOL_UDP = 254
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7777
 
@@ -151,10 +153,22 @@ class NativeStcpSocket:
             self.set_nonblocking()
 
     @classmethod
-    def create(cls, timeout: float) -> "NativeStcpSocket":
-        fd = libc.socket(AF_STCP, socket.SOCK_STREAM, STCP_PROTOCOL)
+    def create(
+        cls,
+        timeout: float,
+        udp: bool = False,
+    ) -> "NativeStcpSocket":
+        # AF_STCP exposes a BSD stream API for both carriers. Protocol 253
+        # selects the TCP carrier and protocol 254 selects the UDP carrier.
+        protocol = STCP_PROTOCOL_UDP if udp else STCP_PROTOCOL_TCP
+        fd = libc.socket(AF_STCP, socket.SOCK_STREAM, protocol)
         if fd < 0:
-            _raise_errno("socket")
+            transport = "UDP" if udp else "TCP"
+            error = ctypes.get_errno()
+            raise OSError(
+                error,
+                f"socket({transport} carrier): {os.strerror(error)}",
+            )
 
         # Keep the descriptor blocking for bind/listen or connect. The
         # current STCP connect path completes its handshake synchronously.
@@ -185,12 +199,23 @@ class NativeStcpSocket:
             poller.register(fd, events | select.POLLERR | select.POLLHUP)
         except ValueError as exc:
             raise OSError(errno.EBADF, "STCP socket closed during poll setup") from exc
-        timeout_ms = max(1, int(self.timeout * 1000))
-        ready = poller.poll(timeout_ms)
-        if not ready:
-            if self._closed or self.fd < 0:
+
+        # Do not block for the complete socket timeout in one poll() call.
+        # Linux does not guarantee that close() in another thread wakes a
+        # concurrently blocked poll() for a custom protocol descriptor. Poll
+        # in short slices so shutdown is observed deterministically.
+        deadline = time.monotonic() + self.timeout
+        ready = []
+        while not ready:
+            if self._closed or self.fd != fd or fd < 0:
                 raise OSError(errno.EBADF, "STCP socket closed while waiting")
-            raise TimeoutError(f"fd {fd} timed out")
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"fd {fd} timed out")
+
+            slice_ms = max(1, min(100, int(remaining * 1000)))
+            ready = poller.poll(slice_ms)
 
         revents = ready[0][1]
         if revents & select.POLLNVAL:
@@ -321,8 +346,11 @@ class StopState:
         return self.event.is_set()
 
 
-def create_stcp_socket(timeout: float) -> NativeStcpSocket:
-    return NativeStcpSocket.create(timeout)
+def create_stcp_socket(
+    timeout: float,
+    udp: bool = False,
+) -> NativeStcpSocket:
+    return NativeStcpSocket.create(timeout, udp=udp)
 
 
 def send_all(
@@ -392,6 +420,7 @@ def server_connection(
     stop: StopState,
     stats: SharedStats,
     recv_buffer_size: int,
+    tolerate_teardown_after_echo: bool = False,
 ) -> None:
     buffer = bytearray(recv_buffer_size)
     idle_timeouts = 0
@@ -425,21 +454,26 @@ def server_connection(
                 completed_echoes += 1
 
     except (OSError, ConnectionError) as exc:
-        # In churn mode the peer closes immediately after receiving the full
-        # echo.  A late EPIPE/ECONNRESET/ENOTCONN while the handler is leaving
-        # the final send/recv cycle is normal teardown, not data corruption.
+        # Churn peers close immediately after receiving the one complete echo.
+        # Depending on scheduling, the server can observe POLLHUP/POLLERR or a
+        # teardown errno while returning from the final send/recv cycle.  These
+        # are normal close semantics, not payload or protocol failures.
         normal_teardown_errnos = {
             errno.EPIPE,
             errno.ECONNRESET,
             errno.ENOTCONN,
             errno.ESHUTDOWN,
             errno.EBADF,
+            errno.EPROTO,
+            errno.EIO,
         }
         err = getattr(exc, "errno", None)
-        if (
-            not stop.stopped()
-            and not (completed_echoes > 0 and err in normal_teardown_errnos)
-        ):
+        is_connection_teardown = isinstance(exc, ConnectionError)
+        normal_teardown = (
+            (completed_echoes > 0 and (is_connection_teardown or err in normal_teardown_errnos))
+            or (tolerate_teardown_after_echo and (is_connection_teardown or err in normal_teardown_errnos))
+        )
+        if not stop.stopped() and not normal_teardown:
             stats.add(server_errors=1)
     finally:
         try:
@@ -455,19 +489,23 @@ def server_main(
     stats: SharedStats,
     recv_buffer_size: int,
     ready: threading.Event,
+    udp: bool,
+    churn_mode: bool = False,
 ) -> None:
     listener: Optional[NativeStcpSocket] = None
     handlers: set[threading.Thread] = set()
     handlers_lock = threading.Lock()
 
     def reap_handlers() -> None:
+        # Reap before and after every accept so completed handlers never
+        # accumulate in the tracking set during long churn runs.
         with handlers_lock:
             finished = [thread for thread in handlers if not thread.is_alive()]
             for thread in finished:
                 handlers.discard(thread)
 
     try:
-        listener = create_stcp_socket(timeout=1.0)
+        listener = create_stcp_socket(timeout=1.0, udp=udp)
         listener.bind((host, port))
         listener.listen(backlog)
         ready.set()
@@ -475,12 +513,14 @@ def server_main(
         while not stop.stopped():
             reap_handlers()
 
-            # Bound accepted descriptors even if a protocol regression makes
-            # a handler slow to notice an idle/closed peer.
             with handlers_lock:
                 active_handlers = len(handlers)
+
+            # Keep thread-per-connection semantics, but bound outstanding
+            # descriptors to the listener backlog so a protocol regression
+            # cannot exhaust the process fd table.
             if active_handlers >= backlog:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 continue
 
             try:
@@ -490,10 +530,11 @@ def server_main(
             except OSError as exc:
                 if stop.stopped():
                     break
+                if exc.errno in (errno.EINTR, errno.EAGAIN, errno.EWOULDBLOCK):
+                    continue
                 stats.add(server_errors=1)
                 print(f"server accept error: {exc!r}", file=sys.stderr, flush=True)
                 if exc.errno in (errno.EMFILE, errno.ENFILE):
-                    # Give completed handlers time to close and be reaped.
                     time.sleep(0.1)
                 continue
 
@@ -505,6 +546,7 @@ def server_main(
                     stop,
                     stats,
                     recv_buffer_size,
+                    churn_mode,
                 ),
                 daemon=True,
             )
@@ -524,12 +566,11 @@ def server_main(
             except OSError:
                 pass
 
+        reap_handlers()
         with handlers_lock:
             remaining_handlers = list(handlers)
-
         for thread in remaining_handlers:
             thread.join(timeout=2.0)
-
 
 def payload_for(worker_id: int, payload_size: int) -> bytearray:
     header = worker_id.to_bytes(4, "big", signed=False)
@@ -687,13 +728,14 @@ def persistent_client(
     stats: SharedStats,
     verify: bool,
     pipeline: int,
+    udp: bool,
 ) -> None:
     payload = payload_for(worker_id, payload_size)
     reply_buffer = bytearray(payload_size)
     sock: Optional[NativeStcpSocket] = None
 
     try:
-        sock = create_stcp_socket(timeout)
+        sock = create_stcp_socket(timeout, udp=udp)
         sock.connect((host, port))
         stats.add(connections_ok=1)
 
@@ -778,6 +820,7 @@ def churn_client(
     stop: StopState,
     stats: SharedStats,
     verify: bool,
+    udp: bool,
 ) -> None:
     payload = payload_for(worker_id, payload_size)
     reply_buffer = bytearray(payload_size)
@@ -794,7 +837,7 @@ def churn_client(
             sock: Optional[NativeStcpSocket] = None
 
             try:
-                sock = create_stcp_socket(timeout)
+                sock = create_stcp_socket(timeout, udp=udp)
                 sock.connect((host, port))
 
                 ok, phase = run_churn_exchange(
@@ -845,6 +888,7 @@ def mixed_client(
     stats: SharedStats,
     verify: bool,
     reconnect_every: int,
+    udp: bool,
 ) -> None:
     payload = payload_for(worker_id, payload_size)
     reply_buffer = bytearray(payload_size)
@@ -853,7 +897,7 @@ def mixed_client(
         sock: Optional[NativeStcpSocket] = None
 
         try:
-            sock = create_stcp_socket(timeout)
+            sock = create_stcp_socket(timeout, udp=udp)
             sock.connect((host, port))
             stats.add(connections_ok=1)
 
@@ -952,6 +996,14 @@ def parse_args() -> argparse.Namespace:
         choices=("throughput", "churn", "mixed"),
         default="throughput",
     )
+    parser.add_argument(
+        "--udp",
+        action="store_true",
+        help=(
+            "use STCP protocol 254 (UDP carrier); default is protocol 253 "
+            "(TCP carrier)"
+        ),
+    )
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--clients", type=int, default=16)
@@ -1048,6 +1100,8 @@ def main() -> int:
             stats,
             recv_buffer_size,
             ready,
+            args.udp,
+            args.mode == "churn",
         ),
         name="stcp-server",
         daemon=True,
@@ -1084,11 +1138,11 @@ def main() -> int:
         )
 
         if args.mode == "mixed":
-            thread_args = common + (args.reconnect_every,)
+            thread_args = common + (args.reconnect_every, args.udp)
         elif args.mode == "throughput":
-            thread_args = common + (args.pipeline,)
+            thread_args = common + (args.pipeline, args.udp)
         else:
-            thread_args = common
+            thread_args = common + (args.udp,)
 
         thread = threading.Thread(
             target=client_target,
@@ -1100,6 +1154,8 @@ def main() -> int:
         thread.start()
 
     print("=== STCP Python stress test ===")
+    print(f"transport:        {'UDP' if args.udp else 'TCP'}")
+    print(f"protocol:         {STCP_PROTOCOL_UDP if args.udp else STCP_PROTOCOL_TCP}")
     print(f"mode:             {args.mode}")
     print(f"clients:          {args.clients}")
     print(f"payload:          {args.payload} bytes")
@@ -1189,6 +1245,8 @@ def main() -> int:
     counters, latencies = stats.snapshot()
 
     summary = {
+        "transport": "udp" if args.udp else "tcp",
+        "protocol": STCP_PROTOCOL_UDP if args.udp else STCP_PROTOCOL_TCP,
         "mode": args.mode,
         "host": args.host,
         "port": args.port,

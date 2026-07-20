@@ -20,7 +20,7 @@
 #include "stcp_carrier.h"
 #include "stcp_test.h"
 
-#define STCP_CARRIER_TCP_RX_BUFFER_SIZE (4 * 1024 * 1024)
+#define STCP_CARRIER_TCP_RX_BUFFER_SIZE (8 * 1024 * 1024)
 #define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
 
 struct stcp_carrier {

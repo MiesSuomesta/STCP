@@ -73,6 +73,27 @@ run_python() {
 
 cd "$SCRIPT_DIR"
 
+STRESS_DURATION="${STRESS_DURATION:-30}"
+THROUGHPUT_DURATION="${THROUGHPUT_DURATION:-$STRESS_DURATION}"
+THROUGHPUT_CLIENTS="${THROUGHPUT_CLIENTS:-8}"
+THROUGHPUT_PAYLOAD="${THROUGHPUT_PAYLOAD:-1048576}"
+THROUGHPUT_PIPELINE="${THROUGHPUT_PIPELINE:-8}"
+REPORT_EVERY="${REPORT_EVERY:-5}"
+
+while (($#)); do
+    case "$1" in
+        --duration) STRESS_DURATION="$2"; THROUGHPUT_DURATION="$2"; shift 2 ;;
+        --pipeline) THROUGHPUT_PIPELINE="$2"; shift 2 ;;
+        --clients) THROUGHPUT_CLIENTS="$2"; shift 2 ;;
+        --payload) THROUGHPUT_PAYLOAD="$2"; shift 2 ;;
+        --report-every|--report-interval) REPORT_EVERY="$2"; shift 2 ;;
+        --help|-h)
+            echo "Usage: RUN_STRESS=1 bash run_stress_suite.sh [--duration SEC] [--pipeline N] [--clients N] [--payload BYTES] [--report-every SEC]"
+            exit 0 ;;
+        *) echo "Unknown argument: $1" >&2; exit 2 ;;
+    esac
+done
+
 # Always establish basic correctness before any stress or throughput run.
 RUN_HARD_TIMEOUT="${STCP_SMOKE_HARD_TIMEOUT:-20}" run_python ./stcp_smoke.py \
     --port "${STCP_SMOKE_PORT:-7777}" \
@@ -87,25 +108,27 @@ if [[ "${RUN_STRESS:-0}" != "1" ]]; then
 fi
 
 echo
-echo "=== STCP throughput: 4 clients / 25 s ==="
+echo "=== STCP throughput: ${THROUGHPUT_CLIENTS} clients / ${THROUGHPUT_DURATION} s ==="
 run_python ./stcp_stress.py \
     --mode throughput \
-    --pipeline 1 \
+    --pipeline "$THROUGHPUT_PIPELINE" \
     --port 7780 \
-    --clients 4 \
-    --payload 262144 \
-    --duration 25 \
+    --clients "$THROUGHPUT_CLIENTS" \
+    --payload "$THROUGHPUT_PAYLOAD" \
+    --duration "$THROUGHPUT_DURATION" \
+    --report-every "$REPORT_EVERY" \
     --json result-throughput-4.json
 
 echo
-echo "=== STCP mixed: 8 clients / 30 s ==="
+echo "=== STCP mixed: 16 clients / 30 s ==="
 run_python ./stcp_stress.py \
     --mode mixed \
     --port 7781 \
     --reconnect-every 128 \
-    --clients 8 \
+    --clients 16 \
     --payload 262144 \
-    --duration 30 \
+    --duration "$STRESS_DURATION" \
+    --report-every "$REPORT_EVERY" \
     --json result-mixed-8.json
 
 echo
@@ -115,5 +138,6 @@ run_python ./stcp_stress.py \
     --port 7782 \
     --clients 16 \
     --payload 4096 \
-    --duration 30 \
+    --duration "$STRESS_DURATION" \
+    --report-every "$REPORT_EVERY" \
     --json result-churn-16.json

@@ -374,9 +374,8 @@ def recv_to_echo(
 ) -> Optional[memoryview]:
     """Receive one echo request.
 
-    Timeouts are intentionally propagated to server_connection(). STCP does
-    not yet carry a FIN/EOF frame, so a churn client that closes after one
-    exchange otherwise leaves the accepted server descriptor waiting forever.
+    A clean STCP CLOSE is returned as zero bytes (BSD EOF). Timeouts are still
+    propagated as a defensive fallback for a crashed or ungraceful peer.
     """
     if stop.stopped():
         return None
@@ -396,7 +395,9 @@ def server_connection(
 ) -> None:
     buffer = bytearray(recv_buffer_size)
     idle_timeouts = 0
-    max_idle_timeouts = 2
+    # Normal churn exits immediately through protocol EOF. Keep a longer
+    # fallback only for peers that disappear without transmitting CLOSE.
+    max_idle_timeouts = 10
 
     try:
         conn.settimeout(1.0)
@@ -407,10 +408,8 @@ def server_connection(
             except TimeoutError:
                 idle_timeouts += 1
                 if idle_timeouts >= max_idle_timeouts:
-                    # Until STCP has an explicit FIN/EOF frame, an idle
-                    # accepted socket after a completed exchange is treated
-                    # as a closed churn connection. This prevents accepted
-                    # descriptors and handler threads from accumulating.
+                    # Defensive fallback for a crashed/ungraceful peer. Clean
+                    # close(fd) now arrives as recv()==0 through STCP CLOSE.
                     break
                 continue
 
@@ -871,7 +870,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--clients", type=int, default=16)
     parser.add_argument("--duration", type=float, default=180.0)
-    parser.add_argument("--report-every", type=float, default=5.0)
+    parser.add_argument("--report-every", "--report-interval", dest="report_every", type=float, default=5.0)
     parser.add_argument(
         "--payload",
         type=int,

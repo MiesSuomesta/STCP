@@ -509,7 +509,12 @@ pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
         return false;
     }
 
-    if process_control_frames(ctx).is_err() {
+    /* TCP already provides reliable ordered delivery and has no STCP ACK
+     * window to drain. Avoid running the RX parser on every TX readiness
+     * query; recv() owns parsing on the stream fast path. */
+    let carrier_ptr = ctx.inner.lock().carrier;
+    let reliable = crate::carrier::reliability_required(carrier_ptr);
+    if reliable && process_control_frames(ctx).is_err() {
         return false;
     }
 
@@ -534,7 +539,12 @@ pub fn send(
         return Err(StcpError::Again);
     }
 
-    process_control_frames(ctx)?;
+    let carrier_ptr = ctx.inner.lock().carrier;
+    let reliable = crate::carrier::reliability_required(carrier_ptr);
+
+    if reliable {
+        process_control_frames(ctx)?;
+    }
 
     let (shared, side) = ready_connection(ctx)?;
 
@@ -542,8 +552,6 @@ pub fn send(
         return Err(StcpError::Closed);
     }
 
-    let carrier_ptr = ctx.inner.lock().carrier;
-    let reliable = crate::carrier::reliability_required(carrier_ptr);
     let frame_count = if data.is_empty() {
         0
     } else {
@@ -552,7 +560,6 @@ pub fn send(
 
     if reliable {
         let inner = ctx.inner.lock();
-
         if inner.pending_frames.len() + frame_count > STCP_SEND_WINDOW {
             return Err(StcpError::Again);
         }
@@ -570,47 +577,66 @@ pub fn send(
         };
         let plaintext = &data[position..end];
 
-        let frame = {
-            let mut inner = ctx.inner.lock();
-
+        /*
+         * Snapshot immutable crypto/state under the short socket lock. The C
+         * tx_lock serializes sends for this socket, so allocation and ChaCha
+         * can run without holding the Rust spinlock for several milliseconds.
+         */
+        let (sequence, nonce, acknowledgment, connection_id, crypto) = {
+            let inner = ctx.inner.lock();
             if inner.state != SocketState::Ready {
                 return Err(StcpError::InvalidState);
             }
-
-            let sequence = inner.tx_sequence;
-            let nonce = inner.tx_nonce;
-            let acknowledgment = inner.last_rx_sequence.unwrap_or(0);
-            let encrypted_len = plaintext
-                .len()
-                .checked_add(CHACHA_TAG_LEN)
-                .ok_or(StcpError::Protocol)?;
-            let payload_len = NONCE_LEN
-                .checked_add(encrypted_len)
-                .ok_or(StcpError::Protocol)?;
-            let header = Header::with_numbers(
-                packet_type,
-                payload_len,
-                sequence,
-                acknowledgment,
+            (
+                inner.tx_sequence,
+                inner.tx_nonce,
+                inner.last_rx_sequence.unwrap_or(0),
                 inner.connection_id,
-            )?.encode();
-            let frame_len = STCP_HEADER_LEN
-                .checked_add(NONCE_LEN)
-                .and_then(|value| value.checked_add(encrypted_len))
-                .ok_or(StcpError::Protocol)?;
-            let mut frame = Vec::new();
-            frame.try_reserve_exact(frame_len).map_err(|_| StcpError::NoMem)?;
-            frame.resize(frame_len, 0);
-            frame[..STCP_HEADER_LEN].copy_from_slice(&header);
-            frame[STCP_HEADER_LEN..STCP_HEADER_LEN + NONCE_LEN]
-                .copy_from_slice(&nonce.to_be_bytes());
-            let encrypted_written = inner.crypto.encrypt_into(
-                nonce,
-                &header,
-                plaintext,
-                &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
-            )?;
-            frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
+                inner.crypto.clone(),
+            )
+        };
+
+        let encrypted_len = plaintext
+            .len()
+            .checked_add(CHACHA_TAG_LEN)
+            .ok_or(StcpError::Protocol)?;
+        let payload_len = NONCE_LEN
+            .checked_add(encrypted_len)
+            .ok_or(StcpError::Protocol)?;
+        let header = Header::with_numbers(
+            packet_type,
+            payload_len,
+            sequence,
+            acknowledgment,
+            connection_id,
+        )?.encode();
+        let frame_len = STCP_HEADER_LEN
+            .checked_add(NONCE_LEN)
+            .and_then(|value| value.checked_add(encrypted_len))
+            .ok_or(StcpError::Protocol)?;
+        let mut frame = Vec::new();
+        frame.try_reserve_exact(frame_len).map_err(|_| StcpError::NoMem)?;
+        frame.resize(frame_len, 0);
+        frame[..STCP_HEADER_LEN].copy_from_slice(&header);
+        frame[STCP_HEADER_LEN..STCP_HEADER_LEN + NONCE_LEN]
+            .copy_from_slice(&nonce.to_be_bytes());
+        let encrypted_written = crypto.encrypt_into(
+            nonce,
+            &header,
+            plaintext,
+            &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
+        )?;
+        frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
+        let frame: Arc<[u8]> = frame.into();
+
+        {
+            let mut inner = ctx.inner.lock();
+            if inner.state != SocketState::Ready ||
+               inner.tx_sequence != sequence ||
+               inner.tx_nonce != nonce
+            {
+                return Err(StcpError::Again);
+            }
 
             inner.tx_nonce = inner.tx_nonce
                 .checked_add(1)
@@ -619,17 +645,8 @@ pub fn send(
                 .checked_add(1)
                 .ok_or(StcpError::Protocol)?;
 
-            let frame: Arc<[u8]> = frame.into();
-
-            /*
-             * TCP already provides ordered reliable delivery.  Retaining an
-             * Arc for every frame and exchanging STCP ACK frames on top of TCP
-             * doubles traffic and grows pending memory during long runs.
-             */
             if reliable {
-                let rto_ticks = ms_to_ticks(
-                    inner.rto_ms.max(STCP_INITIAL_RTO_MS),
-                );
+                let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
                 inner.pending_frames.push_back(PendingFrame {
                     sequence,
                     bytes: Arc::clone(&frame),
@@ -638,12 +655,9 @@ pub fn send(
                     retries: 0,
                     retransmitted: false,
                 });
-                inner.stats.sent_frames =
-                    inner.stats.sent_frames.saturating_add(1);
+                inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
             }
-
-            frame
-        };
+        }
 
         send_frame(ctx, &shared, side, &frame, 0)?;
         position = end;
@@ -785,45 +799,39 @@ fn process_in_order_frame(
 ) -> Result<(), StcpError> {
     let packet_type = frame.header.packet_type;
     let sequence = frame.header.sequence;
-    crate::carrier::debug_event(130, ctx, sequence as usize, packet_type as usize);
 
-    {
+    /*
+     * Parser serialization guarantees a single RX committer. Snapshot the
+     * crypto context and validate sequence/nonce under the lock, then perform
+     * allocation and ChaCha decryption outside it.
+     */
+    let crypto = {
+        let inner = ctx.inner.lock();
+        if frame.header.sequence != inner.expected_rx_sequence ||
+           frame.nonce != inner.expected_rx_nonce
+        {
+            return Err(StcpError::Protocol);
+        }
+        inner.crypto.clone()
+    };
+
+    let aad = frame.header.encode();
+    let plaintext = crypto.decrypt(frame.nonce, &aad, &frame.ciphertext)?;
+
+    let became_readable = {
         let mut inner = ctx.inner.lock();
-        crate::carrier::debug_event(131, ctx, inner.expected_rx_sequence as usize, frame.ciphertext.len());
-
-        if frame.header.sequence != inner.expected_rx_sequence {
+        if frame.header.sequence != inner.expected_rx_sequence ||
+           frame.nonce != inner.expected_rx_nonce
+        {
             inner.state = SocketState::Error;
             return Err(StcpError::Protocol);
         }
 
-        /*
-         * TX nonce and DATA sequence advance together. A buffered frame
-         * is decrypted only once it becomes the next expected frame.
-         */
-        if frame.nonce != inner.expected_rx_nonce {
-            inner.state = SocketState::Error;
-            return Err(StcpError::Protocol);
-        }
-
-        let aad = frame.header.encode();
-        let plaintext = match inner.crypto.decrypt(
-            frame.nonce,
-            &aad,
-            &frame.ciphertext,
-        ) {
-            Ok(plaintext) => plaintext,
-            Err(error) => {
-                inner.state = SocketState::Error;
-                return Err(error);
-            }
-        };
-
-        inner.expected_rx_nonce = inner
-            .expected_rx_nonce
+        let was_readable = inner.rx_message_ready;
+        inner.expected_rx_nonce = inner.expected_rx_nonce
             .checked_add(1)
             .ok_or(StcpError::Crypto)?;
-        inner.expected_rx_sequence = inner
-            .expected_rx_sequence
+        inner.expected_rx_sequence = inner.expected_rx_sequence
             .checked_add(1)
             .ok_or(StcpError::Protocol)?;
         inner.last_rx_sequence = Some(sequence);
@@ -832,11 +840,15 @@ fn process_in_order_frame(
         if packet_type == PacketType::DataChunkEnd {
             inner.rx_message_ready = true;
         }
-    }
+        !was_readable && inner.rx_message_ready
+    };
 
-    crate::carrier::debug_event(132, ctx, sequence as usize, 0);
     queue_ack(ctx, sequence)?;
-    crate::carrier::debug_event(133, ctx, sequence as usize, 0);
+
+    if became_readable {
+        let owner = ctx.inner.lock().owner;
+        wake_recv(owner);
+    }
     Ok(())
 }
 
@@ -1116,28 +1128,31 @@ pub fn has_accept(ctx: &StcpContext) -> bool {
 
 pub fn has_data(ctx: &StcpContext) -> bool {
     /*
-     * Readiness must describe bytes that recv() can return, not merely raw
-     * carrier bytes waiting in the TCP reassembly queue.  Returning true for
-     * a partial STCP frame makes wait_event()/poll wake immediately while
-     * session::recv() still returns EAGAIN.  That creates a tight kernel loop
-     * (typically 150-200% CPU in the Python stress test) and can starve the
-     * carrier receiver before the remaining frame bytes are processed.
-     *
-     * Parse every currently complete frame here.  A partial TCP frame remains
-     * queued and readiness stays false until the carrier appends more bytes
-     * and wakes recv_wq again.
+     * Keep poll()/wait_event() side-effect free. Carrier RX publishes complete
+     * application data before waking recv_wq, so readiness only needs an
+     * acquire-style state check here. Parsing inside a wait condition caused
+     * lost-wakeup races and repeated parser work under churn.
      */
-    if progress_handshake(ctx).is_err() {
-        return false;
-    }
+    let inner = ctx.inner.lock();
+    inner.rx_message_ready || inner.peer_eof
+}
+
+/*
+ * Called by the carrier immediately after appending bytes. It advances the
+ * handshake and parses all currently complete frames before the C side wakes
+ * recv_wq. This guarantees that a wake corresponds to data/EOF visible to
+ * recv(), eliminating the producer-before-publication race.
+ */
+pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
+    progress_handshake(ctx)?;
 
     let state = ctx.inner.lock().state;
     if state == SocketState::Ready || state == SocketState::Closed {
-        let _ = fill_application_buffer(ctx);
+        fill_application_buffer(ctx)?;
     }
 
     let inner = ctx.inner.lock();
-    inner.rx_message_ready || inner.peer_eof
+    Ok(inner.rx_message_ready || inner.peer_eof)
 }
 
 pub fn is_connected(ctx: &StcpContext) -> bool {

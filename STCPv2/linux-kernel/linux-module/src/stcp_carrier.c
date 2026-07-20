@@ -22,6 +22,7 @@
 
 #define STCP_CARRIER_TCP_RX_BUFFER_SIZE (8 * 1024 * 1024)
 #define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
+#define STCP_TCP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
 
 struct stcp_carrier {
 	enum stcp_carrier_kind kind;
@@ -78,6 +79,29 @@ static struct stcp_carrier *stcp_carrier_root(
 	return carrier->parent ? carrier->parent : carrier;
 }
 
+
+
+static void stcp_tune_tcp_socket(struct socket *socket)
+{
+	struct sock *sk;
+
+	if (!socket || !socket->sk)
+		return;
+
+	sk = socket->sk;
+	tcp_sock_set_nodelay(sk);
+
+	/*
+	 * STCP carries multi-megabyte encrypted frames.  The kernel defaults are
+	 * often too small for eight pipelined 1 MiB messages and force frequent
+	 * sender stalls.  Keep enough queued data per direction to cover the
+	 * benchmark bandwidth-delay product without changing global sysctls.
+	 */
+	WRITE_ONCE(sk->sk_sndbuf, max_t(int, READ_ONCE(sk->sk_sndbuf),
+		STCP_TCP_SOCKET_BUFFER_SIZE));
+	WRITE_ONCE(sk->sk_rcvbuf, max_t(int, READ_ONCE(sk->sk_rcvbuf),
+		STCP_TCP_SOCKET_BUFFER_SIZE));
+}
 
 static int stcp_sockaddr(
 	u32 address,
@@ -443,7 +467,7 @@ struct stcp_carrier *stcp_carrier_create(
 		return ERR_PTR(ret);
 	}
 	if (kind == STCP_CARRIER_TCP)
-		tcp_sock_set_nodelay(carrier->socket->sk);
+		stcp_tune_tcp_socket(carrier->socket);
 	return carrier;
 }
 
@@ -594,6 +618,7 @@ int stcp_carrier_connect(
 
 	carrier->peer = socket_address;
 	carrier->has_peer = true;
+	stcp_tune_tcp_socket(carrier->socket);
 	carrier->connected = true;
 	return 0;
 }
@@ -657,7 +682,7 @@ int stcp_carrier_accept(
 	child->rust_ctx = child_rust_ctx;
 	child->owner = child_owner;
 	child->connected = true;
-	tcp_sock_set_nodelay(child->socket->sk);
+	stcp_tune_tcp_socket(child->socket);
 	refcount_set(&child->refs, 1);
 	mutex_init(&child->lifecycle_lock);
 	init_completion(&child->stop_done);
@@ -683,7 +708,7 @@ ssize_t stcp_carrier_send(
 	int flags
 )
 {
-	struct msghdr message = { .msg_flags = flags };
+	struct msghdr message = { .msg_flags = flags | MSG_NOSIGNAL };
 	struct kvec vector;
 	size_t position = 0;
 

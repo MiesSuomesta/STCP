@@ -150,7 +150,7 @@ module-install-support:
 	$(SUDO) modprobe libchacha20poly1305 || true
 
 module-stop module-shutdown module-remove:
-	@SUDO="$(SUDO)" MODULE=stcp "$(PWD)/scripts/graceful-unload.sh"
+	@SUDO="$(SUDO)" MODULE=stcp "$(PWD)/scripts/graceful-unload.sh" || true
 
 module-install: module module-install-support
 	echo "Installing module..."

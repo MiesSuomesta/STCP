@@ -2,6 +2,8 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/jiffies.h>
+#include <linux/log2.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/poll.h>
@@ -42,6 +44,11 @@ static int stcp_ensure_io_buffer(
 
 	if (*buffer && *capacity >= needed)
 		return 0;
+
+	/* Grow geometrically to avoid repeated realloc/copy cycles as applications
+	 * move from smoke-test sized I/O to multi-megabyte throughput buffers. */
+	needed = roundup_pow_of_two(max_t(size_t, needed, PAGE_SIZE));
+	needed = min_t(size_t, needed, STCP_IO_BUFFER_MAX);
 
 	new_buffer = kvmalloc(needed, GFP_KERNEL | __GFP_NOWARN);
 	if (!new_buffer)

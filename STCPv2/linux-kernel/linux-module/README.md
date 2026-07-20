@@ -320,3 +320,11 @@ and after `progress_receive()`.
 - Application receive waitqueue is woken once per parsed batch instead of once per message/frame.
 - EOF publication shares the same final batch wakeup.
 - ChaCha decrypt and owned wire payload zero-copy path from the previous performance build are retained.
+
+
+## Performance pass: in-place RX crypto
+
+- ChaCha20-Poly1305 decrypt now runs in-place over the owned wire frame.
+- Plaintext is transferred to the application ByteQueue without allocation or copy.
+- TCP timer ticks no longer run a duplicate parser pass; carrier RX owns parsing.
+- Crypto self-test validates the in-place decrypt path at module load.

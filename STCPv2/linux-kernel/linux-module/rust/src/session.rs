@@ -108,9 +108,14 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
     }
 }
 
-const STCP_SEND_WINDOW: usize = 64;
+/* UDP must permit several large application messages in flight.  The old
+ * 64-frame cap was exhausted by two 1 MiB writes (about 36 datagrams), which
+ * caused stop-and-wait behaviour as soon as payloads crossed one frame. */
+const STCP_SEND_WINDOW: usize = 256;
+const STCP_ACK_EVERY_FRAMES: u8 = 8;
+const STCP_MAX_RETRANSMIT_PER_TICK: usize = 4;
 const STCP_TICK_MS: u32 = 20;
-const STCP_INITIAL_RTO_MS: u32 = 50;
+const STCP_INITIAL_RTO_MS: u32 = 60;
 const STCP_MIN_RTO_MS: u32 = 20;
 const STCP_MAX_RTO_MS: u32 = 3_000;
 const STCP_MAX_RETRIES: u8 = 8;
@@ -149,6 +154,8 @@ fn reset_reliability(inner: &mut crate::state::ContextInner) {
     inner.srtt_ms = None;
     inner.rttvar_ms = 0;
     inner.rto_ms = STCP_INITIAL_RTO_MS;
+    inner.last_ack_sent = None;
+    inner.rx_frames_since_ack = 0;
     inner.stats = crate::state::ReliabilityStats::new();
 }
 
@@ -773,7 +780,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
                 let mut inner = ctx.inner.lock();
                 inner.stats.duplicate_frames = inner.stats.duplicate_frames.saturating_add(1);
             }
-            queue_ack(ctx, frame.header.sequence)?;
+            queue_ack(ctx, frame.header.sequence, true)?;
             continue;
         }
         if frame.header.sequence > expected {
@@ -915,7 +922,11 @@ fn process_in_order_frame(
         !was_readable && inner.rx_message_ready
     };
 
-    queue_ack(ctx, sequence)?;
+    queue_ack(
+        ctx,
+        sequence,
+        packet_type == PacketType::DataChunkEnd,
+    )?;
 
     Ok(became_readable)
 }
@@ -970,13 +981,43 @@ fn update_acknowledgment(
 fn queue_ack(
     ctx: &StcpContext,
     sequence: u64,
+    force: bool,
 ) -> Result<(), StcpError> {
     let carrier_ptr = ctx.inner.lock().carrier;
-
     if !crate::carrier::reliability_required(carrier_ptr) {
         return Ok(());
     }
 
+    let should_send = {
+        let mut inner = ctx.inner.lock();
+
+        if inner
+            .last_ack_sent
+            .map(|acknowledged| acknowledged >= sequence)
+            .unwrap_or(false)
+        {
+            return Ok(());
+        }
+
+        inner.rx_frames_since_ack =
+            inner.rx_frames_since_ack.saturating_add(1);
+
+        if force || inner.rx_frames_since_ack >= STCP_ACK_EVERY_FRAMES {
+            inner.rx_frames_since_ack = 0;
+            inner.last_ack_sent = Some(sequence);
+            true
+        } else {
+            false
+        }
+    };
+
+    if !should_send {
+        return Ok(());
+    }
+
+    /* ACK is cumulative: one control frame releases every pending frame up
+     * to `sequence`.  This cuts ACK traffic by roughly 8x for fragmented
+     * UDP application messages while DataChunkEnd still flushes promptly. */
     let (shared, side) = connection_for_data(ctx)?;
     let frame = encode_control_frame(
         PacketType::Ack,
@@ -986,7 +1027,6 @@ fn queue_ack(
         &[],
     )?;
     send_frame(ctx, &shared, side, &frame, 0)?;
-    wake_recv(shared.peer_owner(side));
     Ok(())
 }
 
@@ -1003,7 +1043,6 @@ fn queue_pong(
         &[],
     )?;
     send_frame(ctx, &shared, side, &frame, 0)?;
-    wake_recv(shared.peer_owner(side));
     Ok(())
 }
 
@@ -1055,6 +1094,13 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
             if pending.retries >= STCP_MAX_RETRIES {
                 timed_out = true;
                 break;
+            }
+
+            /* Never retransmit the entire window in one timer callback. A
+             * delayed cumulative ACK previously made hundreds of frames fire
+             * together, congesting loopback UDP and delaying the ACK further. */
+            if retransmit.len() >= STCP_MAX_RETRANSMIT_PER_TICK {
+                continue;
             }
 
             pending.age_ticks = 0;

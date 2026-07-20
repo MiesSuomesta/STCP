@@ -1,14 +1,11 @@
-message(STATUS "Loading STCP OOT module from ${CMAKE_CURRENT_LIST_DIR}")
+message(STATUS "Loading STCP Zephyr C port from ${CMAKE_CURRENT_LIST_DIR}")
 
-zephyr_include_directories(
-    ${CMAKE_CURRENT_LIST_DIR}/include
-)
+zephyr_include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 
 zephyr_library_named(stcp)
-
-zephyr_library_sources(
+zephyr_library_sources_ifdef(CONFIG_STCP
     src/stcp_context.c
-    src/stcp_core_stub.c
+    src/stcp_carrier.c
+    src/stcp_core.c
     src/stcp_socket_offload.c
 )
-

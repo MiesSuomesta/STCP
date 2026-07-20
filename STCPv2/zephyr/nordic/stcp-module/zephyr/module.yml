@@ -1,3 +1,4 @@
+name: stcp
 build:
   cmake: .
   kconfig: Kconfig

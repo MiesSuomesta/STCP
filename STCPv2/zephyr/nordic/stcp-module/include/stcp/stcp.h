@@ -1,28 +1,28 @@
-#ifndef STCP_ZEPHYR_STCP_H_
-#define STCP_ZEPHYR_STCP_H_
+#ifndef STCP_ZEPHYR_H
+#define STCP_ZEPHYR_H
 
-#include <stdint.h>
 #include <zephyr/net/socket.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Keep these aligned with the Linux STCP implementation for source portability. */
+/* Kept identical to the Linux module. */
 #ifndef AF_STCP
 #define AF_STCP 45
 #endif
 #ifndef PF_STCP
 #define PF_STCP AF_STCP
 #endif
-#define STCP_PROTO 253
-#define STCP_ADDR_LEN 16
 
-struct sockaddr_stcp {
-    sa_family_t stcp_family;
-    uint16_t stcp_port;
-    uint8_t stcp_addr[STCP_ADDR_LEN];
-};
+#define STCP_PROTO_DEFAULT 0
+#define STCP_PROTO_TCP     253
+#define STCP_PROTO_UDP     254
+
+/*
+ * Address ABI intentionally matches the Linux module: socket family is
+ * AF_STCP, but bind/connect/getpeername/getsockname use sockaddr_in.
+ */
 
 #ifdef __cplusplus
 }

@@ -167,6 +167,8 @@ pub struct ContextInner {
     pub connection_id: u64,
     pub udp_peer_addr: u32,
     pub udp_peer_port: u16,
+    /* Reused by the TCP fast path; C tx_lock serializes socket sends. */
+    pub tx_frame_scratch: Vec<u8>,
 }
 
 pub struct StcpContext {
@@ -212,6 +214,7 @@ impl StcpContext {
                 connection_id: 0,
                 udp_peer_addr: 0,
                 udp_peer_port: 0,
+                tx_frame_scratch: Vec::new(),
             }),
         })
     }
@@ -260,6 +263,7 @@ impl StcpContext {
                 connection_id: 0,
                 udp_peer_addr: 0,
                 udp_peer_port: 0,
+                tx_frame_scratch: Vec::new(),
             }),
         })
     }

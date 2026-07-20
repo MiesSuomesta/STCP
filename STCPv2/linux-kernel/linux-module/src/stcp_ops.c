@@ -1,4 +1,3 @@
-#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/in.h>
@@ -102,20 +101,16 @@ static int stcp_release(struct socket *sock)
 	 * becomes a no-op.  The carrier is still fully alive here, therefore the
 	 * CLOSE frame can be queued synchronously before teardown begins.
 	 */
-	if (READ_ONCE(ssk->rust_ctx)) {
+	if (READ_ONCE(ssk->rust_ctx))
 		stcp_rust_shutdown(READ_ONCE(ssk->rust_ctx), SHUT_RDWR);
 
-		/*
-		 * Give the synchronously queued CLOSE frame a short grace period
-		 * before detaching and destroying the carrier.  Under heavy churn a
-		 * close immediately followed by carrier destruction can race the
-		 * peer's final recv()/EOF transition and appear as a rare EPIPE,
-		 * ECONNRESET or short read.  200-500 us is below the normal handshake
-		 * cost but long enough for the loopback/local carrier worker to
-		 * publish EOF deterministically.
-		 */
-		usleep_range(200, 500);
-	}
+	/*
+	 * stcp_rust_shutdown() queues CLOSE synchronously through the carrier.
+	 * Do not impose a fixed sleep on every close: carrier teardown already
+	 * waits for in-flight UDP sendmsg calls, and TCP kernel_sendmsg has
+	 * returned before shutdown returns.  A fixed delay accumulates thousands
+	 * of closing sockets during churn and lowers connections/second.
+	 */
 
 	/* Detach pointers exactly once, including concurrent error teardown. */
 	rust_ctx = xchg(&ssk->rust_ctx, NULL);

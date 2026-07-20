@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(echo_benchmark, LOG_LEVEL_INF);
 #define BENCH_MODE_UPLOAD 1U
 #define BENCH_MODE_DOWNLOAD 2U
 #define BENCH_MODE_FULL 3U
-#define BENCH_MAX_CHUNK 4096U
+#define BENCH_MAX_CHUNK CONFIG_BENCH_MAX_CHUNK_SIZE
 
 struct bench_request {
     uint32_t magic;
@@ -36,9 +36,9 @@ struct bench_reply {
     uint32_t bytes_sent;
 } __packed;
 
-static uint8_t tx_buf[BENCH_MAX_CHUNK];
-static uint8_t rx_buf[BENCH_MAX_CHUNK];
 static const struct bench_config *active_cfg;
+
+static int validate_config(const struct bench_config *cfg);
 
 static int wait_socket_ready(int fd, short events, int64_t deadline_ms)
 {
@@ -108,6 +108,13 @@ static int set_nonblocking(int fd)
     return zsock_fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0 ? -errno : 0;
 }
 
+static int set_blocking(int fd)
+{
+    int flags = zsock_fcntl(fd, F_GETFL, 0);
+    if (flags < 0) return -errno;
+    return zsock_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0 ? -errno : 0;
+}
+
 static int connect_server(const struct bench_config *cfg)
 {
     struct zsock_addrinfo hints = {.ai_family = AF_INET, .ai_socktype = SOCK_STREAM};
@@ -135,6 +142,8 @@ if (cfg->transport == BENCH_TRANSPORT_STCP) {
         if (zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &sl) < 0) { rc = -errno; goto fail; }
         if (err) { rc = -err; goto fail; }
     }
+    rc = set_blocking(fd);
+    if (rc < 0) goto fail;
     zsock_freeaddrinfo(res);
     return fd;
 fail:
@@ -194,55 +203,97 @@ static void report_progress(const char *label, uint32_t done, uint32_t total,
     *last_report_ms = now;
 }
 
-static int stream_send(int fd, uint32_t total, uint32_t chunk_size, uint8_t salt,
+static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_size, uint8_t salt,
                        const char *label)
 {
     uint32_t off = 0;
+    uint32_t send_calls = 0;
+    uint32_t partial_calls = 0;
+    size_t max_send = 0;
     int64_t started = k_uptime_get();
     int64_t last_report = started;
 
     while (off < total) {
-        size_t n = MIN(chunk_size, total - off);
-        fill_pattern(tx_buf, n, off, salt);
-        int rc = send_all(fd, tx_buf, n);
-        if (rc < 0) return rc;
-        off += (uint32_t)n;
-        report_progress(label, off, total, started, &last_report, off == total);
+        size_t chunk_len = MIN(chunk_size, total - off);
+        size_t chunk_off = 0;
+
+        fill_pattern(tx_buf, chunk_len, off, salt);
+
+        while (chunk_off < chunk_len) {
+            size_t remaining = chunk_len - chunk_off;
+            ssize_t n = zsock_send(fd, tx_buf + chunk_off, remaining, 0);
+            send_calls++;
+
+            if (n > 0) {
+                if ((size_t)n < remaining) partial_calls++;
+                if ((size_t)n > max_send) max_send = (size_t)n;
+                chunk_off += (size_t)n;
+                off += (uint32_t)n;
+                report_progress(label, off, total, started, &last_report, off == total);
+                continue;
+            }
+            if (n == 0) return -ECONNRESET;
+            if (errno == EINTR) continue;
+            return -errno;
+        }
     }
+
+    LOG_INF("%s I/O stats calls=%u partial=%u max_send=%u",
+            label, send_calls, partial_calls, (uint32_t)max_send);
     return 0;
 }
 
-static int stream_recv(int fd, uint32_t total, uint32_t chunk_size, uint8_t salt,
+static int stream_recv(int fd, uint8_t *rx_buf, uint32_t total, uint32_t rx_buf_size, uint8_t salt,
                        const char *label)
 {
     uint32_t off = 0;
+    uint32_t recv_calls = 0;
+    size_t max_recv = 0;
     int64_t started = k_uptime_get();
     int64_t last_report = started;
 
     while (off < total) {
-        size_t n = MIN(chunk_size, total - off);
-        int rc = recv_all(fd, rx_buf, n);
-        if (rc < 0) return rc;
-        rc = verify_pattern(rx_buf, n, off, salt);
-        if (rc < 0) return rc;
-        off += (uint32_t)n;
-        report_progress(label, off, total, started, &last_report, off == total);
+        size_t wanted = MIN(rx_buf_size, total - off);
+        ssize_t n = zsock_recv(fd, rx_buf, wanted, 0);
+        recv_calls++;
+
+        if (n > 0) {
+            int rc = verify_pattern(rx_buf, (size_t)n, off, salt);
+            if (rc < 0) return rc;
+            if ((size_t)n > max_recv) max_recv = (size_t)n;
+            off += (uint32_t)n;
+            report_progress(label, off, total, started, &last_report, off == total);
+            continue;
+        }
+        if (n == 0) return -ECONNRESET;
+        if (errno == EINTR) continue;
+        return -errno;
     }
+
+    LOG_INF("%s I/O stats calls=%u max_recv=%u", label, recv_calls, (uint32_t)max_recv);
     return 0;
 }
 
 int bench_run_upload(const struct bench_config *cfg)
 {
+    int valid = validate_config(cfg);
+    if (valid < 0) return valid;
     struct bench_reply reply;
     active_cfg = cfg;
+    uint8_t *tx_buf = k_malloc(cfg->chunk_size);
+    if (!tx_buf) {
+        LOG_ERR("UPLOAD buffer allocation failed: %u bytes", cfg->chunk_size);
+        return -ENOMEM;
+    }
     int fd = connect_server(cfg);
-    if (fd < 0) return fd;
+    if (fd < 0) { k_free(tx_buf); return fd; }
     int rc = send_request(fd, BENCH_MODE_UPLOAD, cfg);
     int64_t start = k_uptime_get();
-    if (!rc) rc = stream_send(fd, cfg->total_bytes, cfg->chunk_size, 0x17, "UPLOAD TX");
+    if (!rc) rc = stream_send(fd, tx_buf, cfg->total_bytes, cfg->chunk_size, 0x17, "UPLOAD TX");
     if (!rc) rc = recv_reply(fd, BENCH_MODE_UPLOAD, &reply);
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
+    k_free(tx_buf);
     if (rc < 0) return rc;
     LOG_INF("UPLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, bps(cfg->total_bytes, ms));
     return 0;
@@ -250,13 +301,20 @@ int bench_run_upload(const struct bench_config *cfg)
 
 int bench_run_download(const struct bench_config *cfg)
 {
+    int valid = validate_config(cfg);
+    if (valid < 0) return valid;
     struct bench_reply reply;
     active_cfg = cfg;
+    uint8_t *rx_buf = k_malloc(cfg->chunk_size);
+    if (!rx_buf) {
+        LOG_ERR("DOWNLOAD buffer allocation failed: %u bytes", cfg->chunk_size);
+        return -ENOMEM;
+    }
     int fd = connect_server(cfg);
-    if (fd < 0) return fd;
+    if (fd < 0) { k_free(rx_buf); return fd; }
     int rc = send_request(fd, BENCH_MODE_DOWNLOAD, cfg);
     int64_t start = k_uptime_get();
-    if (!rc) rc = stream_recv(fd, cfg->total_bytes, cfg->chunk_size, 0x53, "DOWNLOAD RX");
+    if (!rc) rc = stream_recv(fd, rx_buf, cfg->total_bytes, cfg->chunk_size, 0x53, "DOWNLOAD RX");
     if (!rc) {
         struct bench_reply ack = {.magic=sys_cpu_to_be32(BENCH_MAGIC), .mode=sys_cpu_to_be32(BENCH_MODE_DOWNLOAD), .status=0,
             .bytes_received=sys_cpu_to_be32(cfg->total_bytes), .bytes_sent=0};
@@ -265,12 +323,13 @@ int bench_run_download(const struct bench_config *cfg)
     if (!rc) rc = recv_reply(fd, BENCH_MODE_DOWNLOAD, &reply);
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
+    k_free(rx_buf);
     if (rc < 0) return rc;
     LOG_INF("DOWNLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, bps(cfg->total_bytes, ms));
     return 0;
 }
 
-struct sender_ctx { int fd; int rc; uint32_t total; uint32_t chunk; struct k_sem done; };
+struct sender_ctx { int fd; int rc; uint8_t *tx_buf; uint32_t total; uint32_t chunk; struct k_sem done; };
 K_THREAD_STACK_DEFINE(sender_stack, CONFIG_BENCH_SENDER_STACK_SIZE);
 static struct k_thread sender_thread;
 
@@ -278,29 +337,53 @@ static void sender_entry(void *a, void *b, void *c)
 {
     ARG_UNUSED(b); ARG_UNUSED(c);
     struct sender_ctx *ctx = a;
-    ctx->rc = stream_send(ctx->fd, ctx->total, ctx->chunk, 0x17, "FULL TX");
+    ctx->rc = stream_send(ctx->fd, ctx->tx_buf, ctx->total, ctx->chunk, 0x17, "FULL TX");
     k_sem_give(&ctx->done);
 }
 
 int bench_run_full(const struct bench_config *cfg)
 {
+    int valid = validate_config(cfg);
+    if (valid < 0) return valid;
     struct bench_reply reply;
     struct sender_ctx ctx;
     active_cfg = cfg;
+    const uint32_t rx_chunk = MIN(cfg->chunk_size, (uint32_t)CONFIG_BENCH_FULL_RX_BUFFER_SIZE);
+    uint8_t *tx_buf = k_malloc(cfg->chunk_size);
+    uint8_t *rx_buf = k_malloc(rx_chunk);
+    if (!tx_buf || !rx_buf) {
+        LOG_ERR("FULL buffers allocation failed: TX=%u RX=%u bytes",
+                cfg->chunk_size, rx_chunk);
+        k_free(tx_buf);
+        k_free(rx_buf);
+        return -ENOMEM;
+    }
     int fd = connect_server(cfg);
-    if (fd < 0) return fd;
+    if (fd < 0) { k_free(tx_buf); k_free(rx_buf); return fd; }
     int rc = send_request(fd, BENCH_MODE_FULL, cfg);
-    if (rc < 0) { zsock_close(fd); return rc; }
-    ctx.fd = fd; ctx.rc = 0; ctx.total = cfg->total_bytes; ctx.chunk = cfg->chunk_size; k_sem_init(&ctx.done, 0, 1);
+    if (rc < 0) { zsock_close(fd); k_free(tx_buf); k_free(rx_buf); return rc; }
+    ctx.fd = fd; ctx.rc = 0; ctx.tx_buf = tx_buf; ctx.total = cfg->total_bytes; ctx.chunk = cfg->chunk_size; k_sem_init(&ctx.done, 0, 1);
     int64_t start = k_uptime_get();
     k_thread_create(&sender_thread, sender_stack, K_THREAD_STACK_SIZEOF(sender_stack), sender_entry,
                     &ctx, NULL, NULL, K_PRIO_PREEMPT(5), 0, K_NO_WAIT);
-    rc = stream_recv(fd, cfg->total_bytes, cfg->chunk_size, 0x53, "FULL RX");
+    rc = stream_recv(fd, rx_buf, cfg->total_bytes, rx_chunk, 0x53, "FULL RX");
     k_sem_take(&ctx.done, K_FOREVER);
     if (!rc) rc = ctx.rc;
+    if (!rc) {
+        struct bench_reply ack = {
+            .magic = sys_cpu_to_be32(BENCH_MAGIC),
+            .mode = sys_cpu_to_be32(BENCH_MODE_FULL),
+            .status = 0,
+            .bytes_received = sys_cpu_to_be32(cfg->total_bytes),
+            .bytes_sent = sys_cpu_to_be32(cfg->total_bytes),
+        };
+        rc = send_all(fd, &ack, sizeof(ack));
+    }
     if (!rc) rc = recv_reply(fd, BENCH_MODE_FULL, &reply);
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
+    k_free(tx_buf);
+    k_free(rx_buf);
     if (rc < 0) return rc;
     LOG_INF("FULL upload=%u download=%u elapsed=%lld ms", cfg->total_bytes, cfg->total_bytes, ms);
     LOG_INF("FULL TX=%llu bit/s RX=%llu bit/s aggregate=%llu bit/s",

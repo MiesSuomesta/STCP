@@ -7,6 +7,7 @@
 #include <zephyr/sys/util.h>
 
 #include "echo_benchmark.h"
+#include "modem_status.h"
 
 static struct bench_config shell_cfg;
 static bool shell_cfg_ready;
@@ -79,7 +80,7 @@ static int cmd_config_chunk(const struct shell *sh, size_t argc, char **argv)
 {
     ARG_UNUSED(argc);
     ensure_config();
-    if (parse_u32(sh, argv[1], 1, 4096, &shell_cfg.chunk_size) < 0) return -EINVAL;
+    if (parse_u32(sh, argv[1], 1, CONFIG_BENCH_MAX_CHUNK_SIZE, &shell_cfg.chunk_size) < 0) return -EINVAL;
     shell_print(sh, "Chunk = %u", shell_cfg.chunk_size);
     return 0;
 }
@@ -157,7 +158,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(config_cmds,
     SHELL_CMD(show, NULL, "Show runtime benchmark configuration", cmd_config_show),
     SHELL_CMD_ARG(host, NULL, "Set host: stcp config host <name|ip>", cmd_config_host, 2, 0),
     SHELL_CMD_ARG(port, NULL, "Set port: stcp config port <1..65535>", cmd_config_port, 2, 0),
-    SHELL_CMD_ARG(chunk, NULL, "Set chunk bytes: stcp config chunk <1..4096>", cmd_config_chunk, 2, 0),
+    SHELL_CMD_ARG(chunk, NULL, "Set chunk bytes: stcp config chunk <1..65536>", cmd_config_chunk, 2, 0),
     SHELL_CMD_ARG(total, NULL, "Set total bytes: stcp config total <bytes>", cmd_config_total, 2, 0),
     SHELL_CMD_ARG(timeout, NULL, "Set inactivity timeout ms", cmd_config_timeout, 2, 0),
     SHELL_CMD_ARG(report, NULL, "Set progress report interval ms (0 disables)", cmd_config_report, 2, 0),
@@ -173,9 +174,43 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bench_cmds,
     SHELL_SUBCMD_SET_END
 );
 
+
+static int cmd_modem_system(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_system(sh); }
+static int cmd_modem_health(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_health(sh); }
+static int cmd_modem_signal(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_signal(sh); }
+static int cmd_modem_network(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_network(sh); }
+static int cmd_modem_band(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_band(sh); }
+static int cmd_modem_packet(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_packet(sh); }
+static int cmd_modem_sleep(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_sleep(sh); }
+static int cmd_modem_apn(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_apn(sh); }
+static int cmd_modem_all(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_all(sh); }
+
+SHELL_STATIC_SUBCMD_SET_CREATE(modem_cmds,
+    SHELL_CMD(system, NULL, "Show configured and currently attached radio system", cmd_modem_system),
+    SHELL_CMD(health, NULL, "Show interpreted modem, radio and PDP summary", cmd_modem_health),
+    SHELL_CMD(signal, NULL, "Show CESQ and serving-cell radio metrics", cmd_modem_signal),
+    SHELL_CMD(network, NULL, "Show registration, RRC and functional mode", cmd_modem_network),
+    SHELL_CMD(band, NULL, "Show current LTE band", cmd_modem_band),
+    SHELL_CMD(packet, NULL, "Show packet-domain connection statistics", cmd_modem_packet),
+    SHELL_CMD(sleep, NULL, "Show modem sleep, PSM and eDRX settings", cmd_modem_sleep),
+    SHELL_CMD(apn, NULL, "Show configured and active PDP/APN contexts", cmd_modem_apn),
+    SHELL_CMD(all, NULL, "Show all available modem status information", cmd_modem_all),
+    SHELL_SUBCMD_SET_END
+);
+
 SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
     SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
+    SHELL_CMD(modem, &modem_cmds, "nRF modem status and radio diagnostics", NULL),
     SHELL_SUBCMD_SET_END
 );
 

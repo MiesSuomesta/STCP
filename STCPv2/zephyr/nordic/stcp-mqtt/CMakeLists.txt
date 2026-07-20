@@ -11,4 +11,5 @@ target_sources(app PRIVATE
 
 target_sources_ifdef(CONFIG_STCP_BENCH_SHELL app PRIVATE
     src/bench_shell.c
+    src/modem_status.c
 )

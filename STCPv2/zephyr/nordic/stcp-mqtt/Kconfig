@@ -44,10 +44,18 @@ config BENCH_TOTAL_BYTES
     default 1048576
     range 4096 67108864
 
+config BENCH_MAX_CHUNK_SIZE
+    int "Maximum runtime streaming chunk size"
+    default 65536
+    range 4096 65536
+    help
+      Maximum chunk accepted by the runtime shell and benchmark core. Buffers
+      are allocated dynamically for each test. Full duplex needs two buffers.
+
 config BENCH_CHUNK_SIZE
-    int "Streaming I/O chunk size"
+    int "Default streaming I/O chunk size"
     default 4096
-    range 256 4096
+    range 256 BENCH_MAX_CHUNK_SIZE
 
 config BENCH_PAUSE_SECONDS
     int "Pause between upload, download and full-duplex tests"
@@ -67,6 +75,24 @@ config BENCH_SENDER_STACK_SIZE
     int "Full-duplex sender thread stack size"
     default 4096
     range 2048 16384
+
+
+config BENCH_SOCKET_BUFFER_SIZE
+    int "Requested modem socket send/receive buffer size"
+    default 32768
+    range 4096 131072
+    help
+      Best-effort SO_SNDBUF/SO_RCVBUF value. The modem offload may clamp or
+      reject the value; benchmark startup logs the actual result.
+
+config BENCH_FULL_RX_BUFFER_SIZE
+    int "Full-duplex receive scratch buffer size"
+    default 4096
+    range 1024 16384
+    help
+      Full-duplex uses the configured chunk size for TX, but a smaller RX
+      scratch buffer to avoid reserving two 64 KiB buffers at once. TCP is a
+      byte stream, so receive calls do not need to match the peer send size.
 
 endmenu
 

@@ -19,7 +19,7 @@
 #include "stcp_socket.h"
 #include "stcp_users.h"
 
-#define STCP_IO_BUFFER_MAX (1024 * 1024)
+#define STCP_IO_BUFFER_MAX (4 * 1024 * 1024)
 #define STCP_CONNECT_TIMEOUT_MS 5000
 #define STCP_SEND_READY_TIMEOUT_MS 5000
 
@@ -49,6 +49,19 @@ static int stcp_release(struct socket *sock)
 	sock->sk = NULL;
 
 	stcp_stop_retransmit_work(ssk);
+
+	/*
+	 * Send protocol CLOSE before detaching the Rust context or stopping the
+	 * carrier.  close(fd) normally reaches .release directly without an
+	 * explicit shutdown(2), so omitting this leaves the accepted peer blocked
+	 * in recv() forever and leaks churn handlers/file descriptors.
+	 *
+	 * shutdown() is idempotent in Rust: if userspace already called it, this
+	 * becomes a no-op.  The carrier is still fully alive here, therefore the
+	 * CLOSE frame can be queued synchronously before teardown begins.
+	 */
+	if (READ_ONCE(ssk->rust_ctx))
+		stcp_rust_shutdown(READ_ONCE(ssk->rust_ctx), SHUT_RDWR);
 
 	/* Detach pointers exactly once, including concurrent error teardown. */
 	rust_ctx = xchg(&ssk->rust_ctx, NULL);
@@ -464,22 +477,14 @@ static int stcp_sendmsg(
 			break;
 		}
 
-		pr_info("stcp: sendmsg enter sk=%px ssk=%px ctx=%px carrier=%px chunk=%zu total=%zu flags=0x%x can_send=%d\n",
-			sock->sk, ssk, ssk->rust_ctx, ssk->carrier, chunk, total,
-			msg->msg_flags, stcp_rust_can_send(ssk->rust_ctx, chunk));
 
 		for (;;) {
 			ret = stcp_rust_send(ssk->rust_ctx, buffer, chunk,
 						 msg->msg_flags);
-			pr_info("stcp: sendmsg rust result ctx=%px requested=%zu ret=%zd can_send=%d\n",
-				ssk->rust_ctx, chunk, ret,
-				stcp_rust_can_send(ssk->rust_ctx, chunk));
 			if (ret != -EAGAIN)
 				break;
 			if (msg->msg_flags & MSG_DONTWAIT)
 				break;
-			pr_info("stcp: sendmsg waiting for ready ctx=%px chunk=%zu\n",
-				ssk->rust_ctx, chunk);
 			wait_ret = wait_event_interruptible_timeout(
 				ssk->recv_wq,
 				stcp_rust_can_send(ssk->rust_ctx, chunk) > 0,
@@ -490,14 +495,9 @@ static int stcp_sendmsg(
 				break;
 			}
 			if (wait_ret == 0) {
-				pr_info("stcp: sendmsg ready timeout ctx=%px chunk=%zu\n",
-					ssk->rust_ctx, chunk);
 				ret = -ETIMEDOUT;
 				break;
 			}
-			pr_info("stcp: sendmsg ready wake ctx=%px can_send=%d\n",
-				ssk->rust_ctx,
-				stcp_rust_can_send(ssk->rust_ctx, chunk));
 		}
 
 		if (ret < 0) {
@@ -554,9 +554,6 @@ static int stcp_recvmsg(
 		return -ENOMEM;
 	}
 
-	pr_info("stcp: recvmsg enter sk=%px ssk=%px ctx=%px carrier=%px len=%zu flags=0x%x has_data=%d\n",
-		sock->sk, ssk, ssk->rust_ctx, ssk->carrier, len, flags,
-		stcp_rust_has_data(ssk->rust_ctx));
 
 	for (;;) {
 		ret = stcp_rust_recv(
@@ -566,8 +563,6 @@ static int stcp_recvmsg(
 			flags
 		);
 
-		pr_info("stcp: recvmsg rust result ctx=%px ret=%zd has_data=%d\n",
-			ssk->rust_ctx, ret, stcp_rust_has_data(ssk->rust_ctx));
 
 		if (ret != -EAGAIN)
 			break;
@@ -575,8 +570,6 @@ static int stcp_recvmsg(
 		if (flags & MSG_DONTWAIT)
 			break;
 
-		pr_info("stcp: recvmsg sleeping ssk=%px ctx=%px has_data=%d\n",
-			ssk, ssk->rust_ctx, stcp_rust_has_data(ssk->rust_ctx));
 
 		wait_ret = wait_event_interruptible(
 			ssk->recv_wq,

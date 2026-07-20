@@ -749,7 +749,13 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
     crate::carrier::debug_event(120,ctx,0,0);
-    loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else {break;}; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
+    const MAX_RX_BATCH_FRAMES: usize = 64;
+    received_frames.try_reserve(MAX_RX_BATCH_FRAMES.min(8)).map_err(|_| StcpError::NoMem)?;
+    let mut extracted = 0usize;
+    loop {
+      if extracted >= MAX_RX_BATCH_FRAMES { break; }
+      let Some(frame)=extract_next_wire_frame(ctx,queue)? else {break;};
+      extracted += 1; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
       PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext:frame.payload}); }
       PacketType::Ack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_acks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_acks.push(header.acknowledgment); }
       PacketType::Ping => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_pongs.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_pongs.push(header.sequence); }
@@ -759,8 +765,45 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
       PacketType::HandshakeDone => {if !frame.payload.is_empty(){return protocol_error(ctx);} late_handshake_done=true;}
     }}
     crate::carrier::debug_event(123,ctx,deferred_acks.len(),deferred_pongs.len()); for a in deferred_acks{update_acknowledgment(ctx,a)?;} for seq in deferred_pongs{queue_pong(ctx,seq)?;} crate::carrier::debug_event(124,ctx,received_frames.len(),0);
-    for frame in received_frames { let expected=current_expected_sequence(ctx); if frame.header.sequence<expected{{let mut inner=ctx.inner.lock();inner.stats.duplicate_frames=inner.stats.duplicate_frames.saturating_add(1);}queue_ack(ctx,frame.header.sequence)?;continue;} if frame.header.sequence>expected{{let mut inner=ctx.inner.lock();inner.stats.reordered_frames=inner.stats.reordered_frames.saturating_add(1);}buffer_out_of_order_frame(ctx,frame)?;continue;} process_in_order_frame(ctx,frame)?; while let Some(buffered)=take_next_buffered_frame(ctx){process_in_order_frame(ctx,buffered)?;} }
-    if peer_eof||late_handshake_done{let mut inner=ctx.inner.lock();if peer_eof{inner.peer_eof=true;}if late_handshake_done{inner.peer_handshake_done=true;}}
+    let mut became_readable = false;
+    for frame in received_frames {
+        let expected = current_expected_sequence(ctx);
+        if frame.header.sequence < expected {
+            {
+                let mut inner = ctx.inner.lock();
+                inner.stats.duplicate_frames = inner.stats.duplicate_frames.saturating_add(1);
+            }
+            queue_ack(ctx, frame.header.sequence)?;
+            continue;
+        }
+        if frame.header.sequence > expected {
+            {
+                let mut inner = ctx.inner.lock();
+                inner.stats.reordered_frames = inner.stats.reordered_frames.saturating_add(1);
+            }
+            buffer_out_of_order_frame(ctx, frame)?;
+            continue;
+        }
+        became_readable |= process_in_order_frame(ctx, frame)?;
+        while let Some(buffered) = take_next_buffered_frame(ctx) {
+            became_readable |= process_in_order_frame(ctx, buffered)?;
+        }
+    }
+    let mut should_wake = became_readable;
+    if peer_eof || late_handshake_done {
+        let mut inner = ctx.inner.lock();
+        if peer_eof && !inner.peer_eof {
+            inner.peer_eof = true;
+            should_wake = true;
+        }
+        if late_handshake_done {
+            inner.peer_handshake_done = true;
+        }
+    }
+    if should_wake {
+        let owner = ctx.inner.lock().owner;
+        wake_recv(owner);
+    }
     crate::carrier::debug_event(299,ctx,0,0); Ok(())
 }
 
@@ -817,7 +860,7 @@ fn take_next_buffered_frame(
 fn process_in_order_frame(
     ctx: &StcpContext,
     frame: BufferedFrame,
-) -> Result<(), StcpError> {
+) -> Result<bool, StcpError> {
     let packet_type = frame.header.packet_type;
     let sequence = frame.header.sequence;
 
@@ -868,11 +911,7 @@ fn process_in_order_frame(
 
     queue_ack(ctx, sequence)?;
 
-    if became_readable {
-        let owner = ctx.inner.lock().owner;
-        wake_recv(owner);
-    }
-    Ok(())
+    Ok(became_readable)
 }
 
 fn current_expected_sequence(ctx: &StcpContext) -> u64 {

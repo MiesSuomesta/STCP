@@ -1,0 +1,1 @@
+savedcmd_stcp.mod := printf '%s\n'   src/rust_core.o src/panic.o src/rust_alloc.o src/stcp_carrier.o src/stcp_crypto.o src/stcp_memory.o src/stcp_module.o src/stcp_ops.o src/stcp_proto.o src/stcp_rust_ffi.o src/stcp_users.o | awk '!x[$$0]++ { print("./"$$0) }' > stcp.mod

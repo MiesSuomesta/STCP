@@ -344,3 +344,23 @@ The TCP carrier now tunes every client, listener and accepted socket to a
 carrier writes, and grows per-socket C scratch buffers geometrically.  This
 reduces pipeline stalls and repeated buffer reallocations in high-throughput
 1 MiB / pipeline-8 tests.
+
+
+## UDP large-payload flow-control optimization
+
+- UDP reliability window increased from 64 to 256 frames.
+- ACK frames are cumulative and emitted every eight in-order frames, plus immediately at `DataChunkEnd`.
+- Duplicate frames force an immediate cumulative ACK to recover from a lost ACK.
+- Retransmission work is capped at four expired frames per timer tick to prevent retransmit storms.
+- Initial/minimum RTO increased to 100/40 ms to avoid spurious retransmission under large queued payloads.
+
+## UDP pipeline scalability fix
+
+- UDP child carriers no longer hold the shared root `lifecycle_lock` across
+  `kernel_sendmsg()`. Concurrent accepted UDP sessions can now transmit in
+  parallel while root teardown waits for an `active_sends` counter to drain.
+- UDP kernel socket send/receive buffers are raised to 16 MiB locally.
+- Redundant recv-waitqueue wakeups after ACK/PONG sends were removed; ACK
+  frames are parsed synchronously by carrier RX.
+- Initial/minimum reliability RTOs are reduced to 60/20 ms after eliminating
+  the root-send serialization that caused artificial ACK delays.

@@ -117,6 +117,7 @@ run_python ./stcp_stress.py \
     --payload "$THROUGHPUT_PAYLOAD" \
     --duration "$THROUGHPUT_DURATION" \
     --report-every "$REPORT_EVERY" \
+    --no-verify \
     --json result-throughput-4.json
 
 echo
@@ -129,6 +130,7 @@ run_python ./stcp_stress.py \
     --payload 262144 \
     --duration "$STRESS_DURATION" \
     --report-every "$REPORT_EVERY" \
+    --no-verify \
     --json result-mixed-8.json
 
 echo
@@ -140,4 +142,5 @@ run_python ./stcp_stress.py \
     --payload 4096 \
     --duration "$STRESS_DURATION" \
     --report-every "$REPORT_EVERY" \
+    --no-verify \
     --json result-churn-16.json

@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/socket.h>
+#include <linux/wait.h>
+#include <linux/atomic.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -23,6 +25,7 @@
 #define STCP_CARRIER_TCP_RX_BUFFER_SIZE (8 * 1024 * 1024)
 #define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
 #define STCP_TCP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
+#define STCP_UDP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
 
 struct stcp_carrier {
 	enum stcp_carrier_kind kind;
@@ -36,6 +39,16 @@ struct stcp_carrier {
 	struct completion stop_done;
 	bool stopping;
 	bool stopped;
+
+	/*
+	 * UDP children share the listener/root socket.  Do not hold
+	 * lifecycle_lock across kernel_sendmsg(): doing so serializes every
+	 * connection and makes pipelined bursts slower than stop-and-wait.
+	 * stopping is published under lifecycle_lock; active_sends keeps the
+	 * root socket alive until all in-flight sends have returned.
+	 */
+	atomic_t active_sends;
+	wait_queue_head_t send_wait;
 
 	void *rust_ctx;
 	void *owner;
@@ -103,6 +116,21 @@ static void stcp_tune_tcp_socket(struct socket *socket)
 		STCP_TCP_SOCKET_BUFFER_SIZE));
 }
 
+
+static void stcp_tune_udp_socket(struct socket *socket)
+{
+	struct sock *sk;
+
+	if (!socket || !socket->sk)
+		return;
+
+	sk = socket->sk;
+	WRITE_ONCE(sk->sk_sndbuf, max_t(int, READ_ONCE(sk->sk_sndbuf),
+		STCP_UDP_SOCKET_BUFFER_SIZE));
+	WRITE_ONCE(sk->sk_rcvbuf, max_t(int, READ_ONCE(sk->sk_rcvbuf),
+		STCP_UDP_SOCKET_BUFFER_SIZE));
+}
+
 static int stcp_sockaddr(
 	u32 address,
 	u16 port,
@@ -156,23 +184,26 @@ static ssize_t stcp_udp_send_one(
 	vector.iov_len = len;
 
 	/*
-	 * Root shutdown and UDP sends are serialized by lifecycle_lock.  Child
-	 * carriers never own a socket pointer; they always use the refcounted
-	 * parent's socket while this lock is held.
+	 * Grab a short-lived send reference while holding lifecycle_lock, then
+	 * release the mutex before kernel_sendmsg().  The UDP socket itself is
+	 * safe for concurrent sendmsg calls; keeping the lifecycle mutex held
+	 * here unnecessarily serialized every accepted UDP child.
 	 */
 	mutex_lock(&root->lifecycle_lock);
-
 	if (root->stopping || !root->socket) {
-		ret = -ESHUTDOWN;
-		goto out_unlock;
+		mutex_unlock(&root->lifecycle_lock);
+		return -ESHUTDOWN;
 	}
+	atomic_inc(&root->active_sends);
+	mutex_unlock(&root->lifecycle_lock);
 
 	ret = kernel_sendmsg(root->socket, &message, &vector, 1, len);
 	if (ret >= 0 && (size_t)ret != len)
 		ret = -EIO;
 
- out_unlock:
-	mutex_unlock(&root->lifecycle_lock);
+	if (atomic_dec_and_test(&root->active_sends))
+		wake_up_all(&root->send_wait);
+
 	return ret;
 }
 
@@ -208,6 +239,10 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 	}
 
 	mutex_unlock(&carrier->lifecycle_lock);
+
+	if (!wait_for_other)
+		wait_event(carrier->send_wait,
+			   atomic_read(&carrier->active_sends) == 0);
 
 	if (wait_for_other) {
 		wait_for_completion(&carrier->stop_done);
@@ -445,6 +480,8 @@ struct stcp_carrier *stcp_carrier_create(
 	refcount_set(&carrier->refs, 1);
 	mutex_init(&carrier->lifecycle_lock);
 	init_completion(&carrier->stop_done);
+	atomic_set(&carrier->active_sends, 0);
+	init_waitqueue_head(&carrier->send_wait);
 	mutex_init(&carrier->test_lock);
 
 	switch (kind) {
@@ -468,6 +505,8 @@ struct stcp_carrier *stcp_carrier_create(
 	}
 	if (kind == STCP_CARRIER_TCP)
 		stcp_tune_tcp_socket(carrier->socket);
+	else
+		stcp_tune_udp_socket(carrier->socket);
 	return carrier;
 }
 
@@ -502,6 +541,8 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	mutex_unlock(&listener->lifecycle_lock);
 	mutex_init(&child->lifecycle_lock);
 	init_completion(&child->stop_done);
+	atomic_set(&child->active_sends, 0);
+	init_waitqueue_head(&child->send_wait);
 	mutex_init(&child->test_lock);
 	child->kind = STCP_CARRIER_UDP;
 	/* UDP children borrow the root socket through parent; never copy it. */
@@ -686,6 +727,8 @@ int stcp_carrier_accept(
 	refcount_set(&child->refs, 1);
 	mutex_init(&child->lifecycle_lock);
 	init_completion(&child->stop_done);
+	atomic_set(&child->active_sends, 0);
+	init_waitqueue_head(&child->send_wait);
 	mutex_init(&child->test_lock);
 
 	*out_child = child;

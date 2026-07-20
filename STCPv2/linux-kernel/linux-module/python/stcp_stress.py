@@ -420,6 +420,7 @@ def server_connection(
     stop: StopState,
     stats: SharedStats,
     recv_buffer_size: int,
+    tolerate_teardown_after_echo: bool = False,
 ) -> None:
     buffer = bytearray(recv_buffer_size)
     idle_timeouts = 0
@@ -453,21 +454,26 @@ def server_connection(
                 completed_echoes += 1
 
     except (OSError, ConnectionError) as exc:
-        # In churn mode the peer closes immediately after receiving the full
-        # echo.  A late EPIPE/ECONNRESET/ENOTCONN while the handler is leaving
-        # the final send/recv cycle is normal teardown, not data corruption.
+        # Churn peers close immediately after receiving the one complete echo.
+        # Depending on scheduling, the server can observe POLLHUP/POLLERR or a
+        # teardown errno while returning from the final send/recv cycle.  These
+        # are normal close semantics, not payload or protocol failures.
         normal_teardown_errnos = {
             errno.EPIPE,
             errno.ECONNRESET,
             errno.ENOTCONN,
             errno.ESHUTDOWN,
             errno.EBADF,
+            errno.EPROTO,
+            errno.EIO,
         }
         err = getattr(exc, "errno", None)
-        if (
-            not stop.stopped()
-            and not (completed_echoes > 0 and err in normal_teardown_errnos)
-        ):
+        is_connection_teardown = isinstance(exc, ConnectionError)
+        normal_teardown = (
+            (completed_echoes > 0 and (is_connection_teardown or err in normal_teardown_errnos))
+            or (tolerate_teardown_after_echo and (is_connection_teardown or err in normal_teardown_errnos))
+        )
+        if not stop.stopped() and not normal_teardown:
             stats.add(server_errors=1)
     finally:
         try:
@@ -484,12 +490,15 @@ def server_main(
     recv_buffer_size: int,
     ready: threading.Event,
     udp: bool,
+    churn_mode: bool = False,
 ) -> None:
     listener: Optional[NativeStcpSocket] = None
     handlers: set[threading.Thread] = set()
     handlers_lock = threading.Lock()
 
     def reap_handlers() -> None:
+        # Reap before and after every accept so completed handlers never
+        # accumulate in the tracking set during long churn runs.
         with handlers_lock:
             finished = [thread for thread in handlers if not thread.is_alive()]
             for thread in finished:
@@ -504,12 +513,14 @@ def server_main(
         while not stop.stopped():
             reap_handlers()
 
-            # Bound accepted descriptors even if a protocol regression makes
-            # a handler slow to notice an idle/closed peer.
             with handlers_lock:
                 active_handlers = len(handlers)
+
+            # Keep thread-per-connection semantics, but bound outstanding
+            # descriptors to the listener backlog so a protocol regression
+            # cannot exhaust the process fd table.
             if active_handlers >= backlog:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 continue
 
             try:
@@ -519,10 +530,11 @@ def server_main(
             except OSError as exc:
                 if stop.stopped():
                     break
+                if exc.errno in (errno.EINTR, errno.EAGAIN, errno.EWOULDBLOCK):
+                    continue
                 stats.add(server_errors=1)
                 print(f"server accept error: {exc!r}", file=sys.stderr, flush=True)
                 if exc.errno in (errno.EMFILE, errno.ENFILE):
-                    # Give completed handlers time to close and be reaped.
                     time.sleep(0.1)
                 continue
 
@@ -534,6 +546,7 @@ def server_main(
                     stop,
                     stats,
                     recv_buffer_size,
+                    churn_mode,
                 ),
                 daemon=True,
             )
@@ -553,12 +566,11 @@ def server_main(
             except OSError:
                 pass
 
+        reap_handlers()
         with handlers_lock:
             remaining_handlers = list(handlers)
-
         for thread in remaining_handlers:
             thread.join(timeout=2.0)
-
 
 def payload_for(worker_id: int, payload_size: int) -> bytearray:
     header = worker_id.to_bytes(4, "big", signed=False)
@@ -1089,6 +1101,7 @@ def main() -> int:
             recv_buffer_size,
             ready,
             args.udp,
+            args.mode == "churn",
         ),
         name="stcp-server",
         daemon=True,

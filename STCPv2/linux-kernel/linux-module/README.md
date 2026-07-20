@@ -376,3 +376,19 @@ up to three times and only reports a failure after all attempts fail. Normal
 EPIPE, ECONNRESET, ENOTCONN and ESHUTDOWN after a completed echo are treated
 as expected peer teardown rather than server data-path errors.
 
+
+
+## Churn server rollback
+
+The churn stress server uses thread-per-connection again. The fixed worker pool
+caused head-of-line blocking because workers could remain blocked in recv(),
+which made connection throughput bursty. Completed handler threads are reaped
+before and after each accept, active handlers are bounded by the listener
+backlog, and successful-echo teardown errors remain filtered.
+
+## Churn teardown accounting fix
+
+The stress server now treats `EPIPE`, `ECONNRESET`, `ENOTCONN`, `ESHUTDOWN`,
+`EBADF`, `EPROTO`, `EIO`, and poll-driven `ConnectionError` as normal churn
+teardown conditions. Genuine setup, accept, payload and resource failures are
+still counted as server errors.

@@ -9,6 +9,7 @@ unsafe extern "C" {
  fn stcp_kernel_x25519_shared(shared:*mut u8,secret:*const u8,peer:*const u8)->c_int;
  fn stcp_kernel_chacha_encrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,plain:*const u8,plain_len:usize,out:*mut u8,out_len:usize)->c_int;
  fn stcp_kernel_chacha_decrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*const u8,cipher_len:usize,out:*mut u8,out_len:usize)->c_int;
+ fn stcp_kernel_chacha_decrypt_in_place(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*mut u8,cipher_len:usize)->c_int;
 }
 #[derive(Clone)] pub struct CryptoContext{secret_key:[u8;32],public_key:[u8;64],tx_key:Option<[u8;32]>,rx_key:Option<[u8;32]>}
 impl CryptoContext{
@@ -33,10 +34,18 @@ impl CryptoContext{
   if r!=0{out[..required].fill(0);return Err(StcpError::Kernel(r));}
   Ok(required)
  }
+ pub fn decrypt_in_place(&self,nonce:u64,aad:&[u8],cipher_and_tag:&mut[u8])->Result<usize,StcpError>{
+  if cipher_and_tag.len()<CHACHA_TAG_LEN{return Err(StcpError::Crypto);}
+  let required=cipher_and_tag.len()-CHACHA_TAG_LEN;
+  let key=self.rx_key.as_ref().ok_or(StcpError::InvalidState)?;
+  let r=unsafe{stcp_kernel_chacha_decrypt_in_place(key.as_ptr(),nonce,nc(aad),aad.len(),cipher_and_tag.as_mut_ptr(),cipher_and_tag.len())};
+  if r!=0{cipher_and_tag[..required].fill(0);return Err(StcpError::Kernel(r));}
+  Ok(required)
+ }
  pub fn encrypt(&self,nonce:u64,aad:&[u8],plain:&[u8])->Result<Vec<u8>,StcpError>{let mut out=Vec::new();out.try_reserve_exact(plain.len()+CHACHA_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(plain.len()+CHACHA_TAG_LEN,0);let n=self.encrypt_into(nonce,aad,plain,&mut out)?;out.truncate(n);Ok(out)}
  pub fn decrypt(&self,nonce:u64,aad:&[u8],cipher:&[u8])->Result<Vec<u8>,StcpError>{if cipher.len()<CHACHA_TAG_LEN{return Err(StcpError::Crypto);}let mut out=Vec::new();out.try_reserve_exact(cipher.len()-CHACHA_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(cipher.len()-CHACHA_TAG_LEN,0);let n=self.decrypt_into(nonce,aad,cipher,&mut out)?;out.truncate(n);Ok(out)}
 }
 impl Drop for CryptoContext{fn drop(&mut self){self.secret_key.fill(0);if let Some(k)=&mut self.tx_key{k.fill(0)}if let Some(k)=&mut self.rx_key{k.fill(0)}}}
 fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut u8{if x.is_empty(){core::ptr::null_mut()}else{x.as_mut_ptr()}}
 
-pub fn selftest()->Result<(),StcpError>{let mut c=CryptoContext::new()?;let mut s=CryptoContext::new()?;let cp=c.public_key();let sp=s.public_key();c.derive_session_keys(&sp,Role::Client)?;s.derive_session_keys(&cp,Role::Server)?;let aad=b"STCP-selftest";let plain=b"directional session keys";let enc=c.encrypt(0,aad,plain)?;let dec=s.decrypt(0,aad,&enc)?;if dec.as_slice()!=plain{return Err(StcpError::Crypto);}let mut bad=enc.clone();if let Some(x)=bad.last_mut(){*x^=1;}if s.decrypt(0,aad,&bad).is_ok(){return Err(StcpError::Crypto);}if c.decrypt(0,aad,&enc).is_ok(){return Err(StcpError::Crypto);}Ok(())}
+pub fn selftest()->Result<(),StcpError>{let mut c=CryptoContext::new()?;let mut s=CryptoContext::new()?;let cp=c.public_key();let sp=s.public_key();c.derive_session_keys(&sp,Role::Client)?;s.derive_session_keys(&cp,Role::Server)?;let aad=b"STCP-selftest";let plain=b"directional session keys";let enc=c.encrypt(0,aad,plain)?;let dec=s.decrypt(0,aad,&enc)?;if dec.as_slice()!=plain{return Err(StcpError::Crypto);}let mut in_place=enc.clone();let n=s.decrypt_in_place(0,aad,&mut in_place)?;in_place.truncate(n);if in_place.as_slice()!=plain{return Err(StcpError::Crypto);}let mut bad=enc.clone();if let Some(x)=bad.last_mut(){*x^=1;}if s.decrypt(0,aad,&bad).is_ok(){return Err(StcpError::Crypto);}if c.decrypt(0,aad,&enc).is_ok(){return Err(StcpError::Crypto);}Ok(())}

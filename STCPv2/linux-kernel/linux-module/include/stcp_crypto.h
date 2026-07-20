@@ -38,3 +38,12 @@ int stcp_kernel_chacha_decrypt(
 	u8 *plaintext,
 	size_t plaintext_capacity
 );
+
+int stcp_kernel_chacha_decrypt_in_place(
+	const u8 key[STCP_AEAD_KEY_LEN],
+	u64 nonce,
+	const u8 *associated_data,
+	size_t associated_data_len,
+	u8 *ciphertext_and_tag,
+	size_t ciphertext_and_tag_len
+);

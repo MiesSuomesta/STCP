@@ -859,7 +859,7 @@ fn take_next_buffered_frame(
 
 fn process_in_order_frame(
     ctx: &StcpContext,
-    frame: BufferedFrame,
+    mut frame: BufferedFrame,
 ) -> Result<bool, StcpError> {
     let packet_type = frame.header.packet_type;
     let sequence = frame.header.sequence;
@@ -880,9 +880,15 @@ fn process_in_order_frame(
     };
 
     let aad = frame.header.encode();
-    /* ciphertext owns the original wire payload; skip the nonce prefix
-     * directly instead of copying the encrypted body into a second Vec. */
-    let plaintext = crypto.decrypt(frame.nonce, &aad, &frame.ciphertext[NONCE_LEN..])?;
+    /* Decrypt directly over the ciphertext portion of the owned wire frame.
+     * The nonce prefix is retained as a skipped ByteQueue offset, so RX does
+     * not allocate a plaintext Vec and does not copy a multi-megabyte payload. */
+    let plaintext_len = crypto.decrypt_in_place(
+        frame.nonce,
+        &aad,
+        &mut frame.ciphertext[NONCE_LEN..],
+    )?;
+    frame.ciphertext.truncate(NONCE_LEN + plaintext_len);
 
     let became_readable = {
         let mut inner = ctx.inner.lock();
@@ -901,7 +907,7 @@ fn process_in_order_frame(
             .checked_add(1)
             .ok_or(StcpError::Protocol)?;
         inner.last_rx_sequence = Some(sequence);
-        inner.rx_app_data.push_vec(plaintext)?;
+        inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)?;
 
         if packet_type == PacketType::DataChunkEnd {
             inner.rx_message_ready = true;
@@ -1024,7 +1030,8 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     };
 
     if !crate::carrier::reliability_required(carrier_ptr) {
-        process_control_frames(ctx)?;
+        /* TCP carrier RX already parses and publishes complete frames from
+         * queue_to_context(). Avoid a redundant timer-driven parser pass. */
         return Ok(true);
     }
 

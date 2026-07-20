@@ -19,9 +19,41 @@
 #include "stcp_socket.h"
 #include "stcp_users.h"
 
-#define STCP_IO_BUFFER_MAX (4 * 1024 * 1024)
+#define STCP_IO_BUFFER_MAX (2 * 1024 * 1024)
 #define STCP_CONNECT_TIMEOUT_MS 5000
 #define STCP_SEND_READY_TIMEOUT_MS 5000
+
+
+/*
+ * Multi-megabyte kmalloc() allocations require physically contiguous pages
+ * and become unreliable on fragmented/KASAN kernels.  Grow each per-socket
+ * scratch buffer only to the amount actually needed and use kvmalloc(), which
+ * can transparently fall back to virtually contiguous memory.
+ *
+ * Caller must hold the corresponding tx_lock/rx_lock.
+ */
+static int stcp_ensure_io_buffer(
+	u8 **buffer,
+	size_t *capacity,
+	size_t needed
+)
+{
+	u8 *new_buffer;
+
+	if (*buffer && *capacity >= needed)
+		return 0;
+
+	new_buffer = kvmalloc(needed, GFP_KERNEL | __GFP_NOWARN);
+	if (!new_buffer)
+		return -ENOMEM;
+
+	if (*buffer)
+		kvfree_sensitive(*buffer, *capacity);
+
+	*buffer = new_buffer;
+	*capacity = needed;
+	return 0;
+}
 
 static int stcp_release(struct socket *sock)
 {
@@ -32,6 +64,8 @@ static int stcp_release(struct socket *sock)
 	struct stcp_reliability_stats stats;
 	u8 *tx_buffer;
 	u8 *rx_buffer;
+	size_t tx_buffer_size;
+	size_t rx_buffer_size;
 
 	if (!sock)
 		return -EINVAL;
@@ -108,9 +142,13 @@ static int stcp_release(struct socket *sock)
 		stcp_rust_release(rust_ctx);
 
 	tx_buffer = xchg(&ssk->tx_buffer, NULL);
+	tx_buffer_size = xchg(&ssk->tx_buffer_size, 0);
 	rx_buffer = xchg(&ssk->rx_buffer, NULL);
-	kfree_sensitive(tx_buffer);
-	kfree_sensitive(rx_buffer);
+	rx_buffer_size = xchg(&ssk->rx_buffer_size, 0);
+	if (tx_buffer)
+		kvfree_sensitive(tx_buffer, tx_buffer_size);
+	if (rx_buffer)
+		kvfree_sensitive(rx_buffer, rx_buffer_size);
 
 	wake_up_interruptible_all(&ssk->accept_wq);
 	wake_up_interruptible_all(&ssk->recv_wq);
@@ -460,17 +498,19 @@ static int stcp_sendmsg(
 		return -EINVAL;
 
 	mutex_lock(&ssk->tx_lock);
-	if (!ssk->tx_buffer)
-		ssk->tx_buffer = kmalloc(STCP_IO_BUFFER_MAX, GFP_KERNEL);
-	buffer = ssk->tx_buffer;
-	if (!buffer) {
-		mutex_unlock(&ssk->tx_lock);
-		return -ENOMEM;
-	}
 
 	while (total < len) {
 		size_t chunk = min_t(size_t, len - total, STCP_IO_BUFFER_MAX);
 		int wait_ret;
+
+		ret = stcp_ensure_io_buffer(
+			&ssk->tx_buffer,
+			&ssk->tx_buffer_size,
+			chunk
+		);
+		if (ret < 0)
+			break;
+		buffer = ssk->tx_buffer;
 
 		if (!copy_from_iter_full(buffer, chunk, &msg->msg_iter)) {
 			ret = total ? (ssize_t)total : -EFAULT;
@@ -546,14 +586,16 @@ static int stcp_recvmsg(
 		return -EINVAL;
 
 	mutex_lock(&ssk->rx_lock);
-	if (!ssk->rx_buffer)
-		ssk->rx_buffer = kmalloc(STCP_IO_BUFFER_MAX, GFP_KERNEL);
-	buffer = ssk->rx_buffer;
-	if (!buffer) {
+	ret = stcp_ensure_io_buffer(
+		&ssk->rx_buffer,
+		&ssk->rx_buffer_size,
+		len
+	);
+	if (ret < 0) {
 		mutex_unlock(&ssk->rx_lock);
-		return -ENOMEM;
+		return ret;
 	}
-
+	buffer = ssk->rx_buffer;
 
 	for (;;) {
 		ret = stcp_rust_recv(

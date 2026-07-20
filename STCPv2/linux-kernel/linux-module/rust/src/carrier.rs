@@ -146,14 +146,24 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         return error.errno();
     }
 
+    /* Snapshot only. Do not call is_connected() here: it advances the
+     * handshake and can perform the Ready transition before the baseline is
+     * captured, losing the only connect wakeup. */
+    let was_connected = crate::session::is_ready_snapshot(ctx);
+
     match crate::session::progress_receive(ctx) {
         Ok(readable) => {
+            let became_connected =
+                !was_connected && crate::session::is_ready_snapshot(ctx);
+
             /*
-             * Wake only after complete DATA or EOF has been published. Partial
-             * TCP frames remain queued and the next carrier append retries the
-             * parser, avoiding wake storms and lost readiness transitions.
+             * Wake after complete DATA/EOF publication and exactly once when
+             * the handshake transitions to Ready. connect() sleeps on the same
+             * wait queue, so suppressing the Ready wake leaves it blocked until
+             * its timeout even though the Rust session is already connected.
+             * Partial TCP frames still do not generate wakeups.
              */
-            if readable {
+            if readable || became_connected {
                 wake_recv(owner);
             }
         }

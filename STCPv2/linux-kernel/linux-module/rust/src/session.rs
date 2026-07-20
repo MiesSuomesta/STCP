@@ -614,8 +614,20 @@ pub fn send(
             .checked_add(NONCE_LEN)
             .and_then(|value| value.checked_add(encrypted_len))
             .ok_or(StcpError::Protocol)?;
-        let mut frame = Vec::new();
-        frame.try_reserve_exact(frame_len).map_err(|_| StcpError::NoMem)?;
+        /*
+         * TCP fast path reuses one frame allocation per socket. UDP keeps an
+         * Arc because reliability may retain the encrypted bytes for retry.
+         */
+        let mut frame = if reliable {
+            Vec::new()
+        } else {
+            core::mem::take(&mut ctx.inner.lock().tx_frame_scratch)
+        };
+        frame.clear();
+        if frame.capacity() < frame_len {
+            frame.try_reserve_exact(frame_len - frame.capacity())
+                .map_err(|_| StcpError::NoMem)?;
+        }
         frame.resize(frame_len, 0);
         frame[..STCP_HEADER_LEN].copy_from_slice(&header);
         frame[STCP_HEADER_LEN..STCP_HEADER_LEN + NONCE_LEN]
@@ -627,25 +639,19 @@ pub fn send(
             &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
         )?;
         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
-        let frame: Arc<[u8]> = frame.into();
 
-        {
-            let mut inner = ctx.inner.lock();
-            if inner.state != SocketState::Ready ||
-               inner.tx_sequence != sequence ||
-               inner.tx_nonce != nonce
+        if reliable {
+            let frame: Arc<[u8]> = frame.into();
             {
-                return Err(StcpError::Again);
-            }
-
-            inner.tx_nonce = inner.tx_nonce
-                .checked_add(1)
-                .ok_or(StcpError::Crypto)?;
-            inner.tx_sequence = inner.tx_sequence
-                .checked_add(1)
-                .ok_or(StcpError::Protocol)?;
-
-            if reliable {
+                let mut inner = ctx.inner.lock();
+                if inner.state != SocketState::Ready ||
+                   inner.tx_sequence != sequence ||
+                   inner.tx_nonce != nonce
+                {
+                    return Err(StcpError::Again);
+                }
+                inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+                inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
                 let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
                 inner.pending_frames.push_back(PendingFrame {
                     sequence,
@@ -657,9 +663,24 @@ pub fn send(
                 });
                 inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
             }
+            send_frame(ctx, &shared, side, &frame, 0)?;
+        } else {
+            {
+                let mut inner = ctx.inner.lock();
+                if inner.state != SocketState::Ready ||
+                   inner.tx_sequence != sequence ||
+                   inner.tx_nonce != nonce
+                {
+                    inner.tx_frame_scratch = frame;
+                    return Err(StcpError::Again);
+                }
+                inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+                inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+            }
+            let send_result = send_frame(ctx, &shared, side, &frame, 0);
+            ctx.inner.lock().tx_frame_scratch = frame;
+            send_result?;
         }
-
-        send_frame(ctx, &shared, side, &frame, 0)?;
         position = end;
     }
 
@@ -729,7 +750,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
     crate::carrier::debug_event(120,ctx,0,0);
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else {break;}; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
-      PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); let ciphertext=frame.payload[NONCE_LEN..].to_vec(); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext}); }
+      PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext:frame.payload}); }
       PacketType::Ack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_acks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_acks.push(header.acknowledgment); }
       PacketType::Ping => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_pongs.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_pongs.push(header.sequence); }
       PacketType::Pong => { if !frame.payload.is_empty(){return protocol_error(ctx);} }
@@ -816,7 +837,9 @@ fn process_in_order_frame(
     };
 
     let aad = frame.header.encode();
-    let plaintext = crypto.decrypt(frame.nonce, &aad, &frame.ciphertext)?;
+    /* ciphertext owns the original wire payload; skip the nonce prefix
+     * directly instead of copying the encrypted body into a second Vec. */
+    let plaintext = crypto.decrypt(frame.nonce, &aad, &frame.ciphertext[NONCE_LEN..])?;
 
     let became_readable = {
         let mut inner = ctx.inner.lock();
@@ -1160,8 +1183,12 @@ pub fn is_connected(ctx: &StcpContext) -> bool {
     is_ready(ctx)
 }
 
-fn is_ready(ctx: &StcpContext) -> bool {
+pub(crate) fn is_ready_snapshot(ctx: &StcpContext) -> bool {
     ctx.inner.lock().state == SocketState::Ready
+}
+
+fn is_ready(ctx: &StcpContext) -> bool {
+    is_ready_snapshot(ctx)
 }
 
 pub fn shutdown(

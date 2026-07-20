@@ -146,14 +146,25 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         return error.errno();
     }
 
-    if let Err(error) = crate::session::progress_handshake(ctx) {
-        /* Before accept() attaches the UDP child carrier, ENOTCONN is expected. */
-        if error.errno() != -107 {
-            return error.errno();
+    match crate::session::progress_receive(ctx) {
+        Ok(readable) => {
+            /*
+             * Wake only after complete DATA or EOF has been published. Partial
+             * TCP frames remain queued and the next carrier append retries the
+             * parser, avoiding wake storms and lost readiness transitions.
+             */
+            if readable {
+                wake_recv(owner);
+            }
+        }
+        Err(error) => {
+            /* Before accept() attaches the UDP child carrier, ENOTCONN is expected. */
+            if error.errno() != -107 && error.errno() != -11 {
+                return error.errno();
+            }
         }
     }
 
-    wake_recv(owner);
     0
 }
 

@@ -1,0 +1,53 @@
+=== STCP functional smoke test ===
+payload sizes: 64, 4096, 65536 bytes
+timeout:       5.0 s per case
+
+[1/3] 64 bytes on port 7777: PASS (33.07 ms)
+[2/3] 4096 bytes on port 7778: PASS (29.57 ms)
+[3/3] 65536 bytes on port 7779: PASS (29.83 ms)
+
+STCP functional test: PASS
+
+=== STCP throughput: 16 clients / 25 s ===
+=== STCP Python stress test ===
+mode:             throughput
+clients:          16
+payload:          262144 bytes
+duration:         25.0 s
+report interval:  5.0 s
+verify payload:   True
+pipeline depth:   1
+
+[    5.0s] TX  58.90 MiB/s  RX  58.45 MiB/s  ops    233.8/s  conn +16/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  50.38 p95= 121.23 p99= 146.62 ms  CPU= 241.6% RSS=   31.5 MiB  total=292.2 MiB
+[   10.0s] TX  65.05 MiB/s  RX  65.25 MiB/s  ops    261.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  44.13 p95=  56.88 p99=  87.06 ms  CPU= 255.0% RSS=   31.6 MiB  total=618.5 MiB
+[   15.0s] TX  64.95 MiB/s  RX  64.65 MiB/s  ops    258.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  44.18 p95=  57.21 p99=  98.72 ms  CPU= 252.4% RSS=   31.6 MiB  total=942.0 MiB
+[   20.0s] TX  65.83 MiB/s  RX  66.13 MiB/s  ops    264.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  42.76 p95=  56.44 p99= 131.60 ms  CPU= 257.9% RSS=   31.7 MiB  total=1272.8 MiB
+[   25.0s] TX  60.82 MiB/s  RX  60.92 MiB/s  ops    243.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  45.53 p95=  70.32 p99= 130.64 ms  CPU= 235.9% RSS=   32.1 MiB  total=1577.0 MiB
+
+=== Final result ===
+elapsed:             25.312 s
+connections ok:      16
+connections failed:  0
+sends ok/failed:     6317/0
+recvs ok/failed:     6311/0
+verify failures:     0
+server errors:       0
+bytes sent:          1655963648
+bytes received:      1654390784
+TX throughput:       62.39 MiB/s
+RX throughput:       62.33 MiB/s
+operations:          249.3/s
+RTT latency:         avg=48.87 p50=44.70 p95=86.19 p99=139.54 max=194.95 ms
+JSON result:         result-throughput-4.json
+
+=== STCP mixed: 16 clients / 30 s ===
+=== STCP Python stress test ===
+mode:             mixed
+clients:          16
+payload:          262144 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   True
+
+[    5.0s] TX  40.38 MiB/s  RX  39.83 MiB/s  ops    159.3/s  conn +16/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  95.34 p95= 164.24 p99= 184.89 ms  CPU= 145.8% RSS=   31.2 MiB  total=199.5 MiB
+[   10.0s] TX  63.63 MiB/s  RX  64.03 MiB/s  ops    256.1/s  conn +13/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  41.97 p95=  93.59 p99= 149.00 ms  CPU= 236.7% RSS=   31.0 MiB  total=520.0 MiB

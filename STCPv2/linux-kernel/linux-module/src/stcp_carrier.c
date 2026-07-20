@@ -20,7 +20,7 @@
 #include "stcp_carrier.h"
 #include "stcp_test.h"
 
-#define STCP_CARRIER_TCP_RX_BUFFER_SIZE (2 * 1024 * 1024)
+#define STCP_CARRIER_TCP_RX_BUFFER_SIZE (4 * 1024 * 1024)
 #define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
 
 struct stcp_carrier {
@@ -339,9 +339,6 @@ static int stcp_receiver_thread(void *argument)
 			peer_port = (__force u16)sin->sin_port;
 		}
 
-		pr_info("stcp: carrier RX carrier=%px ctx=%px owner=%px bytes=%zd peer=%pI4:%u kind=%d\n",
-			carrier, carrier->rust_ctx, carrier->owner, received_len,
-			&peer_addr, ntohs((__force __be16)peer_port), carrier->kind);
 
 		ret = stcp_rust_carrier_receive_from(
 			carrier->rust_ctx,
@@ -351,20 +348,15 @@ static int stcp_receiver_thread(void *argument)
 			peer_port
 		);
 
-		pr_info("stcp: carrier Rust RX carrier=%px ctx=%px owner=%px bytes=%zd ret=%d\n",
-			carrier, carrier->rust_ctx, carrier->owner, received_len, ret);
 
 		cond_resched();
 		if (ret)
 			pr_err_ratelimited("stcp: Rust carrier receive failed: %d\n", ret);
 
-		/*
-		 * Keep the carrier-side wake as a correctness fallback. During
-		 * handshake/accept the Rust owner may not yet be attached, so the
-		 * Rust wake can legitimately be a no-op. waitqueue_active() inside
-		 * stcp_kernel_wake_recv() keeps this cheap when nobody sleeps.
-		 */
-		stcp_kernel_wake_recv(carrier->owner);
+		/* Rust queue_to_context() performs the normal wake.  Keep only the
+		 * pre-attachment fallback used during handshake/accept. */
+		if (!carrier->rust_ctx)
+			stcp_kernel_wake_recv(carrier->owner);
 	}
 
 	kvfree_sensitive(buffer, buffer_size);

@@ -234,3 +234,41 @@ Previously crypto readiness alone made `connect()` succeed, allowing the first D
 
 High-frequency numeric `rust event=...` tracing is disabled in this package.
 Error and major state-transition logging remains available through the normal STCP kernel logs.
+
+
+## Performance build changes
+
+- Hot-path C/Rust event and carrier/send/recv printk logging disabled.
+- TCP userspace I/O batching increased to 4 MiB.
+- TCP receive carrier buffer increased to 4 MiB.
+- Stream DATA payload increased from 1 MiB to 2 MiB (UDP remains 60 KiB).
+- ByteQueue chunks increased to 256 KiB to reduce allocation count.
+- TCP TX readiness/send no longer runs the RX control parser unnecessarily.
+- Duplicate carrier-side recv wake removed; Rust queue insertion owns the normal wake.
+
+The reliable UDP path keeps STCP ACK/window processing unchanged.
+
+
+## Churn CLOSE/EOF and teardown fix
+
+- `close(fd)` now transmits the existing STCP `Close` control frame before the
+  Rust context and carrier are detached.
+- The peer parser marks `peer_eof` and wakes the receive waitqueue; blocking
+  `recv()` then returns `0` with normal BSD EOF semantics.
+- Carrier shutdown still runs before `stcp_rust_release()`, preventing late RX
+  callbacks from touching a freed Rust context.
+- Python churn handlers close immediately on EOF. The idle timeout remains only
+  as a 10-second fallback for crashed/ungraceful peers.
+- The prior 4 MiB I/O, 2 MiB stream-frame, reduced parser work and datapath-log
+  performance changes remain included.
+
+## 2026-07-20 churn/readiness and crypto hot-path update
+
+- Carrier RX now parses and publishes complete DATA/EOF before waking `recv_wq`.
+- `has_data()` is side-effect free; it no longer runs the parser from poll/wait conditions.
+- This closes a lost-wakeup race that could leave churn connections sleeping after data had arrived.
+- ChaCha encrypt/decrypt and large frame allocation run outside the Rust socket spinlock.
+- The short lock is used only to snapshot and commit sequence/nonce state.
+- `stcp_stress.py` accepts both `--report-every` and `--report-interval`.
+- `run_stress_suite.sh` now honors `--duration`, `--pipeline`, `--clients`, `--payload`, and report interval options.
+- Throughput suite defaults to 8 clients, 1 MiB payload, pipeline depth 8.

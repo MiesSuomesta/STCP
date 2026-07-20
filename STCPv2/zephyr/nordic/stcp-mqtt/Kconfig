@@ -1,0 +1,93 @@
+mainmenu "STCP transport benchmark"
+
+source "Kconfig.zephyr"
+
+menu "Echo benchmark"
+
+config ECHO_SERVER_HOST
+    string "Echo server hostname or IPv4 address"
+    default "lja.fi"
+
+config ECHO_SERVER_PORT
+    string "Echo server port"
+    default "19000"
+
+choice ECHO_TRANSPORT
+    prompt "Echo transport"
+    default ECHO_TRANSPORT_TCP
+
+config ECHO_TRANSPORT_TCP
+    bool "TCP"
+
+config ECHO_TRANSPORT_STCP
+    bool "STCP over current carrier"
+
+endchoice
+
+config ECHO_PAYLOAD_SIZE
+    int "Echo payload size"
+    default 1024
+    range 1 4096
+
+config ECHO_ITERATIONS
+    int "Number of echo round trips"
+    default 100
+    range 1 100000
+
+config ECHO_SOCKET_TIMEOUT_MS
+    int "Socket send/receive timeout in milliseconds"
+    default 30000
+    range 1000 300000
+
+config BENCH_TOTAL_BYTES
+    int "Bytes transferred per direction in each throughput test"
+    default 1048576
+    range 4096 67108864
+
+config BENCH_CHUNK_SIZE
+    int "Streaming I/O chunk size"
+    default 4096
+    range 256 4096
+
+config BENCH_PAUSE_SECONDS
+    int "Pause between upload, download and full-duplex tests"
+    default 5
+    range 0 120
+
+config BENCH_REPORT_INTERVAL_MS
+    int "Progress report interval in milliseconds"
+    default 5000
+    range 0 600000
+    help
+      Controls how often the modem-side benchmark reports transferred bytes,
+      remaining bytes, percentage and average throughput. Set to 0 to disable
+      periodic reports; the final 100 percent report is still printed.
+
+config BENCH_SENDER_STACK_SIZE
+    int "Full-duplex sender thread stack size"
+    default 4096
+    range 2048 16384
+
+endmenu
+
+menu "Interactive benchmark control"
+
+config STCP_BENCH_SHELL
+    bool "Enable STCP benchmark shell commands"
+    default y
+    select SHELL
+    help
+      Builds the interactive 'stcp config' and 'stcp bench' command tree.
+      Disable this option to remove the shell command implementation and its
+      command tables from the firmware image.
+
+config STCP_BENCH_AUTORUN
+    bool "Run all throughput benchmarks automatically after LTE connects"
+    default n if STCP_BENCH_SHELL
+    default y if !STCP_BENCH_SHELL
+    help
+      Automatically runs upload, download and full-duplex benchmarks after
+      LTE registration. This can be enabled together with the shell if both
+      automatic and interactive testing are desired.
+
+endmenu

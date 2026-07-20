@@ -1,0 +1,330 @@
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          49152 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   1
+
+[    5.0s] TX 136.48 MiB/s  RX 136.47 MiB/s  ops   2911.3/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.29 p95=   1.95 p99=   2.40 ms  CPU= 190.8% RSS=   19.9 MiB  total=682.4 MiB
+[   10.0s] TX 134.66 MiB/s  RX 134.63 MiB/s  ops   2872.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.31 p95=   2.01 p99=   2.50 ms  CPU= 189.2% RSS=   20.6 MiB  total=1355.5 MiB
+[   15.0s] TX 133.77 MiB/s  RX 133.77 MiB/s  ops   2853.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.30 p95=   2.04 p99=   2.62 ms  CPU= 187.6% RSS=   21.3 MiB  total=2024.5 MiB
+[   20.0s] TX 134.27 MiB/s  RX 134.28 MiB/s  ops   2864.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.30 p95=   2.02 p99=   2.51 ms  CPU= 188.8% RSS=   22.0 MiB  total=2695.9 MiB
+[   25.0s] TX 134.34 MiB/s  RX 134.34 MiB/s  ops   2865.9/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.30 p95=   2.02 p99=   2.56 ms  CPU= 189.0% RSS=   22.7 MiB  total=3367.8 MiB
+[   30.0s] TX 135.37 MiB/s  RX 135.37 MiB/s  ops   2887.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.30 p95=   1.97 p99=   2.43 ms  CPU= 190.3% RSS=   23.4 MiB  total=4044.4 MiB
+
+=== Final result ===
+elapsed:             30.031 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     86289/0
+recvs ok/failed:     86286/0
+verify failures:     0
+server errors:       0
+bytes sent:          4241276928
+bytes received:      4241129472
+TX throughput:       134.69 MiB/s
+RX throughput:       134.68 MiB/s
+operations:          2873.3/s
+RTT latency:         avg=1.39 p50=1.30 p95=2.00 p99=2.51 max=11.94 ms
+JSON result:         udp-p1.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          49152 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   2
+
+[    5.0s] TX 127.72 MiB/s  RX 127.69 MiB/s  ops   2724.0/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.95 p95=   1.64 p99=  30.53 ms  CPU= 173.0% RSS=   19.7 MiB  total=638.4 MiB
+[   10.0s] TX 128.87 MiB/s  RX 128.87 MiB/s  ops   2749.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.91 p95=   1.56 p99=  31.07 ms  CPU= 175.4% RSS=   20.1 MiB  total=1282.9 MiB
+[   15.0s] TX 129.59 MiB/s  RX 129.55 MiB/s  ops   2763.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.92 p95=   1.57 p99=  29.41 ms  CPU= 176.2% RSS=   20.5 MiB  total=1930.7 MiB
+[   20.0s] TX 131.91 MiB/s  RX 131.95 MiB/s  ops   2815.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.96 p95=   1.68 p99=  28.25 ms  CPU= 179.4% RSS=   20.8 MiB  total=2590.5 MiB
+[   25.0s] TX 129.65 MiB/s  RX 129.63 MiB/s  ops   2765.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.92 p95=   1.62 p99=  31.46 ms  CPU= 176.0% RSS=   21.1 MiB  total=3238.7 MiB
+[   30.0s] TX 127.76 MiB/s  RX 127.76 MiB/s  ops   2725.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.93 p95=   1.58 p99=  30.31 ms  CPU= 173.7% RSS=   21.4 MiB  total=3877.3 MiB
+
+=== Final result ===
+elapsed:             32.005 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     82724/0
+recvs ok/failed:     82716/0
+verify failures:     0
+server errors:       0
+bytes sent:          4066050048
+bytes received:      4065656832
+TX throughput:       121.16 MiB/s
+RX throughput:       121.15 MiB/s
+operations:          2584.5/s
+RTT latency:         avg=1.45 p50=0.93 p95=1.61 p99=30.16 max=109.80 ms
+JSON result:         udp-p2.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          49152 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   4
+
+[    5.0s] TX 111.34 MiB/s  RX 111.19 MiB/s  ops   2372.1/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.67 p95=  13.94 p99=  18.74 ms  CPU= 151.6% RSS=   19.3 MiB  total=556.1 MiB
+[   10.0s] TX 104.32 MiB/s  RX 104.32 MiB/s  ops   2225.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.65 p95=  13.01 p99=  19.64 ms  CPU= 143.0% RSS=   19.4 MiB  total=1077.8 MiB
+[   15.0s] TX 102.67 MiB/s  RX 102.71 MiB/s  ops   2191.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.66 p95=  14.76 p99=  19.05 ms  CPU= 142.6% RSS=   19.6 MiB  total=1591.3 MiB
+[   20.0s] TX 105.75 MiB/s  RX 105.71 MiB/s  ops   2255.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.67 p95=  14.35 p99=  19.31 ms  CPU= 145.0% RSS=   19.8 MiB  total=2119.9 MiB
+[   25.0s] TX 109.65 MiB/s  RX 109.69 MiB/s  ops   2340.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.65 p95=  13.92 p99=  18.95 ms  CPU= 149.8% RSS=   20.0 MiB  total=2668.3 MiB
+[   30.0s] TX  88.05 MiB/s  RX  88.05 MiB/s  ops   1878.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.71 p95=  15.47 p99=  20.26 ms  CPU= 117.2% RSS=   20.1 MiB  total=3108.4 MiB
+
+=== Final result ===
+elapsed:             32.006 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     66328/0
+recvs ok/failed:     66316/0
+verify failures:     0
+server errors:       0
+bytes sent:          3260153856
+bytes received:      3259564032
+TX throughput:       97.14 MiB/s
+RX throughput:       97.13 MiB/s
+operations:          2072.0/s
+RTT latency:         avg=1.80 p50=0.67 p95=14.21 p99=19.17 max=134.23 ms
+JSON result:         udp-p4.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          49152 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   8
+
+[    5.0s] TX  79.42 MiB/s  RX  79.20 MiB/s  ops   1689.6/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.46 p95=   9.62 p99=  28.48 ms  CPU= 122.2% RSS=   19.2 MiB  total=396.0 MiB
+[   10.0s] TX  66.60 MiB/s  RX  66.52 MiB/s  ops   1419.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.49 p95=   9.72 p99=  29.00 ms  CPU= 111.2% RSS=   19.2 MiB  total=728.6 MiB
+[   15.0s] TX  70.87 MiB/s  RX  70.87 MiB/s  ops   1512.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.49 p95=   9.88 p99=  28.13 ms  CPU= 113.0% RSS=   19.7 MiB  total=1083.0 MiB
+[   20.0s] TX  70.50 MiB/s  RX  70.57 MiB/s  ops   1505.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.50 p95=   9.92 p99=  27.77 ms  CPU= 110.4% RSS=   19.7 MiB  total=1435.9 MiB
+[   25.0s] TX  76.80 MiB/s  RX  76.72 MiB/s  ops   1636.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.47 p95=   9.57 p99=  28.52 ms  CPU= 118.4% RSS=   19.8 MiB  total=1819.5 MiB
+[   30.0s] TX  75.61 MiB/s  RX  75.68 MiB/s  ops   1614.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.47 p95=   9.35 p99=  27.95 ms  CPU= 120.0% RSS=   19.8 MiB  total=2197.9 MiB
+
+=== Final result ===
+elapsed:             32.001 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     46912/0
+recvs ok/failed:     46896/0
+verify failures:     0
+server errors:       0
+bytes sent:          2305818624
+bytes received:      2305032192
+TX throughput:       68.72 MiB/s
+RX throughput:       68.69 MiB/s
+operations:          1465.4/s
+RTT latency:         avg=2.55 p50=0.48 p95=9.69 p99=28.28 max=288.71 ms
+JSON result:         udp-p8.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          49152 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   2
+
+[    5.0s] TX 132.27 MiB/s  RX 132.20 MiB/s  ops   2820.3/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.94 p95=   1.58 p99=  28.91 ms  CPU= 179.2% RSS=   19.6 MiB  total=661.0 MiB
+[   10.0s] TX 131.78 MiB/s  RX 131.78 MiB/s  ops   2811.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.92 p95=   1.60 p99=  29.65 ms  CPU= 178.6% RSS=   20.0 MiB  total=1320.0 MiB
+[   15.0s] TX 131.43 MiB/s  RX 131.45 MiB/s  ops   2804.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.92 p95=   1.53 p99=  31.21 ms  CPU= 178.8% RSS=   20.4 MiB  total=1977.3 MiB
+[   20.0s] TX 130.98 MiB/s  RX 131.00 MiB/s  ops   2794.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.93 p95=   1.59 p99=  30.96 ms  CPU= 177.6% RSS=   20.7 MiB  total=2632.3 MiB
+[   25.0s] TX 126.50 MiB/s  RX 126.47 MiB/s  ops   2698.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.93 p95=   1.56 p99=  32.64 ms  CPU= 172.6% RSS=   21.0 MiB  total=3264.7 MiB
+[   30.0s] TX 130.98 MiB/s  RX 130.98 MiB/s  ops   2794.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.94 p95=   1.62 p99=  30.18 ms  CPU= 178.2% RSS=   21.3 MiB  total=3919.5 MiB
+
+=== Final result ===
+elapsed:             30.032 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     83624/0
+recvs ok/failed:     83620/0
+verify failures:     0
+server errors:       0
+bytes sent:          4110286848
+bytes received:      4110090240
+TX throughput:       130.52 MiB/s
+RX throughput:       130.52 MiB/s
+operations:          2784.3/s
+RTT latency:         avg=1.43 p50=0.93 p95=1.58 p99=30.26 max=109.58 ms
+JSON result:         udp-49152.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          98304 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   2
+
+[    5.0s] TX  81.97 MiB/s  RX  81.90 MiB/s  ops    873.6/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.34 p95=  34.25 p99=  39.00 ms  CPU= 114.2% RSS=   19.8 MiB  total=409.5 MiB
+[   10.0s] TX  76.49 MiB/s  RX  76.49 MiB/s  ops    815.9/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.40 p95=  33.67 p99=  39.62 ms  CPU= 109.3% RSS=   19.9 MiB  total=792.2 MiB
+[   15.0s] TX  86.92 MiB/s  RX  86.85 MiB/s  ops    926.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.35 p95=  33.73 p99=  39.17 ms  CPU= 119.2% RSS=   20.1 MiB  total=1226.4 MiB
+[   20.0s] TX  79.27 MiB/s  RX  79.27 MiB/s  ops    845.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.36 p95=  35.06 p99=  39.35 ms  CPU= 114.8% RSS=   20.2 MiB  total=1622.8 MiB
+[   25.0s] TX  78.02 MiB/s  RX  78.06 MiB/s  ops    832.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.39 p95=  33.53 p99=  40.08 ms  CPU= 112.8% RSS=   20.4 MiB  total=2013.2 MiB
+[   30.0s] TX  73.07 MiB/s  RX  73.04 MiB/s  ops    779.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.41 p95=  35.20 p99=  40.61 ms  CPU= 108.9% RSS=   20.5 MiB  total=2378.1 MiB
+
+=== Final result ===
+elapsed:             32.002 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     25374/0
+recvs ok/failed:     25368/0
+verify failures:     0
+server errors:       0
+bytes sent:          2494365696
+bytes received:      2493775872
+TX throughput:       74.33 MiB/s
+RX throughput:       74.32 MiB/s
+operations:          792.7/s
+RTT latency:         avg=4.72 p50=1.38 p95=34.15 p99=39.67 max=267.70 ms
+JSON result:         udp-98304.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          196608 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   2
+
+[    5.0s] TX  51.07 MiB/s  RX  50.77 MiB/s  ops    270.8/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.41 p95=  41.45 p99= 250.18 ms  CPU=  87.0% RSS=   20.9 MiB  total=253.9 MiB
+[   10.0s] TX  62.40 MiB/s  RX  62.40 MiB/s  ops    332.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.33 p95=  40.46 p99= 114.94 ms  CPU=  98.4% RSS=   20.9 MiB  total=565.9 MiB
+[   15.0s] TX  54.00 MiB/s  RX  54.00 MiB/s  ops    288.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.43 p95= 105.83 p99= 115.45 ms  CPU=  92.2% RSS=   21.0 MiB  total=835.9 MiB
+[   20.0s] TX  67.95 MiB/s  RX  68.02 MiB/s  ops    362.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.25 p95=  38.61 p99= 113.16 ms  CPU= 100.6% RSS=   21.0 MiB  total=1176.0 MiB
+[   25.0s] TX  58.57 MiB/s  RX  58.50 MiB/s  ops    312.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.35 p95=  40.39 p99= 114.51 ms  CPU=  94.8% RSS=   21.1 MiB  total=1468.5 MiB
+[   30.0s] TX  51.83 MiB/s  RX  51.91 MiB/s  ops    276.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.41 p95=  41.25 p99= 116.00 ms  CPU=  89.4% RSS=   21.1 MiB  total=1728.0 MiB
+
+=== Final result ===
+elapsed:             32.001 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     9224/0
+recvs ok/failed:     9216/0
+verify failures:     0
+server errors:       0
+bytes sent:          1813512192
+bytes received:      1811939328
+TX throughput:       54.04 MiB/s
+RX throughput:       54.00 MiB/s
+operations:          288.0/s
+RTT latency:         avg=12.95 p50=2.36 p95=40.81 p99=115.34 max=1159.18 ms
+JSON result:         udp-196608.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          262144 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   2
+
+[    5.0s] TX  45.70 MiB/s  RX  45.30 MiB/s  ops    181.2/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   3.21 p95= 107.72 p99= 262.64 ms  CPU=  79.4% RSS=   21.7 MiB  total=226.5 MiB
+[   10.0s] TX  46.20 MiB/s  RX  46.30 MiB/s  ops    185.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   3.88 p95= 112.71 p99= 265.05 ms  CPU=  84.6% RSS=   21.7 MiB  total=458.0 MiB
+[   15.0s] TX  54.50 MiB/s  RX  54.50 MiB/s  ops    218.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   3.14 p95= 106.88 p99= 119.24 ms  CPU=  90.8% RSS=   21.8 MiB  total=730.5 MiB
+[   20.0s] TX  58.80 MiB/s  RX  58.80 MiB/s  ops    235.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   3.04 p95= 106.91 p99= 256.21 ms  CPU=  77.0% RSS=   21.8 MiB  total=1024.5 MiB
+[   25.0s] TX  52.20 MiB/s  RX  52.10 MiB/s  ops    208.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   3.11 p95= 109.32 p99= 247.64 ms  CPU=  66.4% RSS=   21.8 MiB  total=1285.0 MiB
+[   30.0s] TX  59.90 MiB/s  RX  59.90 MiB/s  ops    239.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.89 p95= 105.32 p99= 264.29 ms  CPU=  76.0% RSS=   21.9 MiB  total=1584.5 MiB
+
+=== Final result ===
+elapsed:             32.002 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     6346/0
+recvs ok/failed:     6338/0
+verify failures:     0
+server errors:       0
+bytes sent:          1663565824
+bytes received:      1661468672
+TX throughput:       49.58 MiB/s
+RX throughput:       49.51 MiB/s
+operations:          198.1/s
+RTT latency:         avg=18.80 p50=3.10 p95=108.71 p99=260.01 max=1169.87 ms
+JSON result:         udp-262144.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          524288 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   2
+
+[    5.0s] TX  43.80 MiB/s  RX  43.00 MiB/s  ops     86.0/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.16 p95= 262.96 p99= 557.97 ms  CPU=  56.8% RSS=   23.9 MiB  total=215.0 MiB
+[   10.0s] TX  34.00 MiB/s  RX  34.00 MiB/s  ops     68.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   6.60 p95= 253.46 p99=1166.69 ms  CPU=  41.8% RSS=   23.9 MiB  total=385.0 MiB
+[   15.0s] TX  27.00 MiB/s  RX  27.00 MiB/s  ops     54.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   6.54 p95= 260.71 p99=1141.81 ms  CPU=  33.6% RSS=   23.9 MiB  total=520.0 MiB
+[   20.0s] TX  22.80 MiB/s  RX  22.80 MiB/s  ops     45.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  10.22 p95= 546.63 p99=1138.15 ms  CPU=  32.2% RSS=   23.9 MiB  total=634.0 MiB
+[   25.0s] TX  23.40 MiB/s  RX  23.40 MiB/s  ops     46.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  31.77 p95= 264.99 p99= 556.74 ms  CPU=  32.4% RSS=   23.9 MiB  total=751.0 MiB
+[   30.0s] TX  24.81 MiB/s  RX  24.81 MiB/s  ops     49.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  29.80 p95= 261.83 p99=1128.49 ms  CPU=  33.2% RSS=   23.9 MiB  total=875.0 MiB
+
+=== Final result ===
+elapsed:             32.001 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     1758/0
+recvs ok/failed:     1750/0
+verify failures:     0
+server errors:       0
+bytes sent:          921698304
+bytes received:      917504000
+TX throughput:       27.47 MiB/s
+RX throughput:       27.34 MiB/s
+operations:          54.7/s
+RTT latency:         avg=66.29 p50=7.27 p95=262.46 p99=1128.49 max=2344.13 ms
+JSON result:         udp-524288.json
+=== STCP Python stress test ===
+transport:        UDP
+protocol:         254
+mode:             throughput
+clients:          4
+payload:          1048576 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   2
+
+[    5.0s] TX  14.80 MiB/s  RX  13.20 MiB/s  ops     13.2/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  46.46 p95=1134.17 p99=1138.90 ms  CPU=  20.2% RSS=   27.7 MiB  total=66.0 MiB
+[   10.0s] TX   8.80 MiB/s  RX   8.80 MiB/s  ops      8.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 114.73 p95=1141.03 p99=2319.84 ms  CPU=  13.6% RSS=   27.8 MiB  total=110.0 MiB
+[   15.0s] TX   2.80 MiB/s  RX   2.80 MiB/s  ops      2.8/s  conn +0/-0  errors s=0 r=1 v=0 srv=0  RTT p50= 112.48 p95=4119.19 p99=4119.19 ms  CPU=   5.6% RSS=   25.6 MiB  total=124.0 MiB
+[   20.0s] TX   3.60 MiB/s  RX   3.60 MiB/s  ops      3.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  46.87 p95= 563.65 p99= 563.65 ms  CPU=   6.4% RSS=   25.6 MiB  total=142.0 MiB
+[   25.0s] TX   1.60 MiB/s  RX   1.60 MiB/s  ops      1.6/s  conn +0/-0  errors s=0 r=1 v=0 srv=0  RTT p50= 265.23 p95=2288.96 p99=2288.96 ms  CPU=   3.2% RSS=   23.3 MiB  total=150.0 MiB
+[   30.0s] TX   4.80 MiB/s  RX   4.80 MiB/s  ops      4.8/s  conn +0/-0  errors s=0 r=1 v=0 srv=0  RTT p50= 115.09 p95= 564.73 p99= 564.73 ms  CPU=   8.2% RSS=   21.0 MiB  total=174.0 MiB
+
+=== Final result ===
+elapsed:             32.001 s
+connections ok:      4
+connections failed:  0
+sends ok/failed:     182/0
+recvs ok/failed:     174/3
+verify failures:     0
+server errors:       0
+bytes sent:          190840832
+bytes received:      182452224
+TX throughput:       5.69 MiB/s
+RX throughput:       5.44 MiB/s
+operations:          5.4/s
+RTT latency:         avg=275.72 p50=110.33 p95=1138.90 p99=4119.19 max=4119.19 ms
+JSON result:         udp-1048576.json

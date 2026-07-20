@@ -22,7 +22,9 @@ struct stcp_sock {
 	struct mutex tx_lock;
 	struct mutex rx_lock;
 	u8 *tx_buffer;
+	size_t tx_buffer_size;
 	u8 *rx_buffer;
+	size_t rx_buffer_size;
 
 	/* Active-users registry used by the graceful unload helper. */
 	struct list_head user_node;

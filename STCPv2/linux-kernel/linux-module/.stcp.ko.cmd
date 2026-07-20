@@ -1,1 +1,0 @@
-savedcmd_stcp.ko := ld.lld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/scripts/module.lds -o stcp.ko stcp.o stcp.mod.o .module-common.o

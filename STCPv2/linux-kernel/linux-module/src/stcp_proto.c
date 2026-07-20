@@ -183,7 +183,9 @@ static int stcp_create(
 	mutex_init(&ssk->tx_lock);
 	mutex_init(&ssk->rx_lock);
 	ssk->tx_buffer = NULL;
+	ssk->tx_buffer_size = 0;
 	ssk->rx_buffer = NULL;
+	ssk->rx_buffer_size = 0;
 
 	ret = stcp_rust_create(
 		(u8)protocol,
@@ -265,7 +267,9 @@ struct sock *stcp_alloc_child_sock(
 	mutex_init(&ssk->tx_lock);
 	mutex_init(&ssk->rx_lock);
 	ssk->tx_buffer = NULL;
+	ssk->tx_buffer_size = 0;
 	ssk->rx_buffer = NULL;
+	ssk->rx_buffer_size = 0;
 
 	return newsk;
 }

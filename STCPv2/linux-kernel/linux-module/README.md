@@ -272,3 +272,44 @@ The reliable UDP path keeps STCP ACK/window processing unchanged.
 - `stcp_stress.py` accepts both `--report-every` and `--report-interval`.
 - `run_stress_suite.sh` now honors `--duration`, `--pipeline`, `--clients`, `--payload`, and report interval options.
 - Throughput suite defaults to 8 clients, 1 MiB payload, pipeline depth 8.
+
+## Performance pass (paketti 13)
+
+TCP hot-path changes:
+
+- Reuse a per-socket encrypted TX frame allocation instead of allocating a new
+  multi-megabyte `Vec` for every stream frame.
+- Keep the UDP reliability path unchanged: retransmittable frames still use
+  `Arc<[u8]>` ownership.
+- Remove the second RX ciphertext copy. The parser now transfers ownership of
+  the complete wire payload and decrypts directly from the slice after the
+  nonce prefix.
+- Increase C socket I/O scratch buffers and TCP carrier RX batches to 8 MiB.
+- Increase `ByteQueue` chunks to 1 MiB to reduce allocation and queue metadata
+  overhead for large stream transfers.
+
+The stable handshake, CLOSE/EOF and churn fixes are retained.
+
+## KASAN large-allocation fix
+
+The per-socket C TX/RX scratch buffers no longer allocate the full maximum
+size with `kmalloc()` on the first small operation. Each buffer now grows only
+to the current capped I/O chunk with `kvmalloc()`, allowing vmalloc fallback on
+fragmented and KASAN kernels. The maximum C I/O chunk is 2 MiB, and release
+uses the matching `kvfree_sensitive(ptr, size)` path.
+
+## Handshake Ready wake fix
+
+Carrier RX now wakes the socket wait queue when the Rust session transitions
+from not-connected to Ready. This fixes blocking connect() waiting until the
+five-second timeout despite a completed handshake, while retaining the
+empty-to-readable wake optimization for normal DATA traffic.
+
+## Handshake Ready wake snapshot fix
+
+`queue_to_context()` no longer calls the side-effecting `is_connected()` helper
+when capturing the pre-parser state. `is_connected()` advances the handshake,
+so it could transition the socket to `Ready` before `was_connected` was stored.
+That made `became_connected` false and lost the only wakeup for blocking
+`connect()`. The carrier now compares side-effect-free state snapshots before
+and after `progress_receive()`.

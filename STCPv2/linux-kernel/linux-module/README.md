@@ -328,3 +328,10 @@ and after `progress_receive()`.
 - Plaintext is transferred to the application ByteQueue without allocation or copy.
 - TCP timer ticks no longer run a duplicate parser pass; carrier RX owns parsing.
 - Crypto self-test validates the in-place decrypt path at module load.
+
+
+## RX owned-chunk fast path
+- ByteQueue chunks are sized to 1 MiB payload plus 64-byte STCP crypto/frame overhead.
+- Complete frame payload chunks are detached and passed to in-place decrypt without a second copy.
+- Fragmented TCP input safely falls back to the existing copy path.
+- RX parser batch limit increased from 64 to 128 frames.

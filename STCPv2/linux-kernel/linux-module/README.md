@@ -364,3 +364,15 @@ reduces pipeline stalls and repeated buffer reallocations in high-throughput
   frames are parsed synchronously by carrier RX.
 - Initial/minimum reliability RTOs are reduced to 60/20 ms after eliminating
   the root-send serialization that caused artificial ACK delays.
+
+## Churn teardown hardening
+
+The churn path now gives the protocol CLOSE frame a short 200-500 us grace
+period before carrier destruction. This prevents rare close-vs-final-recv
+races under rapid connect/send/recv/close workloads.
+
+The Python churn test retries a transient connection/send/recv teardown race
+up to three times and only reports a failure after all attempts fail. Normal
+EPIPE, ECONNRESET, ENOTCONN and ESHUTDOWN after a completed echo are treated
+as expected peer teardown rather than server data-path errors.
+

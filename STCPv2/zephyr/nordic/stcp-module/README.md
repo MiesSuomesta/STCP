@@ -1,56 +1,64 @@
-# STCP Zephyr socket-offload stub
+# STCP Zephyr C port
 
-Out-of-tree Zephyr module implementing a stub BSD socket provider for:
+Zephyr 4.4 / nRF Connect SDK OOT socket-offload module derived from the Linux
+module's C architecture. Rust is neither included nor modified.
 
-- address family `AF_STCP` = 45
-- socket type `SOCK_STREAM`
-- protocol `STCP_PROTO` = 253
+## Build nRF9151 DK
 
-The package contains no Rust and no real STCP carrier. It provides the integration skeleton for Zephyr's BSD socket dispatcher and file-descriptor table.
-
-## Implemented stub operations
-
-- `socket()` creates a real Zephyr socket file descriptor
-- `bind()` stores the local STCP address
-- `listen()` moves the context to listener state
-- `connect()` succeeds immediately and stores the peer address
-- `send()` reports all bytes as accepted but does not transport them
-- `recv()` returns `EAGAIN` because there is no carrier
-- `accept()` returns `EAGAIN` because there are no incoming connections
-- `getsockname()`, `getpeername()`, `SO_ERROR`, `shutdown()`, `close()`
-- basic `fcntl(F_GETFL/F_SETFL)` nonblocking state
-
-`poll()` integration and real blocking waits are intentionally deferred until the carrier/core exists.
-
-## Add to an existing build
-
-```sh
-west build -p always -b native_sim/native path/to/app -- \
-  -DZEPHYR_EXTRA_MODULES=/absolute/path/to/stcp-zephyr-offload-stub
+```bash
+source ../.venv/bin/activate
+./scripts/build-nrf9151.sh
+./scripts/flash-nrf9151.sh
 ```
 
-Or run:
+Recover a protected target once if required:
 
-```sh
-./scripts/build-native.sh
-./build/zephyr/zephyr.exe
+```bash
+./scripts/flash-nrf9151.sh --recover
 ```
 
-## Nordic board example
+Serial console: 115200 8N1 on one of the J-Link `/dev/ttyACM*` ports.
 
-```sh
-west build -p always -b nrf52840dk/nrf52840 samples/stcp_offload_stub -- \
-  -DZEPHYR_EXTRA_MODULES="$PWD"
+## API
+
+```c
+int fd = zsock_socket(AF_STCP, SOCK_STREAM, STCP_PROTO_TCP);
+struct sockaddr_in addr = { .sin_family = AF_INET, ... };
+zsock_connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+zsock_send(fd, data, len, 0);
+zsock_recv(fd, buf, sizeof(buf), 0);
+zsock_close(fd);
 ```
 
-## Compatibility note
+See `docs/PORTING.md` for limitations and Linux-to-Zephyr mapping.
 
-Zephyr's internal FD/vtable API can change between NCS releases. This skeleton targets the current `socket_op_vtable`, `zvfs_reserve_fd()` and `zvfs_finalize_typed_fd()` model. If your checkout reports a signature or vtable member mismatch, compare against:
+## nRF9151 build and flash scripts
 
-```sh
-grep -R "struct socket_op_vtable" "$ZEPHYR_BASE/include" -n
-grep -R "NET_SOCKET_OFFLOAD_REGISTER" "$ZEPHYR_BASE/drivers" "$ZEPHYR_BASE/subsys" -n
-grep -R "zvfs_finalize_typed_fd" "$ZEPHYR_BASE/include" -n
+Build the application-core firmware for the nRF9151 DK:
+
+```bash
+./scripts/build-modem.sh
 ```
 
-The next implementation step is to replace `src/stcp_core_stub.c` with the portable C protocol core and add a carrier RX/TX adapter.
+Flash it with the default `nrfutil` runner:
+
+```bash
+./scripts/flash-modem.sh
+```
+
+If AP-Protect is enabled, recover and flash:
+
+```bash
+./scripts/flash-modem.sh --recover
+```
+
+Select a specific probe or J-Link runner:
+
+```bash
+./scripts/flash-modem.sh --serial 1052094012
+./scripts/flash-modem.sh --runner jlink
+```
+
+The build script compiles the Zephyr application for the nRF9151 application
+core. Nordic's modem firmware is a separately supplied binary and is not built
+from this project.

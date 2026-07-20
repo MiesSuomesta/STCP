@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-MODULE_DIR="$(cd -- "$(dirname -- "$0")/.." && pwd)"
-APP_DIR="$MODULE_DIR/samples/stcp_offload_stub"
-west build -p always -b native_sim/native "$APP_DIR" -- -DZEPHYR_EXTRA_MODULES="$MODULE_DIR"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+west build --no-sysbuild -p always -d "$ROOT/build-native" \
+  -b native_sim/native/64 "$ROOT/samples/stcp_c_port" -- \
+  -DZEPHYR_EXTRA_MODULES="$ROOT"

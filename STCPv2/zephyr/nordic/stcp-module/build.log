@@ -1,0 +1,87 @@
+-- west build: making build dir /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build pristine
+-- west build: generating a build system
+Loading Zephyr module(s) (Zephyr base): sysbuild_default
+-- Found Python3: /home/pomo/git/STCP/STCPv2/zephyr/nordic/.venv/bin/python3 (found suitable version "3.13.5", minimum required is "3.12") found components: Interpreter
+-- Cache files will be written to: /home/pomo/.cache/zephyr
+-- Found west (found suitable version "1.5.0", minimum required is "0.14.0")
+-- Board: native_sim, qualifiers: native
+Parsing /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/share/sysbuild/Kconfig
+Loaded configuration '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/_sysbuild/empty.conf'
+Merged configuration '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/_sysbuild/empty.conf'
+Configuration saved to '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/zephyr/.config'
+Kconfig header saved to '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/_sysbuild/autoconf.h'
+-- 
+   ***************************************
+   * Running CMake for stcp_offload_stub *
+   ***************************************
+
+Loading Zephyr default modules (Zephyr base).
+-- Application: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/samples/stcp_offload_stub
+-- CMake version: 3.31.6
+-- Found Python3: /home/pomo/git/STCP/STCPv2/zephyr/nordic/.venv/bin/python3 (found suitable version "3.13.5", minimum required is "3.12") found components: Interpreter
+-- Cache files will be written to: /home/pomo/.cache/zephyr
+-- Zephyr version: 4.4.0 (/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr)
+-- Found west (found suitable version "1.5.0", minimum required is "0.14.0")
+-- Board: native_sim, qualifiers: native
+-- Found host-tools: zephyr 1.0.1 (/home/pomo/zephyr-sdk-1.0.1)
+-- Found toolchain: host (gcc/ld)
+-- Found Dtc: /home/pomo/zephyr-sdk-1.0.1/hosttools/sysroots/x86_64-pokysdk-linux/usr/bin/dtc (found suitable version "1.7.0", minimum required is "1.4.6")
+-- Found BOARD.dts: /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/native/native_sim/native_sim.dts
+-- Generated zephyr.dts: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/zephyr.dts
+-- Generated pickled edt: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/edt.pickle
+-- Generated devicetree_generated.h: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/include/generated/zephyr/devicetree_generated.h
+Parsing /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/Kconfig
+Loaded configuration '/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/native/native_sim/native_sim_defconfig'
+Merged configuration '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/samples/stcp_offload_stub/prj.conf'
+Merged configuration '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/.config.sysbuild'
+Configuration saved to '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/.config'
+Kconfig header saved to '/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/include/generated/zephyr/autoconf.h'
+-- Found GnuLd: /usr/bin/ld.bfd (found version "2.44")
+-- The C compiler identification is GNU 14.2.0
+-- The CXX compiler identification is GNU 14.2.0
+-- The ASM compiler identification is GNU
+-- Found assembler: /usr/bin/gcc
+-- Using ccache: /usr/bin/ccache
+-- Found gen_kobject_list: /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/scripts/build/gen_kobject_list.py
+-- Configuring done (11.1s)
+-- Generating done (0.5s)
+-- Build files have been written to: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub
+-- Configuring done (16.8s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build
+-- west build: building application
+[1/8] Creating directories for 'stcp_offload_stub'
+[2/8] No download step for 'stcp_offload_stub'
+[3/8] No update step for 'stcp_offload_stub'
+[4/8] No patch step for 'stcp_offload_stub'
+[5/8] No configure step for 'stcp_offload_stub'
+[5/8] Performing build step for 'stcp_offload_stub'
+[1/153] Preparing syscall dependency handling
+
+[2/153] Generating ../../zephyr/include/generated/ncs_commit.h
+[3/153] Generating ../../zephyr/include/generated/zephyr_commit.h
+[4/153] Generating misc/generated/syscalls_subdirs.trigger
+[5/153] Generating ../../zephyr/include/generated/ncs_version.h
+[6/153] Generating include/generated/zephyr/version.h
+-- Zephyr version: 4.4.0 (/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr), build: ncs-v3.4.0-rc1-283-g59969b286a15
+[7/153] Generating misc/generated/syscalls.json, misc/generated/struct_tags.json
+[8/153] Generating include/generated/device-api-sections.ld, include/generated/device-api-sections.cmake
+[9/153] Generating include/generated/zephyr/syscall_dispatch.c, include/generated/zephyr/syscall_exports_llext.c, syscall_weakdefs_llext.c, include/generated/zephyr/syscall_list.h
+[10/153] Generating include/generated/zephyr/driver-validation.h
+[11/153] Generating include/generated/zephyr/kobj-types-enum.h, include/generated/zephyr/otype-to-str.h, include/generated/zephyr/otype-to-size.h
+[12/153] Building C object zephyr/lib/heap/CMakeFiles/heap_constants.dir/heap_constants.c.obj
+FAILED: zephyr/lib/heap/CMakeFiles/heap_constants.dir/heap_constants.c.obj 
+ccache /usr/bin/gcc -DKERNEL -DK_HEAP_MEM_POOL_SIZE=8192 -DZVFS_OPEN_SIZE=7 -D__ZEPHYR__=1 -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/kernel/include -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/include/generated/zephyr -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/include -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/include/generated -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/soc/native/inf_clock -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/boards/native/native_sim -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/scripts/native_simulator/common/src/include -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/scripts/native_simulator/native/src/include -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/subsys/net/l2 -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/include -I/home/pomo/git/STCP/STCPv2/zephyr/nordic/nrf/tests/include -Wshadow -fno-strict-aliasing -Os -imacros /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub/zephyr/include/generated/zephyr/autoconf.h -fno-common -g -gdwarf-4 -fdiagnostics-color=always -Wall -Wformat -Wformat-security -Wno-format-zero-length -Wdouble-promotion -Wno-pointer-sign -Wpointer-arith -Wexpansion-to-defined -Wno-unused-but-set-variable -Werror=implicit-int -fno-pic -fno-pie -fno-asynchronous-unwind-tables -fno-reorder-functions --param=min-pagesize=0 -fno-defer-pop -fmacro-prefix-map=/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/samples/stcp_offload_stub=CMAKE_SOURCE_DIR -fmacro-prefix-map=/home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr=ZEPHYR_BASE -fmacro-prefix-map=/home/pomo/git/STCP/STCPv2/zephyr/nordic=WEST_TOPDIR -ffunction-sections -fdata-sections -m32 -msse2 -mfpmath=sse -fvisibility=hidden -fno-freestanding -std=c17 -fno-lto -MD -MT zephyr/lib/heap/CMakeFiles/heap_constants.dir/heap_constants.c.obj -MF zephyr/lib/heap/CMakeFiles/heap_constants.dir/heap_constants.c.obj.d -o zephyr/lib/heap/CMakeFiles/heap_constants.dir/heap_constants.c.obj -c /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/lib/heap/heap_constants.c
+In file included from /usr/lib/gcc/x86_64-linux-gnu/14/include/stdint.h:9,
+                 from /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/include/zephyr/types.h:11,
+                 from /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/include/zephyr/sys/util.h:28,
+                 from /home/pomo/git/STCP/STCPv2/zephyr/nordic/zephyr/lib/heap/heap_constants.c:32:
+/usr/include/stdint.h:26:10: fatal error: bits/libc-header-start.h: No such file or directory
+   26 | #include <bits/libc-header-start.h>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated.
+ninja: build stopped: subcommand failed.
+FAILED: _sysbuild/sysbuild/images/stcp_offload_stub-prefix/src/stcp_offload_stub-stamp/stcp_offload_stub-build /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/_sysbuild/sysbuild/images/stcp_offload_stub-prefix/src/stcp_offload_stub-stamp/stcp_offload_stub-build 
+cd /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build/stcp_offload_stub && /usr/bin/cmake --build .
+ninja: build stopped: subcommand failed.
+FATAL ERROR: command exited with status 1: /usr/bin/cmake --build /home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-module/build

@@ -1,0 +1,38 @@
+menuconfig STCP_SOCKET_OFFLOAD
+    bool "STCP BSD socket offload stub"
+    depends on NET_SOCKETS
+    select NET_SOCKETS_OFFLOAD
+    default n
+    help
+      Enables an out-of-tree STCP socket provider. This initial version is
+      intentionally a stub: it implements Zephyr file descriptors and the BSD
+      socket operation table, but no real carrier or protocol engine.
+
+if STCP_SOCKET_OFFLOAD
+
+config STCP_SOCKET_PRIORITY
+    int "Socket provider priority"
+    default 20
+    range 0 99
+
+config STCP_MAX_SOCKETS
+    int "Maximum STCP sockets"
+    default 16
+    range 1 64
+
+config STCP_ACCEPT_BACKLOG
+    int "Maximum listener backlog"
+    default 8
+    range 1 32
+
+config STCP_RX_BUFFER_SIZE
+    int "Per-socket stub RX buffer size"
+    default 1024
+    range 128 16384
+
+config STCP_LOG_LEVEL
+    int "STCP log level"
+    default 4
+    range 0 4
+
+endif

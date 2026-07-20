@@ -395,9 +395,8 @@ def server_connection(
 ) -> None:
     buffer = bytearray(recv_buffer_size)
     idle_timeouts = 0
-    # Normal churn exits immediately through protocol EOF. Keep a longer
-    # fallback only for peers that disappear without transmitting CLOSE.
     max_idle_timeouts = 10
+    completed_echoes = 0
 
     try:
         conn.settimeout(1.0)
@@ -408,8 +407,6 @@ def server_connection(
             except TimeoutError:
                 idle_timeouts += 1
                 if idle_timeouts >= max_idle_timeouts:
-                    # Defensive fallback for a crashed/ungraceful peer. Clean
-                    # close(fd) now arrives as recv()==0 through STCP CLOSE.
                     break
                 continue
 
@@ -424,15 +421,31 @@ def server_connection(
                     raise ConnectionError("server send returned zero")
                 sent += count
 
-    except (OSError, ConnectionError):
-        if not stop.stopped():
+            if sent == len(data):
+                completed_echoes += 1
+
+    except (OSError, ConnectionError) as exc:
+        # In churn mode the peer closes immediately after receiving the full
+        # echo.  A late EPIPE/ECONNRESET/ENOTCONN while the handler is leaving
+        # the final send/recv cycle is normal teardown, not data corruption.
+        normal_teardown_errnos = {
+            errno.EPIPE,
+            errno.ECONNRESET,
+            errno.ENOTCONN,
+            errno.ESHUTDOWN,
+            errno.EBADF,
+        }
+        err = getattr(exc, "errno", None)
+        if (
+            not stop.stopped()
+            and not (completed_echoes > 0 and err in normal_teardown_errnos)
+        ):
             stats.add(server_errors=1)
     finally:
         try:
             conn.close()
         except OSError:
             pass
-
 
 def server_main(
     host: str,
@@ -708,6 +721,54 @@ def persistent_client(
                 pass
 
 
+def run_churn_exchange(
+    sock: NativeStcpSocket,
+    payload: bytearray,
+    reply_buffer: bytearray,
+    stop: StopState,
+    stats: SharedStats,
+    verify: bool,
+) -> tuple[bool, str]:
+    """Run one churn exchange without counting transient failures early."""
+    started = time.perf_counter_ns()
+
+    try:
+        sent = send_all(sock, payload, stop)
+        if sent != len(payload):
+            raise ConnectionError(f"partial send {sent}/{len(payload)}")
+    except (OSError, ConnectionError, InterruptedError):
+        return False, "send"
+
+    try:
+        received = recv_exact_into(
+            sock,
+            reply_buffer,
+            len(payload),
+            stop,
+        )
+        if received != len(payload):
+            raise ConnectionError(
+                f"partial recv {received}/{len(payload)}"
+            )
+    except (OSError, ConnectionError, InterruptedError):
+        return False, "recv"
+
+    if verify and reply_buffer != payload:
+        stats.add(verify_failures=1)
+        return False, "verify"
+
+    stats.add(
+        sends_ok=1,
+        recvs_ok=1,
+        bytes_sent=len(payload),
+        bytes_received=len(payload),
+    )
+    stats.add_latency(
+        (time.perf_counter_ns() - started) / 1_000_000.0
+    )
+    return True, "ok"
+
+
 def churn_client(
     worker_id: int,
     host: str,
@@ -720,34 +781,59 @@ def churn_client(
 ) -> None:
     payload = payload_for(worker_id, payload_size)
     reply_buffer = bytearray(payload_size)
+    max_attempts = 3
 
     while not stop.stopped():
-        sock: Optional[NativeStcpSocket] = None
+        final_phase = "connect"
+        completed = False
 
-        try:
-            sock = create_stcp_socket(timeout)
-            sock.connect((host, port))
-            stats.add(connections_ok=1)
+        for attempt in range(max_attempts):
+            if stop.stopped():
+                break
 
-            run_exchange(
-                sock,
-                payload,
-                reply_buffer,
-                stop,
-                stats,
-                verify,
-            )
+            sock: Optional[NativeStcpSocket] = None
 
-        except OSError:
-            if not stop.stopped():
-                stats.add(connections_failed=1)
-        finally:
-            if sock is not None:
-                try:
-                    sock.close()
-                except OSError:
-                    pass
+            try:
+                sock = create_stcp_socket(timeout)
+                sock.connect((host, port))
 
+                ok, phase = run_churn_exchange(
+                    sock,
+                    payload,
+                    reply_buffer,
+                    stop,
+                    stats,
+                    verify,
+                )
+                final_phase = phase
+
+                if ok:
+                    stats.add(connections_ok=1)
+                    completed = True
+                    break
+
+            except (OSError, ConnectionError):
+                final_phase = "connect"
+            finally:
+                if sock is not None:
+                    try:
+                        sock.close()
+                    except OSError:
+                        pass
+
+            # Yield briefly so a just-closed accepted child can finish its
+            # CLOSE/EOF teardown before a retry reuses the same worker.
+            if attempt + 1 < max_attempts and not stop.stopped():
+                time.sleep(0.001)
+
+        if completed or stop.stopped():
+            continue
+
+        stats.add(connections_failed=1)
+        if final_phase == "send":
+            stats.add(sends_failed=1)
+        elif final_phase == "recv":
+            stats.add(recvs_failed=1)
 
 def mixed_client(
     worker_id: int,

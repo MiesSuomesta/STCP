@@ -126,6 +126,25 @@ impl ByteQueue {
         Ok(())
     }
 
+    /// Append a range from an owned buffer without copying. Bytes before
+    /// `offset` remain allocated but are skipped by the queue reader.
+    pub fn push_vec_from(
+        &mut self,
+        input: Vec<u8>,
+        offset: usize,
+    ) -> Result<(), StcpError> {
+        if offset > input.len() {
+            return Err(StcpError::Protocol);
+        }
+        let count = input.len() - offset;
+        if count == 0 {
+            return Ok(());
+        }
+        self.len = self.len.checked_add(count).ok_or(StcpError::NoMem)?;
+        self.chunks.push_back(ByteChunk { data: input, offset });
+        Ok(())
+    }
+
     /// Remove up to `count` bytes using chunk-sized advances.
     pub fn discard(&mut self, mut count: usize) -> usize {
         let requested = count;

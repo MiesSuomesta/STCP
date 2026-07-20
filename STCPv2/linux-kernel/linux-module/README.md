@@ -228,3 +228,9 @@ The Rust session now enters `SocketState::Ready` only after both conditions are 
 - the peer's `HandshakeDone` frame has been received.
 
 Previously crypto readiness alone made `connect()` succeed, allowing the first DATA frame to race the accepted child's handshake completion. Debug events 250-252 expose the two readiness inputs and the final transition.
+
+
+## Performance logging
+
+High-frequency numeric `rust event=...` tracing is disabled in this package.
+Error and major state-transition logging remains available through the normal STCP kernel logs.

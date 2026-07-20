@@ -335,3 +335,12 @@ and after `progress_receive()`.
 - Complete frame payload chunks are detached and passed to in-place decrypt without a second copy.
 - Fragmented TCP input safely falls back to the existing copy path.
 - RX parser batch limit increased from 64 to 128 frames.
+
+
+## TCP socket-buffer fast path
+
+The TCP carrier now tunes every client, listener and accepted socket to a
+16 MiB send/receive buffer, keeps TCP_NODELAY enabled, uses MSG_NOSIGNAL on
+carrier writes, and grows per-socket C scratch buffers geometrically.  This
+reduces pipeline stalls and repeated buffer reallocations in high-throughput
+1 MiB / pipeline-8 tests.

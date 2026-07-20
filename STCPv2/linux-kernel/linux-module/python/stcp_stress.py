@@ -7,6 +7,7 @@ Reports progress periodically and writes a JSON summary.
 
 Examples:
     sudo ./stcp_stress.py --mode throughput --clients 16 --duration 180
+    sudo ./stcp_stress.py --udp --mode throughput --clients 16 --duration 180
     sudo ./stcp_stress.py --mode churn --clients 32 --duration 60
     sudo ./stcp_stress.py --mode mixed --clients 16 --duration 120
 """
@@ -33,7 +34,8 @@ from pathlib import Path
 from typing import Deque, Iterable, Optional
 
 AF_STCP = 45
-STCP_PROTOCOL = 253
+STCP_PROTOCOL_TCP = 253
+STCP_PROTOCOL_UDP = 254
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 7777
 
@@ -151,10 +153,22 @@ class NativeStcpSocket:
             self.set_nonblocking()
 
     @classmethod
-    def create(cls, timeout: float) -> "NativeStcpSocket":
-        fd = libc.socket(AF_STCP, socket.SOCK_STREAM, STCP_PROTOCOL)
+    def create(
+        cls,
+        timeout: float,
+        udp: bool = False,
+    ) -> "NativeStcpSocket":
+        # AF_STCP exposes a BSD stream API for both carriers. Protocol 253
+        # selects the TCP carrier and protocol 254 selects the UDP carrier.
+        protocol = STCP_PROTOCOL_UDP if udp else STCP_PROTOCOL_TCP
+        fd = libc.socket(AF_STCP, socket.SOCK_STREAM, protocol)
         if fd < 0:
-            _raise_errno("socket")
+            transport = "UDP" if udp else "TCP"
+            error = ctypes.get_errno()
+            raise OSError(
+                error,
+                f"socket({transport} carrier): {os.strerror(error)}",
+            )
 
         # Keep the descriptor blocking for bind/listen or connect. The
         # current STCP connect path completes its handshake synchronously.
@@ -332,8 +346,11 @@ class StopState:
         return self.event.is_set()
 
 
-def create_stcp_socket(timeout: float) -> NativeStcpSocket:
-    return NativeStcpSocket.create(timeout)
+def create_stcp_socket(
+    timeout: float,
+    udp: bool = False,
+) -> NativeStcpSocket:
+    return NativeStcpSocket.create(timeout, udp=udp)
 
 
 def send_all(
@@ -453,6 +470,7 @@ def server_main(
     stats: SharedStats,
     recv_buffer_size: int,
     ready: threading.Event,
+    udp: bool,
 ) -> None:
     listener: Optional[NativeStcpSocket] = None
     handlers: set[threading.Thread] = set()
@@ -465,7 +483,7 @@ def server_main(
                 handlers.discard(thread)
 
     try:
-        listener = create_stcp_socket(timeout=1.0)
+        listener = create_stcp_socket(timeout=1.0, udp=udp)
         listener.bind((host, port))
         listener.listen(backlog)
         ready.set()
@@ -685,13 +703,14 @@ def persistent_client(
     stats: SharedStats,
     verify: bool,
     pipeline: int,
+    udp: bool,
 ) -> None:
     payload = payload_for(worker_id, payload_size)
     reply_buffer = bytearray(payload_size)
     sock: Optional[NativeStcpSocket] = None
 
     try:
-        sock = create_stcp_socket(timeout)
+        sock = create_stcp_socket(timeout, udp=udp)
         sock.connect((host, port))
         stats.add(connections_ok=1)
 
@@ -728,6 +747,7 @@ def churn_client(
     stop: StopState,
     stats: SharedStats,
     verify: bool,
+    udp: bool,
 ) -> None:
     payload = payload_for(worker_id, payload_size)
     reply_buffer = bytearray(payload_size)
@@ -736,7 +756,7 @@ def churn_client(
         sock: Optional[NativeStcpSocket] = None
 
         try:
-            sock = create_stcp_socket(timeout)
+            sock = create_stcp_socket(timeout, udp=udp)
             sock.connect((host, port))
             stats.add(connections_ok=1)
 
@@ -770,6 +790,7 @@ def mixed_client(
     stats: SharedStats,
     verify: bool,
     reconnect_every: int,
+    udp: bool,
 ) -> None:
     payload = payload_for(worker_id, payload_size)
     reply_buffer = bytearray(payload_size)
@@ -778,7 +799,7 @@ def mixed_client(
         sock: Optional[NativeStcpSocket] = None
 
         try:
-            sock = create_stcp_socket(timeout)
+            sock = create_stcp_socket(timeout, udp=udp)
             sock.connect((host, port))
             stats.add(connections_ok=1)
 
@@ -877,6 +898,14 @@ def parse_args() -> argparse.Namespace:
         choices=("throughput", "churn", "mixed"),
         default="throughput",
     )
+    parser.add_argument(
+        "--udp",
+        action="store_true",
+        help=(
+            "use STCP protocol 254 (UDP carrier); default is protocol 253 "
+            "(TCP carrier)"
+        ),
+    )
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--clients", type=int, default=16)
@@ -973,6 +1002,7 @@ def main() -> int:
             stats,
             recv_buffer_size,
             ready,
+            args.udp,
         ),
         name="stcp-server",
         daemon=True,
@@ -1009,11 +1039,11 @@ def main() -> int:
         )
 
         if args.mode == "mixed":
-            thread_args = common + (args.reconnect_every,)
+            thread_args = common + (args.reconnect_every, args.udp)
         elif args.mode == "throughput":
-            thread_args = common + (args.pipeline,)
+            thread_args = common + (args.pipeline, args.udp)
         else:
-            thread_args = common
+            thread_args = common + (args.udp,)
 
         thread = threading.Thread(
             target=client_target,
@@ -1025,6 +1055,8 @@ def main() -> int:
         thread.start()
 
     print("=== STCP Python stress test ===")
+    print(f"transport:        {'UDP' if args.udp else 'TCP'}")
+    print(f"protocol:         {STCP_PROTOCOL_UDP if args.udp else STCP_PROTOCOL_TCP}")
     print(f"mode:             {args.mode}")
     print(f"clients:          {args.clients}")
     print(f"payload:          {args.payload} bytes")
@@ -1114,6 +1146,8 @@ def main() -> int:
     counters, latencies = stats.snapshot()
 
     summary = {
+        "transport": "udp" if args.udp else "tcp",
+        "protocol": STCP_PROTOCOL_UDP if args.udp else STCP_PROTOCOL_TCP,
         "mode": args.mode,
         "host": args.host,
         "port": args.port,

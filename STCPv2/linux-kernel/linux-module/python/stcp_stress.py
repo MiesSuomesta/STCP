@@ -383,18 +383,20 @@ def recv_to_echo(
     stop: StopState,
     buffer: bytearray,
 ) -> Optional[memoryview]:
-    while not stop.stopped():
-        try:
-            count = sock.recv_into(buffer)
-        except socket.timeout:
-            continue
+    """Receive one echo request.
 
-        if count == 0:
-            return None
+    Timeouts are intentionally propagated to server_connection(). STCP does
+    not yet carry a FIN/EOF frame, so a churn client that closes after one
+    exchange otherwise leaves the accepted server descriptor waiting forever.
+    """
+    if stop.stopped():
+        return None
 
-        return memoryview(buffer)[:count]
+    count = sock.recv_into(buffer)
+    if count == 0:
+        return None
 
-    return None
+    return memoryview(buffer)[:count]
 
 
 def server_connection(
@@ -404,15 +406,29 @@ def server_connection(
     recv_buffer_size: int,
 ) -> None:
     buffer = bytearray(recv_buffer_size)
+    idle_timeouts = 0
+    max_idle_timeouts = 2
 
     try:
         conn.settimeout(1.0)
 
         while not stop.stopped():
-            data = recv_to_echo(conn, stop, buffer)
+            try:
+                data = recv_to_echo(conn, stop, buffer)
+            except TimeoutError:
+                idle_timeouts += 1
+                if idle_timeouts >= max_idle_timeouts:
+                    # Until STCP has an explicit FIN/EOF frame, an idle
+                    # accepted socket after a completed exchange is treated
+                    # as a closed churn connection. This prevents accepted
+                    # descriptors and handler threads from accumulating.
+                    break
+                continue
+
             if data is None:
                 break
 
+            idle_timeouts = 0
             sent = 0
             while sent < len(data) and not stop.stopped():
                 count = conn.send(data[sent:])
@@ -456,6 +472,16 @@ def server_main(
         ready.set()
 
         while not stop.stopped():
+            reap_handlers()
+
+            # Bound accepted descriptors even if a protocol regression makes
+            # a handler slow to notice an idle/closed peer.
+            with handlers_lock:
+                active_handlers = len(handlers)
+            if active_handlers >= backlog:
+                time.sleep(0.01)
+                continue
+
             try:
                 conn, _ = listener.accept()
             except socket.timeout:
@@ -465,6 +491,9 @@ def server_main(
                     break
                 stats.add(server_errors=1)
                 print(f"server accept error: {exc!r}", file=sys.stderr, flush=True)
+                if exc.errno in (errno.EMFILE, errno.ENFILE):
+                    # Give completed handlers time to close and be reaped.
+                    time.sleep(0.1)
                 continue
 
             stats.add(server_accepts=1)

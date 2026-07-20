@@ -30,14 +30,9 @@ void stcp_kernel_wake_recv(void *owner)
 {
 	struct stcp_sock *ssk = owner;
 
-	/* See stcp_kernel_wake_accept(): wake_up itself is safe and cheap. */
-	if (ssk) {
-		pr_info("stcp: wake_recv owner=%px ctx=%px waiters=%d\n",
-			ssk, ssk->rust_ctx, waitqueue_active(&ssk->recv_wq));
-		wake_up_interruptible_all(&ssk->recv_wq);
-	} else {
-		pr_info("stcp: wake_recv owner=NULL\n");
-	}
+	/* Keep the hot wake path free of printk and wake only the socket queue. */
+	if (ssk)
+		wake_up_interruptible(&ssk->recv_wq);
 }
 
 /* Numeric Rust datapath tracing is disabled in performance builds. */

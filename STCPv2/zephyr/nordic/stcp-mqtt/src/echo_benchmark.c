@@ -10,6 +10,8 @@
 
 #include <stcp/stcp.h>
 #include "echo_benchmark.h"
+#include "stcp_lte_transport.h"
+#include "modem_status.h"
 
 LOG_MODULE_REGISTER(echo_benchmark, LOG_LEVEL_INF);
 
@@ -37,6 +39,7 @@ struct bench_reply {
 } __packed;
 
 static const struct bench_config *active_cfg;
+static struct bench_summary last_summary;
 
 static int validate_config(const struct bench_config *cfg);
 
@@ -132,6 +135,12 @@ if (cfg->transport == BENCH_TRANSPORT_STCP) {
         return -ENOTSUP;
     }
     if (fd < 0) { rc = -errno; zsock_freeaddrinfo(res); return rc; }
+
+    if (cfg->transport == BENCH_TRANSPORT_TCP) {
+        rc = stcp_lte_transport_bind_socket(fd);
+        if (rc < 0) goto fail;
+    }
+
     rc = set_nonblocking(fd);
     if (rc < 0) goto fail;
     if (zsock_connect(fd, res->ai_addr, res->ai_addrlen) < 0) {
@@ -184,6 +193,53 @@ static int recv_reply(int fd, uint32_t mode, struct bench_reply *reply)
 static uint64_t bps(uint64_t bytes, int64_t elapsed_ms)
 {
     return (bytes * 8ULL * 1000ULL) / (uint64_t)MAX(elapsed_ms, 1);
+}
+
+
+static const char *result_status(int status)
+{
+    return status == 0 ? "OK" : "FAILED";
+}
+
+static const char *rat_name(int act)
+{
+    switch (act) {
+    case 7: return "LTE-M";
+    case 9: return "NB-IoT";
+    default: return "unknown";
+    }
+}
+
+static void log_rate_line(const char *name, const struct bench_result *r)
+{
+    LOG_INF("%-10s status=%s(%d) elapsed=%lld ms TX=%llu bit/s RX=%llu bit/s aggregate=%llu bit/s",
+            name, result_status(r->status), r->status, r->elapsed_ms,
+            r->tx_bps, r->rx_bps, r->aggregate_bps);
+}
+
+void bench_print_last_summary(const struct bench_config *cfg)
+{
+    struct modem_status_snapshot modem;
+    bool modem_ok = modem_status_get_snapshot(&modem) == 0;
+
+    LOG_INF("================ BENCHMARK SUMMARY ================");
+    LOG_INF("Transport=%s server=%s:%s chunk=%u total=%u bytes",
+            bench_transport_name(cfg->transport), cfg->host, cfg->port,
+            cfg->chunk_size, cfg->total_bytes);
+    if (modem_ok) {
+        LOG_INF("Modem operator=%s RAT=%s band=%d RSRP=%d dBm RSRQ=%d.%d dB SNR_raw=%d APN=%s",
+                modem.monitor_valid ? modem.operator_name : "unknown",
+                rat_name(modem.current_act), modem.band,
+                modem.rsrp_dbm, modem.rsrq_tenths_db / 10,
+                abs(modem.rsrq_tenths_db % 10), modem.snr_raw,
+                modem.pdp_valid ? modem.apn : "unknown");
+    } else {
+        LOG_WRN("Modem status snapshot unavailable");
+    }
+    log_rate_line("UPLOAD", &last_summary.upload);
+    log_rate_line("DOWNLOAD", &last_summary.download);
+    log_rate_line("FULL", &last_summary.full);
+    LOG_INF("===================================================");
 }
 
 static void report_progress(const char *label, uint32_t done, uint32_t total,
@@ -276,6 +332,8 @@ static int stream_recv(int fd, uint8_t *rx_buf, uint32_t total, uint32_t rx_buf_
 
 int bench_run_upload(const struct bench_config *cfg)
 {
+    memset(&last_summary.upload, 0, sizeof(last_summary.upload));
+    last_summary.upload.status = -ECANCELED;
     int valid = validate_config(cfg);
     if (valid < 0) return valid;
     struct bench_reply reply;
@@ -294,13 +352,20 @@ int bench_run_upload(const struct bench_config *cfg)
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
     k_free(tx_buf);
+    last_summary.upload.status = rc;
+    last_summary.upload.bytes_tx = rc < 0 ? 0 : cfg->total_bytes;
+    last_summary.upload.elapsed_ms = ms;
+    last_summary.upload.tx_bps = rc < 0 ? 0 : bps(cfg->total_bytes, ms);
+    last_summary.upload.aggregate_bps = last_summary.upload.tx_bps;
     if (rc < 0) return rc;
-    LOG_INF("UPLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, bps(cfg->total_bytes, ms));
+    LOG_INF("UPLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, last_summary.upload.tx_bps);
     return 0;
 }
 
 int bench_run_download(const struct bench_config *cfg)
 {
+    memset(&last_summary.download, 0, sizeof(last_summary.download));
+    last_summary.download.status = -ECANCELED;
     int valid = validate_config(cfg);
     if (valid < 0) return valid;
     struct bench_reply reply;
@@ -324,8 +389,13 @@ int bench_run_download(const struct bench_config *cfg)
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
     k_free(rx_buf);
+    last_summary.download.status = rc;
+    last_summary.download.bytes_rx = rc < 0 ? 0 : cfg->total_bytes;
+    last_summary.download.elapsed_ms = ms;
+    last_summary.download.rx_bps = rc < 0 ? 0 : bps(cfg->total_bytes, ms);
+    last_summary.download.aggregate_bps = last_summary.download.rx_bps;
     if (rc < 0) return rc;
-    LOG_INF("DOWNLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, bps(cfg->total_bytes, ms));
+    LOG_INF("DOWNLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, last_summary.download.rx_bps);
     return 0;
 }
 
@@ -343,6 +413,8 @@ static void sender_entry(void *a, void *b, void *c)
 
 int bench_run_full(const struct bench_config *cfg)
 {
+    memset(&last_summary.full, 0, sizeof(last_summary.full));
+    last_summary.full.status = -ECANCELED;
     int valid = validate_config(cfg);
     if (valid < 0) return valid;
     struct bench_reply reply;
@@ -384,11 +456,18 @@ int bench_run_full(const struct bench_config *cfg)
     zsock_close(fd);
     k_free(tx_buf);
     k_free(rx_buf);
+    last_summary.full.status = rc;
+    last_summary.full.bytes_tx = rc < 0 ? 0 : cfg->total_bytes;
+    last_summary.full.bytes_rx = rc < 0 ? 0 : cfg->total_bytes;
+    last_summary.full.elapsed_ms = ms;
+    last_summary.full.tx_bps = rc < 0 ? 0 : bps(cfg->total_bytes, ms);
+    last_summary.full.rx_bps = last_summary.full.tx_bps;
+    last_summary.full.aggregate_bps = rc < 0 ? 0 : bps((uint64_t)cfg->total_bytes * 2ULL, ms);
     if (rc < 0) return rc;
     LOG_INF("FULL upload=%u download=%u elapsed=%lld ms", cfg->total_bytes, cfg->total_bytes, ms);
     LOG_INF("FULL TX=%llu bit/s RX=%llu bit/s aggregate=%llu bit/s",
-            bps(cfg->total_bytes, ms), bps(cfg->total_bytes, ms),
-            bps((uint64_t)cfg->total_bytes * 2ULL, ms));
+            last_summary.full.tx_bps, last_summary.full.rx_bps,
+            last_summary.full.aggregate_bps);
     return 0;
 }
 
@@ -430,18 +509,24 @@ static int validate_config(const struct bench_config *cfg)
 int bench_run_all(const struct bench_config *cfg)
 {
     int rc = validate_config(cfg);
+    memset(&last_summary, 0, sizeof(last_summary));
+    last_summary.upload.status = -ECANCELED;
+    last_summary.download.status = -ECANCELED;
+    last_summary.full.status = -ECANCELED;
     if (rc < 0) return rc;
     LOG_INF("Benchmark transport=%s host=%s port=%s total=%u chunk=%u",
             bench_transport_name(cfg->transport), cfg->host, cfg->port,
             cfg->total_bytes, cfg->chunk_size);
     LOG_INF("Progress report interval=%u ms", cfg->report_interval_ms);
     rc = bench_run_upload(cfg);
-    if (rc < 0) return rc;
+    if (rc < 0) { bench_print_last_summary(cfg); return rc; }
     k_sleep(K_SECONDS(CONFIG_BENCH_PAUSE_SECONDS));
     rc = bench_run_download(cfg);
-    if (rc < 0) return rc;
+    if (rc < 0) { bench_print_last_summary(cfg); return rc; }
     k_sleep(K_SECONDS(CONFIG_BENCH_PAUSE_SECONDS));
-    return bench_run_full(cfg);
+    rc = bench_run_full(cfg);
+    bench_print_last_summary(cfg);
+    return rc;
 }
 
 int echo_benchmark_run(void)

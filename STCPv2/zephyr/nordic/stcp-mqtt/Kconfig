@@ -117,3 +117,43 @@ config STCP_BENCH_AUTORUN
       automatic and interactive testing are desired.
 
 endmenu
+
+menu "LTE transport initialization"
+
+config STCP_LTE_REG_TIMEOUT_SECONDS
+    int "LTE registration timeout in seconds"
+    default 300
+    range 10 1800
+
+config STCP_LTE_PDN_TIMEOUT_SECONDS
+    int "PDN activation timeout in seconds"
+    default 300
+    range 10 1800
+
+config STCP_LTE_FORCE_DEFAULT_APN
+    bool "Configure default CID 0 APN before LTE attach"
+    default n
+    help
+      Writes CONFIG_STCP_LTE_DEFAULT_APN to PDP context CID 0 before
+      lte_lc_connect(). Benchmark sockets use this default context.
+
+config STCP_LTE_DEFAULT_APN
+    string "Default CID 0 APN"
+    default "APN internet"
+    depends on STCP_LTE_FORCE_DEFAULT_APN
+
+config STCP_LTE_CUSTOM_PDN
+    bool "Create, activate and bind sockets to a separate PDN context"
+    default n
+    depends on LTE_LC_PDN_MODULE
+    help
+      Reproduces the STCPv1 model by creating and activating an additional
+      PDN context after LTE registration. Benchmark TCP sockets are bound to
+      the resulting modem PDN ID with SO_BINDTOPDN before connect().
+
+config STCP_LTE_APN
+    string "APN for the separate PDN context"
+    default "APN internet"
+    depends on STCP_LTE_CUSTOM_PDN
+
+endmenu

@@ -11,49 +11,14 @@
 #include <nrf_modem_at.h>
 
 #include "modem_status.h"
+#include "stcp_lte_transport.h"
 
 #define MODEM_AT_RESPONSE_SIZE 2048
-#define FIELD_SIZE 96
+#define FIELD_SIZE MODEM_STATUS_FIELD_SIZE
 
 static char at_response[MODEM_AT_RESPONSE_SIZE];
 K_MUTEX_DEFINE(at_response_lock);
 
-struct modem_snapshot {
-    bool system_valid;
-    bool ltem_enabled;
-    bool nbiot_enabled;
-    bool gnss_enabled;
-    int preference;
-
-    bool signal_valid;
-    int rsrq_index;
-    int rsrp_index;
-    int rsrq_tenths_db;
-    int rsrp_dbm;
-
-    bool monitor_valid;
-    char operator_name[FIELD_SIZE];
-    int current_act;
-    int band;
-    int monitor_rsrp_index;
-    int snr_raw;
-
-    bool registration_valid;
-    int registration_status;
-    int registration_act;
-
-    bool rrc_valid;
-    int rrc_mode;
-    int rrc_state;
-
-    bool psm_valid;
-    int psm_enabled;
-
-    bool pdp_valid;
-    char pdp_type[FIELD_SIZE];
-    char apn[FIELD_SIZE];
-    char addresses[FIELD_SIZE];
-};
 
 static void print_response_lines(const struct shell *sh, const char *response)
 {
@@ -257,7 +222,7 @@ static void format_tenths(char *buf, size_t size, int tenths)
              abs_value / 10, abs_value % 10);
 }
 
-static void snapshot_system(struct modem_snapshot *s)
+static void snapshot_system(struct modem_status_snapshot *s)
 {
     const char *p;
 
@@ -276,7 +241,7 @@ static void snapshot_system(struct modem_snapshot *s)
     }
 }
 
-static void snapshot_signal(struct modem_snapshot *s)
+static void snapshot_signal(struct modem_status_snapshot *s)
 {
     const char *p;
 
@@ -296,7 +261,7 @@ static void snapshot_signal(struct modem_snapshot *s)
     }
 }
 
-static void snapshot_monitor(struct modem_snapshot *s)
+static void snapshot_monitor(struct modem_status_snapshot *s)
 {
     const char *p;
 
@@ -316,7 +281,7 @@ static void snapshot_monitor(struct modem_snapshot *s)
     (void)csv_int(p, 11, &s->snr_raw);
 }
 
-static void snapshot_registration(struct modem_snapshot *s)
+static void snapshot_registration(struct modem_status_snapshot *s)
 {
     const char *p;
 
@@ -333,7 +298,7 @@ static void snapshot_registration(struct modem_snapshot *s)
     (void)csv_int(p, 4, &s->registration_act);
 }
 
-static void snapshot_rrc(struct modem_snapshot *s)
+static void snapshot_rrc(struct modem_status_snapshot *s)
 {
     const char *p;
 
@@ -346,7 +311,7 @@ static void snapshot_rrc(struct modem_snapshot *s)
     }
 }
 
-static void snapshot_psm(struct modem_snapshot *s)
+static void snapshot_psm(struct modem_status_snapshot *s)
 {
     const char *p;
 
@@ -359,7 +324,7 @@ static void snapshot_psm(struct modem_snapshot *s)
     }
 }
 
-static void snapshot_pdp(struct modem_snapshot *s)
+static void snapshot_pdp(struct modem_status_snapshot *s)
 {
     const char *p;
 
@@ -376,7 +341,7 @@ static void snapshot_pdp(struct modem_snapshot *s)
     (void)csv_field(p, 3, s->addresses, sizeof(s->addresses));
 }
 
-static void take_snapshot(struct modem_snapshot *s)
+static void take_snapshot(struct modem_status_snapshot *s)
 {
     memset(s, 0, sizeof(*s));
     snapshot_system(s);
@@ -388,9 +353,19 @@ static void take_snapshot(struct modem_snapshot *s)
     snapshot_pdp(s);
 }
 
+
+int modem_status_get_snapshot(struct modem_status_snapshot *snapshot)
+{
+    if (!snapshot) {
+        return -EINVAL;
+    }
+    take_snapshot(snapshot);
+    return 0;
+}
+
 int modem_status_system(const struct shell *sh)
 {
-    struct modem_snapshot s;
+    struct modem_status_snapshot s;
     int act;
 
     take_snapshot(&s);
@@ -421,7 +396,7 @@ int modem_status_system(const struct shell *sh)
 
 int modem_status_health(const struct shell *sh)
 {
-    struct modem_snapshot s;
+    struct modem_status_snapshot s;
     char rsrq[24];
     int act;
 
@@ -467,7 +442,7 @@ int modem_status_health(const struct shell *sh)
 
 int modem_status_signal(const struct shell *sh)
 {
-    struct modem_snapshot s;
+    struct modem_status_snapshot s;
     char rsrq[24];
     int rc = 0;
 
@@ -530,6 +505,26 @@ int modem_status_apn(const struct shell *sh)
     return rc;
 }
 
+int modem_status_contexts(const struct shell *sh)
+{
+    struct stcp_lte_transport_state state;
+    int errors = 0;
+
+    shell_print(sh, "========== PDN CONTEXTS ==========");
+    errors += run_at(sh, "PDP definitions", "AT+CGDCONT?") < 0;
+    errors += run_at(sh, "PDP activation", "AT+CGACT?") < 0;
+    errors += run_at(sh, "PDP addresses", "AT+CGPADDR") < 0;
+
+    if (stcp_lte_transport_get_state(&state) == 0) {
+        shell_print(sh, "Benchmark custom PDN : %s",
+                    state.custom_pdn_active ? "active" : "inactive");
+        shell_print(sh, "Benchmark CID        : %u", state.pdn_cid);
+        shell_print(sh, "Benchmark PDN ID     : %d", state.pdn_id);
+    }
+    shell_print(sh, "==================================");
+    return errors ? -EIO : 0;
+}
+
 int modem_status_all(const struct shell *sh)
 {
     int failures = 0;
@@ -543,6 +538,7 @@ int modem_status_all(const struct shell *sh)
     failures += modem_status_packet(sh) != 0;
     failures += modem_status_sleep(sh) != 0;
     failures += modem_status_apn(sh) != 0;
+    failures += modem_status_contexts(sh) != 0;
     shell_print(sh, "=== MODEM STATUS COMPLETE (%d group%s with errors) ===",
                 failures, failures == 1 ? "" : "s");
 

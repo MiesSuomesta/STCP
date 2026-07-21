@@ -191,6 +191,8 @@ static int cmd_modem_sleep(const struct shell *sh, size_t argc, char **argv)
 { ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_sleep(sh); }
 static int cmd_modem_apn(const struct shell *sh, size_t argc, char **argv)
 { ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_apn(sh); }
+static int cmd_modem_contexts(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_contexts(sh); }
 static int cmd_modem_all(const struct shell *sh, size_t argc, char **argv)
 { ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_all(sh); }
 
@@ -203,6 +205,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(modem_cmds,
     SHELL_CMD(packet, NULL, "Show packet-domain connection statistics", cmd_modem_packet),
     SHELL_CMD(sleep, NULL, "Show modem sleep, PSM and eDRX settings", cmd_modem_sleep),
     SHELL_CMD(apn, NULL, "Show configured and active PDP/APN contexts", cmd_modem_apn),
+    SHELL_CMD(contexts, NULL, "Show PDP contexts and benchmark CID/PDN binding", cmd_modem_contexts),
     SHELL_CMD(all, NULL, "Show all available modem status information", cmd_modem_all),
     SHELL_SUBCMD_SET_END
 );

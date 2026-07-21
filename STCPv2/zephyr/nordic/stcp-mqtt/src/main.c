@@ -1,10 +1,8 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-#include <modem/nrf_modem_lib.h>
-#include <modem/lte_lc.h>
-
 #include "echo_benchmark.h"
+#include "stcp_lte_transport.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -12,23 +10,15 @@ int main(void)
 {
     int ret;
 
-    LOG_INF("STCP2 transport benchmark starting");
+    LOG_INF("STCPv2 transport benchmark starting");
 
-    ret = nrf_modem_lib_init();
+    ret = stcp_lte_transport_init();
     if (ret < 0) {
-        LOG_ERR("nrf_modem_lib_init failed: %d", ret);
+        LOG_ERR("LTE transport initialization failed: %d", ret);
         return ret;
     }
 
-    LOG_INF("nRF modem library initialized");
-
-    ret = lte_lc_connect();
-    if (ret < 0) {
-        LOG_ERR("LTE connection failed: %d", ret);
-        return ret;
-    }
-
-    LOG_INF("LTE connected");
+    LOG_INF("LTE transport connected and data path ready");
 
 #if defined(CONFIG_STCP_BENCH_AUTORUN)
     ret = echo_benchmark_run();

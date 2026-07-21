@@ -4,6 +4,7 @@ project(stcp_mqtt)
 
 target_sources(app PRIVATE
     src/main.c
+    src/stcp_lte_transport.c
     src/echo_benchmark.c
     src/mqtt_codec.c
     src/mqtt_proxy.c

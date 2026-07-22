@@ -1,0 +1,11 @@
+Add src/stcp_carrier.o:
+
+stcp-y := \
+	src/stcp_module.o \
+	src/stcp_proto.o \
+	src/stcp_ops.o \
+	src/stcp_memory.o \
+	src/stcp_crypto.o \
+	src/stcp_carrier.o \
+	src/stcp_rust_ffi.o \
+	src/rust_core.o

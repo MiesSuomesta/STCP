@@ -1,0 +1,44 @@
+=== STCP functional smoke test ===
+payload sizes: 64, 4096, 65536 bytes
+timeout:       5.0 s per case
+
+[1/3] 64 bytes on port 7777: PASS (31.30 ms)
+[2/3] 4096 bytes on port 7778: PASS (23.17 ms)
+[3/3] 65536 bytes on port 7779: PASS (22.73 ms)
+
+STCP functional test: PASS
+
+=== STCP throughput: 8 clients / 300 s ===
+=== STCP Python stress test ===
+mode:             throughput
+clients:          8
+payload:          1048576 bytes
+duration:         300.0 s
+report interval:  5.0 s
+verify payload:   False
+pipeline depth:   8
+
+[    5.0s] TX  89.59 MiB/s  RX  84.79 MiB/s  ops     84.8/s  conn +8/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.26 p95= 117.93 p99= 126.51 ms  CPU= 189.6% RSS=   36.8 MiB  total=424.0 MiB
+[   10.0s] TX  92.68 MiB/s  RX  94.27 MiB/s  ops     94.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.98 p95= 116.84 p99= 127.74 ms  CPU= 184.8% RSS=   36.8 MiB  total=896.0 MiB
+[   15.0s] TX  92.54 MiB/s  RX  90.94 MiB/s  ops     90.9/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.37 p95= 103.29 p99= 115.83 ms  CPU= 185.7% RSS=   36.8 MiB  total=1352.0 MiB
+[   20.0s] TX  91.11 MiB/s  RX  94.31 MiB/s  ops     94.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.67 p95= 107.14 p99= 116.32 ms  CPU= 187.2% RSS=   36.8 MiB  total=1824.0 MiB
+[   25.0s] TX  92.67 MiB/s  RX  89.48 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.63 p95= 115.21 p99= 121.25 ms  CPU= 180.4% RSS=   36.8 MiB  total=2272.0 MiB
+[   30.0s] TX  91.19 MiB/s  RX  91.19 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.44 p95= 105.96 p99= 116.80 ms  CPU= 183.4% RSS=   36.8 MiB  total=2728.0 MiB
+[   35.0s] TX  89.58 MiB/s  RX  94.38 MiB/s  ops     94.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.26 p95= 113.28 p99= 119.29 ms  CPU= 180.6% RSS=   36.8 MiB  total=3200.0 MiB
+[   40.0s] TX  94.37 MiB/s  RX  84.78 MiB/s  ops     84.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.08 p95= 109.98 p99= 151.45 ms  CPU= 180.9% RSS=   36.8 MiB  total=3624.0 MiB
+[   45.0s] TX  83.13 MiB/s  RX  89.52 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  94.51 p95= 109.70 p99= 156.04 ms  CPU= 175.8% RSS=   36.8 MiB  total=4072.0 MiB
+[   50.0s] TX  92.78 MiB/s  RX  91.18 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.19 p95= 106.97 p99= 112.62 ms  CPU= 181.0% RSS=   36.8 MiB  total=4528.0 MiB
+[   55.0s] TX  91.19 MiB/s  RX  91.19 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  89.61 p95= 103.61 p99= 107.98 ms  CPU= 182.2% RSS=   36.8 MiB  total=4984.0 MiB
+[   60.0s] TX  87.97 MiB/s  RX  89.57 MiB/s  ops     89.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.96 p95= 107.07 p99= 111.31 ms  CPU= 182.5% RSS=   36.8 MiB  total=5432.0 MiB
+[   65.0s] TX  89.58 MiB/s  RX  91.18 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.72 p95= 109.92 p99= 115.50 ms  CPU= 181.2% RSS=   36.8 MiB  total=5888.0 MiB
+[   70.0s] TX  95.93 MiB/s  RX  89.54 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.52 p95= 106.39 p99= 111.90 ms  CPU= 182.1% RSS=   36.8 MiB  total=6336.0 MiB
+[   75.1s] TX  90.93 MiB/s  RX  95.71 MiB/s  ops     95.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.93 p95= 104.71 p99= 113.39 ms  CPU= 184.2% RSS=   36.8 MiB  total=6816.0 MiB
+[   80.1s] TX  92.75 MiB/s  RX  87.96 MiB/s  ops     88.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  89.18 p95= 102.47 p99= 115.76 ms  CPU= 180.1% RSS=   36.8 MiB  total=7256.0 MiB
+[   85.1s] TX  89.55 MiB/s  RX  95.95 MiB/s  ops     95.9/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.31 p95= 108.61 p99= 110.58 ms  CPU= 185.9% RSS=   36.8 MiB  total=7736.0 MiB
+[   90.1s] TX  94.30 MiB/s  RX  92.70 MiB/s  ops     92.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.69 p95= 108.22 p99= 115.85 ms  CPU= 186.0% RSS=   36.8 MiB  total=8200.0 MiB
+[   95.1s] TX  91.01 MiB/s  RX  92.61 MiB/s  ops     92.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.40 p95= 106.69 p99= 157.21 ms  CPU= 185.0% RSS=   36.8 MiB  total=8664.0 MiB
+[  100.1s] TX  94.24 MiB/s  RX  87.85 MiB/s  ops     87.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.85 p95= 106.16 p99= 134.01 ms  CPU= 181.1% RSS=   36.8 MiB  total=9104.0 MiB
+[  105.1s] TX  84.80 MiB/s  RX  84.80 MiB/s  ops     84.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  90.69 p95= 107.12 p99= 130.06 ms  CPU= 171.8% RSS=   36.8 MiB  total=9528.0 MiB
+[  110.1s] TX  86.39 MiB/s  RX  91.19 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  92.88 p95= 112.85 p99= 128.79 ms  CPU= 173.6% RSS=   36.8 MiB  total=9984.0 MiB
+[  115.1s] TX  91.14 MiB/s  RX  89.54 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  89.58 p95= 104.41 p99= 107.97 ms  CPU= 179.3% RSS=   36.8 MiB  total=10432.0 MiB
+[  120.1s] TX  89.59 MiB/s  RX  89.59 MiB/s  ops     89.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.62 p95= 114.44 p99= 137.08 ms  CPU= 179.0% RSS=   36.8 MiB  total=10880.0 MiB

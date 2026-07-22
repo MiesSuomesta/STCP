@@ -1,0 +1,16 @@
+obj-m += stcp.o
+
+stcp-y := \
+  src/rust_core.o	\
+  src/panic.o     	\
+  src/rust_alloc.o      \
+  src/stcp_carrier.o    \
+  src/stcp_crypto.o     \
+  src/stcp_memory.o     \
+  src/stcp_module.o     \
+  src/stcp_ops.o 	\
+  src/stcp_proto.o      \
+  src/stcp_rust_ffi.o \
+  src/stcp_users.o 
+
+ccflags-y += -I$(src)/include

@@ -1,0 +1,291 @@
+00000000000007f0 <stcp_accept>:
+stcp_accept():
+     7f0:	d503201f 	nop
+     7f4:	d503201f 	nop
+     7f8:	d503233f 	paciasp
+     7fc:	d10283ff 	sub	sp, sp, #0xa0
+     800:	d5384103 	mrs	x3, sp_el0
+     804:	a9047bfd 	stp	x29, x30, [sp, #64]
+     808:	910103fd 	add	x29, sp, #0x40
+     80c:	a90553f3 	stp	x19, x20, [sp, #80]
+     810:	aa0003f3 	mov	x19, x0
+     814:	aa0103f4 	mov	x20, x1
+     818:	a9065bf5 	stp	x21, x22, [sp, #96]
+     81c:	a90763f7 	stp	x23, x24, [sp, #112]
+     820:	52800017 	mov	w23, #0x0                   	// #0
+     824:	f942f064 	ldr	x4, [x3, #1504]
+     828:	f9001fe4 	str	x4, [sp, #56]
+     82c:	d2800004 	mov	x4, #0x0                   	// #0
+     830:	f90007ff 	str	xzr, [sp, #8]
+     834:	b4000042 	cbz	x2, 83c <stcp_accept+0x4c>
+     838:	b9400057 	ldr	w23, [x2]
+     83c:	b4000313 	cbz	x19, 89c <stcp_accept+0xac>
+     840:	f9400e75 	ldr	x21, [x19, #24]
+     844:	f10002bf 	cmp	x21, #0x0
+     848:	fa401a84 	ccmp	x20, #0x0, #0x4, ne	// ne = any
+     84c:	54000280 	b.eq	89c <stcp_accept+0xac>  // b.none
+     850:	f9418aa2 	ldr	x2, [x21, #784]
+     854:	128002b6 	mov	w22, #0xffffffea            	// #-22
+     858:	b4000062 	cbz	x2, 864 <stcp_accept+0x74>
+     85c:	f9418ea3 	ldr	x3, [x21, #792]
+     860:	b5000283 	cbnz	x3, 8b0 <stcp_accept+0xc0>
+     864:	d5384100 	mrs	x0, sp_el0
+     868:	f9401fe2 	ldr	x2, [sp, #56]
+     86c:	f942f001 	ldr	x1, [x0, #1504]
+     870:	eb010042 	subs	x2, x2, x1
+     874:	d2800001 	mov	x1, #0x0                   	// #0
+     878:	54000161 	b.ne	8a4 <stcp_accept+0xb4>  // b.any
+     87c:	a9447bfd 	ldp	x29, x30, [sp, #64]
+     880:	2a1603e0 	mov	w0, w22
+     884:	a94553f3 	ldp	x19, x20, [sp, #80]
+     888:	a9465bf5 	ldp	x21, x22, [sp, #96]
+     88c:	a94763f7 	ldp	x23, x24, [sp, #112]
+     890:	910283ff 	add	sp, sp, #0xa0
+     894:	d50323bf 	autiasp
+     898:	d65f03c0 	ret
+     89c:	128002b6 	mov	w22, #0xffffffea            	// #-22
+     8a0:	17fffff1 	b	864 <stcp_accept+0x74>
+     8a4:	a9086bf9 	stp	x25, x26, [sp, #128]
+     8a8:	f9004bfb 	str	x27, [sp, #144]
+     8ac:	94000000 	bl	0 <__stack_chk_fail>
+     8b0:	aa1503e1 	mov	x1, x21
+     8b4:	2a1703e4 	mov	w4, w23
+     8b8:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     8bc:	91000000 	add	x0, x0, #0x0
+     8c0:	94000000 	bl	0 <_printk>
+     8c4:	f9418ea0 	ldr	x0, [x21, #792]
+     8c8:	94000000 	bl	0 <stcp_carrier_is_udp>
+     8cc:	2a0003e1 	mov	w1, w0
+     8d0:	f9418aa0 	ldr	x0, [x21, #784]
+     8d4:	36000281 	tbz	w1, #0, 924 <stcp_accept+0x134>
+     8d8:	910043f8 	add	x24, sp, #0x10
+     8dc:	a9086bf9 	stp	x25, x26, [sp, #128]
+     8e0:	910c82ba 	add	x26, x21, #0x320
+     8e4:	f9004bfb 	str	x27, [sp, #144]
+     8e8:	121502fb 	and	w27, w23, #0x800
+     8ec:	f9418aa0 	ldr	x0, [x21, #784]
+     8f0:	2a1703e2 	mov	w2, w23
+     8f4:	910023e1 	add	x1, sp, #0x8
+     8f8:	94000000 	bl	0 <stcp_rust_accept>
+     8fc:	2a0003f6 	mov	w22, w0
+     900:	31002c1f 	cmn	w0, #0xb
+     904:	54000260 	b.eq	950 <stcp_accept+0x160>  // b.none
+     908:	f9404bfb 	ldr	x27, [sp, #144]
+     90c:	a9486bf9 	ldp	x25, x26, [sp, #128]
+     910:	35fffaa0 	cbnz	w0, 864 <stcp_accept+0x74>
+     914:	f94007e0 	ldr	x0, [sp, #8]
+     918:	b5000580 	cbnz	x0, 9c8 <stcp_accept+0x1d8>
+     91c:	12800096 	mov	w22, #0xfffffffb            	// #-5
+     920:	17ffffd1 	b	864 <stcp_accept+0x74>
+     924:	910023e1 	add	x1, sp, #0x8
+     928:	94000000 	bl	0 <stcp_rust_create_stream_accepted_child>
+     92c:	f94007e2 	ldr	x2, [sp, #8]
+     930:	2a0003f6 	mov	w22, w0
+     934:	f9418aa1 	ldr	x1, [x21, #784]
+     938:	2a0003e3 	mov	w3, w0
+     93c:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     940:	91000000 	add	x0, x0, #0x0
+     944:	94000000 	bl	0 <_printk>
+     948:	35fff8f6 	cbnz	w22, 864 <stcp_accept+0x74>
+     94c:	17fffff2 	b	914 <stcp_accept+0x124>
+     950:	3400009b 	cbz	w27, 960 <stcp_accept+0x170>
+     954:	f9404bfb 	ldr	x27, [sp, #144]
+     958:	a9486bf9 	ldp	x25, x26, [sp, #128]
+     95c:	17ffffc2 	b	864 <stcp_accept+0x74>
+     960:	f9418aa0 	ldr	x0, [x21, #784]
+     964:	94000000 	bl	0 <stcp_rust_has_accept>
+     968:	7100001f 	cmp	w0, #0x0
+     96c:	54fffc0c 	b.gt	8ec <stcp_accept+0xfc>
+     970:	a9007f1f 	stp	xzr, xzr, [x24]
+     974:	aa1803e0 	mov	x0, x24
+     978:	52800001 	mov	w1, #0x0                   	// #0
+     97c:	a9017f1f 	stp	xzr, xzr, [x24, #16]
+     980:	f900131f 	str	xzr, [x24, #32]
+     984:	94000000 	bl	0 <init_wait_entry>
+     988:	aa1803e1 	mov	x1, x24
+     98c:	aa1a03e0 	mov	x0, x26
+     990:	52800022 	mov	w2, #0x1                   	// #1
+     994:	94000000 	bl	0 <prepare_to_wait_event>
+     998:	aa0003f9 	mov	x25, x0
+     99c:	f9418aa0 	ldr	x0, [x21, #784]
+     9a0:	94000000 	bl	0 <stcp_rust_has_accept>
+     9a4:	7100001f 	cmp	w0, #0x0
+     9a8:	540011cd 	b.le	be0 <stcp_accept+0x3f0>
+     9ac:	d2800019 	mov	x25, #0x0                   	// #0
+     9b0:	aa1803e1 	mov	x1, x24
+     9b4:	aa1a03e0 	mov	x0, x26
+     9b8:	94000000 	bl	0 <finish_wait>
+     9bc:	2a1903f6 	mov	w22, w25
+     9c0:	35fffcb9 	cbnz	w25, 954 <stcp_accept+0x164>
+     9c4:	17ffffca 	b	8ec <stcp_accept+0xfc>
+     9c8:	f9400e60 	ldr	x0, [x19, #24]
+     9cc:	aa1403e1 	mov	x1, x20
+     9d0:	f9401800 	ldr	x0, [x0, #48]
+     9d4:	94000000 	bl	0 <stcp_alloc_child_sock>
+     9d8:	aa0003f3 	mov	x19, x0
+     9dc:	f94007e0 	ldr	x0, [sp, #8]
+     9e0:	b140067f 	cmn	x19, #0x1, lsl #12
+     9e4:	54000089 	b.ls	9f4 <stcp_accept+0x204>  // b.plast
+     9e8:	2a1303f6 	mov	w22, w19
+     9ec:	94000000 	bl	0 <stcp_rust_release>
+     9f0:	17ffff9d 	b	864 <stcp_accept+0x74>
+     9f4:	f9018a60 	str	x0, [x19, #784]
+     9f8:	aa0003e3 	mov	x3, x0
+     9fc:	aa1303e2 	mov	x2, x19
+     a00:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     a04:	f9418aa1 	ldr	x1, [x21, #784]
+     a08:	91000000 	add	x0, x0, #0x0
+     a0c:	94000000 	bl	0 <_printk>
+     a10:	f9418a61 	ldr	x1, [x19, #784]
+     a14:	121502e4 	and	w4, w23, #0x800
+     a18:	f9418ea0 	ldr	x0, [x21, #792]
+     a1c:	910c6263 	add	x3, x19, #0x318
+     a20:	aa1303e2 	mov	x2, x19
+     a24:	94000000 	bl	0 <stcp_carrier_accept>
+     a28:	2a0003e4 	mov	w4, w0
+     a2c:	f9418e63 	ldr	x3, [x19, #792]
+     a30:	2a0003f6 	mov	w22, w0
+     a34:	aa1503e1 	mov	x1, x21
+     a38:	aa1303e2 	mov	x2, x19
+     a3c:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     a40:	91000000 	add	x0, x0, #0x0
+     a44:	94000000 	bl	0 <_printk>
+     a48:	f9418a60 	ldr	x0, [x19, #784]
+     a4c:	34000116 	cbz	w22, a6c <stcp_accept+0x27c>
+     a50:	b4000060 	cbz	x0, a5c <stcp_accept+0x26c>
+     a54:	94000000 	bl	0 <stcp_rust_release>
+     a58:	f9018a7f 	str	xzr, [x19, #784]
+     a5c:	f9000e9f 	str	xzr, [x20, #24]
+     a60:	aa1303e0 	mov	x0, x19
+     a64:	94000000 	bl	0 <sk_free>
+     a68:	17ffff7f 	b	864 <stcp_accept+0x74>
+     a6c:	f9418e61 	ldr	x1, [x19, #792]
+     a70:	94000000 	bl	0 <stcp_rust_set_carrier>
+     a74:	f9418a60 	ldr	x0, [x19, #784]
+     a78:	aa1303e1 	mov	x1, x19
+     a7c:	94000000 	bl	0 <stcp_rust_set_owner>
+     a80:	f9418e60 	ldr	x0, [x19, #792]
+     a84:	94000000 	bl	0 <stcp_carrier_start_receiver_thread>
+     a88:	2a0003e3 	mov	w3, w0
+     a8c:	f9418e62 	ldr	x2, [x19, #792]
+     a90:	2a0003f6 	mov	w22, w0
+     a94:	aa1303e1 	mov	x1, x19
+     a98:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     a9c:	91000000 	add	x0, x0, #0x0
+     aa0:	94000000 	bl	0 <_printk>
+     aa4:	f9418a60 	ldr	x0, [x19, #784]
+     aa8:	340001d6 	cbz	w22, ae0 <stcp_accept+0x2f0>
+     aac:	f9418a60 	ldr	x0, [x19, #784]
+     ab0:	d2800001 	mov	x1, #0x0                   	// #0
+     ab4:	94000000 	bl	0 <stcp_rust_set_owner>
+     ab8:	f9418a60 	ldr	x0, [x19, #784]
+     abc:	d2800001 	mov	x1, #0x0                   	// #0
+     ac0:	94000000 	bl	0 <stcp_rust_set_carrier>
+     ac4:	f9418e60 	ldr	x0, [x19, #792]
+     ac8:	b4000660 	cbz	x0, b94 <stcp_accept+0x3a4>
+     acc:	94000000 	bl	0 <stcp_carrier_destroy>
+     ad0:	f9018e7f 	str	xzr, [x19, #792]
+     ad4:	f9418a60 	ldr	x0, [x19, #784]
+     ad8:	b5fffbe0 	cbnz	x0, a54 <stcp_accept+0x264>
+     adc:	17ffffe0 	b	a5c <stcp_accept+0x26c>
+     ae0:	94000000 	bl	0 <stcp_rust_start_handshake>
+     ae4:	2a0003e3 	mov	w3, w0
+     ae8:	f9418a62 	ldr	x2, [x19, #784]
+     aec:	aa1303e1 	mov	x1, x19
+     af0:	2a0003f6 	mov	w22, w0
+     af4:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     af8:	91000000 	add	x0, x0, #0x0
+     afc:	94000000 	bl	0 <_printk>
+     b00:	f9418a60 	ldr	x0, [x19, #784]
+     b04:	35fffd56 	cbnz	w22, aac <stcp_accept+0x2bc>
+     b08:	94000000 	bl	0 <stcp_rust_is_connected>
+     b0c:	7100001f 	cmp	w0, #0x0
+     b10:	540004cc 	b.gt	ba8 <stcp_accept+0x3b8>
+     b14:	f9418a60 	ldr	x0, [x19, #784]
+     b18:	94000000 	bl	0 <stcp_rust_is_connected>
+     b1c:	7100001f 	cmp	w0, #0x0
+     b20:	5400044c 	b.gt	ba8 <stcp_accept+0x3b8>
+     b24:	910043f8 	add	x24, sp, #0x10
+     b28:	a9017fff 	stp	xzr, xzr, [sp, #16]
+     b2c:	aa1803e0 	mov	x0, x24
+     b30:	a9086bf9 	stp	x25, x26, [sp, #128]
+     b34:	52800001 	mov	w1, #0x0                   	// #0
+     b38:	910ce279 	add	x25, x19, #0x338
+     b3c:	a9017f1f 	stp	xzr, xzr, [x24, #16]
+     b40:	d2809c55 	mov	x21, #0x4e2                 	// #1250
+     b44:	f900131f 	str	xzr, [x24, #32]
+     b48:	94000000 	bl	0 <init_wait_entry>
+     b4c:	aa1803e1 	mov	x1, x24
+     b50:	aa1903e0 	mov	x0, x25
+     b54:	52800022 	mov	w2, #0x1                   	// #1
+     b58:	94000000 	bl	0 <prepare_to_wait_event>
+     b5c:	aa0003f7 	mov	x23, x0
+     b60:	f9418a60 	ldr	x0, [x19, #784]
+     b64:	94000000 	bl	0 <stcp_rust_is_connected>
+     b68:	7100001f 	cmp	w0, #0x0
+     b6c:	5400048d 	b.le	bfc <stcp_accept+0x40c>
+     b70:	aa1503f7 	mov	x23, x21
+     b74:	aa1803e1 	mov	x1, x24
+     b78:	aa1903e0 	mov	x0, x25
+     b7c:	94000000 	bl	0 <finish_wait>
+     b80:	710002ff 	cmp	w23, #0x0
+     b84:	540000ea 	b.ge	ba0 <stcp_accept+0x3b0>  // b.tcont
+     b88:	a9486bf9 	ldp	x25, x26, [sp, #128]
+     b8c:	2a1703f6 	mov	w22, w23
+     b90:	17ffffc7 	b	aac <stcp_accept+0x2bc>
+     b94:	f9418a60 	ldr	x0, [x19, #784]
+     b98:	b5fff5e0 	cbnz	x0, a54 <stcp_accept+0x264>
+     b9c:	17ffffb0 	b	a5c <stcp_accept+0x26c>
+     ba0:	54000540 	b.eq	c48 <stcp_accept+0x458>  // b.none
+     ba4:	a9486bf9 	ldp	x25, x26, [sp, #128]
+     ba8:	aa1303e0 	mov	x0, x19
+     bac:	94000000 	bl	0 <stcp_start_retransmit_work>
+     bb0:	aa1303e0 	mov	x0, x19
+     bb4:	94000000 	bl	0 <stcp_user_register>
+     bb8:	52800060 	mov	w0, #0x3                   	// #3
+     bbc:	b9000280 	str	w0, [x20]
+     bc0:	aa1303e4 	mov	x4, x19
+     bc4:	aa1303e1 	mov	x1, x19
+     bc8:	f9418a62 	ldr	x2, [x19, #784]
+     bcc:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     bd0:	f9418e63 	ldr	x3, [x19, #792]
+     bd4:	91000000 	add	x0, x0, #0x0
+     bd8:	94000000 	bl	0 <_printk>
+     bdc:	17ffff22 	b	864 <stcp_accept+0x74>
+     be0:	b5ffeef9 	cbnz	x25, 9bc <stcp_accept+0x1cc>
+     be4:	94000000 	bl	0 <schedule>
+     be8:	f9418aa0 	ldr	x0, [x21, #784]
+     bec:	94000000 	bl	0 <stcp_rust_has_accept>
+     bf0:	7100001f 	cmp	w0, #0x0
+     bf4:	54ffedcc 	b.gt	9ac <stcp_accept+0x1bc>
+     bf8:	17ffff64 	b	988 <stcp_accept+0x198>
+     bfc:	b5fffc37 	cbnz	x23, b80 <stcp_accept+0x390>
+     c00:	aa1503e0 	mov	x0, x21
+     c04:	94000000 	bl	0 <schedule_timeout>
+     c08:	aa0003f5 	mov	x21, x0
+     c0c:	f9418a60 	ldr	x0, [x19, #784]
+     c10:	94000000 	bl	0 <stcp_rust_is_connected>
+     c14:	7100001f 	cmp	w0, #0x0
+     c18:	1a9fd7e0 	cset	w0, gt
+     c1c:	f10002bf 	cmp	x21, #0x0
+     c20:	1a9f17e1 	cset	w1, eq	// eq = none
+     c24:	7100003f 	cmp	w1, #0x0
+     c28:	7a401804 	ccmp	w0, #0x0, #0x4, ne	// ne = any
+     c2c:	54000060 	b.eq	c38 <stcp_accept+0x448>  // b.none
+     c30:	d2800035 	mov	x21, #0x1                   	// #1
+     c34:	17ffffcf 	b	b70 <stcp_accept+0x380>
+     c38:	7100003f 	cmp	w1, #0x0
+     c3c:	7a400800 	ccmp	w0, #0x0, #0x0, eq	// eq = none
+     c40:	54fff860 	b.eq	b4c <stcp_accept+0x35c>  // b.none
+     c44:	17ffffcb 	b	b70 <stcp_accept+0x380>
+     c48:	f9418a62 	ldr	x2, [x19, #784]
+     c4c:	aa1303e1 	mov	x1, x19
+     c50:	90000000 	adrp	x0, 0 <stcp_setsockopt-0x8>
+     c54:	12800db6 	mov	w22, #0xffffff92            	// #-110
+     c58:	91000000 	add	x0, x0, #0x0
+     c5c:	94000000 	bl	0 <_printk>
+     c60:	a9486bf9 	ldp	x25, x26, [sp, #128]
+     c64:	17ffff92 	b	aac <stcp_accept+0x2bc>
+     c68:	d503201f 	nop
+     c6c:	d503201f 	nop
+

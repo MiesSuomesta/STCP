@@ -1,0 +1,20 @@
+{
+  "mode": "tcp",
+  "clients": 1,
+  "payload_bytes": 1024,
+  "pipeline": 1,
+  "elapsed_s": 5.000365503001376,
+  "operations": 18035,
+  "errors": 0,
+  "tx_mib_s": 3.5222034623126137,
+  "rx_mib_s": 3.5222034623126137,
+  "combined_mib_s": 7.044406924625227,
+  "operations_s": 3606.7363454081164,
+  "connect_mean_ms": 0.39648701203987,
+  "rtt_p50_ms": 0.25177600036840886,
+  "rtt_p95_ms": 0.38279799628071487,
+  "rtt_p99_ms": 0.43902099423576146,
+  "client_cpu_percent": 27.569124680436797,
+  "max_rss_kib": 20620,
+  "error_details": []
+}

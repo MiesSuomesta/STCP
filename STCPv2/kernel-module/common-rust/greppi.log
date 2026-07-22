@@ -1,0 +1,74 @@
+./src/carrier.rs:21:        listener: *mut c_void,
+./src/carrier.rs:40:    listener: usize,
+./src/carrier.rs:182:    listener: usize,
+./src/carrier.rs:189:            entry.listener == listener && entry.connection_id == connection_id
+./src/carrier.rs:195:    listener: &StcpContext,
+./src/carrier.rs:196:    listener_ptr: usize,
+./src/carrier.rs:201:    let (local, backlog, owner, listener_carrier) = {
+./src/carrier.rs:202:        let inner = listener.inner.lock();
+./src/carrier.rs:215:        let inner = listener.inner.lock();
+./src/carrier.rs:216:        if inner.accept_queue.len() >= backlog {
+./src/carrier.rs:227:        listener.proto,
+./src/carrier.rs:242:    if listener_carrier == 0 {
+./src/carrier.rs:249:            listener_carrier as *mut c_void,
+./src/carrier.rs:267:        listener: listener_ptr,
+./src/carrier.rs:275:        let mut inner = listener.inner.lock();
+./src/carrier.rs:276:        inner.accept_queue.push_back(unsafe { Box::from_raw(child_ptr as *mut StcpContext) });
+./src/carrier.rs:286:        entry.child != ptr && entry.listener != ptr
+./src/carrier.rs:336:    let listener_ptr = ctx as *const StcpContext as usize;
+./src/carrier.rs:337:    let entry = match find_udp_child(listener_ptr, header.connection_id) {
+./src/carrier.rs:346:                listener_ptr,
+./src/carrier.rs:352:                    listener: listener_ptr,
+./src/context_inner.corrected.rs:6:    pub accept_queue: VecDeque<Box<StcpContext>>,
+./src/state.rs:145:    pub accept_queue: VecDeque<Box<StcpContext>>,
+./src/state.rs:194:                accept_queue: VecDeque::new(),
+./src/state.rs:242:                accept_queue: VecDeque::new(),
+./src/transport.rs:114:    let mut listeners = LISTENERS.lock();
+./src/transport.rs:116:    if listeners.iter().any(|entry| entry.address == address) {
+./src/transport.rs:122:    listeners.push(ListenerEntry {
+./src/transport.rs:147:    let listener_ptr = {
+./src/transport.rs:148:        let listeners = LISTENERS.lock();
+./src/transport.rs:150:        listeners
+./src/transport.rs:154:            .ok_or(StcpError::ConnectionRefused)?
+./src/transport.rs:157:    let listener = unsafe {
+./src/transport.rs:158:        &*(listener_ptr as *const StcpContext)
+./src/transport.rs:194:    let listener_owner = {
+./src/transport.rs:195:        let mut inner = listener.inner.lock();
+./src/transport.rs:198:            return Err(StcpError::ConnectionRefused);
+./src/transport.rs:201:        if inner.accept_queue.len() >= inner.backlog {
+./src/transport.rs:205:        inner.accept_queue.push_back(child);
+./src/transport.rs:209:    wake_accept(listener_owner);
+./src/transport.rs:352:        .accept_queue
+./src/transport.rs:701:    !inner.accept_queue.is_empty()
+./src/transport.rs:761:fn unregister_listener(ctx: &StcpContext) {
+./src/transport.rs:763:    let mut listeners = LISTENERS.lock();
+./src/transport.rs:765:    listeners.retain(|entry| entry.ctx != ctx_ptr);
+./src/transport.rs:769:    unregister_listener(ctx);
+./src/error.rs:1:#[derive(Debug,Clone,Copy)]pub enum StcpError{InvalidState,AddressInUse,ConnectionRefused,Protocol,Crypto,Closed,Again,NoMem,Unsupported,Kernel(i32)}
+./src/error.rs:2:impl StcpError{pub const fn errno(self)->i32{match self{Self::InvalidState=>-22,Self::AddressInUse=>-98,Self::ConnectionRefused=>-111,Self::Protocol=>-71,Self::Crypto=>-74,Self::Closed=>-107,Self::Again=>-11,Self::NoMem=>-12,Self::Unsupported=>-95,Self::Kernel(e)=>e}}}
+./src/kdf.rs:7:    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+./src/session.rs:237:    let mut listeners = LISTENERS.lock();
+./src/session.rs:239:    if listeners.iter().any(|entry| entry.address == address) {
+./src/session.rs:245:    listeners.push(ListenerEntry {
+./src/session.rs:273:     * or enqueue a server child through the in-kernel listener registry.
+./src/session.rs:276:     * ID. The UDP listener creates the server child only when that datagram is
+./src/session.rs:318:    let listener_ptr = {
+./src/session.rs:319:        let listeners = LISTENERS.lock();
+./src/session.rs:321:        listeners
+./src/session.rs:325:            .ok_or(StcpError::ConnectionRefused)?
+./src/session.rs:328:    let listener = unsafe {
+./src/session.rs:329:        &*(listener_ptr as *const StcpContext)
+./src/session.rs:368:    let listener_owner = {
+./src/session.rs:369:        let mut inner = listener.inner.lock();
+./src/session.rs:372:            return Err(StcpError::ConnectionRefused);
+./src/session.rs:375:        if inner.accept_queue.len() >= inner.backlog {
+./src/session.rs:379:        inner.accept_queue.push_back(child);
+./src/session.rs:383:    wake_accept(listener_owner);
+./src/session.rs:500:        .accept_queue
+./src/session.rs:731:    crate::carrier::debug_event(111, ctx, 0, 0);
+./src/session.rs:1241:    !inner.accept_queue.is_empty()
+./src/session.rs:1323:fn unregister_listener(ctx: &StcpContext) {
+./src/session.rs:1325:    let mut listeners = LISTENERS.lock();
+./src/session.rs:1332:    listeners.retain(|entry| entry.ctx != ctx_ptr);
+./src/session.rs:1337:    unregister_listener(ctx);
+./src/session.rs:1354:        let queued_children = inner.accept_queue.drain(..).collect::<Vec<_>>();

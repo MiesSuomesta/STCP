@@ -1,0 +1,22 @@
+{
+  "mode": "tcp",
+  "clients": 1,
+  "payload_bytes": 64,
+  "pipeline": 1,
+  "elapsed_s": 3.0675031400023727,
+  "operations": 0,
+  "errors": 1,
+  "tx_mib_s": 0.0,
+  "rx_mib_s": 0.0,
+  "combined_mib_s": 0.0,
+  "operations_s": 0.0,
+  "connect_mean_ms": 0.0,
+  "rtt_p50_ms": 0.0,
+  "rtt_p95_ms": 0.0,
+  "rtt_p99_ms": 0.0,
+  "client_cpu_percent": 0.03970656082194121,
+  "max_rss_kib": 20172,
+  "error_details": [
+    "OSError(113, 'No route to host')"
+  ]
+}

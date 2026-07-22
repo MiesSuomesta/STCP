@@ -1,0 +1,65 @@
+===== tcp-c1-p1024-q1 =====
+{
+  "mode": "tcp",
+  "clients": 1,
+  "payload_bytes": 1024,
+  "pipeline": 1,
+  "elapsed_s": 5.000365503001376,
+  "operations": 18035,
+  "errors": 0,
+  "tx_mib_s": 3.5222034623126137,
+  "rx_mib_s": 3.5222034623126137,
+  "combined_mib_s": 7.044406924625227,
+  "operations_s": 3606.7363454081164,
+  "connect_mean_ms": 0.39648701203987,
+  "rtt_p50_ms": 0.25177600036840886,
+  "rtt_p95_ms": 0.38279799628071487,
+  "rtt_p99_ms": 0.43902099423576146,
+  "client_cpu_percent": 27.569124680436797,
+  "max_rss_kib": 20620,
+  "error_details": []
+}
+===== tls-c1-p1024-q1 =====
+{
+  "mode": "tls",
+  "clients": 1,
+  "payload_bytes": 1024,
+  "pipeline": 1,
+  "elapsed_s": 5.001525147003122,
+  "operations": 8884,
+  "errors": 0,
+  "tx_mib_s": 1.7346271377238733,
+  "rx_mib_s": 1.7346271377238733,
+  "combined_mib_s": 3.4692542754477467,
+  "operations_s": 1776.2581890292463,
+  "connect_mean_ms": 40.32629700668622,
+  "rtt_p50_ms": 0.5260420002741739,
+  "rtt_p95_ms": 0.742129996069707,
+  "rtt_p99_ms": 0.8423509862041101,
+  "client_cpu_percent": 35.222176200704816,
+  "max_rss_kib": 24264,
+  "error_details": []
+}
+===== stcp-c1-p1024-q1 =====
+{
+  "mode": "stcp",
+  "clients": 1,
+  "payload_bytes": 1024,
+  "pipeline": 1,
+  "elapsed_s": 0.0009445290052099153,
+  "operations": 0,
+  "errors": 1,
+  "tx_mib_s": 0.0,
+  "rx_mib_s": 0.0,
+  "combined_mib_s": 0.0,
+  "operations_s": 0.0,
+  "connect_mean_ms": 0.0,
+  "rtt_p50_ms": 0.0,
+  "rtt_p95_ms": 0.0,
+  "rtt_p99_ms": 0.0,
+  "client_cpu_percent": 95.60320487980304,
+  "max_rss_kib": 20364,
+  "error_details": [
+    "ConnectionRefusedError(111, 'STCP connect: Connection refused')"
+  ]
+}

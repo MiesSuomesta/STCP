@@ -1,0 +1,55 @@
+[ 4791.304296] do_umount: task=(fwupdmgr)[13276] propagate_mount_busy()!=0
+[ 4791.348603] do_umount: task=(fwupdmgr)[13276] propagate_mount_busy()!=0
+[ 4791.350305] do_umount: task=(fwupdmgr)[13276] propagate_mount_busy()!=0
+pomo@devaus:~/git/STCP/STCPv2/linux-kernel/linux-module$ sudo dmesg | tail -n 50
+[ 4580.496290] kobject: 'lo': free name
+[ 4687.356509] ------------[ cut here ]------------
+[ 4687.356549] WARNING: mm/page_alloc.c:5288 at __alloc_frozen_pages_noprof+0x411/0x590, CPU#0: stcp-rx/0000000/13200
+[ 4687.356566] Modules linked in: stcp(OE) libchacha20poly1305 libchacha libpoly1305 libcurve25519 netconsole snd_seq_dummy snd_hrtimer snd_seq snd_seq_device qrtr rfkill binfmt_misc nls_ascii nls_cp437 snd_hda_codec_via vfat snd_hda_codec_generic snd_hda_codec_nvhdmi fat snd_hda_codec_hdmi edac_mce_amd snd_hda_intel kvm_amd snd_hda_codec ccp snd_hda_core snd_intel_dspcfg kvm snd_intel_sdw_acpi wmi_bmof snd_hwdep snd_pcm irqbypass snd_timer pcspkr acpi_cpufreq snd k10temp cdc_acm soundcore joydev asus_atk0110 evdev sg firewire_sbp2 msr i2c_dev parport_pc ppdev lp parport efi_pstore configfs autofs4 ext4 mbcache crc16 jbd2 nouveau hid_generic usbhid hid uas usb_storage mxm_wmi drm_gpuvm gpu_sched drm_ttm_helper sd_mod ttm i2c_algo_bit ata_generic drm_display_helper cec ahci rc_core libahci pata_atiixp r8169 video libata drm_exec realtek drm_client_lib phy_package ohci_pci drm_kms_helper firewire_ohci ehci_pci psmouse sp5100_tco mdio_devres ohci_hcd ehci_hcd drm firewire_core scsi_mod watchdog libphy serio_raw usbcore
+[ 4687.356788]  crc_itu_t mdio_bus i2c_piix4 i2c_smbus wmi scsi_common usb_common button [last unloaded: stcp(OE)]
+[ 4687.356818] CPU: 0 UID: 0 PID: 13200 Comm: stcp-rx/0000000 Tainted: G           OE       7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus #4 PREEMPT(lazy) 
+[ 4687.356829] Tainted: [O]=OOT_MODULE, [E]=UNSIGNED_MODULE
+[ 4687.356833] Hardware name: System manufacturer System Product Name/M4A785TD-V EVO, BIOS 2105    07/23/2010
+[ 4687.356839] RIP: 0010:__alloc_frozen_pages_noprof+0x411/0x590
+[ 4687.356846] Code: 3c 00 00 74 0e 4c 89 e7 41 89 d7 e8 e9 18 0a 00 44 89 fa 49 83 3c 24 00 0f 85 e9 fd ff ff e9 ea fd ff ff c6 05 93 5d f1 02 01 <0f> 0b e9 40 ff ff ff 4c 89 e7 e8 c0 f8 f1 ff 49 b8 00 00 00 00 00
+[ 4687.356853] RSP: 0018:ffff888176bf7a70 EFLAGS: 00010246
+[ 4687.356861] RAX: ffff888176bf7a00 RBX: 000000000000000b RCX: 0000000000000000
+[ 4687.356866] RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffff888176bf7ab0
+[ 4687.356871] RBP: 0000000000000000 R08: ffff888176bf7aaf R09: 0000000000000000
+[ 4687.356877] R10: ffff888176bf7a98 R11: ffffed102ed7ef56 R12: dffffc0000000000
+[ 4687.356882] R13: 1ffffffff2db40d0 R14: 0000000000040cc0 R15: 0000000000000000
+[ 4687.356887] FS:  0000000000000000(0000) GS:ffff8886485a0000(0000) knlGS:0000000000000000
+[ 4687.356893] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 4687.356898] CR2: 00007f1b73078008 CR3: 0000000106231000 CR4: 00000000000006f0
+[ 4687.356904] Call Trace:
+[ 4687.356909]  <TASK>
+[ 4687.356915]  alloc_pages_mpol+0x17a/0x2e0
+[ 4687.356923]  ? stcp_rust_kernel_alloc+0x17/0x40 [stcp]
+[ 4687.356979]  ___kmalloc_large_node+0x51/0xe0
+[ 4687.356988]  ? stcp_rust_kernel_alloc+0x17/0x40 [stcp]
+[ 4687.357024]  __kmalloc_large_node_noprof+0x1d/0xb0
+[ 4687.357031]  ? stcp_rust_kernel_alloc+0x17/0x40 [stcp]
+[ 4687.357067]  __kmalloc_noprof+0x28b/0x500
+[ 4687.357074]  ? stcp_rust_kernel_alloc+0x17/0x40 [stcp]
+[ 4687.357109]  ? __lock_sock+0xff/0x130
+[ 4687.357117]  stcp_rust_kernel_alloc+0x17/0x40 [stcp]
+[ 4687.357154]  _RNvMs5_NtCsaVCN1rFWyBs_5alloc7raw_vecNtB5_11RawVecInner11finish_growCscIcVJQKiqJv_16stcp_kernel_core+0x66/0xf0 [stcp]
+[ 4687.357191]  _RINvNvMs2_NtCsaVCN1rFWyBs_5alloc7raw_vecINtB8_11RawVecInnerpE7reserve21do_reserve_and_handleNtNtBa_5alloc6GlobalECscIcVJQKiqJv_16stcp_kernel_core+0x52/0x80 [stcp]
+[ 4687.357227]  ? tcp_recvmsg+0x21c/0x630
+[ 4687.357236]  _RNvXs_NtNtNtCsaVCN1rFWyBs_5alloc11collections9vec_deque11spec_extendINtB6_8VecDequehEINtB4_10SpecExtendhINtNtNtNtCsc4mM2h3eSHY_4core4iter8adapters6copied6CopiedINtNtNtB1N_5slice4iter4IterhEEE11spec_extendCscIcVJQKiqJv_16stcp_kernel_core+0x122/0x300 [stcp]
+[ 4687.357274]  _RNvNtCscIcVJQKiqJv_16stcp_kernel_core7carrier16queue_to_context+0xd1/0x170 [stcp]
+[ 4687.357311]  stcp_receiver_thread+0x208/0x320 [stcp]
+[ 4687.357350]  kthread+0x302/0x3f0
+[ 4687.357359]  ? __pfx_stcp_receiver_thread+0x10/0x10 [stcp]
+[ 4687.357394]  ? __pfx_kthread+0x10/0x10
+[ 4687.357402]  ret_from_fork+0x1d9/0x590
+[ 4687.357409]  ? __pfx_kthread+0x10/0x10
+[ 4687.357416]  ret_from_fork_asm+0x1a/0x30
+[ 4687.357425]  </TASK>
+[ 4687.357429] ---[ end trace 0000000000000000 ]---
+[ 4791.296092] do_umount: task=(fwupdmgr)[13276] propagate_mount_busy()!=0
+[ 4791.304296] do_umount: task=(fwupdmgr)[13276] propagate_mount_busy()!=0
+[ 4791.348603] do_umount: task=(fwupdmgr)[13276] propagate_mount_busy()!=0
+[ 4791.350305] do_umount: task=(fwupdmgr)[13276] propagate_mount_busy()!=0
+[ 4801.279531] perf: interrupt took too long (3128 > 3126), lowering kernel.perf_event_max_sample_rate to 63750
+

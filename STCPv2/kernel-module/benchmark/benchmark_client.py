@@ -15,7 +15,8 @@ import time
 from pathlib import Path
 
 AF_STCP = 45
-STCP_PROTO = 253
+STCP_PROTO_TCP = 253
+STCP_PROTO_UDP = 254
 HEADER = struct.Struct("!I")
 
 
@@ -72,7 +73,8 @@ def open_connection(args: argparse.Namespace) -> tuple[socket.socket, float]:
     started = time.perf_counter()
 
     if args.mode == "stcp":
-        conn = socket.socket(AF_STCP, socket.SOCK_STREAM, STCP_PROTO)
+        proto = STCP_PROTO_TCP if args.transport == "tcp" else STCP_PROTO_UDP
+        conn = socket.socket(AF_STCP, socket.SOCK_STREAM, proto)
         address = stcp_address(args.host, args.port)
         if libc.connect(conn.fileno(), ctypes.byref(address), ctypes.sizeof(address)) < 0:
             conn.close()
@@ -98,6 +100,7 @@ def open_connection(args: argparse.Namespace) -> tuple[socket.socket, float]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("tcp", "tls", "stcp"), required=True)
+    parser.add_argument("--transport", choices=("tcp", "udp"), default="tcp", help="STCP carrier transport")
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--clients", type=int, default=4)
@@ -189,6 +192,7 @@ def main() -> int:
 
     output = {
         "mode": args.mode,
+        "transport": args.transport if args.mode == "stcp" else args.mode,
         "clients": args.clients,
         "payload_bytes": args.payload,
         "pipeline": args.pipeline,

@@ -10,7 +10,8 @@ import struct
 import threading
 
 AF_STCP = 45
-STCP_PROTO = 253
+STCP_PROTO_TCP = 253
+STCP_PROTO_UDP = 254
 HEADER = struct.Struct("!I")
 
 
@@ -54,14 +55,15 @@ def bind_listener(listener: socket.socket, mode: str, host: str, port: int) -> N
         native_error("STCP bind")
 
 
-def accept_connection(listener: socket.socket, mode: str) -> socket.socket:
+def accept_connection(listener: socket.socket, mode: str, transport: str) -> socket.socket:
     if mode != "stcp":
         conn, _ = listener.accept()
         return conn
     fd = libc.accept(listener.fileno(), None, None)
     if fd < 0:
         native_error("STCP accept")
-    return socket.socket(AF_STCP, socket.SOCK_STREAM, STCP_PROTO, fileno=fd)
+    proto = STCP_PROTO_TCP if transport == "tcp" else STCP_PROTO_UDP
+    return socket.socket(AF_STCP, socket.SOCK_STREAM, proto, fileno=fd)
 
 
 def recv_exact(conn: socket.socket, size: int) -> bytes:
@@ -97,6 +99,7 @@ def worker(conn: socket.socket) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("tcp", "tls", "stcp"), required=True)
+    parser.add_argument("--transport", choices=("tcp", "udp"), default="tcp", help="STCP carrier transport")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--cert")
@@ -104,7 +107,8 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.mode == "stcp":
-        listener = socket.socket(AF_STCP, socket.SOCK_STREAM, STCP_PROTO)
+        proto = STCP_PROTO_TCP if args.transport == "tcp" else STCP_PROTO_UDP
+        listener = socket.socket(AF_STCP, socket.SOCK_STREAM, proto)
     else:
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -120,10 +124,11 @@ def main() -> int:
         context.minimum_version = ssl.TLSVersion.TLSv1_3
         context.load_cert_chain(args.cert, args.key)
 
-    print(f"benchmark server: mode={args.mode} listen={args.host}:{args.port}", flush=True)
+    label = f"stcp/{args.transport}" if args.mode == "stcp" else args.mode
+    print(f"benchmark server: mode={label} listen={args.host}:{args.port}", flush=True)
 
     while True:
-        conn = accept_connection(listener, args.mode)
+        conn = accept_connection(listener, args.mode, args.transport)
         if context is not None:
             try:
                 conn = context.wrap_socket(conn, server_side=True)

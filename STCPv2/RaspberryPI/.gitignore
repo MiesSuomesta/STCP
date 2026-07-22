@@ -1,0 +1,6 @@
+testing/stcp_large_test
+__pycache__
+*.zip
+rust/target/**
+*.o
+*.cmd

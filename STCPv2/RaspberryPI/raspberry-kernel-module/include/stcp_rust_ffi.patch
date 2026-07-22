@@ -1,0 +1,12 @@
+Add to include/stcp_rust_ffi.h:
+
+void stcp_rust_set_carrier(
+	void *rust_ctx,
+	void *carrier
+);
+
+int stcp_rust_carrier_receive(
+	void *rust_ctx,
+	const u8 *data,
+	size_t len
+);

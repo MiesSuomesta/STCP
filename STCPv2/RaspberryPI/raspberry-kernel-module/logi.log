@@ -1,0 +1,144 @@
+cd "/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/rust" && \
+RUSTFLAGS="-C relocation-model=static -C code-model=kernel -C panic=abort -C force-frame-pointers=yes -C no-redzone=yes -Z plt=yes" \
+"rustup" run "nightly" cargo build \
+	-Zbuild-std=core,alloc \
+	--target "x86_64-unknown-none" \
+	--release
+warning: unused import: `crate::carrier::set_carrier`
+  --> src/ffi.rs:14:5
+   |
+14 | use crate::carrier::set_carrier;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `X25519_KEY_LEN` is never used
+ --> src/crypto.rs:5:11
+  |
+5 | pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:...
+  |           ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `CHACHA_KEY_LEN` is never used
+ --> src/crypto.rs:5:86
+  |
+5 | ... PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const CHACHA_TAG_LEN:usize=...
+  |                                             ^^^^^^^^^^^^^^
+
+warning: constant `STCP_PUBLIC_KEY_LEN` is never used
+ --> src/frame.rs:8:11
+  |
+8 | pub const STCP_PUBLIC_KEY_LEN: usize = 64;
+  |           ^^^^^^^^^^^^^^^^^^^
+
+warning: constant `STCP_AUTH_TAG_LEN` is never used
+  --> src/frame.rs:10:11
+   |
+10 | pub const STCP_AUTH_TAG_LEN: usize = 16;
+   |           ^^^^^^^^^^^^^^^^^
+
+warning: `stcp-kernel-core` (lib) generated 5 warnings (run `cargo fix --lib -p stcp-kernel-core` to apply 1 suggestion)
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.16s
+rm -rf "/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/.rust-objects"
+mkdir -p "/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/.rust-objects"
+cd "/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/.rust-objects" && "llvm-ar" x "/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/rust/target/x86_64-unknown-none/release/libstcp_kernel_core.a"
+Rust core ready: /home/pomo/git/STCP/STCPv2/linux-kernel/linux-module/src/rust_core.o
+make -C "/lib/modules/7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/build" M="/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module" LLVM="1" V="1" modules
+make[1]: Entering directory '/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus'
+make  -C /home/pomo/git/STCP/STCPv2/linux-kernel/linux-module \
+-f /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/Makefile modules
+make[2]: Entering directory '/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module'
+make --no-print-directory -C /home/pomo/git/STCP/STCPv2/linux-kernel/linux-module \
+-f /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/Makefile modules
+make -f /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/scripts/Makefile.build obj=. need-builtin=1 need-modorder=1 
+# CC [M]  src/stcp_proto.o
+  clang -Wp,-MMD,src/.stcp_proto.o.d -nostdinc -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/arch/x86/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/arch/x86/include/generated -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/arch/x86/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/arch/x86/include/generated/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/generated/uapi -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/compiler-version.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/kconfig.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/compiler_types.h -D__KERNEL__ --target=x86_64-linux-gnu -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -Wno-gnu -Wno-microsoft-anon-tag -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mstack-alignment=8 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mretpoline-external-thunk -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -mharden-sls=all -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-stack-clash-protection -pg -mfentry -DCC_USING_NOP_MCOUNT -DCC_USING_FENTRY -falign-functions=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-type-limits -Wno-pointer-sign -Wcast-function-type -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -I././include    -fsanitize=kernel-address -mllvm -asan-mapping-offset=0xdffffc0000000000  -mllvm -asan-instrumentation-with-call-threshold=10000  -mllvm -asan-stack=0    -mllvm -asan-globals=1  -mllvm -asan-kernel-mem-intrinsic-prefix=1  -DMODULE  -DKBUILD_BASENAME='"stcp_proto"' -DKBUILD_MODNAME='"stcp"' -D__KBUILD_MODNAME=stcp -c -o src/stcp_proto.o src/stcp_proto.c  
+src/stcp_proto.c:83:7: error: no member named 'carrier' in 'struct stcp_sock'
+   83 |         ssk->carrier = NULL;
+      |         ~~~  ^
+src/stcp_proto.c:91:3: error: use of undeclared identifier 'stcp_retransmit_workfn'; did you mean 'stcp_stop_retransmit_work'?
+   91 |                 stcp_retransmit_workfn
+      |                 ^~~~~~~~~~~~~~~~~~~~~~
+      |                 stcp_stop_retransmit_work
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:335:29: note: expanded from macro 'INIT_DELAYED_WORK'
+  335 |         __INIT_DELAYED_WORK(_work, _func, 0)
+      |                                    ^
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:320:30: note: expanded from macro '__INIT_DELAYED_WORK'
+  320 |                 INIT_WORK(&(_work)->work, (_func));                     \
+      |                                            ^
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:310:24: note: expanded from macro 'INIT_WORK'
+  310 |         __INIT_WORK((_work), (_func), 0)
+      |                               ^
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:306:26: note: expanded from macro '__INIT_WORK'
+  306 |                 __INIT_WORK_KEY(_work, _func, _onstack, &__key);        \
+      |                                        ^
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:298:20: note: expanded from macro '__INIT_WORK_KEY'
+  298 |                 (_work)->func = (_func);                                \
+      |                                  ^
+././include/stcp_proto.h:17:6: note: 'stcp_stop_retransmit_work' declared here
+   17 | void stcp_stop_retransmit_work(struct stcp_sock *ssk);
+      |      ^
+src/stcp_proto.c:89:2: error: incompatible function pointer types assigning to 'work_func_t' (aka 'void (*)(struct work_struct *)') from 'void (struct stcp_sock *)' [-Wincompatible-function-pointer-types]
+   89 |         INIT_DELAYED_WORK(
+      |         ^~~~~~~~~~~~~~~~~~
+   90 |                 &ssk->retransmit_work,
+      |                 ~~~~~~~~~~~~~~~~~~~~~~
+   91 |                 stcp_retransmit_workfn
+      |                 ~~~~~~~~~~~~~~~~~~~~~~
+   92 |         );
+      |         ~
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:335:2: note: expanded from macro 'INIT_DELAYED_WORK'
+  335 |         __INIT_DELAYED_WORK(_work, _func, 0)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:320:3: note: expanded from macro '__INIT_DELAYED_WORK'
+  320 |                 INIT_WORK(&(_work)->work, (_func));                     \
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:310:2: note: expanded from macro 'INIT_WORK'
+  310 |         __INIT_WORK((_work), (_func), 0)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:306:3: note: expanded from macro '__INIT_WORK'
+  306 |                 __INIT_WORK_KEY(_work, _func, _onstack, &__key);        \
+      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/include/linux/workqueue.h:298:17: note: expanded from macro '__INIT_WORK_KEY'
+  298 |                 (_work)->func = (_func);                                \
+      |                               ^ ~~~~~~~
+src/stcp_proto.c:96:3: error: too many arguments to function call, expected single argument 'proto', have 2 arguments
+   94 |         ret = stcp_rust_create(
+      |               ~~~~~~~~~~~~~~~~
+   95 |                 (u8)protocol,
+   96 |                 &rust_ctx
+      |                 ^~~~~~~~~
+././include/stcp_rust_ffi.h:10:7: note: 'stcp_rust_create' declared here
+   10 | void *stcp_rust_create(u8 proto);
+      |       ^                ~~~~~~~~
+src/stcp_proto.c:103:7: error: no member named 'carrier' in 'struct stcp_sock'
+  103 |         ssk->carrier = stcp_carrier_create(
+      |         ~~~  ^
+src/stcp_proto.c:109:18: error: no member named 'carrier' in 'struct stcp_sock'
+  109 |         if (IS_ERR(ssk->carrier)) {
+      |                    ~~~  ^
+src/stcp_proto.c:110:22: error: no member named 'carrier' in 'struct stcp_sock'
+  110 |                 ret = PTR_ERR(ssk->carrier);
+      |                               ~~~  ^
+src/stcp_proto.c:111:8: error: no member named 'carrier' in 'struct stcp_sock'
+  111 |                 ssk->carrier = NULL;
+      |                 ~~~  ^
+src/stcp_proto.c:120:2: error: call to undeclared function 'stcp_rust_set_carrier'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+  120 |         stcp_rust_set_carrier(
+      |         ^
+src/stcp_proto.c:120:2: note: did you mean 'stcp_rust_set_owner'?
+././include/stcp_rust_ffi.h:12:6: note: 'stcp_rust_set_owner' declared here
+   12 | void stcp_rust_set_owner(void *ctx, void *owner);
+      |      ^
+src/stcp_proto.c:122:8: error: no member named 'carrier' in 'struct stcp_sock'
+  122 |                 ssk->carrier
+      |                 ~~~  ^
+10 errors generated.
+make[4]: *** [/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/scripts/Makefile.build:289: src/stcp_proto.o] Error 1
+make[3]: *** [/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/Makefile:2184: .] Error 2
+make[2]: *** [/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus/Makefile:248: __sub-make] Error 2
+make[2]: Leaving directory '/home/pomo/git/STCP/STCPv2/linux-kernel/linux-module'
+make[1]: *** [Makefile:248: __sub-make] Error 2
+make[1]: Leaving directory '/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug-kasan-uus'
+make: *** [Makefile:32: module] Error 2

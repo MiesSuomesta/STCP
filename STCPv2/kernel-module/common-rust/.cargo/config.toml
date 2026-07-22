@@ -1,0 +1,5 @@
+# Architecture is selected by each port's Makefile with --target.
+# Keeping this file target-neutral allows every port to use the same sources.
+
+[unstable]
+build-std = ["core", "alloc"]

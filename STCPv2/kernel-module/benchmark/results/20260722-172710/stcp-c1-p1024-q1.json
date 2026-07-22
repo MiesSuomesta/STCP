@@ -1,0 +1,22 @@
+{
+  "mode": "stcp",
+  "clients": 1,
+  "payload_bytes": 1024,
+  "pipeline": 1,
+  "elapsed_s": 5.228696528996807,
+  "operations": 0,
+  "errors": 1,
+  "tx_mib_s": 0.0,
+  "rx_mib_s": 0.0,
+  "combined_mib_s": 0.0,
+  "operations_s": 0.0,
+  "connect_mean_ms": 0.0,
+  "rtt_p50_ms": 0.0,
+  "rtt_p95_ms": 0.0,
+  "rtt_p99_ms": 0.0,
+  "client_cpu_percent": 0.03499916259915562,
+  "max_rss_kib": 20356,
+  "error_details": [
+    "TimeoutError(110, 'STCP connect: Connection timed out')"
+  ]
+}

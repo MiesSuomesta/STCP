@@ -1,0 +1,14 @@
+This object is generated for Raspberry Pi ARM64 by the top-level Makefile.
+
+Build the Rust core with:
+
+    make rust-core
+
+Equivalent Cargo target:
+
+    cargo +nightly build -Zbuild-std=core,alloc \
+        --target aarch64-unknown-none --release
+
+Do not copy a prebuilt x86_64 object into this directory. The generated
+object must be AArch64 ELF and must be linked against the exact Raspberry Pi
+kernel build tree used by the final stcp.ko module.

@@ -323,19 +323,19 @@ static int stcp_connect(
 	 * while no carrier RX worker exists, leaving recv() asleep forever.
 	 * At this point connect(), carrier attachment and owner setup are complete.
 	 */
-	pr_info("stcp-debug-v7: connect receiver start begin sk=%px ctx=%px carrier=%px\n",
+	pr_info("stcp-debug-v8: connect receiver start begin sk=%px ctx=%px carrier=%px\n",
 		sock->sk, ssk->rust_ctx, ssk->carrier);
 	ret = stcp_carrier_start_receiver_thread(ssk->carrier);
-	pr_info("stcp-debug-v7: connect receiver start result sk=%px carrier=%px ret=%d\n",
+	pr_info("stcp-debug-v8: connect receiver start result sk=%px carrier=%px ret=%d\n",
 		sock->sk, ssk->carrier, ret);
 	if (ret)
 		return ret;
 
-	pr_info("stcp-debug-v7: connect handshake start begin sk=%px ctx=%px carrier=%px connected=%d\n",
+	pr_info("stcp-debug-v8: connect handshake start begin sk=%px ctx=%px carrier=%px connected=%d\n",
 		sock->sk, ssk->rust_ctx, ssk->carrier,
 		stcp_rust_is_connected(ssk->rust_ctx));
 	ret = stcp_rust_start_handshake(ssk->rust_ctx);
-	pr_info("stcp-debug-v7: connect handshake start result sk=%px ctx=%px ret=%d connected=%d\n",
+	pr_info("stcp-debug-v8: connect handshake start result sk=%px ctx=%px ret=%d connected=%d\n",
 		sock->sk, ssk->rust_ctx, ret,
 		stcp_rust_is_connected(ssk->rust_ctx));
 	if (ret) {
@@ -402,14 +402,14 @@ static int stcp_accept(
 	int flags = arg ? arg->flags : 0;
 	int ret;
 
-	pr_info("stcp-debug-v7: ACCEPT ENTER sock=%px sk=%px newsock=%px flags=0x%x\n",
+	pr_info("stcp-debug-v8: ACCEPT ENTER sock=%px sk=%px newsock=%px flags=0x%x\n",
 		sock, sock ? sock->sk : NULL, newsock, flags);
 
 	if (!sock || !sock->sk || !newsock)
 		return -EINVAL;
 
 	listener = stcp_sk(sock->sk);
-	pr_info("stcp-debug-v7: accept listener=%px ctx=%px carrier=%px udp=%d\n",
+	pr_info("stcp-debug-v8: accept listener=%px ctx=%px carrier=%px udp=%d\n",
 		listener, listener ? listener->rust_ctx : NULL,
 		listener ? listener->carrier : NULL,
 		listener && listener->carrier ? stcp_carrier_is_udp(listener->carrier) : -1);
@@ -418,10 +418,10 @@ static int stcp_accept(
 
 	if (stcp_carrier_is_udp(listener->carrier)) {
 		for (;;) {
-			pr_info("stcp-debug-v7: accept UDP rust_accept begin listener_ctx=%px flags=0x%x\n",
+			pr_info("stcp-debug-v8: accept UDP rust_accept begin listener_ctx=%px flags=0x%x\n",
 				listener->rust_ctx, flags);
 			ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, flags);
-			pr_info("stcp-debug-v7: accept UDP rust_accept result listener_ctx=%px child_ctx=%px ret=%d\n",
+			pr_info("stcp-debug-v8: accept UDP rust_accept result listener_ctx=%px child_ctx=%px ret=%d\n",
 				listener->rust_ctx, accepted_ctx, ret);
 			if (ret != -EAGAIN)
 				break;
@@ -437,17 +437,17 @@ static int stcp_accept(
 	} else {
 		/* Accept the real TCP socket first. This removes the circular
 		 * dependency where a Rust child was created before kernel_accept(). */
-		pr_info("stcp-debug-v7: accept TCP carrier_accept begin listener=%px carrier=%px flags=0x%x\n",
+		pr_info("stcp-debug-v8: accept TCP carrier_accept begin listener=%px carrier=%px flags=0x%x\n",
 			listener, listener->carrier, flags);
 		ret = stcp_carrier_accept(listener->carrier, NULL, NULL,
 			&accepted_carrier, flags & O_NONBLOCK ? O_NONBLOCK : 0);
-		pr_info("stcp-debug-v7: accept TCP carrier_accept result listener=%px accepted_carrier=%px ret=%d\n",
+		pr_info("stcp-debug-v8: accept TCP carrier_accept result listener=%px accepted_carrier=%px ret=%d\n",
 			listener, accepted_carrier, ret);
 		if (ret)
 			return ret;
 
 		accepted_ctx = stcp_rust_create_stream_accepted_child_ptr(listener->rust_ctx);
-		pr_info("stcp-debug-v7: accept TCP rust child create listener_ctx=%px child_ctx=%px\n",
+		pr_info("stcp-debug-v8: accept TCP rust child create listener_ctx=%px child_ctx=%px\n",
 			listener->rust_ctx, accepted_ctx);
 		if (!accepted_ctx) {
 			stcp_carrier_destroy(accepted_carrier);
@@ -456,7 +456,7 @@ static int stcp_accept(
 	}
 
 	newsk = stcp_alloc_child_sock(sock_net(sock->sk), newsock);
-	pr_info("stcp-debug-v7: accept alloc child newsock=%px newsk=%px err=%ld\n",
+	pr_info("stcp-debug-v8: accept alloc child newsock=%px newsk=%px err=%ld\n",
 		newsock, IS_ERR(newsk) ? NULL : newsk,
 		IS_ERR(newsk) ? PTR_ERR(newsk) : 0L);
 	if (IS_ERR(newsk)) {
@@ -479,38 +479,38 @@ static int stcp_accept(
 	} else {
 		ret = stcp_carrier_accept(listener->carrier, child->rust_ctx, child,
 			&child->carrier, flags & O_NONBLOCK ? O_NONBLOCK : 0);
-		pr_info("stcp-debug-v7: accept UDP carrier attach child=%px carrier=%px ret=%d\n",
+		pr_info("stcp-debug-v8: accept UDP carrier attach child=%px carrier=%px ret=%d\n",
 			child, child->carrier, ret);
 		if (ret)
 			goto fail_child;
 	}
 
-	pr_info("stcp-debug-v7: accept wire child=%px ctx=%px carrier=%px\n",
+	pr_info("stcp-debug-v8: accept wire child=%px ctx=%px carrier=%px\n",
 		child, child->rust_ctx, child->carrier);
 	stcp_rust_set_carrier(child->rust_ctx, child->carrier);
 	stcp_rust_set_owner(child->rust_ctx, child);
 
 	ret = stcp_carrier_start_receiver_thread(child->carrier);
-	pr_info("stcp-debug-v7: accept receiver start child=%px carrier=%px ret=%d\n",
+	pr_info("stcp-debug-v8: accept receiver start child=%px carrier=%px ret=%d\n",
 		child, child->carrier, ret);
 	if (ret)
 		goto fail_carrier;
 
-	pr_info("stcp-debug-v7: accept handshake start begin child=%px ctx=%px\n",
+	pr_info("stcp-debug-v8: accept handshake start begin child=%px ctx=%px\n",
 		child, child->rust_ctx);
 	ret = stcp_rust_start_handshake(child->rust_ctx);
-	pr_info("stcp-debug-v7: accept handshake start result child=%px ctx=%px ret=%d connected=%d\n",
+	pr_info("stcp-debug-v8: accept handshake start result child=%px ctx=%px ret=%d connected=%d\n",
 		child, child->rust_ctx, ret, stcp_rust_is_connected(child->rust_ctx));
 	if (ret)
 		goto fail_carrier;
 
 	if (stcp_rust_is_connected(child->rust_ctx) <= 0) {
-		pr_info("stcp-debug-v7: accept waiting handshake child=%px ctx=%px timeout_ms=%u\n",
+		pr_info("stcp-debug-v8: accept waiting handshake child=%px ctx=%px timeout_ms=%u\n",
 			child, child->rust_ctx, STCP_CONNECT_TIMEOUT_MS);
 		ret = wait_event_interruptible_timeout(child->recv_wq,
 			stcp_rust_is_connected(child->rust_ctx) > 0,
 			msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS));
-		pr_info("stcp-debug-v7: accept wait result child=%px ctx=%px wait_ret=%d connected=%d\n",
+		pr_info("stcp-debug-v8: accept wait result child=%px ctx=%px wait_ret=%d connected=%d\n",
 			child, child->rust_ctx, ret, stcp_rust_is_connected(child->rust_ctx));
 		if (ret < 0)
 			goto fail_carrier;
@@ -523,12 +523,12 @@ static int stcp_accept(
 	stcp_start_retransmit_work(child);
 	stcp_user_register(child);
 	newsock->state = SS_CONNECTED;
-	pr_info("stcp-debug-v7: ACCEPT COMPLETE child=%px ctx=%px carrier=%px sk=%px\n",
+	pr_info("stcp-debug-v8: ACCEPT COMPLETE child=%px ctx=%px carrier=%px sk=%px\n",
 		child, child->rust_ctx, child->carrier, newsk);
 	return 0;
 
 fail_carrier:
-	pr_err("stcp-debug-v7: accept fail_carrier child=%px ctx=%px carrier=%px ret=%d\n",
+	pr_err("stcp-debug-v8: accept fail_carrier child=%px ctx=%px carrier=%px ret=%d\n",
 		child, child ? child->rust_ctx : NULL,
 		child ? child->carrier : NULL, ret);
 	if (child && child->rust_ctx) {

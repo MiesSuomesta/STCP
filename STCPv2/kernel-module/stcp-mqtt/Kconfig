@@ -1,0 +1,178 @@
+mainmenu "STCP transport benchmark"
+
+source "Kconfig.zephyr"
+
+menu "Echo benchmark"
+
+config ECHO_SERVER_HOST
+    string "Echo server hostname or IPv4 address"
+    default "lja.fi"
+
+config ECHO_SERVER_PORT
+    string "Echo server port"
+    default "19000"
+
+choice ECHO_TRANSPORT
+    prompt "Echo transport"
+    default ECHO_TRANSPORT_TCP
+
+config ECHO_TRANSPORT_TCP
+    bool "TCP"
+
+config ECHO_TRANSPORT_STCP
+    bool "STCP over current carrier"
+
+endchoice
+
+config ECHO_PAYLOAD_SIZE
+    int "Echo payload size"
+    default 1024
+    range 1 4096
+
+config ECHO_ITERATIONS
+    int "Number of echo round trips"
+    default 100
+    range 1 100000
+
+config ECHO_SOCKET_TIMEOUT_MS
+    int "Socket send/receive timeout in milliseconds"
+    default 30000
+    range 1000 300000
+
+config BENCH_TOTAL_BYTES
+    int "Bytes transferred per direction in each throughput test"
+    default 1048576
+    range 4096 67108864
+
+config BENCH_MAX_CHUNK_SIZE
+    int "Maximum runtime streaming chunk size"
+    default 65536
+    range 4096 65536
+    help
+      Maximum chunk accepted by the runtime shell and benchmark core. Buffers
+      are allocated dynamically for each test. Full duplex needs two buffers.
+
+config BENCH_CHUNK_SIZE
+    int "Default streaming I/O chunk size"
+    default 4096
+    range 256 BENCH_MAX_CHUNK_SIZE
+
+config BENCH_PAUSE_SECONDS
+    int "Pause between upload, download and full-duplex tests"
+    default 5
+    range 0 120
+
+config BENCH_REPORT_INTERVAL_MS
+    int "Progress report interval in milliseconds"
+    default 5000
+    range 0 600000
+    help
+      Controls how often the modem-side benchmark reports transferred bytes,
+      remaining bytes, percentage and average throughput. Set to 0 to disable
+      periodic reports; the final 100 percent report is still printed.
+
+config BENCH_SENDER_STACK_SIZE
+    int "Full-duplex sender thread stack size"
+    default 4096
+    range 2048 16384
+
+config BENCH_WORKER_STACK_SIZE
+    int "Background benchmark worker stack size"
+    default 6144
+    range 4096 16384
+
+config BENCH_WORKER_PRIORITY
+    int "Background benchmark worker priority"
+    default 5
+    range 0 15
+
+config BENCH_WATCHDOG_INTERVAL_MS
+    int "Benchmark inactivity watchdog check interval"
+    default 1000
+    range 100 10000
+    help
+      How frequently the watchdog checks whether socket byte counters have
+      advanced. If no progress occurs for the runtime timeout configured with
+      'stcp config timeout', the active socket is shut down and the test exits.
+
+
+config BENCH_SOCKET_BUFFER_SIZE
+    int "Requested modem socket send/receive buffer size"
+    default 32768
+    range 4096 131072
+    help
+      Best-effort SO_SNDBUF/SO_RCVBUF value. The modem offload may clamp or
+      reject the value; benchmark startup logs the actual result.
+
+config BENCH_FULL_RX_BUFFER_SIZE
+    int "Full-duplex receive scratch buffer size"
+    default 4096
+    range 1024 16384
+    help
+      Full-duplex uses the configured chunk size for TX, but a smaller RX
+      scratch buffer to avoid reserving two 64 KiB buffers at once. TCP is a
+      byte stream, so receive calls do not need to match the peer send size.
+
+endmenu
+
+menu "Interactive benchmark control"
+
+config STCP_BENCH_SHELL
+    bool "Enable STCP benchmark shell commands"
+    default y
+    select SHELL
+    help
+      Builds the interactive 'stcp config' and 'stcp bench' command tree.
+      Disable this option to remove the shell command implementation and its
+      command tables from the firmware image.
+
+config STCP_BENCH_AUTORUN
+    bool "Run all throughput benchmarks automatically after LTE connects"
+    default n if STCP_BENCH_SHELL
+    default y if !STCP_BENCH_SHELL
+    help
+      Automatically runs upload, download and full-duplex benchmarks after
+      LTE registration. This can be enabled together with the shell if both
+      automatic and interactive testing are desired.
+
+endmenu
+
+menu "LTE transport initialization"
+
+config STCP_LTE_REG_TIMEOUT_SECONDS
+    int "LTE registration timeout in seconds"
+    default 300
+    range 10 1800
+
+config STCP_LTE_PDN_TIMEOUT_SECONDS
+    int "PDN activation timeout in seconds"
+    default 300
+    range 10 1800
+
+config STCP_LTE_FORCE_DEFAULT_APN
+    bool "Configure default CID 0 APN before LTE attach"
+    default n
+    help
+      Writes CONFIG_STCP_LTE_DEFAULT_APN to PDP context CID 0 before
+      lte_lc_connect(). Benchmark sockets use this default context.
+
+config STCP_LTE_DEFAULT_APN
+    string "Default CID 0 APN"
+    default "APN internet"
+    depends on STCP_LTE_FORCE_DEFAULT_APN
+
+config STCP_LTE_CUSTOM_PDN
+    bool "Create, activate and bind sockets to a separate PDN context"
+    default n
+    depends on LTE_LC_PDN_MODULE
+    help
+      Reproduces the STCPv1 model by creating and activating an additional
+      PDN context after LTE registration. Benchmark TCP sockets are bound to
+      the resulting modem PDN ID with SO_BINDTOPDN before connect().
+
+config STCP_LTE_APN
+    string "APN for the separate PDN context"
+    default "APN internet"
+    depends on STCP_LTE_CUSTOM_PDN
+
+endmenu

@@ -31,6 +31,11 @@ void stcp_carrier_set_owner(
 	void *owner
 );
 
+void stcp_carrier_set_rust_ctx(
+	struct stcp_carrier *carrier,
+	void *rust_ctx
+);
+
 bool stcp_carrier_needs_reliability(
 	const struct stcp_carrier *carrier
 );

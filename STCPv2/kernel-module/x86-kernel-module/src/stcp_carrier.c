@@ -384,6 +384,11 @@ static void stcp_carrier_put_root(struct stcp_carrier *carrier)
 static int stcp_receiver_thread(void *argument)
 {
 	struct stcp_carrier *carrier = argument;
+	pr_info("stcp-debug-v7: RX thread enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px\n",
+		carrier, carrier ? carrier->kind : -1,
+		carrier ? carrier->socket : NULL,
+		carrier ? carrier->rust_ctx : NULL,
+		carrier ? carrier->owner : NULL);
 	size_t buffer_size;
 	u8 *buffer;
 
@@ -463,6 +468,8 @@ static int stcp_receiver_thread(void *argument)
 		}
 
 		received_len = ret;
+		pr_info_ratelimited("stcp-debug-v7: RX bytes carrier=%px kind=%d len=%zd rust_ctx=%px owner=%px\n",
+			carrier, carrier->kind, received_len, carrier->rust_ctx, carrier->owner);
 
 		if (peer.ss_family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)&peer;
@@ -471,6 +478,8 @@ static int stcp_receiver_thread(void *argument)
 		}
 
 
+		pr_info_ratelimited("stcp-debug-v7: RX rust dispatch begin carrier=%px ctx=%px len=%zd peer=0x%08x:0x%04x\n",
+			carrier, carrier->rust_ctx, received_len, peer_addr, peer_port);
 		ret = stcp_rust_carrier_receive_from(
 			carrier->rust_ctx,
 			buffer,
@@ -479,15 +488,18 @@ static int stcp_receiver_thread(void *argument)
 			peer_port
 		);
 
+		pr_info_ratelimited("stcp-debug-v7: RX rust dispatch result carrier=%px ctx=%px ret=%d\n",
+			carrier, carrier->rust_ctx, ret);
+
+		/* Always wake the owner after carrier input. Rust normally wakes on
+		 * queue/state changes, while this unconditional wake closes races during
+		 * early handshake attachment and is harmless for established sockets. */
+		stcp_kernel_wake_recv(carrier->owner);
 
 		cond_resched();
 		if (ret)
 			pr_err_ratelimited("stcp: Rust carrier receive failed: %d\n", ret);
 
-		/* Rust queue_to_context() performs the normal wake.  Keep only the
-		 * pre-attachment fallback used during handshake/accept. */
-		if (!carrier->rust_ctx)
-			stcp_kernel_wake_recv(carrier->owner);
 	}
 
 	kvfree_sensitive(buffer, buffer_size);
@@ -641,6 +653,21 @@ void stcp_carrier_set_owner(
 {
 	if (carrier)
 		carrier->owner = owner;
+}
+
+void stcp_carrier_set_rust_ctx(
+	struct stcp_carrier *carrier,
+	void *rust_ctx
+)
+{
+	if (!carrier)
+		return;
+
+	WRITE_ONCE(carrier->rust_ctx, rust_ctx);
+	/* Publish the context before the receiver kthread can observe it. */
+	smp_wmb();
+	pr_info("stcp-debug-v7: carrier rust_ctx wired carrier=%px ctx=%px owner=%px receiver=%px\n",
+		carrier, rust_ctx, READ_ONCE(carrier->owner), READ_ONCE(carrier->receiver));
 }
 
 void stcp_carrier_destroy(struct stcp_carrier *carrier)
@@ -860,10 +887,25 @@ int stcp_carrier_accept(
 
 int stcp_carrier_start_receiver_thread(struct stcp_carrier *carrier)
 {
+	void *rust_ctx;
+
 	if (!carrier)
 		return -EINVAL;
 	if (carrier->kind == STCP_CARRIER_UDP && carrier->parent)
 		return 0;
+
+	/* A receiver without a Rust context can consume and permanently lose the
+	 * first handshake frame. Refuse to start instead of racing the wiring. */
+	rust_ctx = READ_ONCE(carrier->rust_ctx);
+	if (unlikely(!rust_ctx)) {
+		pr_err("stcp-debug-v7: refusing RX start without rust_ctx carrier=%px owner=%px\n",
+			carrier, READ_ONCE(carrier->owner));
+		return -EINVAL;
+	}
+
+	smp_rmb();
+	pr_info("stcp-debug-v7: RX start validated carrier=%px ctx=%px owner=%px\n",
+		carrier, rust_ctx, READ_ONCE(carrier->owner));
 	return stcp_carrier_start_receiver(carrier);
 }
 
@@ -878,10 +920,18 @@ ssize_t stcp_carrier_send(
 	struct kvec vector;
 	size_t position = 0;
 
+	pr_info_ratelimited("stcp-debug-v7: carrier_send enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px connected=%d len=%zu flags=0x%x\n",
+		carrier, carrier ? carrier->kind : -1,
+		carrier ? carrier->socket : NULL,
+		carrier ? carrier->rust_ctx : NULL,
+		carrier ? carrier->owner : NULL,
+		carrier ? carrier->connected : 0, len, flags);
 	if (!carrier)
 		return -EINVAL;
-	if (!carrier->connected)
+	if (!carrier->connected) {
+		pr_err_ratelimited("stcp-debug-v7: carrier_send rejected disconnected carrier=%px len=%zu\n", carrier, len);
 		return -ENOTCONN;
+	}
 	if (!data && len)
 		return -EINVAL;
 
@@ -961,6 +1011,8 @@ ssize_t stcp_carrier_send(
 		int ret;
 		vector.iov_base = (void *)(data + position);
 		vector.iov_len = len - position;
+		pr_info_ratelimited("stcp-debug-v7: TCP TX begin carrier=%px socket=%px position=%zu remaining=%zu\n",
+			carrier, carrier->socket, position, len - position);
 		ret = kernel_sendmsg(
 			carrier->socket,
 			&message,
@@ -968,6 +1020,8 @@ ssize_t stcp_carrier_send(
 			1,
 			len - position
 		);
+		pr_info_ratelimited("stcp-debug-v7: TCP TX result carrier=%px ret=%d requested=%zu\n",
+			carrier, ret, len - position);
 		if (ret < 0)
 			return ret;
 		if (ret == 0)

@@ -1,0 +1,269 @@
+
+	sin = (struct sockaddr_in *)addr;
+	if (sin->sin_family != AF_INET)
+		return -EAFNOSUPPORT;
+
+	ssk = stcp_sk(sock->sk);
+	if (!ssk->rust_ctx || !ssk->carrier)
+		return -EINVAL;
+
+	pr_info("stcp: connect request sk=%px ctx=%px carrier=%px dst=%pI4:%u raw_addr=0x%08x raw_port=0x%04x flags=0x%x\n",
+		sock->sk, ssk->rust_ctx, ssk->carrier, &sin->sin_addr.s_addr,
+		ntohs(sin->sin_port), (__force u32)sin->sin_addr.s_addr,
+		(__force u16)sin->sin_port, flags);
+	ret = stcp_carrier_connect(
+		ssk->carrier,
+		(__force u32)sin->sin_addr.s_addr,
+		(__force u16)sin->sin_port,
+		flags
+	);
+
+	pr_info("stcp: connect carrier result sk=%px carrier=%px ret=%d\n", sock->sk, ssk->carrier, ret);
+	if (ret)
+		return ret;
+
+	pr_info("stcp: connect enter sk=%px ctx=%px carrier=%px flags=0x%x\n",
+		sock->sk, ssk->rust_ctx, ssk->carrier, flags);
+
+	ret = stcp_rust_connect(
+		ssk->rust_ctx,
+		(__force u32)sin->sin_addr.s_addr,
+		(__force u16)sin->sin_port,
+		flags
+	);		
+
+	pr_info("stcp: connect rust result ctx=%px ret=%d\n",
+		ssk->rust_ctx, ret);
+	if (ret)
+		return ret;
+
+	/*
+	 * The receiver must be running before the handshake can emit frames.
+	 * Otherwise the peer may send PublicKey/HandshakeDone and application data
+	 * while no carrier RX worker exists, leaving recv() asleep forever.
+	 * At this point connect(), carrier attachment and owner setup are complete.
+	 */
+	ret = stcp_carrier_start_receiver_thread(ssk->carrier);
+	if (ret)
+		return ret;
+
+	ret = stcp_rust_start_handshake(ssk->rust_ctx);
+	if (ret) {
+		stcp_carrier_shutdown(ssk->carrier, SHUT_RDWR);
+		return ret;
+	}
+
+	/*
+	 * connect() must not report success before the cryptographic handshake is
+	 * complete.  Returning 0 while can_send()==0 creates a race where the first
+	 * userspace send is accepted as a connected socket operation but returns
+	 * -EAGAIN, leaving an echo peer blocked in recv().
+	 *
+	 * The accept side runs independently and carrier RX wakes recv_wq whenever
+	 * handshake state changes.  Nonblocking connect keeps normal socket
+	 * semantics and reports -EINPROGRESS until poll() observes Ready.
+	 */
+	stcp_start_retransmit_work(ssk);
+
+	if (stcp_rust_is_connected(ssk->rust_ctx) > 0) {
+		sock->state = SS_CONNECTED;
+		pr_info("stcp: connect ready immediately ctx=%px\n", ssk->rust_ctx);
+		return 0;
+	}
+
+	if (flags & O_NONBLOCK) {
+		sock->state = SS_CONNECTING;
+		pr_info("stcp: connect in progress ctx=%px\n", ssk->rust_ctx);
+		return -EINPROGRESS;
+	}
+
+	ret = wait_event_interruptible_timeout(
+		ssk->recv_wq,
+		stcp_rust_is_connected(ssk->rust_ctx) > 0,
+		msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS)
+	);
+	if (ret < 0) {
+		pr_info("stcp: connect interrupted ctx=%px ret=%d\n",
+			ssk->rust_ctx, ret);
+		return ret;
+	}
+	if (ret == 0) {
+		pr_info("stcp: connect handshake timeout ctx=%px\n", ssk->rust_ctx);
+		stcp_carrier_shutdown(ssk->carrier, SHUT_RDWR);
+		return -ETIMEDOUT;
+	}
+
+	sock->state = SS_CONNECTED;
+	pr_info("stcp: connect handshake complete ctx=%px\n", ssk->rust_ctx);
+	return 0;
+}
+
+static int stcp_accept(
+	struct socket *sock,
+	struct socket *newsock,
+	struct proto_accept_arg *arg
+)
+{
+	struct stcp_sock *listener;
+	struct stcp_sock *child;
+	struct sock *newsk;
+	void *accepted_ctx = NULL;
+	int flags = arg ? arg->flags : 0;
+	ret = kernel_accept(listener->socket, &accepted, flags);
+	stcp_carrier_dbg("kernel_accept result listener=%px accepted=%px ret=%d\n",
+		listener, accepted, ret);
+	stcp_carrier_dump_socket(ret ? "accept failed listener" : "accept complete listener", listener);
+	if (ret)
+		return ret;
+
+	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	if (!child) {
+		sock_release(accepted);
+		return -ENOMEM;
+	}
+
+	child->kind = STCP_CARRIER_TCP;
+	child->socket = accepted;
+	child->rust_ctx = child_rust_ctx;
+	child->owner = child_owner;
+	child->connected = true;
+	stcp_tune_tcp_socket(child->socket);
+	refcount_set(&child->refs, 1);
+	mutex_init(&child->lifecycle_lock);
+	init_completion(&child->stop_done);
+	atomic_set(&child->active_sends, 0);
+	init_waitqueue_head(&child->send_wait);
+	mutex_init(&child->test_lock);
+
+	*out_child = child;
+	stcp_carrier_dump_socket("accepted child ready", child);
+	return 0;
+}
+
+int stcp_carrier_start_receiver_thread(struct stcp_carrier *carrier)
+{
+	if (!carrier)
+		return -EINVAL;
+	if (carrier->kind == STCP_CARRIER_UDP && carrier->parent)
+		return 0;
+	return stcp_carrier_start_receiver(carrier);
+}
+
+ssize_t stcp_carrier_send(
+	struct stcp_carrier *carrier,
+	const u8 *data,
+	size_t len,
+	int flags
+)
+{
+	struct msghdr message = { .msg_flags = flags | MSG_NOSIGNAL };
+	struct kvec vector;
+	size_t position = 0;
+
+	if (!carrier)
+		return -EINVAL;
+	if (!carrier->connected)
+		return -ENOTCONN;
+	if (!data && len)
+		return -EINVAL;
+
+	if (carrier->kind == STCP_CARRIER_UDP) {
+		ssize_t ret;
+		bool data_frame;
+
+		if (!carrier->has_peer)
+			return -ENOTCONN;
+
+		data_frame = stcp_is_data_frame(data, len);
+
+		/* Normal production path: avoid the fault-injection mutex entirely. */
+		if (!stcp_test_active())
+			return stcp_udp_send_one(carrier, data, len, flags);
+
+		/* Pretend success: reliability must recover intentionally lost frames. */
+		if (data_frame &&
+		    (stcp_test_should_drop_data() ||
+		     stcp_test_should_drop_percent()))
+			return (ssize_t)len;
+
+		if (data_frame) {
+			u32 delay_ms = stcp_test_take_delay_ms();
+
+			if (delay_ms)
+				msleep(delay_ms);
+		}
+
+		mutex_lock(&carrier->test_lock);
+
+		/*
+		 * Hold the first DATA frame. The next DATA frame is sent first and the
+		 * held frame second, creating deterministic packet reordering.
+		 */
+		if (data_frame && !carrier->held_frame &&
+		    stcp_test_should_reorder_data()) {
+			carrier->held_frame = kmemdup(data, len, GFP_KERNEL);
+			if (!carrier->held_frame) {
+				mutex_unlock(&carrier->test_lock);
+				return -ENOMEM;
+			}
+			carrier->held_frame_len = len;
+			mutex_unlock(&carrier->test_lock);
+			return (ssize_t)len;
+		}
+
+		ret = stcp_udp_send_one(carrier, data, len, flags);
+		if (ret >= 0 && data_frame && carrier->held_frame) {
+			ssize_t held_ret = stcp_udp_send_one(
+				carrier,
+				carrier->held_frame,
+				carrier->held_frame_len,
+				flags
+			);
+			kfree_sensitive(carrier->held_frame);
+			carrier->held_frame = NULL;
+			carrier->held_frame_len = 0;
+			if (held_ret < 0)
+				ret = held_ret;
+		}
+
+		if (ret >= 0 && data_frame && stcp_test_should_duplicate_data()) {
+			ssize_t duplicate_ret = stcp_udp_send_one(carrier, data, len, flags);
+			if (duplicate_ret < 0)
+				ret = duplicate_ret;
+		}
+
+		mutex_unlock(&carrier->test_lock);
+		return ret;
+	}
+
+	if (!carrier->socket)
+		return -ESHUTDOWN;
+
+	while (position < len) {
+		int ret;
+		vector.iov_base = (void *)(data + position);
+		vector.iov_len = len - position;
+		ret = kernel_sendmsg(
+			carrier->socket,
+			&message,
+			&vector,
+			1,
+			len - position
+		);
+		if (ret < 0)
+			return ret;
+		if (ret == 0)
+			return -EPIPE;
+		position += (size_t)ret;
+	}
+	return (ssize_t)position;
+}
+
+void stcp_carrier_shutdown(struct stcp_carrier *carrier, int how)
+{
+	if (!carrier || !carrier->socket)
+		return;
+	if (carrier->kind == STCP_CARRIER_UDP)
+		return;
+	kernel_sock_shutdown(carrier->socket, how);
+}

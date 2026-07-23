@@ -63,10 +63,86 @@ unsafe extern "C" {
 
 
 
-struct ParserGuard<'a> { ctx: &'a StcpContext }
-impl Drop for ParserGuard<'_> { fn drop(&mut self) { self.ctx.parser_busy.store(false, Ordering::Release); } }
+/*
+ * Parser ownership state:
+ *   0 = idle
+ *   1 = parser active
+ *   2 = parser active and another RX pass was requested
+ *
+ * A plain try-lock loses work when carrier RX appends bytes just after the
+ * active parser observes an empty queue.  The producer used to return while
+ * the active parser released parser_busy, leaving complete frames queued with
+ * no subsequent wakeup.  State 2 provides an atomic hand-off: the active
+ * parser must run another pass before releasing ownership.
+ */
+struct ParserGuard<'a> {
+    ctx: &'a StcpContext,
+    released: bool,
+}
+
+impl ParserGuard<'_> {
+    fn finish_pass(&mut self) -> bool {
+        loop {
+            match self.ctx.parser_state.compare_exchange(
+                1,
+                0,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => {
+                    self.released = true;
+                    return false;
+                }
+                Err(2) => {
+                    if self.ctx.parser_state.compare_exchange(
+                        2,
+                        1,
+                        Ordering::AcqRel,
+                        Ordering::Acquire,
+                    ).is_ok() {
+                        return true;
+                    }
+                }
+                Err(0) => {
+                    self.released = true;
+                    return false;
+                }
+                Err(_) => core::hint::spin_loop(),
+            }
+        }
+    }
+}
+
+impl Drop for ParserGuard<'_> {
+    fn drop(&mut self) {
+        if !self.released {
+            self.ctx.parser_state.store(0, Ordering::Release);
+        }
+    }
+}
+
 fn try_parser_guard(ctx: &StcpContext) -> Option<ParserGuard<'_>> {
-    ctx.parser_busy.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).ok().map(|_| ParserGuard { ctx })
+    loop {
+        match ctx.parser_state.compare_exchange(
+            0,
+            1,
+            Ordering::Acquire,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => return Some(ParserGuard { ctx, released: false }),
+            Err(1) => {
+                let _ = ctx.parser_state.compare_exchange(
+                    1,
+                    2,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                );
+                return None;
+            }
+            Err(2) => return None,
+            Err(_) => core::hint::spin_loop(),
+        }
+    }
 }
 struct WireFrame { header: Header, payload: Vec<u8> }
 fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Result<Option<WireFrame>, StcpError> {
@@ -486,14 +562,78 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
 }
 
 fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
-    let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,1,0); return Ok(()); };
-    let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
-    let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
-    loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
-        PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} received_done=true; }
-        _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
-    }}
+    let Some(mut guard) = try_parser_guard(ctx) else {
+        crate::carrier::debug_event(209, ctx, 1, 0);
+        return Ok(());
+    };
+
+    loop {
+        process_handshake_frames_pass(ctx)?;
+
+        if is_ready_snapshot(ctx) {
+            /* DATA may already follow HandshakeDone in the same TCP batch. */
+            fill_application_buffer_pass(ctx)?;
+        }
+
+        if !guard.finish_pass() {
+            return Ok(());
+        }
+        crate::carrier::debug_event(209, ctx, 1, 1);
+    }
+}
+
+fn process_handshake_frames_pass(ctx: &StcpContext) -> Result<(), StcpError> {
+    let (shared, side) = connection_for_handshake(ctx)?;
+    let queue = incoming_queue(&shared, side);
+    let mut received_key: Option<[u8; PUBLIC_KEY_WIRE_LEN]> = None;
+    let mut received_done = false;
+
+    loop {
+        /*
+         * TCP may coalesce HandshakeDone and the first DATA frame into one
+         * kernel_recvmsg() result.  Peek before removing anything so DATA is
+         * left queued for fill_application_buffer() after the Ready transition.
+         */
+        let next_type = {
+            let wire = queue.lock();
+            if wire.len() < STCP_HEADER_LEN {
+                None
+            } else {
+                match peek_header(&wire) {
+                    Ok(header) => Some(header.packet_type),
+                    Err(StcpError::Again) => None,
+                    Err(error) => return Err(error),
+                }
+            }
+        };
+
+        match next_type {
+            Some(PacketType::PublicKey) | Some(PacketType::HandshakeDone) => {}
+            Some(_) | None => break,
+        }
+
+        let Some(frame) = extract_next_wire_frame(ctx, queue)? else {
+            break;
+        };
+
+        match frame.header.packet_type {
+            PacketType::PublicKey => {
+                if frame.payload.len() != PUBLIC_KEY_WIRE_LEN {
+                    return Err(StcpError::Protocol);
+                }
+                let mut key = [0u8; PUBLIC_KEY_WIRE_LEN];
+                key.copy_from_slice(&frame.payload);
+                received_key = Some(key);
+            }
+            PacketType::HandshakeDone => {
+                if !frame.payload.is_empty() {
+                    return Err(StcpError::Protocol);
+                }
+                received_done = true;
+            }
+            _ => unreachable!(),
+        }
+    }
     if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }
     {
         let mut inner = ctx.inner.lock();
@@ -829,8 +969,31 @@ pub fn recv(
 }
 
 fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
-    { let inner=ctx.inner.lock(); if inner.state!=SocketState::Ready && inner.state!=SocketState::Closed{return Err(StcpError::InvalidState);} if inner.peer_eof{return Ok(());} }
-    let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,2,0); return Ok(()); };
+    {
+        let inner = ctx.inner.lock();
+        if inner.state != SocketState::Ready && inner.state != SocketState::Closed {
+            return Err(StcpError::InvalidState);
+        }
+        if inner.peer_eof {
+            return Ok(());
+        }
+    }
+
+    let Some(mut guard) = try_parser_guard(ctx) else {
+        crate::carrier::debug_event(209, ctx, 2, 0);
+        return Ok(());
+    };
+
+    loop {
+        fill_application_buffer_pass(ctx)?;
+        if !guard.finish_pass() {
+            return Ok(());
+        }
+        crate::carrier::debug_event(209, ctx, 2, 1);
+    }
+}
+
+fn fill_application_buffer_pass(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
     crate::carrier::debug_event(120,ctx,0,0);

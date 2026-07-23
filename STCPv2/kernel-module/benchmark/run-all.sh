@@ -2,11 +2,7 @@
 set -Eeuo pipefail
 D="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 H="${RPI_HOST:-192.168.1.50}"
-<<<<<<< HEAD
 T="${STCP_TRANSPORT:-tcp}"
-=======
-T="${STCP_TRANSPORT:-udp}"
->>>>>>> 170914e90 (STCP rasp: tulosten automaattinen generointi stcp.fi hin)
 DU="${DURATION:-30}"
 CL="${CLIENTS_LIST:-1 2 4 8}"
 PL="${PAYLOADS:-64 1024 4096 65536 262144 1048576}"

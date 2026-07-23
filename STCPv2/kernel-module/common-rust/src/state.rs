@@ -7,6 +7,7 @@ use alloc::{
 
 use core::sync::atomic::{
     AtomicBool,
+    AtomicU8,
     AtomicUsize,
     Ordering,
 };
@@ -175,7 +176,7 @@ pub struct ContextInner {
 
 pub struct StcpContext {
     pub proto: u8,
-    pub parser_busy: AtomicBool,
+    pub parser_state: AtomicU8,
     pub inner: SpinLock<ContextInner>,
 }
 
@@ -185,7 +186,7 @@ impl StcpContext {
 
         Ok(Self {
             proto,
-            parser_busy: AtomicBool::new(false),
+            parser_state: AtomicU8::new(0),
             inner: SpinLock::new(ContextInner {
                 state: SocketState::New,
                 local: None,
@@ -233,7 +234,7 @@ impl StcpContext {
 
         Ok(Self {
             proto,
-            parser_busy: AtomicBool::new(false),
+            parser_state: AtomicU8::new(0),
             inner: SpinLock::new(ContextInner {
                 state: SocketState::Handshake,
                 local: Some(local),

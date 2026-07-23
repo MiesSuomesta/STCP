@@ -221,8 +221,8 @@ build_rpi() {
 
 stop_local_users() {
     if [[ "$STOP_BENCHMARKS" == "1" ]]; then
-        run pkill -f benchmark_client.py 2>/dev/null || true
-        run pkill -f benchmark_server.py 2>/dev/null || true
+	run pkill -f -- '[b]enchmark_server\.py' 2>/dev/null || true
+	run pkill -f -- '[b]enchmark_client\.py' 2>/dev/null || true
     fi
 }
 
@@ -332,16 +332,18 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:\${PAT
 MODULE="$RPI_REMOTE_DIR/stcp.ko"
 MODINFO="\$(command -v modinfo || echo /usr/sbin/modinfo)"
 INSMOD="\$(command -v insmod || echo /usr/sbin/insmod)"
+MODPROBE="\$(command -v modprobe || echo /usr/sbin/modprobe)"
 RMMOD="\$(command -v rmmod || echo /usr/sbin/rmmod)"
 
 [[ -x "\$MODINFO" ]] || { echo "[FAIL] modinfo not found"; exit 1; }
 [[ -x "\$INSMOD" ]] || { echo "[FAIL] insmod not found"; exit 1; }
+[[ -x "\$MODPROBE" ]] || { echo "[FAIL] modprobe not found"; exit 1; }
 [[ -x "\$RMMOD" ]] || { echo "[FAIL] rmmod not found"; exit 1; }
 [[ -f "\$MODULE" ]] || { echo "[FAIL] module not found: \$MODULE"; exit 1; }
 
 if [[ "$STOP_BENCHMARKS" == "1" ]]; then
-    pkill -f benchmark_server.py 2>/dev/null || true
-    pkill -f benchmark_client.py 2>/dev/null || true
+    pkill -f -- '[b]enchmark_server\.py' 2>/dev/null || true
+    pkill -f -- '[b]enchmark_client\.py' 2>/dev/null || true
 fi
 
 if grep -q '^stcp ' /proc/modules 2>/dev/null; then
@@ -357,9 +359,17 @@ if "\$MODINFO" "\$MODULE" | grep -q '^parm:.*carrier_debug'; then
     ARGS+=("carrier_debug=$CARRIER_DEBUG")
 fi
 
-echo "[INFO] Loading Raspberry module: \$MODULE \${ARGS[*]:-}"
-if ! sudo "\$INSMOD" "\$MODULE" "\${ARGS[@]}"; then
-    "\$MODINFO" "\$MODULE" | grep -E '^(filename|vermagic|depends|parm):' || true
+KREL=\$(uname -r)
+DEST="/lib/modules/\$KREL/extra/stcp.ko"
+
+echo "[INFO] Installing Raspberry module to: \$DEST"
+sudo mkdir -p "\$(dirname "\$DEST")"
+sudo install -m 0644 "\$MODULE" "\$DEST"
+sudo /usr/sbin/depmod -a "\$KREL"
+
+echo "[INFO] Loading Raspberry module with modprobe: stcp \${ARGS[*]:-}"
+if ! sudo "\$MODPROBE" stcp "\${ARGS[@]}"; then
+    "\$MODINFO" stcp | grep -E '^(filename|vermagic|depends|parm):' || true
     uname -a
     sudo dmesg | tail -n 160 || true
     exit 1

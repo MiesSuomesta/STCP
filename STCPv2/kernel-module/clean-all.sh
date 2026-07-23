@@ -5,10 +5,20 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 echo "== STCP Clean =="
 
+# Hakemistot, joihin EI kosketa
+PRUNE=(
+    \( \
+        -path "$ROOT/kernel-module/raspberry-kernel-sources" \
+        -o -path "$ROOT/kernel-module/linux-kernel-sources" \
+        -o -path "$ROOT/kernel-module/linux-next" \
+    \) -prune -o
+)
+
 #
-# Kernel buildit
+# Kernel-moduulin buildituotteet (mutta EI kernelin lähdepuussa)
 #
 find "$ROOT" \
+    "${PRUNE[@]}" \
     \( -name '*.o' \
     -o -name '*.ko' \
     -o -name '*.mod' \
@@ -26,6 +36,7 @@ find "$ROOT" \
     -delete
 
 find "$ROOT" \
+    "${PRUNE[@]}" \
     -type d \
     \( -name '.tmp_versions' \
     -o -name '.rust-objects' \
@@ -37,6 +48,7 @@ find "$ROOT" \
 # Rust
 #
 find "$ROOT" \
+    "${PRUNE[@]}" \
     -type d \
     -name target \
     -exec rm -rf {} +
@@ -45,28 +57,33 @@ find "$ROOT" \
 # CMake
 #
 find "$ROOT" \
+    "${PRUNE[@]}" \
     -type d \
     -name build \
     -exec rm -rf {} +
 
 find "$ROOT" \
+    "${PRUNE[@]}" \
     -name CMakeCache.txt \
     -delete
 
 find "$ROOT" \
-    -name CMakeFiles \
+    "${PRUNE[@]}" \
     -type d \
+    -name CMakeFiles \
     -exec rm -rf {} +
 
 #
 # Python
 #
 find "$ROOT" \
+    "${PRUNE[@]}" \
     -type d \
     -name "__pycache__" \
     -exec rm -rf {} +
 
 find "$ROOT" \
+    "${PRUNE[@]}" \
     \( -name "*.pyc" \
     -o -name "*.pyo" \
     -o -name "*.pyd" \) \
@@ -87,6 +104,7 @@ sudo rm -f /tmp/stcp-perf-*.log 2>/dev/null || true
 # Editorit
 #
 find "$ROOT" \
+    "${PRUNE[@]}" \
     \( -name '*~' \
     -o -name '*.swp' \
     -o -name '.DS_Store' \) \

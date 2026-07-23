@@ -20,10 +20,10 @@ from pathlib import Path
 from typing import Any, Iterable
 
 CASE_RE = re.compile(
-    r"^(?P<prefix>tcp|tls|stcp-(?P<carrier>tcp|udp))-c(?P<clients>\d+)-p(?P<payload>\d+)-q(?P<pipeline>\d+)\.json$"
+    r"^(?P<prefix>tcp|udp|tls|stcp-(?P<carrier>tcp|udp))-c(?P<clients>\d+)-p(?P<payload>\d+)-q(?P<pipeline>\d+)\.json$"
 )
-PROTOCOL_ORDER = {"tcp": 0, "stcp": 1, "tls": 2}
-PROTOCOL_LABEL = {"tcp": "TCP", "tls": "TLS", "stcp": "STCP"}
+PROTOCOL_ORDER = {"tcp": 0, "udp": 0, "stcp": 1, "tls": 2}
+PROTOCOL_LABEL = {"tcp": "TCP", "udp": "UDP", "tls": "TLS", "stcp": "STCP"}
 
 METRICS = [
     "operations_s",
@@ -83,8 +83,20 @@ def load_cases(root: Path, transport: str) -> list[dict[str, Any]]:
         prefix = match.group("prefix")
         protocol = "stcp" if prefix.startswith("stcp-") else prefix
         case_transport = raw.get("transport") or match.group("carrier") or prefix
-        if case_transport != transport and not (protocol == "tls" and transport == "tcp"):
-            continue
+
+        # Each carrier page includes its matching STCP cases plus native baseline
+        # cases found in the same benchmark run. For the UDP carrier page this
+        # intentionally keeps TCP and TLS as reference baselines, while excluding
+        # STCP/TCP. A future native UDP baseline (udp-c...) is also supported.
+        if protocol == "stcp":
+            if case_transport != transport:
+                continue
+        elif transport == "tcp":
+            if protocol not in {"tcp", "tls"}:
+                continue
+        else:
+            if protocol not in {"tcp", "tls", "udp"}:
+                continue
 
         case: dict[str, Any] = {
             "id": path.stem,
@@ -125,7 +137,7 @@ def aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
         by_protocol[case["protocol"]].append(case)
 
     protocol_stats: dict[str, Any] = {}
-    for protocol in ("tcp", "stcp", "tls"):
+    for protocol in ("tcp", "udp", "stcp", "tls"):
         rows = by_protocol.get(protocol, [])
         passed = [r for r in rows if r["errors"] == 0]
         metric_stats: dict[str, Any] = {}
@@ -152,7 +164,7 @@ def aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
     # Pairwise STCP vs TLS / TCP using matching case dimensions and successful cases only.
     index = {(r["protocol"], r["clients"], r["payload_bytes"], r["pipeline"]): r for r in cases}
     comparisons: dict[str, Any] = {}
-    for other in ("tls", "tcp"):
+    for other in ("tls", "tcp", "udp"):
         rows: list[dict[str, float]] = []
         for stcp in by_protocol.get("stcp", []):
             key = (other, stcp["clients"], stcp["payload_bytes"], stcp["pipeline"])
@@ -211,7 +223,7 @@ def make_dashboard_data(cases: list[dict[str, Any]], summary: dict[str, Any], me
         "schema_version": 1,
         "metadata": metadata,
         "dimensions": {
-            "protocols": [p for p in ("tcp", "stcp", "tls") if any(c["protocol"] == p for c in cases)],
+            "protocols": [p for p in ("tcp", "udp", "stcp", "tls") if any(c["protocol"] == p for c in cases)],
             "clients": sorted({c["clients"] for c in cases}),
             "payload_bytes": sorted({c["payload_bytes"] for c in cases}),
             "pipelines": sorted({c["pipeline"] for c in cases}),
@@ -256,7 +268,7 @@ def write_report(path: Path, data: dict[str, Any]) -> None:
         "| Protocol | Cases | Passed | Failed | Pass rate | Errors |",
         "|---|---:|---:|---:|---:|---:|",
     ]
-    for p in ("tcp", "stcp", "tls"):
+    for p in ("tcp", "udp", "stcp", "tls"):
         ps = s["protocols"].get(p)
         if not ps or ps["cases"] == 0:
             continue

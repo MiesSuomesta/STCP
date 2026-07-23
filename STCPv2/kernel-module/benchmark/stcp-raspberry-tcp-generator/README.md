@@ -1,62 +1,77 @@
-# STCP Raspberry/TCP benchmark dashboard generator
+# STCP Raspberry Pi benchmark website generator
 
-Generates a complete static STCP.fi benchmark page directly from benchmark result JSON files. It uses only Python's standard library and browser-native SVG.
+Generates a static STCP.fi benchmark site for both STCP/TCP and STCP/UDP carrier matrices. No third-party Python or JavaScript packages are required.
 
-## Generate
+## Generate TCP + UDP together
 
 ```bash
-./generate-and-publish.sh \
-  /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/20260723-073008-tcp \
-  generated/raspberry-tcp
+./generate-all.sh \
+  /path/to/results/full-YYYYMMDD-HHMMSS/tcp \
+  /path/to/results/full-YYYYMMDD-HHMMSS/udp \
+  generated/raspberry-pi
 ```
 
-Or call the generator directly:
+Generated routes:
 
-```bash
-python3 generate_dashboard.py RESULTS_DIR generated/raspberry-tcp \
-  --platform "Raspberry Pi 5" \
-  --transport tcp \
-  --title "Raspberry Pi 5 / TCP benchmark" \
-  --commit "$(git rev-parse --short HEAD)" \
-  --kernel "$(ssh pi@192.168.1.199 uname -r)" \
-  --compiler "$(aarch64-linux-gnu-gcc --version | head -1)"
+```text
+generated/raspberry-pi/index.html      shared carrier landing page
+generated/raspberry-pi/tcp/index.html  TCP carrier dashboard
+generated/raspberry-pi/udp/index.html  UDP carrier dashboard
 ```
 
-Open locally:
+If no input directories are passed, `generate-all.sh` selects the newest `*-tcp` and `*-udp` result directories under `benchmark/results`.
 
 ```bash
-xdg-open generated/raspberry-tcp/index.html
+RESULTS_ROOT=/path/to/benchmark/results ./generate-all.sh
 ```
 
-No local HTTP server is required because the generated data is embedded in `assets/data.js`.
-
-## Publish to stcp.fi
+## Generate one carrier only
 
 ```bash
-WEB_DEPLOY_TARGET='www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry/tcp/' \
-./publish.sh generated/raspberry-tcp
+./generate-and-publish-tcp.sh TCP_RESULT_DIR generated/raspberry-tcp
+./generate-and-publish-udp.sh UDP_RESULT_DIR generated/raspberry-udp
+```
+
+The UDP page includes the STCP/UDP cases and the TCP/TLS reference baselines produced in the same matrix run. It excludes STCP/TCP cases. A future native `udp-c...json` baseline is also supported.
+
+## Publish both dashboards
+
+```bash
+WEB_DEPLOY_TARGET='www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry-pi/' \
+./publish-all.sh generated/raspberry-pi
 ```
 
 Generate and publish in one command:
 
 ```bash
 AUTO_PUBLISH_WEB=1 \
-WEB_DEPLOY_TARGET='www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry/tcp/' \
-./generate-and-publish.sh RESULTS_DIR
+WEB_DEPLOY_TARGET='www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry-pi/' \
+./generate-all.sh TCP_RESULT_DIR UDP_RESULT_DIR
 ```
 
-The publisher validates SHA-256 hashes, uploads to a staging directory and switches directories atomically. The previous deployment is retained as `.previous`.
+Publishing validates SHA-256 hashes, uploads to a staging directory and atomically switches the complete Raspberry benchmark tree. The previous deployment remains in `.previous`.
 
-## Generated files
+## Full matrix integration
 
-- `index.html`: interactive dashboard
-- `dashboard-data.json`: complete normalized dataset
-- `summary.json`: aggregate and pairwise statistics
-- `cases.csv`: flat case table
-- `report.md`: text summary
-- `manifest.json`: SHA-256 manifest
-- `raw/`: original JSON, CSV, perf and IRQ files
+`benchmark/run-all-full.sh` now generates and publishes both pages automatically after TCP and UDP matrices complete:
 
-## Statistical policy
+```bash
+AUTO_PUBLISH_WEB=1 \
+WEB_DEPLOY_TARGET='www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry-pi/' \
+RPI_HOST=192.168.1.199 \
+RPI_SSH=pi@192.168.1.199 \
+bash benchmark/run-all-full.sh
+```
 
-Headline comparisons use only directly matched successful cases with identical payload, client count and pipeline. Failed cases are not hidden: they are shown separately under Reliability / Known issues.
+## Generated data
+
+Each carrier dashboard contains:
+
+- `dashboard-data.json`
+- `summary.json`
+- `cases.csv`
+- `report.md`
+- `manifest.json`
+- `raw/` benchmark JSON, CSV, logs, perf and IRQ files
+
+Headline comparisons use only successful cases with matching client, payload and pipeline dimensions. Failed STCP cases remain visible in the reliability section.

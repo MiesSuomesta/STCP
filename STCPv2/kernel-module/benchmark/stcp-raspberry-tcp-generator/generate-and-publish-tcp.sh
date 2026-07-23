@@ -11,5 +11,5 @@ python3 "$ROOT/generate_dashboard.py" "$INPUT" "$OUTPUT" \
   --kernel "${BENCHMARK_KERNEL:-unknown}" \
   --compiler "${BENCHMARK_COMPILER:-unknown}"
 if [[ "${AUTO_PUBLISH_WEB:-0}" == "1" ]]; then
-  "$ROOT/publish.sh" "$OUTPUT"
+  "$ROOT/publish-tcp.sh" "$OUTPUT"
 fi

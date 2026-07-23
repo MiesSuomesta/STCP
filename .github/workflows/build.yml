@@ -1,38 +1,335 @@
-name: Build STCP SDK
+name: Build STCPv2
 
 on:
   push:
-    branches: [main]
+    branches: ["main", "master", "develop"]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: stcpv2-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    name: Full SDK Build
+  validate:
+    name: Validate repository
+    runs-on: ubuntu-24.04
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 🛠️ Install dependencies
+      - name: Install validation tools
         run: |
-          sudo apt update
-          sudo apt install -y build-essential curl unzip cmake git pkg-config rustup
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            shellcheck \
+            python3 \
+            python3-pip
 
-      - name: 🛠️ Setup Rust toolchain
+      - name: Check shell syntax
+        shell: bash
         run: |
-          rustup install nightly
+          set -Eeuo pipefail
+          while IFS= read -r -d '' script; do
+            echo "bash -n $script"
+            bash -n "$script"
+          done < <(
+            find . \
+              -path './kernel-module/raspberry-kernel-sources' -prune -o \
+              -path './kernel-module/linux-kernel-sources' -prune -o \
+              -path './kernel-module/linux-next' -prune -o \
+              -path '*/target' -prune -o \
+              -name '*.sh' -type f -print0
+          )
+
+      - name: ShellCheck orchestration scripts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          files=(
+            kernel-module/build-and-deploy.sh
+            kernel-module/build-benchmark-publish.sh
+            kernel-module/build-rpi-package.sh
+          )
+
+          for file in "${files[@]}"; do
+            if [[ -f "$file" ]]; then
+              shellcheck -x "$file"
+            fi
+          done
+
+      - name: Python syntax check
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m compileall -q \
+            kernel-module/benchmark \
+            kernel-module/echo-server \
+            2>/dev/null || true
+
+  linux-kernel-modules:
+    name: Linux x86_64 + Raspberry Pi ARM64
+    needs: validate
+
+    # This runner must contain:
+    #   - the custom x86 STCP kernel headers/build tree
+    #   - aarch64-linux-gnu cross compiler
+    #   - Raspberry kernel source/build tree with Module.symvers
+    #   - Rust nightly + rust-src
+    #
+    # Add these labels to the STCP build host in GitHub:
+    #   self-hosted, linux, x64, stcp-builder
+    runs-on: [self-hosted, linux, x64, stcp-builder]
+
+    defaults:
+      run:
+        working-directory: kernel-module
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Show build environment
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          uname -a
+          rustc --version
+          cargo --version
+          make --version | head -1
+          "${CROSS_COMPILE:-aarch64-linux-gnu-}gcc" --version | head -1
+
+      - name: Ensure Rust nightly components
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rustup toolchain install nightly --profile minimal --component rust-src
           rustup component add rust-src --toolchain nightly
-          rustup target add x86_64-unknown-linux-musl --toolchain nightly
-          rustup default nightly
 
-      - name: 📦 Setup toolchain and dependencies
+      - name: Build x86_64 and Raspberry Pi modules
+        shell: bash
+        env:
+          CROSS_COMPILE: aarch64-linux-gnu-
+          JOBS: ${{ runner.environment == 'github-hosted' && '2' || '' }}
+          STOP_BENCHMARKS: "0"
+          DRY_RUN: "0"
         run: |
-          cd SDK/C/tools
-          bash setup.sh
+          set -Eeuo pipefail
 
-      - name: 🚀 Build SDK and run tests
+          if [[ ! -f ./build-and-deploy.sh ]]; then
+            echo "Missing kernel-module/build-and-deploy.sh" >&2
+            exit 1
+          fi
+
+          export JOBS="${JOBS:-$(nproc)}"
+          bash ./build-and-deploy.sh build
+
+      - name: Verify produced modules
+        shell: bash
         run: |
-          cd SDK/C
-          bash build-sdk.sh
+          set -Eeuo pipefail
+
+          test -f x86-kernel-module/stcp.ko
+          test -f raspberry-kernel-module/stcp.ko
+
+          file x86-kernel-module/stcp.ko
+          file raspberry-kernel-module/stcp.ko
+
+          modinfo x86-kernel-module/stcp.ko |
+            grep -E '^(filename|description|license|depends|name|vermagic):'
+
+          "${CROSS_COMPILE:-aarch64-linux-gnu-}readelf" \
+            -h raspberry-kernel-module/stcp.ko |
+            grep 'Machine:.*AArch64'
+
+          "${CROSS_COMPILE:-aarch64-linux-gnu-}readelf" \
+            -sW raspberry-kernel-module/stcp.ko |
+            grep -q 'stcp_rust_init'
+
+      - name: Package Linux artifacts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          rm -rf ci-artifacts
+          mkdir -p \
+            ci-artifacts/x86_64 \
+            ci-artifacts/raspberry-pi-arm64
+
+          cp -a \
+            x86-kernel-module/stcp.ko \
+            x86-kernel-module/Module.symvers \
+            ci-artifacts/x86_64/
+
+          cp -a \
+            raspberry-kernel-module/stcp.ko \
+            raspberry-kernel-module/Module.symvers \
+            ci-artifacts/raspberry-pi-arm64/
+
+          modinfo x86-kernel-module/stcp.ko \
+            > ci-artifacts/x86_64/modinfo.txt
+
+          "${CROSS_COMPILE:-aarch64-linux-gnu-}readelf" \
+            -h raspberry-kernel-module/stcp.ko \
+            > ci-artifacts/raspberry-pi-arm64/readelf-header.txt
+
+          sha256sum \
+            ci-artifacts/x86_64/stcp.ko \
+            ci-artifacts/raspberry-pi-arm64/stcp.ko \
+            > ci-artifacts/SHA256SUMS
+
+      - name: Upload Linux modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcpv2-linux-modules-${{ github.sha }}
+          path: kernel-module/ci-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+  zephyr-nordic:
+    name: Zephyr / Nordic
+    needs: validate
+
+    # Nordic NCS is large and version-sensitive, so this job expects a
+    # preinstalled self-hosted runner with west, Zephyr SDK and NCS.
+    runs-on: [self-hosted, linux, x64, stcp-zephyr]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Locate Zephyr application
+        id: zephyr
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          candidates=(
+            zephyr/nordic/stcp-mqtt
+            kernel-module/stcp-mqtt
+            stcp-mqtt
+          )
+
+          for candidate in "${candidates[@]}"; do
+            if [[ -f "$candidate/CMakeLists.txt" && -f "$candidate/prj.conf" ]]; then
+              echo "app=$candidate" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "No Zephyr application found" >&2
+          exit 1
+
+      - name: Build nRF9151 firmware
+        shell: bash
+        env:
+          BOARD: nrf9151dk/nrf9151
+        run: |
+          set -Eeuo pipefail
+          west build \
+            -p always \
+            -b "$BOARD" \
+            "${{ steps.zephyr.outputs.app }}" \
+            -d build-zephyr-nrf9151
+
+      - name: Package Zephyr artifacts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p zephyr-ci-artifacts
+          find build-zephyr-nrf9151/zephyr -maxdepth 1 -type f \
+            \( -name '*.hex' -o -name '*.bin' -o -name '*.elf' -o -name '*.map' \) \
+            -exec cp -a {} zephyr-ci-artifacts/ \;
+          test -n "$(find zephyr-ci-artifacts -type f -print -quit)"
+
+      - name: Upload Zephyr firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcpv2-zephyr-nrf9151-${{ github.sha }}
+          path: zephyr-ci-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Windows
+    needs: validate
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Locate Windows solution
+        id: solution
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "windows/STCP-Windows.sln",
+            "Windows/STCP-Windows.sln",
+            "STCPv2/windows/STCP-Windows.sln"
+          )
+
+          foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) {
+              "path=$candidate" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              exit 0
+            }
+          }
+
+          throw "STCP-Windows.sln was not found"
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Windows solution
+        shell: pwsh
+        run: |
+          msbuild "${{ steps.solution.outputs.path }}" `
+            /m `
+            /restore `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /verbosity:minimal
+
+      - name: Collect Windows artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path windows-ci-artifacts | Out-Null
+
+          Get-ChildItem -Recurse -File |
+            Where-Object {
+              $_.Extension -in ".sys", ".dll", ".exe", ".inf", ".cat", ".pdb"
+            } |
+            ForEach-Object {
+              Copy-Item $_.FullName windows-ci-artifacts -Force
+            }
+
+          if (-not (Get-ChildItem windows-ci-artifacts -File)) {
+            throw "No Windows artifacts were produced"
+          }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcpv2-windows-x64-${{ github.sha }}
+          path: windows-ci-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+

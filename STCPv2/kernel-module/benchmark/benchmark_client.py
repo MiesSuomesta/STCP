@@ -6,6 +6,7 @@ import ctypes
 import json
 import os
 import resource
+import select
 import socket
 import ssl
 import statistics
@@ -49,10 +50,47 @@ def stcp_address(host: str, port: int) -> SockAddrIn:
     )
 
 
-def recv_exact(conn: socket.socket, size: int) -> bytes:
+def wait_socket(conn: socket.socket, *, read: bool, deadline: float, operation: str) -> None:
+    """Wait for AF_STCP readiness without switching the socket to O_NONBLOCK."""
+    while True:
+        remaining = deadline - time.perf_counter()
+        if remaining <= 0:
+            raise TimeoutError(f"{operation} timed out")
+        readable, writable, exceptional = select.select(
+            [conn] if read else [],
+            [] if read else [conn],
+            [conn],
+            remaining,
+        )
+        if exceptional:
+            raise OSError(f"{operation}: socket exception")
+        if (read and readable) or (not read and writable):
+            return
+
+
+def send_exact(conn: socket.socket, data: bytes, timeout_s: float, use_poll: bool) -> None:
+    if not use_poll:
+        conn.sendall(data)
+        return
+
+    deadline = time.perf_counter() + timeout_s
+    view = memoryview(data)
+    sent = 0
+    while sent < len(view):
+        wait_socket(conn, read=False, deadline=deadline, operation="STCP send")
+        count = conn.send(view[sent:])
+        if count <= 0:
+            raise ConnectionError("peer closed during send")
+        sent += count
+
+
+def recv_exact(conn: socket.socket, size: int, timeout_s: float, use_poll: bool) -> bytes:
     chunks: list[bytes] = []
     remaining = size
+    deadline = time.perf_counter() + timeout_s
     while remaining:
+        if use_poll:
+            wait_socket(conn, read=True, deadline=deadline, operation="STCP receive")
         chunk = conn.recv(remaining)
         if not chunk:
             raise ConnectionError("peer closed")
@@ -130,19 +168,22 @@ def main() -> int:
         payload = bytes(((worker_id + offset) & 0xFF) for offset in range(args.payload))
         frame = HEADER.pack(len(payload)) + payload
         conn: socket.socket | None = None
+        barrier_passed = False
 
         try:
             conn, connect_ms = open_connection(args)
             result["connect_ms"] = connect_ms
-            barrier.wait()
+            barrier.wait(timeout=args.timeout)
+            barrier_passed = True
 
             while time.perf_counter() < deadline:
                 for _ in range(args.pipeline):
                     started = time.perf_counter()
-                    conn.sendall(frame)
-                    raw_length = recv_exact(conn, HEADER.size)
+                    use_poll = args.mode == "stcp"
+                    send_exact(conn, frame, args.timeout, use_poll)
+                    raw_length = recv_exact(conn, HEADER.size, args.timeout, use_poll)
                     (length,) = HEADER.unpack(raw_length)
-                    echoed = recv_exact(conn, length)
+                    echoed = recv_exact(conn, length, args.timeout, use_poll)
                     elapsed_ms = (time.perf_counter() - started) * 1000.0
 
                     if args.verify and echoed != payload:
@@ -158,6 +199,11 @@ def main() -> int:
         except Exception as exc:
             result["errors"] = int(result["errors"]) + 1
             result["error_text"] = repr(exc)
+            if not barrier_passed:
+                try:
+                    barrier.abort()
+                except threading.BrokenBarrierError:
+                    pass
         finally:
             if conn is not None:
                 try:

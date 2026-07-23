@@ -124,3 +124,51 @@ AUTO_PUBLISH_WEB=1 \
 PUBLISH_TARGET='www-data@fuji:~/html/public/stcp.fi/' \
 ./run-all-full.sh
 ```
+
+## perf troubleshooting and fixed collection flow
+
+The full runner now validates that the remote `perf` process stays alive during
+startup, prints the remote error log immediately on failure, waits for the
+measurement to finish, downloads the semicolon-separated counters, and enriches
+the per-case JSON automatically.
+
+Quick Raspberry Pi check:
+
+```bash
+ssh pi@192.168.1.199 'command -v perf && sudo -n perf stat -a -- sleep 1'
+```
+
+Small validation run before the full matrix:
+
+```bash
+RPI_HOST=192.168.1.199 \
+RPI_SSH=pi@192.168.1.199 \
+RPI_BENCHMARK_DIR=/home/pi/benchmark \
+CLIENTS_LIST="1" PAYLOADS="64" PIPELINES="1" DURATION=5 \
+IRQ_METRICS=1 PERF_METRICS=1 \
+./run-all-full.sh
+```
+
+If `perf` works without sudo, use:
+
+```bash
+REMOTE_PERF_PREFIX="" ./run-all-full.sh
+```
+
+## STCP timeout protection
+
+AF_STCP remains a blocking socket because Python `settimeout()` would enable
+`O_NONBLOCK`. The benchmark client now uses `select()` around STCP send/receive
+operations and applies `--timeout` as an operation deadline. `run-all.sh` also
+wraps every test case in a hard process deadline, so a broken STCP exchange can
+no longer stop the full matrix indefinitely.
+
+Configuration:
+
+```bash
+STCP_OPERATION_TIMEOUT=30 CASE_GRACE_SECONDS=20 ./run-all-full.sh
+```
+
+A timed-out worker is recorded in the result's `error_details`. A process-level
+timeout is printed as `[TIMEOUT]` and the matrix proceeds when the caller uses
+its normal continue-on-error policy.

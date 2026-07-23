@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="STCP benchmark results for {{PLATFORM}} using {{TRANSPORT}} carrier.">
+  <title>{{PAGE_TITLE}}</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">STCP performance laboratory</div>
+    <h1>{{PLATFORM}} / {{TRANSPORT}}</h1>
+    <p>Reproducible TCP, TLS and STCP comparison generated directly from raw benchmark results.</p>
+    <div id="hero-meta" class="hero-meta"></div>
+  </div>
+</header>
+<main>
+  <section id="status-cards" class="status-grid" aria-label="Benchmark status"></section>
+
+  <section class="panel controls" aria-label="Chart filters">
+    <div><label for="payload-select">Payload</label><select id="payload-select"></select></div>
+    <div><label for="clients-select">Clients</label><select id="clients-select"></select></div>
+    <div><label for="pipeline-select">Pipeline</label><select id="pipeline-select"></select></div>
+    <label class="check"><input id="pass-only" type="checkbox" checked> Successful cases only</label>
+  </section>
+
+  <section class="summary panel">
+    <div>
+      <div class="section-kicker">Executive summary</div>
+      <h2>STCP compared with native TCP and TLS</h2>
+      <p id="executive-copy"></p>
+    </div>
+    <div id="comparison-cards" class="comparison-grid"></div>
+  </section>
+
+  <section class="chart-grid">
+    <article class="panel chart-card"><div class="chart-head"><div><span>Performance</span><h2>Operations per second</h2></div><small>Higher is better</small></div><div id="chart-ops" class="chart"></div></article>
+    <article class="panel chart-card"><div class="chart-head"><div><span>Throughput</span><h2>Combined throughput</h2></div><small>MiB/s · higher is better</small></div><div id="chart-throughput" class="chart"></div></article>
+    <article class="panel chart-card wide"><div class="chart-head"><div><span>Latency</span><h2>Round-trip latency</h2></div><small>Milliseconds · lower is better</small></div><div id="chart-latency" class="chart"></div></article>
+    <article class="panel chart-card"><div class="chart-head"><div><span>Connection</span><h2>Mean connect time</h2></div><small>Milliseconds · lower is better</small></div><div id="chart-connect" class="chart"></div></article>
+    <article class="panel chart-card"><div class="chart-head"><div><span>Client efficiency</span><h2>Client CPU usage</h2></div><small>Percent · lower is better</small></div><div id="chart-client-cpu" class="chart"></div></article>
+    <article class="panel chart-card"><div class="chart-head"><div><span>Server efficiency</span><h2>CPU cycles per operation</h2></div><small>Lower is better</small></div><div id="chart-cycles" class="chart"></div></article>
+    <article class="panel chart-card"><div class="chart-head"><div><span>Server work</span><h2>Instructions per operation</h2></div><small>Lower is better</small></div><div id="chart-instructions" class="chart"></div></article>
+    <article class="panel chart-card"><div class="chart-head"><div><span>Scheduling</span><h2>Context switches</h2></div><small>Per 1,000 ops · lower is better</small></div><div id="chart-context" class="chart"></div></article>
+    <article class="panel chart-card"><div class="chart-head"><div><span>Kernel activity</span><h2>Network events</h2></div><small>Per 1,000 ops · proxy</small></div><div id="chart-kernel" class="chart"></div></article>
+  </section>
+
+  <section class="panel">
+    <div class="chart-head"><div><span>Scaling explorer</span><h2>Payload scaling</h2></div><small>Selected clients and pipeline</small></div>
+    <div id="chart-scaling" class="chart chart-large"></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-kicker">Reliability</div>
+    <h2>Pass matrix and known issues</h2>
+    <div id="reliability" class="reliability-layout"></div>
+  </section>
+
+  <section class="panel">
+    <div class="section-kicker">Raw data</div>
+    <h2>Reproduce and inspect the results</h2>
+    <div class="downloads">
+      <a href="dashboard-data.json">Dashboard JSON</a>
+      <a href="summary.json">Summary JSON</a>
+      <a href="cases.csv">Cases CSV</a>
+      <a href="report.md">Markdown report</a>
+      <a href="manifest.json">SHA-256 manifest</a>
+      <a href="raw/">Raw benchmark files</a>
+    </div>
+  </section>
+</main>
+<footer><span>Generated from benchmark JSON. IRQ and perf values are processing proxies, not direct electrical power measurements.</span></footer>
+<script src="assets/data.js"></script>
+<script src="assets/dashboard.js"></script>
+</body>
+</html>

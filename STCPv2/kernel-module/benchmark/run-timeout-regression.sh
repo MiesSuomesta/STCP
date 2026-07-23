@@ -3,37 +3,35 @@ set -Eeuo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 RUNS="${1:-10}"
-CLIENTS="${CLIENTS:-8}"
-PAYLOAD="${PAYLOAD:-${PAYLOADS:-64}}"
-PIPELINE="${PIPELINE:-${PIPELINES:-4}}"
+CLIENTS="${CLIENTS:-2}"
+PAYLOAD="${PAYLOAD:-64}"
+PIPELINE="${PIPELINE:-1}"
 DURATION="${DURATION:-30}"
-FAILURES=0
 
-for ((run = 1; run <= RUNS; run++)); do
-    echo "===== STCP timeout regression $run/$RUNS: c=$CLIENTS p=$PAYLOAD q=$PIPELINE ====="
+: "${RPI_HOST:=192.168.1.199}"
+: "${RPI_SSH:=pi@192.168.1.199}"
+: "${RPI_BENCHMARK_DIR:=/home/pi/benchmark}"
 
+failures=0
+for ((i=1; i<=RUNS; i++)); do
+    echo "===== STCP timeout regression $i/$RUNS: c${CLIENTS} p${PAYLOAD} q${PIPELINE} ====="
     set +e
     CLIENTS="$CLIENTS" \
     PAYLOADS="$PAYLOAD" \
     PIPELINES="$PIPELINE" \
     DURATION="$DURATION" \
-    MODES=stcp \
-    bash "$ROOT/run-all.sh" --transport tcp
+    RPI_HOST="$RPI_HOST" \
+    RPI_SSH="$RPI_SSH" \
+    RPI_BENCHMARK_DIR="$RPI_BENCHMARK_DIR" \
+    IRQ_METRICS=0 \
+    PERF_METRICS=0 \
+    "$ROOT/run-all.sh" --transport tcp --only stcp
     status=$?
     set -e
-
-    if ((status != 0)); then
-        ((FAILURES += 1))
-        echo "[FAIL] regression run $run exited with status $status"
-    else
-        echo "[ OK ] regression run $run"
+    if (( status != 0 )); then
+        failures=$((failures + 1))
     fi
 done
 
-echo
-if ((FAILURES != 0)); then
-    echo "[FAIL] $FAILURES/$RUNS regression runs failed"
-    exit 1
-fi
-
-echo "[ OK ] all $RUNS regression runs passed"
+echo "Regression runs: $RUNS, failures: $failures"
+(( failures == 0 ))

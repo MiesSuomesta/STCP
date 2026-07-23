@@ -1,0 +1,62 @@
+== STCP build, benchmark and publish ==
+Mode:                all
+Project:             /home/pomo/git/STCP/STCPv2/kernel-module
+Raspberry SSH:       pi@192.168.1.199
+Raspberry address:   192.168.1.199
+Benchmark directory: /home/pi/benchmark
+Duration:            30 s
+Clients:             1 2 4 8
+Payloads:            64 1024 4096 65536 262144 1048576
+Pipelines:            1 4 8
+IRQ metrics:         1
+Perf metrics:        1
+Continue on error:   1
+Publish:             1
+Deploy target:       www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry-pi/
+Dry run:             0
+[INFO] Running local and remote preflight checks
+[ OK ] Preflight complete
+[INFO] Collecting benchmark platform metadata
+[INFO] Platform: Raspberry Pi 4 Model B Rev 1.4
+[INFO] Kernel:   6.18.38-stcp+
+[INFO] Compiler: gcc (Debian 14.2.0-19) 14.2.0
+[INFO] Commit:   d9881bb0c
+[INFO] Building and deploying x86_64 and Raspberry Pi modules
+[ OK ] make                     /usr/bin/make
+[ OK ] rustup                   /usr/bin/rustup
+[ OK ] ssh                      /usr/bin/ssh
+[ OK ] scp                      /usr/bin/scp
+[ OK ] file                     /usr/bin/file
+[ OK ] modinfo                  /usr/sbin/modinfo
+[ OK ] insmod                   /usr/sbin/insmod
+[ OK ] rmmod                    /usr/sbin/rmmod
+[ OK ] lsmod                    /usr/sbin/lsmod
+[ OK ] dmesg                    /usr/bin/dmesg
+[ OK ] sudo                     /usr/bin/sudo
+[ OK ] aarch64-linux-gnu-gcc    /usr/bin/aarch64-linux-gnu-gcc
+[ OK ] aarch64-linux-gnu-ld     /usr/bin/aarch64-linux-gnu-ld
+[ OK ] aarch64-linux-gnu-ar     /usr/bin/aarch64-linux-gnu-ar
+[ OK ] aarch64-linux-gnu-readelf /usr/bin/aarch64-linux-gnu-readelf
+[INFO] Cleaning x86 build
+make: Entering directory '/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module'
+make -C "/lib/modules/7.2.0-rc1-next-20260703-rust-stcp-debug/build" M="/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module" LLVM="1" clean
+make[1]: Entering directory '/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug'
+make[2]: Entering directory '/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module'
+  CLEAN   Module.symvers
+make[2]: Leaving directory '/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module'
+make[1]: Leaving directory '/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug'
+cd "/home/pomo/git/STCP/STCPv2/kernel-module/common-rust" && "rustup" run "nightly" cargo clean
+     Removed 52 files, 181.1MiB total
+rm -rf "/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module/.rust-objects"
+rm -f "/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module/src/rust_core.o"
+make: Leaving directory '/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module'
+[INFO] Building x86 STCP module
+make: Entering directory '/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module'
+cd "/home/pomo/git/STCP/STCPv2/kernel-module/common-rust" && \
+RUSTFLAGS="-C relocation-model=static -C code-model=kernel -C panic=abort -C force-frame-pointers=yes -C no-redzone=yes -Z plt=yes" \
+"rustup" run "nightly" cargo build \
+	-Zbuild-std=core,alloc \
+	--target "x86_64-unknown-none" \
+	--release
+   Compiling compiler_builtins v0.1.160 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+   Compiling core v0.0.0 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)

@@ -6,10 +6,10 @@ OUTPUT="${2:-$ROOT/generated/raspberry-udp}"
 python3 "$ROOT/generate_dashboard.py" "$INPUT" "$OUTPUT" \
   --platform "${PLATFORM_NAME:-Raspberry Pi}" \
   --transport udp \
-  --title "${PAGE_TITLE:-Raspberry Pi TCP benchmark}" \
+  --title "${PAGE_TITLE:-Raspberry Pi UDP carrier benchmark}" \
   --commit "${GIT_COMMIT:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)}" \
   --kernel "${BENCHMARK_KERNEL:-unknown}" \
   --compiler "${BENCHMARK_COMPILER:-unknown}"
 if [[ "${AUTO_PUBLISH_WEB:-0}" == "1" ]]; then
-  "$ROOT/publish.sh" "$OUTPUT"
+  "$ROOT/publish-udp.sh" "$OUTPUT"
 fi

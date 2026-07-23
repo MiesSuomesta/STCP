@@ -67,8 +67,13 @@ echo "Log:    $FULL_LOG"
 
 
 if [[ "${AUTO_PUBLISH_WEB:-0}" == 1 ]]; then
-  echo "[INFO] Publishing latest benchmark results to stcp.fi"
-  RESULT_DIR="$ROOT_OUT" \
-  PUBLISH_TARGET="${PUBLISH_TARGET:-www-data@fuji:~/html/public/stcp.fi/}" \
-  bash "$D/publish-latest-web.sh"
+  echo "[INFO] Generating and publishing Raspberry TCP + UDP dashboards to stcp.fi"
+  WEB_DEPLOY_TARGET="${WEB_DEPLOY_TARGET:-www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry-pi/}" \
+  PLATFORM_NAME="${PLATFORM_NAME:-Raspberry Pi}" \
+  BENCHMARK_KERNEL="${BENCHMARK_KERNEL:-unknown}" \
+  BENCHMARK_COMPILER="${BENCHMARK_COMPILER:-unknown}" \
+  AUTO_PUBLISH_WEB=1 \
+  bash "$D/stcp-raspberry-tcp-generator/generate-all.sh" \
+    "$ROOT_OUT/tcp" "$ROOT_OUT/udp" \
+    "${WEB_OUTPUT_DIR:-$ROOT_OUT/web/raspberry-pi}"
 fi

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-SOURCE_DIR="${1:-generated/raspberry-tcp}"
+SOURCE_DIR="${1:-generated/raspberry-udp}"
 TARGET_UDP="${WEB_DEPLOY_TARGET_UDP:-www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry/udp/}"
 SSH_OPTS="${SSH_OPTS:--o StrictHostKeyChecking=accept-new}"
 

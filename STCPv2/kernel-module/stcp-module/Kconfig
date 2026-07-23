@@ -1,0 +1,23 @@
+menuconfig STCP
+    bool "STCP2 socket offload"
+    depends on NET_SOCKETS
+    select NET_SOCKETS_OFFLOAD
+    default n
+
+if STCP
+config STCP_SOCKET_PRIORITY
+    int "Socket provider priority"
+    default 20
+config STCP_MAX_SOCKETS
+    int "Maximum STCP sockets"
+    default 16
+    range 2 64
+config STCP_CONNECT_TIMEOUT_MS
+    int "Carrier connect timeout"
+    default 60000
+    range 1000 300000
+config STCP_LOG_LEVEL
+    int "STCP log level"
+    default 3
+    range 0 4
+endif

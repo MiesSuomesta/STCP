@@ -20,7 +20,7 @@ Dry run:             0
 [INFO] Platform: Raspberry Pi 4 Model B Rev 1.4
 [INFO] Kernel:   6.18.38-stcp+
 [INFO] Compiler: gcc (Debian 14.2.0-19) 14.2.0
-[INFO] Commit:   d9881bb0c
+[INFO] Commit:   b41417172
 [INFO] Building and deploying x86_64 and Raspberry Pi modules
 [ OK ] make                     /usr/bin/make
 [ OK ] rustup                   /usr/bin/rustup
@@ -85,7 +85,7 @@ warning: unused import: `STCP_FRAME_PAYLOAD_LEN`
 warning: constant `X25519_KEY_LEN` is never used
  --> src/crypto.rs:5:11
   |
-5 | pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const...
+5 | pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:u...
   |           ^^^^^^^^^^^^^^
   |
   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
@@ -93,13 +93,13 @@ warning: constant `X25519_KEY_LEN` is never used
 warning: constant `CHACHA_KEY_LEN` is never used
  --> src/crypto.rs:5:86
   |
-5 | pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const...
-  |                                                                                      ^^^^^^^^^^^^^^
+5 | ...t PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const CHACHA_TAG_LEN:usize=...
+  |                                              ^^^^^^^^^^^^^^
 
 warning: function `nm` is never used
   --> src/crypto.rs:49:81
    |
-49 | fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut u8{if x.is_empty(...
+49 | fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut...
    |                                                                                 ^^
 
 warning: function `stcp_carrier_destroy` is never used
@@ -145,7 +145,7 @@ warning: function `encode_encrypted_frame` is never used
     |        ^^^^^^^^^^^^^^^^^^^^^^
 
 warning: `stcp-kernel-core` (lib) generated 13 warnings (run `cargo fix --lib -p stcp-kernel-core` to apply 3 suggestions)
-    Finished `release` profile [optimized + debuginfo] target(s) in 29.14s
+    Finished `release` profile [optimized + debuginfo] target(s) in 30.54s
 rm -rf "/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module/.rust-objects"
 mkdir -p "/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module/.rust-objects"
 cd "/home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module/.rust-objects" && "llvm-ar" x "/home/pomo/git/STCP/STCPv2/kernel-module/common-rust/target/x86_64-unknown-none/release/libstcp_kernel_core.a"
@@ -201,6 +201,8 @@ src/rust_alloc.c:32:1: note: declare 'static' if the function is not intended to
   clang -Wp,-MMD,src/.stcp_module.o.d -nostdinc -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/generated/uapi -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler-version.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/kconfig.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler_types.h -D__KERNEL__ --target=x86_64-linux-gnu -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -Wno-gnu -Wno-microsoft-anon-tag -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mstack-alignment=8 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mretpoline-external-thunk -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -mharden-sls=all -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-stack-clash-protection -pg -mfentry -DCC_USING_NOP_MCOUNT -DCC_USING_FENTRY -falign-functions=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-type-limits -Wno-pointer-sign -Wcast-function-type -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -I././include  -DMODULE  -DKBUILD_BASENAME='"stcp_module"' -DKBUILD_MODNAME='"stcp"' -D__KBUILD_MODNAME=stcp -c -o src/stcp_module.o src/stcp_module.c  
 # CC [M]  src/stcp_ops.o
   clang -Wp,-MMD,src/.stcp_ops.o.d -nostdinc -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/generated/uapi -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler-version.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/kconfig.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler_types.h -D__KERNEL__ --target=x86_64-linux-gnu -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -Wno-gnu -Wno-microsoft-anon-tag -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mstack-alignment=8 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mretpoline-external-thunk -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -mharden-sls=all -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-stack-clash-protection -pg -mfentry -DCC_USING_NOP_MCOUNT -DCC_USING_FENTRY -falign-functions=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-type-limits -Wno-pointer-sign -Wcast-function-type -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -I././include  -DMODULE  -DKBUILD_BASENAME='"stcp_ops"' -DKBUILD_MODNAME='"stcp"' -D__KBUILD_MODNAME=stcp -c -o src/stcp_ops.o src/stcp_ops.c  
+# CC [M]  src/stcp_proto.o
+  clang -Wp,-MMD,src/.stcp_proto.o.d -nostdinc -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/generated/uapi -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler-version.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/kconfig.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler_types.h -D__KERNEL__ --target=x86_64-linux-gnu -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -Wno-gnu -Wno-microsoft-anon-tag -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mstack-alignment=8 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mretpoline-external-thunk -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -mharden-sls=all -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-stack-clash-protection -pg -mfentry -DCC_USING_NOP_MCOUNT -DCC_USING_FENTRY -falign-functions=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-type-limits -Wno-pointer-sign -Wcast-function-type -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -I././include  -DMODULE  -DKBUILD_BASENAME='"stcp_proto"' -DKBUILD_MODNAME='"stcp"' -D__KBUILD_MODNAME=stcp -c -o src/stcp_proto.o src/stcp_proto.c  
 src/stcp_memory.c:9:6: warning: no previous prototype for function 'stcp_kernel_random_bytes' [-Wmissing-prototypes]
     9 | void stcp_kernel_random_bytes(void *buffer, size_t len)
       |      ^
@@ -230,8 +232,6 @@ src/stcp_memory.c:39:1: note: declare 'static' if the function is not intended t
       | ^
       | static 
 4 warnings generated.
-# CC [M]  src/stcp_proto.o
-  clang -Wp,-MMD,src/.stcp_proto.o.d -nostdinc -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/generated/uapi -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler-version.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/kconfig.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler_types.h -D__KERNEL__ --target=x86_64-linux-gnu -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -Wno-gnu -Wno-microsoft-anon-tag -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mstack-alignment=8 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mretpoline-external-thunk -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -mharden-sls=all -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-stack-clash-protection -pg -mfentry -DCC_USING_NOP_MCOUNT -DCC_USING_FENTRY -falign-functions=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-type-limits -Wno-pointer-sign -Wcast-function-type -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -I././include  -DMODULE  -DKBUILD_BASENAME='"stcp_proto"' -DKBUILD_MODNAME='"stcp"' -D__KBUILD_MODNAME=stcp -c -o src/stcp_proto.o src/stcp_proto.c  
 # CC [M]  src/stcp_rust_ffi.o
   clang -Wp,-MMD,src/.stcp_rust_ffi.o.d -nostdinc -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/arch/x86/include/generated/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/uapi -I/usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/generated/uapi -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler-version.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/kconfig.h -include /usr/src/linux-headers-7.2.0-rc1-next-20260703-rust-stcp-debug/include/linux/compiler_types.h -D__KERNEL__ --target=x86_64-linux-gnu -fintegrated-as -Werror=unknown-warning-option -Werror=ignored-optimization-argument -Werror=option-ignored -Werror=unused-command-line-argument -fshort-wchar -funsigned-char -fno-common -fno-PIE -fno-strict-aliasing -std=gnu11 -fms-extensions -Wno-gnu -Wno-microsoft-anon-tag -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a -fcf-protection=branch -fno-jump-tables -m64 -falign-loops=1 -mno-80387 -mno-fp-ret-in-387 -mstack-alignment=8 -mskip-rax-setup -march=x86-64 -mtune=generic -mno-red-zone -mcmodel=kernel -mstack-protector-guard-reg=gs -mstack-protector-guard-symbol=__ref_stack_chk_guard -Wno-sign-compare -fno-asynchronous-unwind-tables -mretpoline-external-thunk -mindirect-branch-cs-prefix -mfunction-return=thunk-extern -mharden-sls=all -fpatchable-function-entry=16,16 -fno-delete-null-pointer-checks -O2 -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-stack-clash-protection -pg -mfentry -DCC_USING_NOP_MCOUNT -DCC_USING_FENTRY -falign-functions=16 -fstrict-flex-arrays=3 -fno-strict-overflow -fno-stack-check -fno-builtin-wcslen -Wall -Wextra -Wundef -Werror=implicit-function-declaration -Werror=implicit-int -Werror=return-type -Werror=strict-prototypes -Wno-format-security -Wno-trigraphs -Wno-frame-address -Wno-address-of-packed-member -Wmissing-declarations -Wmissing-prototypes -Wframe-larger-than=2048 -Wno-format-overflow-non-kprintf -Wno-format-truncation-non-kprintf -Wno-type-limits -Wno-pointer-sign -Wcast-function-type -Wimplicit-fallthrough -Werror=date-time -Werror=incompatible-pointer-types -Wenum-conversion -Wunused -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-format-overflow -Wno-override-init -Wno-pointer-to-enum-cast -Wno-tautological-constant-out-of-range-compare -Wno-unaligned-access -Wno-enum-compare-conditional -Wno-missing-field-initializers -Wno-shift-negative-value -Wno-enum-enum-conversion -Wno-sign-compare -Wno-unused-parameter -g -I././include  -DMODULE  -DKBUILD_BASENAME='"stcp_rust_ffi"' -DKBUILD_MODNAME='"stcp"' -D__KBUILD_MODNAME=stcp -c -o src/stcp_rust_ffi.o src/stcp_rust_ffi.c  
 # CC [M]  src/stcp_users.o
@@ -1663,7 +1663,7 @@ warning: unused import: `STCP_FRAME_PAYLOAD_LEN`
 warning: constant `X25519_KEY_LEN` is never used
  --> src/crypto.rs:5:11
   |
-5 | pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const...
+5 | pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:u...
   |           ^^^^^^^^^^^^^^
   |
   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
@@ -1671,13 +1671,13 @@ warning: constant `X25519_KEY_LEN` is never used
 warning: constant `CHACHA_KEY_LEN` is never used
  --> src/crypto.rs:5:86
   |
-5 | pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const...
-  |                                                                                      ^^^^^^^^^^^^^^
+5 | ...t PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const CHACHA_TAG_LEN:usize=...
+  |                                              ^^^^^^^^^^^^^^
 
 warning: function `nm` is never used
   --> src/crypto.rs:49:81
    |
-49 | fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut u8{if x.is_empty(...
+49 | fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut...
    |                                                                                 ^^
 
 warning: function `stcp_carrier_destroy` is never used
@@ -1723,7 +1723,7 @@ warning: function `encode_encrypted_frame` is never used
     |        ^^^^^^^^^^^^^^^^^^^^^^
 
 warning: `stcp-kernel-core` (lib) generated 14 warnings (run `cargo fix --lib -p stcp-kernel-core` to apply 3 suggestions)
-    Finished `release` profile [optimized + debuginfo] target(s) in 30.58s
+    Finished `release` profile [optimized + debuginfo] target(s) in 31.42s
 rm -rf "/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kernel-module/.rust-objects"
 mkdir -p "/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kernel-module/.rust-objects"
 cd "/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kernel-module/.rust-objects" && "aarch64-linux-gnu-ar" x "/home/pomo/git/STCP/STCPv2/kernel-module/common-rust/target/aarch64-unknown-none/release/libstcp_kernel_core.a"
@@ -1745,13 +1745,13 @@ src/panic.c:4:17: warning: no previous prototype for ‘stcp_kernel_panic’ [-W
     4 | __noreturn void stcp_kernel_panic(void)
       |                 ^~~~~~~~~~~~~~~~~
   CC [M]  src/stcp_memory.o
-  CC [M]  src/stcp_module.o
 src/rust_alloc.c:17:7: warning: no previous prototype for ‘stcp_rust_kernel_alloc’ [-Wmissing-prototypes]
    17 | void *stcp_rust_kernel_alloc(size_t pSize)
       |       ^~~~~~~~~~~~~~~~~~~~~~
 src/rust_alloc.c:32:6: warning: no previous prototype for ‘stcp_rust_kernel_free’ [-Wmissing-prototypes]
    32 | void stcp_rust_kernel_free(void *pFrom)
       |      ^~~~~~~~~~~~~~~~~~~~~
+  CC [M]  src/stcp_module.o
   CC [M]  src/stcp_ops.o
 src/stcp_memory.c:9:6: warning: no previous prototype for ‘stcp_kernel_random_bytes’ [-Wmissing-prototypes]
     9 | void stcp_kernel_random_bytes(void *buffer, size_t len)
@@ -1785,56 +1785,56 @@ make: Leaving directory '/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kern
 [INFO] Loading x86 module with: /usr/sbin/insmod /home/pomo/git/STCP/STCPv2/kernel-module/x86-kernel-module/stcp.ko carrier_debug=0
 [ OK ] x86 module loaded
 [INFO] x86 carrier_debug=N
-[179740.259064] stcp-debug-v8: TCP TX begin carrier=ffff89bb41e21c00 socket=ffff89b8a30eca00 position=0 remaining=132
-[179740.259076] stcp-debug-v8: TCP TX result carrier=ffff89bb41e21c00 ret=132 requested=132
-[179740.259305] stcp-debug-v8: carrier_send enter carrier=ffff89bb41e21c00 kind=1 socket=ffff89b8a30eca00 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840 connected=1 len=132 flags=0x0
-[179740.259313] stcp-debug-v8: TCP TX begin carrier=ffff89bb41e21c00 socket=ffff89b8a30eca00 position=0 remaining=132
-[179740.259325] stcp-debug-v8: TCP TX result carrier=ffff89bb41e21c00 ret=132 requested=132
-[179740.260968] stcp_receiver_thread: 13988 callbacks suppressed
-[179740.260974] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.260978] stcp_receiver_thread: 13988 callbacks suppressed
-[179740.260981] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.260988] stcp_receiver_thread: 13988 callbacks suppressed
-[179740.260991] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.261389] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.261394] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.261401] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.261707] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.261712] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.261719] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.262019] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.262024] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.262031] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.262329] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.262334] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.262350] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.262655] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.262662] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.262684] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.263053] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.263092] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.263148] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.263466] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.263515] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.263563] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.263881] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.263910] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.263963] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179740.264288] stcp-debug-v8: RX bytes carrier=ffff89bb41e21c00 kind=1 len=132 rust_ctx=ffff89b725cfa400 owner=ffff89b77cd14840
-[179740.264318] stcp-debug-v8: RX rust dispatch begin carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 len=132 peer=0x00000000:0x0000
-[179740.264357] stcp-debug-v8: RX rust dispatch result carrier=ffff89bb41e21c00 ctx=ffff89b725cfa400 ret=0
-[179859.012936] stcp: loopback BSD transport unloaded
-[179859.101210] stcp: directional crypto selftest passed
-[179859.101269] stcp: loopback BSD transport loaded
-[180143.736814] stcp: loopback BSD transport unloaded
-[180143.811048] stcp: directional crypto selftest passed
-[180143.811111] stcp: loopback BSD transport loaded
-[180651.960838] stcp: loopback BSD transport unloaded
-[180652.051179] stcp: directional crypto selftest passed
-[180652.051254] stcp: loopback BSD transport loaded
-[181202.864885] stcp: loopback BSD transport unloaded
-[181202.975707] stcp: directional crypto selftest passed
-[181202.975760] stcp: loopback BSD transport loaded
+[194760.698223] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.698239] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.698475] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.698484] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.698496] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194760.698637] stcp-debug-v8: carrier_send enter carrier=ffff89b6fca37400 kind=1 socket=ffff89bb8287d3c0 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500 connected=1 len=132 flags=0x0
+[194760.698647] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.698660] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.698890] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.698901] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.698914] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194760.698970] stcp-debug-v8: carrier_send enter carrier=ffff89b6fca37400 kind=1 socket=ffff89bb8287d3c0 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500 connected=1 len=132 flags=0x0
+[194760.698980] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.698991] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.699220] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.699229] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.699240] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194760.699407] stcp-debug-v8: carrier_send enter carrier=ffff89b6fca37400 kind=1 socket=ffff89bb8287d3c0 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500 connected=1 len=132 flags=0x0
+[194760.699416] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.699432] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.699659] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.699667] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.699678] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194760.699904] stcp-debug-v8: carrier_send enter carrier=ffff89b6fca37400 kind=1 socket=ffff89bb8287d3c0 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500 connected=1 len=132 flags=0x0
+[194760.699916] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.699928] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.700137] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.700149] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.700157] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194760.700312] stcp-debug-v8: carrier_send enter carrier=ffff89b6fca37400 kind=1 socket=ffff89bb8287d3c0 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500 connected=1 len=132 flags=0x0
+[194760.700320] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.700333] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.700544] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.700576] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.700647] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194760.701358] stcp-debug-v8: carrier_send enter carrier=ffff89b6fca37400 kind=1 socket=ffff89bb8287d3c0 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500 connected=1 len=132 flags=0x0
+[194760.701374] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.701392] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.701586] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.701592] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.701605] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194760.701656] stcp-debug-v8: carrier_send enter carrier=ffff89b6fca37400 kind=1 socket=ffff89bb8287d3c0 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500 connected=1 len=132 flags=0x0
+[194760.701662] stcp-debug-v8: TCP TX begin carrier=ffff89b6fca37400 socket=ffff89bb8287d3c0 position=0 remaining=132
+[194760.701672] stcp-debug-v8: TCP TX result carrier=ffff89b6fca37400 ret=132 requested=132
+[194760.701854] stcp-debug-v8: RX bytes carrier=ffff89b6fca37400 kind=1 len=132 rust_ctx=ffff89badd57e400 owner=ffff89bae0525500
+[194760.701859] stcp-debug-v8: RX rust dispatch begin carrier=ffff89b6fca37400 ctx=ffff89badd57e400 len=132 peer=0x00000000:0x0000
+[194760.701869] stcp-debug-v8: RX rust dispatch result carrier=ffff89b6fca37400 ctx=ffff89badd57e400 ret=0
+[194864.112853] stcp: loopback BSD transport unloaded
+[194864.193793] stcp: directional crypto selftest passed
+[194864.193839] stcp: loopback BSD transport loaded
 [INFO] Copying Raspberry module to pi@192.168.1.199
 [INFO] Installing Raspberry module
 [INFO] Removing old Raspberry STCP module
@@ -1842,66 +1842,66 @@ make: Leaving directory '/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kern
 [INFO] Loading Raspberry module with modprobe: stcp carrier_debug=0
 [ OK ] Raspberry module loaded
 [INFO] Raspberry carrier_debug=N
-[ 1185.035654] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.035673] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.035707] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.035859] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.035874] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.035907] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.035967] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.035986] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.036020] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.036171] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.036185] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.036219] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.036279] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.036297] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.036330] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.036495] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.036510] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.036543] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.036602] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.036620] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.036653] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.036865] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.036879] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.036911] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.036970] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.036988] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.037020] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.037293] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.037306] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.037340] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.037400] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.037417] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.037450] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.037713] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.037727] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.037760] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.037818] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.037836] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.037869] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.038122] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.038135] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.038169] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.038229] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.038246] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.038279] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1185.038523] stcp-debug-v8: RX bytes carrier=ffffff8041e4be00 kind=1 len=132 rust_ctx=ffffff8045163c00 owner=ffffff8097240440
-[ 1185.038536] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8041e4be00 ctx=ffffff8045163c00 len=132 peer=0x00000000:0x0000
-[ 1185.038570] stcp-debug-v8: RX rust dispatch result carrier=ffffff8041e4be00 ctx=ffffff8045163c00 ret=0
-[ 1185.038628] stcp-debug-v8: carrier_send enter carrier=ffffff8041e4be00 kind=1 socket=ffffff804fd23a80 rust_ctx=ffffff8045163c00 owner=ffffff8097240440 connected=1 len=132 flags=0x0
-[ 1185.038645] stcp-debug-v8: TCP TX begin carrier=ffffff8041e4be00 socket=ffffff804fd23a80 position=0 remaining=132
-[ 1185.038678] stcp-debug-v8: TCP TX result carrier=ffffff8041e4be00 ret=132 requested=132
-[ 1307.169183] stcp: carrier: kernel_accept result listener=ffffff8040edfe00 accepted=0000000000000000 ret=-512
-[ 1307.169224] stcp: carrier: accept failed listener carrier=ffffff8040edfe00 kind=tcp socket=ffffff804fd22080 sk=ffffff80856e0000 state=10 family=2 type=1 protocol=6 local=0.0.0.0:19002 remote=0.0.0.0:0 connected=0 listening=1 has_peer=0 stopping=0 stopped=0 sndbuf=16777216 rcvbuf=16777216 err=0 shutdown=0x0
-[ 1307.169261] stcp-debug-v8: accept TCP carrier_accept result listener=ffffff8097240000 accepted_carrier=0000000000000000 ret=-512
-[ 2100.223176] stcp: loopback BSD transport unloaded
-[ 2100.384139] stcp: directional crypto selftest passed
-[ 2100.384436] stcp: loopback BSD transport loaded
-[ 2651.271102] stcp: loopback BSD transport unloaded
-[ 2660.543603] stcp: directional crypto selftest passed
-[ 2660.543900] stcp: loopback BSD transport loaded
+[ 1616.883720] stcp_carrier_send: 14697 callbacks suppressed
+[ 1616.883726] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.883761] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.883880] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.883895] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.883930] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.883989] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.884009] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.884043] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.884156] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.884171] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.884206] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.884265] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.884285] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.884320] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.884428] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.884443] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.884477] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.884535] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.884555] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.884588] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.884714] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.884729] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.884763] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.884822] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.884841] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.884873] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.885082] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.885096] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.885130] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.885189] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.885207] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.885240] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.885834] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.885848] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.885881] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.885940] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.885958] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.885990] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.886459] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.886474] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.886507] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.886566] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.886584] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.886617] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.886879] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.886894] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.886927] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.886986] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.887004] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1616.887037] stcp-debug-v8: TCP TX result carrier=ffffff8046fe4e00 ret=132 requested=132
+[ 1616.887212] stcp-debug-v8: RX bytes carrier=ffffff8046fe4e00 kind=1 len=132 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000
+[ 1616.887226] stcp-debug-v8: RX rust dispatch begin carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 len=132 peer=0x00000000:0x0000
+[ 1616.887259] stcp-debug-v8: RX rust dispatch result carrier=ffffff8046fe4e00 ctx=ffffff80817cf400 ret=0
+[ 1616.887317] stcp-debug-v8: carrier_send enter carrier=ffffff8046fe4e00 kind=1 socket=ffffff804b25a080 rust_ctx=ffffff80817cf400 owner=ffffff808f1b0000 connected=1 len=132 flags=0x0
+[ 1616.887336] stcp-debug-v8: TCP TX begin carrier=ffffff8046fe4e00 socket=ffffff804b25a080 position=0 remaining=132
+[ 1723.599721] stcp-debug-v8: accept TCP carrier_accept result listener=ffffff808f270000 accepted_carrier=0000000000000000 ret=-512
+[ 1723.795765] stcp: loopback BSD transport unloaded
+[ 1733.077720] stcp: directional crypto selftest passed
+[ 1733.078020] stcp: loopback BSD transport loaded
 Connection to 192.168.1.199 closed.
 [ OK ] Raspberry module loaded
 
@@ -1913,9 +1913,9 @@ RPI host:    pi@192.168.1.199
 [ OK ] Modules built, deployed and verified
 [INFO] Starting complete TCP and UDP matrices
 STCP full benchmark
-Started: 2026-07-23T17:06:53+03:00
+Started: 2026-07-24T06:57:01+03:00
 Raspberry: pi@192.168.1.199
-Results: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522
+Results: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526
 
 [INFO] Synchronizing benchmark scripts to Raspberry
 ============================================================
@@ -1924,11 +1924,12 @@ Results: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-2026072
 tcp server stopped
 tls server stopped
 stcp server stopped
-tcp server started on port 19000 (PID 5663)
-tls server started on port 19001 (PID 5664)
-stcp-tcp server started on port 19002 (PID 5665)
+tcp server started on port 19000 (PID 2178)
+tls server started on port 19001 (PID 2179)
+stcp-tcp server started on port 19002 (PID 2180)
 benchmark server: mode=stcp listen=0.0.0.0:19002
 benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
 benchmark server: mode=tcp listen=0.0.0.0:19000
 benchmark server: mode=tls listen=0.0.0.0:19001
 ===== tcp-c1-p64-q1 =====
@@ -1938,24 +1939,24 @@ benchmark server: mode=tls listen=0.0.0.0:19001
   "clients": 1,
   "payload_bytes": 64,
   "pipeline": 1,
-  "elapsed_s": 30.000182356016012,
-  "operations": 134067,
+  "elapsed_s": 30.000392151006963,
+  "operations": 148415,
   "errors": 0,
-  "tx_mib_s": 0.2727583517947461,
-  "rx_mib_s": 0.2727583517947461,
-  "combined_mib_s": 0.5455167035894922,
-  "operations_s": 4468.87283580512,
-  "connect_mean_ms": 0.38524201954714954,
-  "rtt_p50_ms": 0.22977698245085776,
-  "rtt_p95_ms": 0.3852429799735546,
-  "rtt_p99_ms": 0.42239800677634776,
-  "client_cpu_percent": 34.81205172709792,
-  "max_rss_kib": 20568,
+  "tx_mib_s": 0.3019471435322455,
+  "rx_mib_s": 0.3019471435322455,
+  "combined_mib_s": 0.603894287064491,
+  "operations_s": 4947.10199963231,
+  "connect_mean_ms": 0.6908409995958209,
+  "rtt_p50_ms": 0.1588979794178158,
+  "rtt_p95_ms": 0.38135601789690554,
+  "rtt_p99_ms": 0.4150919849053025,
+  "client_cpu_percent": 32.201639069827095,
+  "max_rss_kib": 20708,
   "error_details": []
 }
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c1-p64-q1.json", "network_irq": 268334, "net_rx_softirq": 536509, "net_tx_softirq": 0, "events_per_1k_ops": 6003.289400076081}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c1-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c1-p64-q1.json", "cycles_per_op": 92677.40194082064, "instructions_per_op": 50096.465036138645, "context_switches_per_1k_ops": 2045.9247987946324, "warnings": ["branches: <not supported>"]}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tcp-c1-p64-q1.json", "network_irq": 297030, "net_rx_softirq": 593899, "net_tx_softirq": 0, "events_per_1k_ops": 6002.9579220429205}
+rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c1-p64-q1-1361273.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tcp-c1-p64-q1.json", "cycles_per_op": 91279.50544082471, "instructions_per_op": 50259.80158339791, "context_switches_per_1k_ops": 2040.1980931846513, "warnings": ["branches: <not supported>"]}
 ===== tls-c1-p64-q1 =====
 {
   "mode": "tls",
@@ -1963,24 +1964,24 @@ rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c1-p64-q1-1338794.csv': Operation not
   "clients": 1,
   "payload_bytes": 64,
   "pipeline": 1,
-  "elapsed_s": 30.003679743997054,
-  "operations": 92745,
+  "elapsed_s": 30.003814681986114,
+  "operations": 91723,
   "errors": 0,
-  "tx_mib_s": 0.18866704399945503,
-  "rx_mib_s": 0.18866704399945503,
-  "combined_mib_s": 0.37733408799891005,
-  "operations_s": 3091.120848887071,
-  "connect_mean_ms": 59.548858989728615,
-  "rtt_p50_ms": 0.3519979945849627,
-  "rtt_p95_ms": 0.48888599849306047,
-  "rtt_p99_ms": 0.5431530007626861,
-  "client_cpu_percent": 36.62439105389579,
-  "max_rss_kib": 24396,
+  "tx_mib_s": 0.18658719553017072,
+  "rx_mib_s": 0.18658719553017072,
+  "combined_mib_s": 0.37317439106034145,
+  "operations_s": 3057.044611566317,
+  "connect_mean_ms": 48.144070024136454,
+  "rtt_p50_ms": 0.271833996521309,
+  "rtt_p95_ms": 0.473755004350096,
+  "rtt_p99_ms": 0.5500239785760641,
+  "client_cpu_percent": 35.46873993455672,
+  "max_rss_kib": 24480,
   "error_details": []
 }
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c1-p64-q1.json", "network_irq": 185699, "net_rx_softirq": 371258, "net_tx_softirq": 0, "events_per_1k_ops": 6005.250956924901}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c1-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c1-p64-q1.json", "cycles_per_op": 160100.75168472694, "instructions_per_op": 98249.7928621489, "context_switches_per_1k_ops": 2060.4453070246373, "warnings": ["branches: <not supported>"]}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tls-c1-p64-q1.json", "network_irq": 183670, "net_rx_softirq": 367183, "net_tx_softirq": 0, "events_per_1k_ops": 6005.614731310577}
+rm: cannot remove '/tmp/stcp-perf-pomo-tls-c1-p64-q1-1361273.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tls-c1-p64-q1.json", "cycles_per_op": 158639.42861659563, "instructions_per_op": 99332.73711064836, "context_switches_per_1k_ops": 2059.178177774386, "warnings": ["branches: <not supported>"]}
 ===== stcp-tcp-c1-p64-q1 =====
 {
   "mode": "stcp",
@@ -1988,24 +1989,24 @@ rm: cannot remove '/tmp/stcp-perf-pomo-tls-c1-p64-q1-1338794.csv': Operation not
   "clients": 1,
   "payload_bytes": 64,
   "pipeline": 1,
-  "elapsed_s": 30.00252971801092,
-  "operations": 95620,
+  "elapsed_s": 30.002813834988046,
+  "operations": 97632,
   "errors": 0,
-  "tx_mib_s": 0.19452298507753704,
-  "rx_mib_s": 0.19452298507753704,
-  "combined_mib_s": 0.3890459701550741,
-  "operations_s": 3187.064587510367,
-  "connect_mean_ms": 3.697940002894029,
-  "rtt_p50_ms": 0.24199901963584125,
-  "rtt_p95_ms": 0.3563979989849031,
-  "rtt_p99_ms": 0.7005749794188887,
-  "client_cpu_percent": 30.254455491967715,
-  "max_rss_kib": 20684,
+  "tx_mib_s": 0.19861418358203714,
+  "rx_mib_s": 0.19861418358203714,
+  "combined_mib_s": 0.3972283671640743,
+  "operations_s": 3254.0947838080965,
+  "connect_mean_ms": 5.582315992796794,
+  "rtt_p50_ms": 0.2512969949748367,
+  "rtt_p95_ms": 0.4620149848051369,
+  "rtt_p99_ms": 0.7568250002805144,
+  "client_cpu_percent": 30.01710122767752,
+  "max_rss_kib": 20864,
   "error_details": []
 }
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c1-p64-q1.json", "network_irq": 191454, "net_rx_softirq": 382761, "net_tx_softirq": 0, "events_per_1k_ops": 6005.176741267518}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c1-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c1-p64-q1.json", "cycles_per_op": 142304.09632921984, "instructions_per_op": 83555.47611378373, "context_switches_per_1k_ops": 4093.5055427734783, "warnings": ["branches: <not supported>"]}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/stcp-tcp-c1-p64-q1.json", "network_irq": 195480, "net_rx_softirq": 390822, "net_tx_softirq": 0, "events_per_1k_ops": 6005.223697148476}
+rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c1-p64-q1-1361273.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/stcp-tcp-c1-p64-q1.json", "cycles_per_op": 141770.77802359883, "instructions_per_op": 83359.74111971485, "context_switches_per_1k_ops": 4089.7246804326446, "warnings": ["branches: <not supported>"]}
 Cases done: 1 / 72 ...
 ===== tcp-c1-p64-q4 =====
 {
@@ -2014,24 +2015,24 @@ Cases done: 1 / 72 ...
   "clients": 1,
   "payload_bytes": 64,
   "pipeline": 4,
-  "elapsed_s": 30.00080275099026,
-  "operations": 140976,
+  "elapsed_s": 30.000287380011287,
+  "operations": 143960,
   "errors": 0,
-  "tx_mib_s": 0.28680873171688664,
-  "rx_mib_s": 0.28680873171688664,
-  "combined_mib_s": 0.5736174634337733,
-  "operations_s": 4699.074260449471,
-  "connect_mean_ms": 0.34710901672951877,
-  "rtt_p50_ms": 0.13933199807070196,
-  "rtt_p95_ms": 0.3715539933182299,
-  "rtt_p99_ms": 0.41995299397967756,
-  "client_cpu_percent": 31.525126439117763,
-  "max_rss_kib": 20628,
+  "tx_mib_s": 0.29288456415268826,
+  "rx_mib_s": 0.29288456415268826,
+  "combined_mib_s": 0.5857691283053765,
+  "operations_s": 4798.6206990776445,
+  "connect_mean_ms": 0.38231900543905795,
+  "rtt_p50_ms": 0.1515589829068631,
+  "rtt_p95_ms": 0.21853798534721136,
+  "rtt_p99_ms": 0.26840600185096264,
+  "client_cpu_percent": 31.48386173891527,
+  "max_rss_kib": 20868,
   "error_details": []
 }
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c1-p64-q4.json", "network_irq": 282151, "net_rx_softirq": 564166, "net_tx_softirq": 0, "events_per_1k_ops": 6003.270060152083}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c1-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c1-p64-q4.json", "cycles_per_op": 91951.53162949721, "instructions_per_op": 49799.58754681648, "context_switches_per_1k_ops": 2041.2339689025082, "warnings": ["branches: <not supported>"]}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tcp-c1-p64-q4.json", "network_irq": 288123, "net_rx_softirq": 576092, "net_tx_softirq": 0, "events_per_1k_ops": 6003.160600166713}
+rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c1-p64-q4-1361273.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tcp-c1-p64-q4.json", "cycles_per_op": 92028.73912197833, "instructions_per_op": 50049.866969991665, "context_switches_per_1k_ops": 2040.2125590441788, "warnings": ["branches: <not supported>"]}
 ===== tls-c1-p64-q4 =====
 {
   "mode": "tls",
@@ -2039,24 +2040,24 @@ rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c1-p64-q4-1338794.csv': Operation not
   "clients": 1,
   "payload_bytes": 64,
   "pipeline": 4,
-  "elapsed_s": 30.003795934986556,
-  "operations": 101592,
+  "elapsed_s": 30.002080750011373,
+  "operations": 94312,
   "errors": 0,
-  "tx_mib_s": 0.20666330377615863,
-  "rx_mib_s": 0.20666330377615863,
-  "combined_mib_s": 0.41332660755231726,
-  "operations_s": 3385.971569068583,
-  "connect_mean_ms": 42.04231401672587,
-  "rtt_p50_ms": 0.30946600600145757,
-  "rtt_p95_ms": 0.3700880042742938,
-  "rtt_p99_ms": 0.513332022819668,
-  "client_cpu_percent": 36.18175521365032,
-  "max_rss_kib": 24652,
+  "tx_mib_s": 0.1918649477752578,
+  "rx_mib_s": 0.1918649477752578,
+  "combined_mib_s": 0.3837298955505156,
+  "operations_s": 3143.515304349824,
+  "connect_mean_ms": 49.8340219783131,
+  "rtt_p50_ms": 0.27817999944090843,
+  "rtt_p95_ms": 0.4781389725394547,
+  "rtt_p99_ms": 0.6130730034783483,
+  "client_cpu_percent": 34.920871279889575,
+  "max_rss_kib": 24788,
   "error_details": []
 }
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c1-p64-q4.json", "network_irq": 203393, "net_rx_softirq": 406637, "net_tx_softirq": 0, "events_per_1k_ops": 6004.705094889362}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c1-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c1-p64-q4.json", "cycles_per_op": 158353.23979250336, "instructions_per_op": 97881.12083628633, "context_switches_per_1k_ops": 2051.5887077722655, "warnings": ["branches: <not supported>"]}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tls-c1-p64-q4.json", "network_irq": 188840, "net_rx_softirq": 377531, "net_tx_softirq": 0, "events_per_1k_ops": 6005.290949189924}
+rm: cannot remove '/tmp/stcp-perf-pomo-tls-c1-p64-q4-1361273.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/tls-c1-p64-q4.json", "cycles_per_op": 158623.9909661549, "instructions_per_op": 98614.61148104165, "context_switches_per_1k_ops": 2056.6311816099756, "warnings": ["branches: <not supported>"]}
 ===== stcp-tcp-c1-p64-q4 =====
 {
   "mode": "stcp",
@@ -2064,613 +2065,23 @@ rm: cannot remove '/tmp/stcp-perf-pomo-tls-c1-p64-q4-1338794.csv': Operation not
   "clients": 1,
   "payload_bytes": 64,
   "pipeline": 4,
-  "elapsed_s": 30.004162288008956,
-  "operations": 87552,
+  "elapsed_s": 30.004906307993224,
+  "operations": 92972,
   "errors": 0,
-  "tx_mib_s": 0.17810028984330645,
-  "rx_mib_s": 0.17810028984330645,
-  "combined_mib_s": 0.3562005796866129,
-  "operations_s": 2917.995148792733,
-  "connect_mean_ms": 4.975891002686694,
-  "rtt_p50_ms": 0.32315400312654674,
-  "rtt_p95_ms": 0.47568700392730534,
-  "rtt_p99_ms": 0.5499979888554662,
-  "client_cpu_percent": 31.915615267242487,
-  "max_rss_kib": 20440,
+  "tx_mib_s": 0.18912108868552982,
+  "rx_mib_s": 0.18912108868552982,
+  "combined_mib_s": 0.37824217737105964,
+  "operations_s": 3098.5599170237206,
+  "connect_mean_ms": 5.819264013553038,
+  "rtt_p50_ms": 0.25520098279230297,
+  "rtt_p95_ms": 0.47862398787401617,
+  "rtt_p99_ms": 0.5568460037466139,
+  "client_cpu_percent": 31.250809130178997,
+  "max_rss_kib": 20496,
   "error_details": []
 }
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c1-p64-q4.json", "network_irq": 175325, "net_rx_softirq": 350491, "net_tx_softirq": 0, "events_per_1k_ops": 6005.756578947368}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c1-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c1-p64-q4.json", "cycles_per_op": 143562.93299981725, "instructions_per_op": 84715.08567479897, "context_switches_per_1k_ops": 4100.820084064328, "warnings": ["branches: <not supported>"]}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/stcp-tcp-c1-p64-q4.json", "network_irq": 186162, "net_rx_softirq": 372174, "net_tx_softirq": 0, "events_per_1k_ops": 6005.420986963817}
+rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c1-p64-q4-1361273.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-065526/tcp/stcp-tcp-c1-p64-q4.json", "cycles_per_op": 142694.40787548939, "instructions_per_op": 84187.15586413114, "context_switches_per_1k_ops": 4097.900443144173, "warnings": ["branches: <not supported>"]}
 Cases done: 2 / 72 ...
 ===== tcp-c1-p64-q8 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 1,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.00090154199279,
-  "operations": 140360,
-  "errors": 0,
-  "tx_mib_s": 0.2855545697271386,
-  "rx_mib_s": 0.2855545697271386,
-  "combined_mib_s": 0.5711091394542772,
-  "operations_s": 4678.526070409439,
-  "connect_mean_ms": 0.3598210169002414,
-  "rtt_p50_ms": 0.14471099711954594,
-  "rtt_p95_ms": 0.3417320258449763,
-  "rtt_p99_ms": 0.3935539862141013,
-  "client_cpu_percent": 30.02687431706303,
-  "max_rss_kib": 20740,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c1-p64-q8.json", "network_irq": 280921, "net_rx_softirq": 561689, "net_tx_softirq": 0, "events_per_1k_ops": 6003.206041607295}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c1-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c1-p64-q8.json", "cycles_per_op": 91681.2395554289, "instructions_per_op": 50384.34398689085, "context_switches_per_1k_ops": 2041.0658307210028, "warnings": ["branches: <not supported>"]}
-===== tls-c1-p64-q8 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 1,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.003212602983695,
-  "operations": 84152,
-  "errors": 0,
-  "tx_mib_s": 0.1711893501777614,
-  "rx_mib_s": 0.1711893501777614,
-  "combined_mib_s": 0.3423787003555228,
-  "operations_s": 2804.766313312443,
-  "connect_mean_ms": 48.479490011231974,
-  "rtt_p50_ms": 0.3123990027233958,
-  "rtt_p95_ms": 0.4795980057679117,
-  "rtt_p99_ms": 0.6741750112269074,
-  "client_cpu_percent": 35.75071157191117,
-  "max_rss_kib": 24624,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c1-p64-q8.json", "network_irq": 168521, "net_rx_softirq": 336909, "net_tx_softirq": 0, "events_per_1k_ops": 6006.155528092025}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c1-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c1-p64-q8.json", "cycles_per_op": 160879.20503374847, "instructions_per_op": 99861.48307823937, "context_switches_per_1k_ops": 2062.5415914060272, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c1-p64-q8 =====
-{
-  "mode": "stcp",
-  "transport": "tcp",
-  "clients": 1,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.003945010976167,
-  "operations": 93360,
-  "errors": 0,
-  "tx_mib_s": 0.18991643216968454,
-  "rx_mib_s": 0.18991643216968454,
-  "combined_mib_s": 0.3798328643393691,
-  "operations_s": 3111.5908246681115,
-  "connect_mean_ms": 4.392160015413538,
-  "rtt_p50_ms": 0.34173199674114585,
-  "rtt_p95_ms": 0.48253199202008545,
-  "rtt_p99_ms": 0.5548860062845051,
-  "client_cpu_percent": 31.156019638685056,
-  "max_rss_kib": 20696,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c1-p64-q8.json", "network_irq": 186939, "net_rx_softirq": 373743, "net_tx_softirq": 0, "events_per_1k_ops": 6005.591259640102}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c1-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c1-p64-q8.json", "cycles_per_op": 143188.20368466154, "instructions_per_op": 84512.92219365896, "context_switches_per_1k_ops": 4094.2159383033418, "warnings": ["branches: <not supported>"]}
-Cases done: 3 / 72 ...
-===== tcp-c2-p64-q1 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 29.999767978995806,
-  "operations": 326725,
-  "errors": 0,
-  "tx_mib_s": 0.6647288552279252,
-  "rx_mib_s": 0.6647288552279252,
-  "combined_mib_s": 1.3294577104558505,
-  "operations_s": 10890.917564054327,
-  "connect_mean_ms": 0.3495544951874763,
-  "rtt_p50_ms": 0.14177701086737216,
-  "rtt_p95_ms": 0.29822098440490663,
-  "rtt_p99_ms": 0.542176014278084,
-  "client_cpu_percent": 57.88427767894113,
-  "max_rss_kib": 20984,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c2-p64-q1.json", "network_irq": 566287, "net_rx_softirq": 1022696, "net_tx_softirq": 0, "events_per_1k_ops": 4863.36521539521}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c2-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c2-p64-q1.json", "cycles_per_op": 90511.54713290994, "instructions_per_op": 47161.63995408983, "context_switches_per_1k_ops": 2199.314408141403, "warnings": ["branches: <not supported>"]}
-===== tls-c2-p64-q1 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 30.00521318698884,
-  "operations": 181518,
-  "errors": 0,
-  "tx_mib_s": 0.369235153343009,
-  "rx_mib_s": 0.369235153343009,
-  "combined_mib_s": 0.738470306686018,
-  "operations_s": 6049.548752371859,
-  "connect_mean_ms": 61.49732900667004,
-  "rtt_p50_ms": 0.28844299959018826,
-  "rtt_p95_ms": 1.444661000277847,
-  "rtt_p99_ms": 2.447367995046079,
-  "client_cpu_percent": 62.513873449610344,
-  "max_rss_kib": 25996,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c2-p64-q1.json", "network_irq": 341491, "net_rx_softirq": 660321, "net_tx_softirq": 0, "events_per_1k_ops": 5519.077997774325}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c2-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c2-p64-q1.json", "cycles_per_op": 175886.3682444716, "instructions_per_op": 100111.82977445763, "context_switches_per_1k_ops": 2817.6764838748772, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c2-p64-q1 =====
-{
-  "mode": "stcp",
-  "transport": "tcp",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 30.007066999998642,
-  "operations": 200035,
-  "errors": 0,
-  "tx_mib_s": 0.4068764028310165,
-  "rx_mib_s": 0.4068764028310165,
-  "combined_mib_s": 0.813752805662033,
-  "operations_s": 6666.262983983374,
-  "connect_mean_ms": 7.77574599487707,
-  "rtt_p50_ms": 0.26839898782782257,
-  "rtt_p95_ms": 0.4385310166981071,
-  "rtt_p99_ms": 0.6976420118007809,
-  "client_cpu_percent": 56.522938413143706,
-  "max_rss_kib": 20956,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c2-p64-q1.json", "network_irq": 370436, "net_rx_softirq": 722865, "net_tx_softirq": 0, "events_per_1k_ops": 5465.548529007424}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c2-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c2-p64-q1.json", "cycles_per_op": 144356.25683005474, "instructions_per_op": 80232.32299847527, "context_switches_per_1k_ops": 4352.388332041893, "warnings": ["branches: <not supported>"]}
-Cases done: 4 / 72 ...
-===== tcp-c2-p64-q4 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 4,
-  "elapsed_s": 30.000615085009485,
-  "operations": 333752,
-  "errors": 0,
-  "tx_mib_s": 0.6790062607392557,
-  "rx_mib_s": 0.6790062607392557,
-  "combined_mib_s": 1.3580125214785115,
-  "operations_s": 11124.838575951966,
-  "connect_mean_ms": 0.5490195035235956,
-  "rtt_p50_ms": 0.16328800120390952,
-  "rtt_p95_ms": 0.2571539953351021,
-  "rtt_p99_ms": 0.3295099886599928,
-  "client_cpu_percent": 60.482793264684375,
-  "max_rss_kib": 21292,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c2-p64-q4.json", "network_irq": 582654, "net_rx_softirq": 1052434, "net_tx_softirq": 0, "events_per_1k_ops": 4899.1107169395245}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c2-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c2-p64-q4.json", "cycles_per_op": 90993.60424806442, "instructions_per_op": 47240.822940386875, "context_switches_per_1k_ops": 2208.8766509264365, "warnings": ["branches: <not supported>"]}
-===== tls-c2-p64-q4 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 4,
-  "elapsed_s": 30.00358643900836,
-  "operations": 183196,
-  "errors": 0,
-  "tx_mib_s": 0.37266866436466434,
-  "rx_mib_s": 0.37266866436466434,
-  "combined_mib_s": 0.7453373287293287,
-  "operations_s": 6105.8033969506605,
-  "connect_mean_ms": 55.612111507798545,
-  "rtt_p50_ms": 0.2913770149461925,
-  "rtt_p95_ms": 0.4830199759453535,
-  "rtt_p99_ms": 0.7988419965840876,
-  "client_cpu_percent": 58.494893721045635,
-  "max_rss_kib": 26108,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c2-p64-q4.json", "network_irq": 343164, "net_rx_softirq": 670988, "net_tx_softirq": 0, "events_per_1k_ops": 5535.885062992641}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c2-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c2-p64-q4.json", "cycles_per_op": 177164.91783663398, "instructions_per_op": 100421.96977008232, "context_switches_per_1k_ops": 2872.568178344505, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c2-p64-q4 =====
-{
-  "mode": "stcp",
-  "transport": "tcp",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 4,
-  "elapsed_s": 30.006160794000607,
-  "operations": 162160,
-  "errors": 0,
-  "tx_mib_s": 0.3298476271405866,
-  "rx_mib_s": 0.3298476271405866,
-  "combined_mib_s": 0.6596952542811731,
-  "operations_s": 5404.22352307137,
-  "connect_mean_ms": 5.3540454973699525,
-  "rtt_p50_ms": 0.32462101080454886,
-  "rtt_p95_ms": 0.5622199969366193,
-  "rtt_p99_ms": 0.844797003082931,
-  "client_cpu_percent": 64.37307035914436,
-  "max_rss_kib": 21204,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c2-p64-q4.json", "network_irq": 296869, "net_rx_softirq": 590610, "net_tx_softirq": 0, "events_per_1k_ops": 5472.8601381351755}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c2-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c2-p64-q4.json", "cycles_per_op": 146107.76447335965, "instructions_per_op": 81607.79385175135, "context_switches_per_1k_ops": 4383.029107054761, "warnings": ["branches: <not supported>"]}
-Cases done: 5 / 72 ...
-===== tcp-c2-p64-q8 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.00229599501472,
-  "operations": 256784,
-  "errors": 0,
-  "tx_mib_s": 0.5223884053775169,
-  "rx_mib_s": 0.5223884053775169,
-  "combined_mib_s": 1.0447768107550337,
-  "operations_s": 8558.811633705236,
-  "connect_mean_ms": 0.5277534946799278,
-  "rtt_p50_ms": 0.2723099896684289,
-  "rtt_p95_ms": 0.48155401600524783,
-  "rtt_p99_ms": 0.5451089818961918,
-  "client_cpu_percent": 62.2212913408424,
-  "max_rss_kib": 21208,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c2-p64-q8.json", "network_irq": 448757, "net_rx_softirq": 831301, "net_tx_softirq": 0, "events_per_1k_ops": 4984.960122125989}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c2-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c2-p64-q8.json", "cycles_per_op": 92802.32584974142, "instructions_per_op": 48554.810214032026, "context_switches_per_1k_ops": 2235.446912580223, "warnings": ["branches: <not supported>"]}
-===== tls-c2-p64-q8 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.003768352005864,
-  "operations": 180496,
-  "errors": 0,
-  "tx_mib_s": 0.3671739307293878,
-  "rx_mib_s": 0.3671739307293878,
-  "combined_mib_s": 0.7343478614587756,
-  "operations_s": 6015.77768107029,
-  "connect_mean_ms": 70.55176499125082,
-  "rtt_p50_ms": 0.36910900962539017,
-  "rtt_p95_ms": 0.616974983131513,
-  "rtt_p99_ms": 0.7259970006998628,
-  "client_cpu_percent": 64.05446400773573,
-  "max_rss_kib": 26076,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c2-p64-q8.json", "network_irq": 342538, "net_rx_softirq": 661126, "net_tx_softirq": 0, "events_per_1k_ops": 5560.588600301391}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c2-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c2-p64-q8.json", "cycles_per_op": 175030.4464974293, "instructions_per_op": 99927.54784593564, "context_switches_per_1k_ops": 2759.767529474337, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c2-p64-q8 =====
-{
-  "mode": "stcp",
-  "transport": "tcp",
-  "clients": 2,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.007772632001434,
-  "operations": 206368,
-  "errors": 0,
-  "tx_mib_s": 0.4197480192704293,
-  "rx_mib_s": 0.4197480192704293,
-  "combined_mib_s": 0.8394960385408586,
-  "operations_s": 6877.151547726714,
-  "connect_mean_ms": 7.049749998259358,
-  "rtt_p50_ms": 0.25813200045377016,
-  "rtt_p95_ms": 0.413108995417133,
-  "rtt_p99_ms": 0.6995970034040511,
-  "client_cpu_percent": 52.63560609345544,
-  "max_rss_kib": 21164,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c2-p64-q8.json", "network_irq": 377923, "net_rx_softirq": 739484, "net_tx_softirq": 0, "events_per_1k_ops": 5414.633082648473}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c2-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c2-p64-q8.json", "cycles_per_op": 144335.77692277872, "instructions_per_op": 80226.50368758722, "context_switches_per_1k_ops": 4360.002519770507, "warnings": ["branches: <not supported>"]}
-Cases done: 6 / 72 ...
-===== tcp-c4-p64-q1 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 30.000780849979492,
-  "operations": 323145,
-  "errors": 0,
-  "tx_mib_s": 0.6574230739204154,
-  "rx_mib_s": 0.6574230739204154,
-  "combined_mib_s": 1.3148461478408309,
-  "operations_s": 10771.219643112086,
-  "connect_mean_ms": 0.6531529943458736,
-  "rtt_p50_ms": 0.3480880113784224,
-  "rtt_p95_ms": 0.6379979895427823,
-  "rtt_p99_ms": 0.8790190040599555,
-  "client_cpu_percent": 90.29169319110746,
-  "max_rss_kib": 21976,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c4-p64-q1.json", "network_irq": 465389, "net_rx_softirq": 920205, "net_tx_softirq": 0, "events_per_1k_ops": 4287.839824227514}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c4-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c4-p64-q1.json", "cycles_per_op": 144617.76585124325, "instructions_per_op": 74876.44148292563, "context_switches_per_1k_ops": 6158.340682975136, "warnings": ["branches: <not supported>"]}
-===== tls-c4-p64-q1 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 30.005640645016683,
-  "operations": 201004,
-  "errors": 0,
-  "tx_mib_s": 0.40886680914485035,
-  "rx_mib_s": 0.40886680914485035,
-  "combined_mib_s": 0.8177336182897007,
-  "operations_s": 6698.873801029228,
-  "connect_mean_ms": 84.35732426005416,
-  "rtt_p50_ms": 0.5348430131562054,
-  "rtt_p95_ms": 0.9968399826902896,
-  "rtt_p99_ms": 1.3483510119840503,
-  "client_cpu_percent": 76.0210764031408,
-  "max_rss_kib": 28640,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c4-p64-q1.json", "network_irq": 352951, "net_rx_softirq": 679787, "net_tx_softirq": 0, "events_per_1k_ops": 5137.897753278542}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c4-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c4-p64-q1.json", "cycles_per_op": 249099.34714732046, "instructions_per_op": 130473.08269487174, "context_switches_per_1k_ops": 7257.920240393227, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c4-p64-q1 =====
-{
-  "mode": "stcp",
-  "transport": "tcp",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 47.22972500999458,
-  "operations": 259495,
-  "errors": 1,
-  "tx_mib_s": 0.3353463918695716,
-  "rx_mib_s": 0.3353463918695716,
-  "combined_mib_s": 0.6706927837391432,
-  "operations_s": 5494.315284391061,
-  "connect_mean_ms": 10.007883007347118,
-  "rtt_p50_ms": 0.4091990122105926,
-  "rtt_p95_ms": 0.7934639870654792,
-  "rtt_p99_ms": 1.5082159952726215,
-  "client_cpu_percent": 49.70135649748661,
-  "max_rss_kib": 21884,
-  "error_details": [
-    "TimeoutError('STCP receive timed out')"
-  ]
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c4-p64-q1.json", "network_irq": 432825, "net_rx_softirq": 815016, "net_tx_softirq": 0, "events_per_1k_ops": 4808.728491878456}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c4-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c4-p64-q1.json", "cycles_per_op": 167668.28188211718, "instructions_per_op": 88074.8082737625, "context_switches_per_1k_ops": 5777.9225033237635, "warnings": ["branches: <not supported>"]}
-[FAIL] stcp-tcp-c4-p64-q1 exited with status 1
-[INFO] Continuing benchmark matrix after failed case
-Cases done: 7 / 72 ...
-===== tcp-c4-p64-q4 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 4,
-  "elapsed_s": 30.001845015998697,
-  "operations": 324184,
-  "errors": 0,
-  "tx_mib_s": 0.6595134760278457,
-  "rx_mib_s": 0.6595134760278457,
-  "combined_mib_s": 1.3190269520556914,
-  "operations_s": 10805.468791240224,
-  "connect_mean_ms": 0.4036980026285164,
-  "rtt_p50_ms": 0.3158210020046681,
-  "rtt_p95_ms": 0.6604859954677522,
-  "rtt_p99_ms": 0.9836410172283649,
-  "client_cpu_percent": 89.49563263753234,
-  "max_rss_kib": 22160,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c4-p64-q4.json", "network_irq": 451886, "net_rx_softirq": 918701, "net_tx_softirq": 0, "events_per_1k_ops": 4227.805813982183}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c4-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c4-p64-q4.json", "cycles_per_op": 143822.82954741752, "instructions_per_op": 74732.88891802187, "context_switches_per_1k_ops": 6092.219233521703, "warnings": ["branches: <not supported>"]}
-===== tls-c4-p64-q4 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 4,
-  "elapsed_s": 30.007639021001523,
-  "operations": 201200,
-  "errors": 0,
-  "tx_mib_s": 0.40923824193250835,
-  "rx_mib_s": 0.40923824193250835,
-  "combined_mib_s": 0.8184764838650167,
-  "operations_s": 6704.959355822217,
-  "connect_mean_ms": 76.0050590033643,
-  "rtt_p50_ms": 0.529465003637597,
-  "rtt_p95_ms": 1.0657740058377385,
-  "rtt_p99_ms": 1.5077269927132875,
-  "client_cpu_percent": 71.07993063057087,
-  "max_rss_kib": 28644,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c4-p64-q4.json", "network_irq": 357474, "net_rx_softirq": 684392, "net_tx_softirq": 0, "events_per_1k_ops": 5178.260437375746}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c4-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c4-p64-q4.json", "cycles_per_op": 252343.26843439363, "instructions_per_op": 132140.49777833003, "context_switches_per_1k_ops": 7336.838966202784, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c4-p64-q4 =====
-{
-  "mode": "stcp",
-  "transport": "tcp",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 4,
-  "elapsed_s": 53.36240715000895,
-  "operations": 258082,
-  "errors": 1,
-  "tx_mib_s": 0.29519049152020604,
-  "rx_mib_s": 0.29519049152020604,
-  "combined_mib_s": 0.5903809830404121,
-  "operations_s": 4836.401013067056,
-  "connect_mean_ms": 10.589659257675521,
-  "rtt_p50_ms": 0.4248429904691875,
-  "rtt_p95_ms": 0.7303979946300387,
-  "rtt_p99_ms": 0.9587070089764893,
-  "client_cpu_percent": 53.0300590084892,
-  "max_rss_kib": 22188,
-  "error_details": [
-    "TimeoutError('STCP receive timed out')"
-  ]
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c4-p64-q4.json", "network_irq": 420378, "net_rx_softirq": 800993, "net_tx_softirq": 0, "events_per_1k_ops": 4732.49199866709}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c4-p64-q4-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c4-p64-q4.json", "cycles_per_op": 169346.64162165514, "instructions_per_op": 88644.2286715075, "context_switches_per_1k_ops": 5773.01012856379, "warnings": ["branches: <not supported>"]}
-[FAIL] stcp-tcp-c4-p64-q4 exited with status 1
-[INFO] Continuing benchmark matrix after failed case
-Cases done: 8 / 72 ...
-===== tcp-c4-p64-q8 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.001380778005114,
-  "operations": 324520,
-  "errors": 0,
-  "tx_mib_s": 0.6602072435536428,
-  "rx_mib_s": 0.6602072435536428,
-  "combined_mib_s": 1.3204144871072856,
-  "operations_s": 10816.835478382884,
-  "connect_mean_ms": 0.5845862542628311,
-  "rtt_p50_ms": 0.35346500226296484,
-  "rtt_p95_ms": 0.6316419749055058,
-  "rtt_p99_ms": 0.8521300042048097,
-  "client_cpu_percent": 84.85127797405559,
-  "max_rss_kib": 22016,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c4-p64-q8.json", "network_irq": 458446, "net_rx_softirq": 917207, "net_tx_softirq": 0, "events_per_1k_ops": 4239.039196351534}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c4-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c4-p64-q8.json", "cycles_per_op": 144978.91647356094, "instructions_per_op": 75531.82201097005, "context_switches_per_1k_ops": 6197.658079625293, "warnings": ["branches: <not supported>"]}
-===== tls-c4-p64-q8 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.008857974986313,
-  "operations": 200320,
-  "errors": 0,
-  "tx_mib_s": 0.40743178264868896,
-  "rx_mib_s": 0.40743178264868896,
-  "combined_mib_s": 0.8148635652973779,
-  "operations_s": 6675.36232691612,
-  "connect_mean_ms": 85.03333675616886,
-  "rtt_p50_ms": 0.5304420192260295,
-  "rtt_p95_ms": 1.0447520180605352,
-  "rtt_p99_ms": 1.3859949831385165,
-  "client_cpu_percent": 67.35159004333691,
-  "max_rss_kib": 28812,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c4-p64-q8.json", "network_irq": 363498, "net_rx_softirq": 688233, "net_tx_softirq": 0, "events_per_1k_ops": 5250.254592651757}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c4-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c4-p64-q8.json", "cycles_per_op": 251388.3064896166, "instructions_per_op": 132237.4958666134, "context_switches_per_1k_ops": 7349.44089456869, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c4-p64-q8 =====
-{
-  "mode": "stcp",
-  "transport": "tcp",
-  "clients": 4,
-  "payload_bytes": 64,
-  "pipeline": 8,
-  "elapsed_s": 30.008819014998153,
-  "operations": 264768,
-  "errors": 0,
-  "tx_mib_s": 0.5385135696917394,
-  "rx_mib_s": 0.5385135696917394,
-  "combined_mib_s": 1.0770271393834787,
-  "operations_s": 8823.006325829458,
-  "connect_mean_ms": 6.652896263403818,
-  "rtt_p50_ms": 0.36373198963701725,
-  "rtt_p95_ms": 0.8223070180974901,
-  "rtt_p99_ms": 1.7741709889378399,
-  "client_cpu_percent": 78.37786281507701,
-  "max_rss_kib": 22092,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c4-p64-q8.json", "network_irq": 430691, "net_rx_softirq": 801521, "net_tx_softirq": 3, "events_per_1k_ops": 4653.942319313513}
-rm: cannot remove '/tmp/stcp-perf-pomo-stcp-tcp-c4-p64-q8-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/stcp-tcp-c4-p64-q8.json", "cycles_per_op": 177895.22560128113, "instructions_per_op": 94491.83109363669, "context_switches_per_1k_ops": 5902.926335508823, "warnings": ["branches: <not supported>"]}
-Cases done: 9 / 72 ...
-===== tcp-c8-p64-q1 =====
-{
-  "mode": "tcp",
-  "transport": "tcp",
-  "clients": 8,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 30.00254037900595,
-  "operations": 267026,
-  "errors": 0,
-  "tx_mib_s": 0.5432197882888905,
-  "rx_mib_s": 0.5432197882888905,
-  "combined_mib_s": 1.086439576577781,
-  "operations_s": 8900.113011325182,
-  "connect_mean_ms": 0.47409812032128684,
-  "rtt_p50_ms": 0.7489749987144023,
-  "rtt_p95_ms": 2.0420800137799233,
-  "rtt_p99_ms": 2.890300005674362,
-  "client_cpu_percent": 71.61278254635539,
-  "max_rss_kib": 23588,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c8-p64-q1.json", "network_irq": 437764, "net_rx_softirq": 823414, "net_tx_softirq": 0, "events_per_1k_ops": 4723.053185832091}
-rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c8-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tcp-c8-p64-q1.json", "cycles_per_op": 194353.0208331773, "instructions_per_op": 101354.6571869406, "context_switches_per_1k_ops": 9071.120415240463, "warnings": ["branches: <not supported>"]}
-===== tls-c8-p64-q1 =====
-{
-  "mode": "tls",
-  "transport": "tls",
-  "clients": 8,
-  "payload_bytes": 64,
-  "pipeline": 1,
-  "elapsed_s": 30.009721770999022,
-  "operations": 180796,
-  "errors": 0,
-  "tx_mib_s": 0.3677112434957323,
-  "rx_mib_s": 0.3677112434957323,
-  "combined_mib_s": 0.7354224869914646,
-  "operations_s": 6024.581013434078,
-  "connect_mean_ms": 148.15304938019835,
-  "rtt_p50_ms": 1.08777399873361,
-  "rtt_p95_ms": 2.9298999870661646,
-  "rtt_p99_ms": 4.242561000864953,
-  "client_cpu_percent": 57.061765286169596,
-  "max_rss_kib": 34300,
-  "error_details": []
-}
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c8-p64-q1.json", "network_irq": 329900, "net_rx_softirq": 621167, "net_tx_softirq": 0, "events_per_1k_ops": 5260.442708909489}
-rm: cannot remove '/tmp/stcp-perf-pomo-tls-c8-p64-q1-1338794.csv': Operation not permitted
-{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-170522/tcp/tls-c8-p64-q1.json", "cycles_per_op": 276167.2398117215, "instructions_per_op": 140406.5917110998, "context_switches_per_1k_ops": 7703.6051682559355, "warnings": ["branches: <not supported>"]}
-===== stcp-tcp-c8-p64-q1 =====

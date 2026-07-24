@@ -1,0 +1,15 @@
+[INFO] Latest benchmark: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429
+[INFO] Generating TCP dashboard
+[ OK ] Loaded 99 benchmark cases
+[ OK ] Dashboard: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/tcp/index.html
+[ OK ] Summary:   /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/tcp/summary.json
+[ OK ] CSV:       /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/tcp/cases.csv
+[ OK ] Raw files: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/tcp/raw
+[INFO] Generating UDP dashboard
+[ OK ] Loaded 39 benchmark cases
+[ OK ] Dashboard: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/udp/index.html
+[ OK ] Summary:   /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/udp/summary.json
+[ OK ] CSV:       /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/udp/cases.csv
+[ OK ] Raw files: /home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260723-190429/web/raspberry-pi/udp/raw
+[INFO] Publishing to www-data@fuji:/var/www/html/public/stcp.fi/benchmark/raspberry-pi/
+mv: cannot move '/var/www/html/public/stcp.fi/benchmark/raspberry-pi/' to a subdirectory of itself, '/var/www/html/public/stcp.fi/benchmark/raspberry-pi/.previous'

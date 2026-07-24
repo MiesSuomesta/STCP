@@ -14,6 +14,7 @@ SYNC_RPI="${SYNC_RPI:-1}"
 mkdir -p "$ROOT_OUT"
 exec > >(tee -a "$FULL_LOG") 2>&1
 printf 'STCP full benchmark\nStarted: %s\nRaspberry: %s\nResults: %s\n\n' "$(date --iso-8601=seconds)" "$RPI_SSH" "$ROOT_OUT"
+
 sync_raspberry(){
   [[ "$SYNC_RPI" == 1 ]] || return 0
   echo "[INFO] Synchronizing benchmark scripts to Raspberry"
@@ -21,10 +22,12 @@ sync_raspberry(){
   tar -C "$D" -czf - benchmark_server.py start-servers.sh stop-servers.sh irq_snapshot.py README.md | ssh $SSH_OPTS "$RPI_SSH" "tar -C '$RPI_BENCHMARK_DIR' -xzf -"
 }
 sync_raspberry
+
 remote_servers(){
   local transport="$1"
   ssh $SSH_OPTS "$RPI_SSH" "cd '$RPI_BENCHMARK_DIR' && (bash stop-servers.sh || true) && STCP_TRANSPORT='$transport' bash start-servers.sh"
 }
+
 run_transport(){
   local transport="$1" out="$ROOT_OUT/$1" log="$ROOT_OUT/$1.log" rc
   mkdir -p "$out"
@@ -40,8 +43,10 @@ run_transport(){
     [[ "$CONTINUE_ON_ERROR" == 1 ]] || return "$rc"
   else echo "[ OK ] $transport matrix completed"; fi
 }
-run_transport tcp
+
 run_transport udp
+run_transport tcp
+
 ssh $SSH_OPTS "$RPI_SSH" "cd '$RPI_BENCHMARK_DIR' && bash stop-servers.sh" || true
 python3 - "$ROOT_OUT" <<'PYCOMBINE'
 import csv,json,sys

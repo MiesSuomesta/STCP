@@ -70,7 +70,7 @@ jobs:
       SYNC_RPI: "1"
       CLEAN_OLD_RESULTS: "1"
       KEEP_RESULT_RUNS: "5"
-      WEB_DEPLOY_TARGET: "lja@fuji:/var/www/html/public/stcp.fi/benchmarks/raspberry-pi/"
+      WEB_DEPLOY_TARGET: "www-data@fuji:/var/www/html/public/stcp.fi/benchmarks/raspberry-pi/"
 
     steps:
       - name: Checkout STCPv2 only

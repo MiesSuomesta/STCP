@@ -35,10 +35,13 @@ jobs:
     timeout-minutes: 20
 
     steps:
+    lfs: false
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          clean: false
+          submodules: false
 
       - name: Install validation tools
         run: |
@@ -126,7 +129,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          clean: false
+          submodules: false
 
           # Important: the self-hosted runner may keep the large Raspberry
           # kernel source tree as an untracked directory inside the checkout.
@@ -291,8 +296,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           clean: false
+          submodules: false
 
       - name: Resolve Nordic workspace and application
         id: paths
@@ -405,8 +411,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           clean: false
+          submodules: false
 
       - name: Locate Windows solution
         id: solution

@@ -1,0 +1,223 @@
+name: STCPv2 commit benchmark
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - "kernel-module/**"
+      - "common-rust/**"
+      - "web/**"
+      - ".github/workflows/stcp-commit-benchmark.yml"
+  pull_request:
+    paths:
+      - "kernel-module/**"
+      - "common-rust/**"
+      - "web/**"
+      - ".github/workflows/stcp-commit-benchmark.yml"
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: Benchmark duration per case in seconds
+        required: false
+        default: "150"
+      publish:
+        description: Publish generated dashboards
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stcp-commit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-benchmark:
+    name: Build and benchmark STCPv2
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - stcp-builder
+
+    timeout-minutes: 240
+
+    env:
+      RPI_ADDR: "192.168.1.199"
+      RPI_USER: "pi"
+      RPI_BENCHMARK_DIR: "/home/pi/benchmark"
+
+      # A compact but meaningful 150-second commit matrix:
+      # 2 client counts × 2 payloads × 2 pipelines = 8 cases/carrier.
+      # Each case compares TCP, TLS and STCP.
+      DURATION: ${{ inputs.duration || '150' }}
+      CLIENTS_LIST: "1 8"
+      PAYLOADS: "64 1048576"
+      PIPELINES: "1 8"
+
+      VERIFY: "0"
+      IRQ_METRICS: "1"
+      PERF_METRICS: "1"
+      CONTINUE_ON_ERROR: "0"
+      SYNC_RPI: "1"
+      CARRIER_DEBUG: "0"
+      CLEAN_OLD_RESULTS: "1"
+      KEEP_RESULT_RUNS: "5"
+
+      CROSS_COMPILE: "aarch64-linux-gnu-"
+      JOBS: "8"
+
+      # Use a normal SSH deploy account and an absolute server path.
+      WEB_DEPLOY_TARGET: "lja@fuji:/var/www/html/public/stcp.fi/benchmarks/raspberry-pi/"
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: kernel-module
+
+    steps:
+      - name: Checkout STCPv2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Show runner environment
+        run: |
+          set -Eeuo pipefail
+
+          echo "Runner: $(hostname)"
+          echo "Kernel: $(uname -r)"
+          echo "Commit: $GITHUB_SHA"
+
+          command -v rustup
+          command -v cargo
+          command -v make
+          command -v python3
+          command -v ssh
+          command -v scp
+          command -v perf
+          command -v "${CROSS_COMPILE}gcc"
+
+          rustc --version
+          cargo --version
+          "${CROSS_COMPILE}gcc" --version | head -1
+
+      - name: Validate pipeline scripts
+        run: |
+          set -Eeuo pipefail
+
+          bash -n build-and-deploy.sh
+          bash -n build-benchmark-publish.sh
+          bash -n benchmark/run-all-full.sh
+
+      - name: Verify Raspberry connectivity
+        run: |
+          set -Eeuo pipefail
+
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=accept-new \
+            "${RPI_USER}@${RPI_ADDR}" \
+            'set -e
+             uname -a
+             test -d /lib/modules/$(uname -r)
+             command -v python3
+             command -v sudo'
+
+      - name: Build, deploy and run 150-second commit benchmark
+        env:
+          # Pull requests generate dashboards but never publish them.
+          AUTO_PUBLISH_WEB: "0"
+        run: |
+          set -Eeuo pipefail
+
+          ./build-benchmark-publish.sh benchmark
+
+      - name: Locate latest result directory
+        id: results
+        if: always()
+        run: |
+          set -Eeuo pipefail
+
+          result_dir=""
+
+          if [[ -f benchmark/results/latest-full.txt ]]; then
+            result_dir="$(cat benchmark/results/latest-full.txt)"
+          fi
+
+          if [[ -z "$result_dir" || ! -d "$result_dir" ]]; then
+            result_dir="$(
+              find benchmark/results \
+                -mindepth 1 \
+                -maxdepth 1 \
+                -type d \
+                -name 'full-*' \
+                -printf '%T@ %p\n' 2>/dev/null |
+              sort -nr |
+              head -1 |
+              cut -d' ' -f2-
+            )"
+          fi
+
+          if [[ -n "$result_dir" && -d "$result_dir" ]]; then
+            echo "path=$result_dir" >> "$GITHUB_OUTPUT"
+            echo "name=$(basename "$result_dir")" >> "$GITHUB_OUTPUT"
+            echo "Found: $result_dir"
+          else
+            echo "No result directory found"
+          fi
+
+      - name: Publish dashboards on main
+        if: >-
+          success() &&
+          github.event_name == 'push' &&
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        env:
+          AUTO_PUBLISH_WEB: "1"
+        run: |
+          set -Eeuo pipefail
+
+          result_dir="${{ steps.results.outputs.path }}"
+          [[ -n "$result_dir" && -d "$result_dir" ]]
+
+          ./build-benchmark-publish.sh publish "$result_dir"
+
+      - name: Publish dashboards from manual run
+        if: >-
+          success() &&
+          github.event_name == 'workflow_dispatch' &&
+          inputs.publish == true
+        env:
+          AUTO_PUBLISH_WEB: "1"
+        run: |
+          set -Eeuo pipefail
+
+          result_dir="${{ steps.results.outputs.path }}"
+          [[ -n "$result_dir" && -d "$result_dir" ]]
+
+          ./build-benchmark-publish.sh publish "$result_dir"
+
+      - name: Upload benchmark results
+        if: always() && steps.results.outputs.path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcp-commit-${{ steps.results.outputs.name }}-${{ github.sha }}
+          path: ${{ steps.results.outputs.path }}
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload pipeline logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcp-pipeline-logs-${{ github.sha }}
+          path: kernel-module/benchmark/pipeline-logs/
+          if-no-files-found: warn
+          retention-days: 30

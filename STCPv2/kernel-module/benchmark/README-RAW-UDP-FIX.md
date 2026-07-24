@@ -1,0 +1,1 @@
+Raw UDP large-payload fix:\n- MTU-safe 1200-byte application fragments\n- message/fragment matching\n- stale duplicate filtering\n- 3 retries per fragment\n- larger UDP socket buffers\n

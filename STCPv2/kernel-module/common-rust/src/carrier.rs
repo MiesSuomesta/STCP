@@ -45,6 +45,8 @@ struct UdpSessionEntry {
 }
 
 static UDP_SESSIONS: SpinLock<Vec<UdpSessionEntry>> = SpinLock::new(Vec::new());
+/* Serializes the lookup-create-publish sequence for a new UDP session. */
+static UDP_SESSION_CREATE_LOCK: SpinLock<()> = SpinLock::new(());
 
 
 #[inline(always)]
@@ -178,17 +180,52 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     0
 }
 
-fn find_udp_child(
+#[inline]
+fn udp_session_matches(
+    entry: &UdpSessionEntry,
     listener: usize,
     connection_id: u64,
-) -> Option<UdpSessionEntry> {
-    UDP_SESSIONS
-        .lock()
-        .iter()
-        .find(|entry| {
-            entry.listener == listener && entry.connection_id == connection_id
-        })
-        .copied()
+    peer_addr: u32,
+    peer_port: u16,
+) -> bool {
+    entry.listener == listener
+        && entry.connection_id == connection_id
+        && entry.peer_addr == peer_addr
+        && entry.peer_port == peer_port
+}
+
+/*
+ * Dispatch while UDP_SESSIONS is locked. release() unregisters a context
+ * before the Box<StcpContext> is dropped, so retaining this lock until
+ * queue_to_context() has finished prevents a child pointer from becoming
+ * stale between lookup and use.
+ *
+ * The peer tuple is part of the session key. Connection IDs are generated
+ * independently by each remote host and may be reused after a reboot or
+ * module reload. Looking up only by (listener, connection_id) caused a valid
+ * PublicKey/Data frame from another peer with the same ID to be silently
+ * discarded as a peer mismatch.
+ */
+fn dispatch_udp_child(
+    listener: usize,
+    connection_id: u64,
+    peer_addr: u32,
+    peer_port: u16,
+    bytes: &[u8],
+) -> Option<c_int> {
+    let sessions = UDP_SESSIONS.lock();
+    let entry = sessions.iter().find(|entry| {
+        udp_session_matches(
+            entry,
+            listener,
+            connection_id,
+            peer_addr,
+            peer_port,
+        )
+    })?;
+
+    let child = unsafe { &*(entry.child as *const StcpContext) };
+    Some(queue_to_context(child, bytes))
 }
 
 fn create_udp_child(
@@ -334,37 +371,54 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
     }
 
     let listener_ptr = ctx as *const StcpContext as usize;
-    let entry = match find_udp_child(listener_ptr, header.connection_id) {
-        Some(entry) => entry,
-        None => {
-            if header.packet_type != PacketType::PublicKey {
-                /* Unknown connection IDs are silently discarded. */
-                return 0;
-            }
-            match create_udp_child(
-                ctx,
-                listener_ptr,
-                header.connection_id,
-                peer_addr,
-                peer_port,
-            ) {
-                Ok(child) => UdpSessionEntry {
-                    listener: listener_ptr,
-                    connection_id: header.connection_id,
-                    child,
-                    peer_addr,
-                    peer_port,
-                },
-                Err(error) => return error.errno(),
-            }
-        }
-    };
 
-    if entry.peer_addr != peer_addr || entry.peer_port != peer_port {
+    if let Some(result) = dispatch_udp_child(
+        listener_ptr,
+        header.connection_id,
+        peer_addr,
+        peer_port,
+        bytes,
+    ) {
+        return result;
+    }
+
+    if header.packet_type != PacketType::PublicKey {
+        /* Unknown session tuple: silently discard until PublicKey opens it. */
         return 0;
     }
 
-    let child = unsafe { &*(entry.child as *const StcpContext) };
+    /*
+     * Two receiver contexts must not both observe a missing tuple and create
+     * duplicate children for the same opening PublicKey. Recheck after taking
+     * the creation lock because another receiver may have published it while
+     * this one was waiting.
+     */
+    let _create_guard = UDP_SESSION_CREATE_LOCK.lock();
+
+    if let Some(result) = dispatch_udp_child(
+        listener_ptr,
+        header.connection_id,
+        peer_addr,
+        peer_port,
+        bytes,
+    ) {
+        return result;
+    }
+
+    let child_ptr = match create_udp_child(
+        ctx,
+        listener_ptr,
+        header.connection_id,
+        peer_addr,
+        peer_port,
+    ) {
+        Ok(child) => child,
+        Err(error) => return error.errno(),
+    };
+
+    /* create_udp_child() registers the complete tuple before publishing the
+     * child to accept_queue. Queue the opening PublicKey directly. */
+    let child = unsafe { &*(child_ptr as *const StcpContext) };
     queue_to_context(child, bytes)
 }
 

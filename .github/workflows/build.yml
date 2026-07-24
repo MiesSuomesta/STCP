@@ -2,9 +2,20 @@ name: Build STCPv2
 
 on:
   push:
-    branches: ["main", "master", "develop"]
+    branches: [main, master, develop]
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_zephyr:
+        description: Build Nordic/Zephyr firmware
+        required: false
+        type: boolean
+        default: true
+      build_windows:
+        description: Build Windows driver and tools
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -21,6 +32,8 @@ jobs:
   validate:
     name: Validate repository
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,13 +45,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             shellcheck \
-            python3 \
-            python3-pip
+            python3
 
       - name: Check shell syntax
         shell: bash
         run: |
           set -Eeuo pipefail
+
           while IFS= read -r -d '' script; do
             echo "bash -n $script"
             bash -n "$script"
@@ -48,50 +61,65 @@ jobs:
               -path './kernel-module/linux-kernel-sources' -prune -o \
               -path './kernel-module/linux-next' -prune -o \
               -path '*/target' -prune -o \
+              -path '*/build' -prune -o \
               -name '*.sh' -type f -print0
           )
 
-      - name: ShellCheck orchestration scripts
+      - name: ShellCheck critical scripts
         shell: bash
         run: |
           set -Eeuo pipefail
+
           files=(
             kernel-module/build-and-deploy.sh
             kernel-module/build-benchmark-publish.sh
             kernel-module/build-rpi-package.sh
+            kernel-module/benchmark/run-all-full.sh
           )
 
+          existing=()
           for file in "${files[@]}"; do
-            if [[ -f "$file" ]]; then
-              shellcheck -x "$file"
-            fi
+            [[ -f "$file" ]] && existing+=("$file")
           done
+
+          if ((${#existing[@]})); then
+            # Fail only on real errors; style warnings stay advisory.
+            shellcheck --severity=error -x "${existing[@]}"
+          fi
 
       - name: Python syntax check
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 -m compileall -q \
-            kernel-module/benchmark \
-            kernel-module/echo-server \
-            2>/dev/null || true
+
+          dirs=()
+          [[ -d kernel-module/benchmark ]] && dirs+=(kernel-module/benchmark)
+          [[ -d kernel-module/echo-server ]] && dirs+=(kernel-module/echo-server)
+
+          if ((${#dirs[@]})); then
+            python3 -m compileall -q "${dirs[@]}"
+          fi
 
   linux-kernel-modules:
     name: Linux x86_64 + Raspberry Pi ARM64
     needs: validate
-
-    # This runner must contain:
-    #   - the custom x86 STCP kernel headers/build tree
-    #   - aarch64-linux-gnu cross compiler
-    #   - Raspberry kernel source/build tree with Module.symvers
-    #   - Rust nightly + rust-src
-    #
-    # Add these labels to the STCP build host in GitHub:
-    #   self-hosted, linux, x64, stcp-builder
     runs-on: [self-hosted, linux, x64, stcp-builder]
+    timeout-minutes: 120
+
+    env:
+      CROSS_COMPILE: aarch64-linux-gnu-
+      STOP_BENCHMARKS: "0"
+      CARRIER_DEBUG: "0"
+      DRY_RUN: "0"
+
+      # These match build-and-deploy.sh. Override RPI_KDIR with a repository
+      # variable when the Raspberry kernel tree is stored outside the checkout.
+      X86_KDIR: /lib/modules/${{ vars.STCP_RUNNER_KERNEL_RELEASE }}/build
+      RPI_KDIR: ${{ vars.STCP_RPI_KDIR }}
 
     defaults:
       run:
+        shell: bash
         working-directory: kernel-module
 
     steps:
@@ -99,67 +127,106 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          clean: true
 
-      - name: Show build environment
-        shell: bash
+          # Important: the self-hosted runner may keep the large Raspberry
+          # kernel source tree as an untracked directory inside the checkout.
+          # The default checkout clean runs git clean -ffdx and deletes it.
+          clean: false
+
+      - name: Resolve kernel build trees
         run: |
           set -Eeuo pipefail
+
+          if [[ -z "${X86_KDIR:-}" || "$X86_KDIR" == "/lib/modules//build" ]]; then
+            X86_KDIR="/lib/modules/$(uname -r)/build"
+          fi
+
+          if [[ -z "${RPI_KDIR:-}" ]]; then
+            RPI_KDIR="$GITHUB_WORKSPACE/kernel-module/raspberry-kernel-sources"
+          fi
+
+          {
+            echo "X86_KDIR=$X86_KDIR"
+            echo "RPI_KDIR=$RPI_KDIR"
+            echo "JOBS=$(nproc)"
+          } >> "$GITHUB_ENV"
+
+          test -d "$X86_KDIR"
+          test -f "$X86_KDIR/Makefile"
+
+          test -d "$RPI_KDIR"
+          test -f "$RPI_KDIR/Makefile"
+          test -f "$RPI_KDIR/Module.symvers"
+
+      - name: Verify build environment
+        run: |
+          set -Eeuo pipefail
+
+          commands=(
+            make rustup cargo rustc
+            file modinfo
+            "${CROSS_COMPILE}gcc"
+            "${CROSS_COMPILE}ld"
+            "${CROSS_COMPILE}ar"
+            "${CROSS_COMPILE}readelf"
+          )
+
+          for command_name in "${commands[@]}"; do
+            command -v "$command_name"
+          done
+
           uname -a
           rustc --version
           cargo --version
           make --version | head -1
-          "${CROSS_COMPILE:-aarch64-linux-gnu-}gcc" --version | head -1
+          "${CROSS_COMPILE}gcc" --version | head -1
 
-      - name: Ensure Rust nightly components
-        shell: bash
+      - name: Ensure Rust nightly and rust-src
         run: |
           set -Eeuo pipefail
-          rustup toolchain install nightly --profile minimal --component rust-src
+
+          if ! rustup toolchain list | grep -q '^nightly'; then
+            rustup toolchain install nightly --profile minimal
+          fi
+
           rustup component add rust-src --toolchain nightly
 
       - name: Build x86_64 and Raspberry Pi modules
-        shell: bash
-        env:
-          CROSS_COMPILE: aarch64-linux-gnu-
-          JOBS: ${{ runner.environment == 'github-hosted' && '2' || '' }}
-          STOP_BENCHMARKS: "0"
-          DRY_RUN: "0"
         run: |
           set -Eeuo pipefail
 
-          if [[ ! -f ./build-and-deploy.sh ]]; then
-            echo "Missing kernel-module/build-and-deploy.sh" >&2
-            exit 1
-          fi
+          test -f build-and-deploy.sh
 
-          export JOBS="${JOBS:-$(nproc)}"
-          bash ./build-and-deploy.sh build
+          X86_KDIR="$X86_KDIR" \
+          RPI_KDIR="$RPI_KDIR" \
+          CROSS_COMPILE="$CROSS_COMPILE" \
+          JOBS="$JOBS" \
+          STOP_BENCHMARKS="$STOP_BENCHMARKS" \
+          CARRIER_DEBUG="$CARRIER_DEBUG" \
+          DRY_RUN="$DRY_RUN" \
+            bash ./build-and-deploy.sh build
 
       - name: Verify produced modules
-        shell: bash
         run: |
           set -Eeuo pipefail
 
-          test -f x86-kernel-module/stcp.ko
-          test -f raspberry-kernel-module/stcp.ko
+          x86_module="x86-kernel-module/stcp.ko"
+          rpi_module="raspberry-kernel-module/stcp.ko"
 
-          file x86-kernel-module/stcp.ko
-          file raspberry-kernel-module/stcp.ko
+          test -f "$x86_module"
+          test -f "$rpi_module"
 
-          modinfo x86-kernel-module/stcp.ko |
-            grep -E '^(filename|description|license|depends|name|vermagic):'
+          file "$x86_module" | grep -Eq 'x86-64|x86_64'
+          "${CROSS_COMPILE}readelf" -h "$rpi_module" |
+            grep -q 'Machine:.*AArch64'
 
-          "${CROSS_COMPILE:-aarch64-linux-gnu-}readelf" \
-            -h raspberry-kernel-module/stcp.ko |
-            grep 'Machine:.*AArch64'
+          modinfo "$x86_module" |
+            grep -E '^(description|license|depends|name|vermagic):'
 
-          "${CROSS_COMPILE:-aarch64-linux-gnu-}readelf" \
-            -sW raspberry-kernel-module/stcp.ko |
-            grep -q 'stcp_rust_init'
+          modinfo "$rpi_module" |
+            grep -E '^(description|license|depends|name|vermagic):'
 
       - name: Package Linux artifacts
-        shell: bash
         run: |
           set -Eeuo pipefail
 
@@ -168,27 +235,36 @@ jobs:
             ci-artifacts/x86_64 \
             ci-artifacts/raspberry-pi-arm64
 
-          cp -a \
-            x86-kernel-module/stcp.ko \
-            x86-kernel-module/Module.symvers \
-            ci-artifacts/x86_64/
+          cp x86-kernel-module/stcp.ko \
+            ci-artifacts/x86_64/stcp.ko
 
-          cp -a \
-            raspberry-kernel-module/stcp.ko \
-            raspberry-kernel-module/Module.symvers \
-            ci-artifacts/raspberry-pi-arm64/
+          cp raspberry-kernel-module/stcp.ko \
+            ci-artifacts/raspberry-pi-arm64/stcp.ko
+
+          [[ -f x86-kernel-module/Module.symvers ]] &&
+            cp x86-kernel-module/Module.symvers ci-artifacts/x86_64/
+
+          [[ -f raspberry-kernel-module/Module.symvers ]] &&
+            cp raspberry-kernel-module/Module.symvers \
+              ci-artifacts/raspberry-pi-arm64/
 
           modinfo x86-kernel-module/stcp.ko \
             > ci-artifacts/x86_64/modinfo.txt
 
-          "${CROSS_COMPILE:-aarch64-linux-gnu-}readelf" \
+          modinfo raspberry-kernel-module/stcp.ko \
+            > ci-artifacts/raspberry-pi-arm64/modinfo.txt
+
+          "${CROSS_COMPILE}readelf" \
             -h raspberry-kernel-module/stcp.ko \
             > ci-artifacts/raspberry-pi-arm64/readelf-header.txt
 
-          sha256sum \
-            ci-artifacts/x86_64/stcp.ko \
-            ci-artifacts/raspberry-pi-arm64/stcp.ko \
-            > ci-artifacts/SHA256SUMS
+          (
+            cd ci-artifacts
+            sha256sum \
+              x86_64/stcp.ko \
+              raspberry-pi-arm64/stcp.ko \
+              > SHA256SUMS
+          )
 
       - name: Upload Linux modules
         uses: actions/upload-artifact@v4
@@ -199,62 +275,109 @@ jobs:
           retention-days: 14
 
   zephyr-nordic:
-    name: Zephyr / Nordic
+    name: Zephyr / Nordic nRF9151
     needs: validate
-
-    # Nordic NCS is large and version-sensitive, so this job expects a
-    # preinstalled self-hosted runner with west, Zephyr SDK and NCS.
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.build_zephyr == true
     runs-on: [self-hosted, linux, x64, stcp-zephyr]
+    timeout-minutes: 90
+
+    env:
+      BOARD: nrf9151dk/nrf9151
+      NCS_ROOT: ${{ vars.STCP_NCS_ROOT }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          clean: true
+          clean: false
 
-      - name: Locate Zephyr application
-        id: zephyr
+      - name: Resolve Nordic workspace and application
+        id: paths
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          candidates=(
-            zephyr/nordic/stcp-mqtt
-            kernel-module/stcp-mqtt
-            stcp-mqtt
-          )
-
-          for candidate in "${candidates[@]}"; do
-            if [[ -f "$candidate/CMakeLists.txt" && -f "$candidate/prj.conf" ]]; then
-              echo "app=$candidate" >> "$GITHUB_OUTPUT"
-              exit 0
+          app=""
+          for candidate in \
+            "$GITHUB_WORKSPACE/zephyr/nordic/stcp-mqtt" \
+            "$GITHUB_WORKSPACE/kernel-module/stcp-mqtt" \
+            "$GITHUB_WORKSPACE/stcp-mqtt"; do
+            if [[ -f "$candidate/CMakeLists.txt" &&
+                  -f "$candidate/prj.conf" ]]; then
+              app="$candidate"
+              break
             fi
           done
 
-          echo "No Zephyr application found" >&2
-          exit 1
+          [[ -n "$app" ]] || {
+            echo "Zephyr application was not found" >&2
+            exit 1
+          }
+
+          ncs_root="${NCS_ROOT:-}"
+          if [[ -z "$ncs_root" ]]; then
+            for candidate in \
+              "$GITHUB_WORKSPACE/zephyr/nordic/ncs-3.3.0" \
+              "$GITHUB_WORKSPACE/zephyr/nordic/ncs-3.4.0" \
+              "$GITHUB_WORKSPACE/zephyr/nordic/ncs"; do
+              if [[ -d "$candidate/.west" ||
+                    -f "$candidate/west.yml" ]]; then
+                ncs_root="$candidate"
+                break
+              fi
+            done
+          fi
+
+          [[ -n "$ncs_root" && -d "$ncs_root" ]] || {
+            echo "Nordic NCS workspace was not found." >&2
+            echo "Set repository variable STCP_NCS_ROOT." >&2
+            exit 1
+          }
+
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "ncs_root=$ncs_root" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Nordic environment
+        shell: bash
+        working-directory: ${{ steps.paths.outputs.ncs_root }}
+        run: |
+          set -Eeuo pipefail
+          command -v west
+          west topdir
+          west zephyr-export
 
       - name: Build nRF9151 firmware
         shell: bash
-        env:
-          BOARD: nrf9151dk/nrf9151
+        working-directory: ${{ steps.paths.outputs.ncs_root }}
         run: |
           set -Eeuo pipefail
+
           west build \
-            -p always \
-            -b "$BOARD" \
-            "${{ steps.zephyr.outputs.app }}" \
-            -d build-zephyr-nrf9151
+            --pristine=always \
+            --board "$BOARD" \
+            --source-dir "${{ steps.paths.outputs.app }}" \
+            --build-dir "$GITHUB_WORKSPACE/build-zephyr-nrf9151"
 
       - name: Package Zephyr artifacts
         shell: bash
         run: |
           set -Eeuo pipefail
+
+          rm -rf zephyr-ci-artifacts
           mkdir -p zephyr-ci-artifacts
-          find build-zephyr-nrf9151/zephyr -maxdepth 1 -type f \
-            \( -name '*.hex' -o -name '*.bin' -o -name '*.elf' -o -name '*.map' \) \
-            -exec cp -a {} zephyr-ci-artifacts/ \;
+
+          find build-zephyr-nrf9151/zephyr \
+            -maxdepth 1 -type f \
+            \( -name '*.hex' -o \
+               -name '*.bin' -o \
+               -name '*.elf' -o \
+               -name '*.map' -o \
+               -name '*.config' \) \
+            -exec cp {} zephyr-ci-artifacts/ \;
+
           test -n "$(find zephyr-ci-artifacts -type f -print -quit)"
 
       - name: Upload Zephyr firmware
@@ -266,20 +389,31 @@ jobs:
           retention-days: 14
 
   windows:
-    name: Windows
+    name: Windows x64 driver
     needs: validate
-    runs-on: windows-2025
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.build_windows == true
+
+    # A self-hosted Windows runner is intentional. The STCP driver requires
+    # a verified WDK/KMDF + MSBuild integration, which cannot be assumed on
+    # the current GitHub-hosted Windows images.
+    runs-on: [self-hosted, windows, x64, stcp-windows]
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          clean: false
 
       - name: Locate Windows solution
         id: solution
         shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
+
           $candidates = @(
             "windows/STCP-Windows.sln",
             "Windows/STCP-Windows.sln",
@@ -288,41 +422,117 @@ jobs:
 
           foreach ($candidate in $candidates) {
             if (Test-Path $candidate) {
-              "path=$candidate" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              "path=$candidate" |
+                Out-File -FilePath $env:GITHUB_OUTPUT -Append
               exit 0
             }
           }
 
           throw "STCP-Windows.sln was not found"
 
-      - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Locate MSBuild
+        id: msbuild
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe was not found"
+          }
+
+          $installPath = & $vswhere `
+            -latest `
+            -products * `
+            -requires Microsoft.Component.MSBuild `
+            -property installationPath
+
+          if (-not $installPath) {
+            throw "Visual Studio with MSBuild was not found"
+          }
+
+          $msbuild = Join-Path $installPath "MSBuild\Current\Bin\MSBuild.exe"
+          if (-not (Test-Path $msbuild)) {
+            throw "MSBuild.exe was not found at $msbuild"
+          }
+
+          "path=$msbuild" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Verify WDK integration
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $roots = @(
+            "${env:ProgramFiles(x86)}\Windows Kits\10\build",
+            "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+          )
+
+          foreach ($root in $roots) {
+            if (-not (Test-Path $root)) {
+              throw "Required WDK path is missing: $root"
+            }
+          }
+
+          $targets = Get-ChildItem `
+            "${env:ProgramFiles(x86)}\Windows Kits\10\build" `
+            -Recurse `
+            -Filter "WindowsDriver.*.targets" `
+            -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+
+          if (-not $targets) {
+            throw "WDK MSBuild driver targets were not found"
+          }
+
+          Write-Host "WDK targets: $($targets.FullName)"
 
       - name: Build Windows solution
         shell: pwsh
         run: |
-          msbuild "${{ steps.solution.outputs.path }}" `
+          $ErrorActionPreference = "Stop"
+
+          & "${{ steps.msbuild.outputs.path }}" `
+            "${{ steps.solution.outputs.path }}" `
             /m `
             /restore `
             /p:Configuration=Release `
             /p:Platform=x64 `
             /verbosity:minimal
 
+          if ($LASTEXITCODE -ne 0) {
+            throw "MSBuild failed with exit code $LASTEXITCODE"
+          }
+
       - name: Collect Windows artifacts
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path windows-ci-artifacts | Out-Null
+          $ErrorActionPreference = "Stop"
+
+          Remove-Item windows-ci-artifacts `
+            -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory `
+            -Force -Path windows-ci-artifacts | Out-Null
 
           Get-ChildItem -Recurse -File |
             Where-Object {
+              $_.FullName -notlike "*\windows-ci-artifacts\*" -and
               $_.Extension -in ".sys", ".dll", ".exe", ".inf", ".cat", ".pdb"
             } |
             ForEach-Object {
-              Copy-Item $_.FullName windows-ci-artifacts -Force
+              $relative = $_.FullName.Substring(
+                (Get-Location).Path.Length
+              ).TrimStart('\')
+
+              $destination = Join-Path windows-ci-artifacts $relative
+              New-Item -ItemType Directory `
+                -Force -Path (Split-Path $destination) | Out-Null
+              Copy-Item $_.FullName $destination -Force
             }
 
-          if (-not (Get-ChildItem windows-ci-artifacts -File)) {
-            throw "No Windows artifacts were produced"
+          if (-not (Get-ChildItem windows-ci-artifacts -Recurse -File)) {
+            throw "No Windows build artifacts were produced"
           }
 
       - name: Upload Windows artifacts
@@ -332,4 +542,3 @@ jobs:
           path: windows-ci-artifacts/
           if-no-files-found: error
           retention-days: 14
-

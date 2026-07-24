@@ -17,6 +17,16 @@ on:
         required: false
         type: boolean
         default: true
+      build_zephyr:
+        description: Build Nordic nRF9151 firmware
+        required: false
+        type: boolean
+        default: true
+      build_windows:
+        description: Build Windows driver and tools
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -297,3 +307,227 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  zephyr-nordic:
+    name: Zephyr / Nordic nRF9151
+    needs: validate
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.build_zephyr == true
+    runs-on: [self-hosted, linux, x64, stcp-zephyr]
+    timeout-minutes: 120
+
+    env:
+      BOARD: nrf9151dk/nrf9151
+
+    steps:
+      - name: Checkout STCPv2 only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          clean: false
+          submodules: false
+          lfs: false
+          sparse-checkout: |
+            STCPv2
+            .github/workflows/build.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve Nordic paths
+        id: paths
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          app=""
+          for candidate in \
+            "$GITHUB_WORKSPACE/STCPv2/zephyr/nordic/stcp-mqtt" \
+            "$GITHUB_WORKSPACE/STCPv2/kernel-module/stcp-mqtt"; do
+            if [[ -f "$candidate/CMakeLists.txt" &&
+                  -f "$candidate/prj.conf" ]]; then
+              app="$candidate"
+              break
+            fi
+          done
+
+          [[ -n "$app" ]] || {
+            echo "Zephyr application not found" >&2
+            exit 1
+          }
+
+          ncs_root="${{ vars.STCP_NCS_ROOT }}"
+          if [[ -z "$ncs_root" ]]; then
+            ncs_root="$GITHUB_WORKSPACE/STCPv2/zephyr/nordic/ncs-3.3.0"
+          fi
+
+          [[ -d "$ncs_root" ]] || {
+            echo "Nordic NCS workspace not found: $ncs_root" >&2
+            echo "Set repository variable STCP_NCS_ROOT." >&2
+            exit 1
+          }
+
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "ncs_root=$ncs_root" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Nordic environment
+        shell: bash
+        working-directory: ${{ steps.paths.outputs.ncs_root }}
+        run: |
+          set -Eeuo pipefail
+          command -v west
+          west topdir
+          west zephyr-export
+
+      - name: Build nRF9151 firmware
+        shell: bash
+        working-directory: ${{ steps.paths.outputs.ncs_root }}
+        run: |
+          set -Eeuo pipefail
+
+          west build \
+            --pristine=always \
+            --board "$BOARD" \
+            --source-dir "${{ steps.paths.outputs.app }}" \
+            --build-dir "$GITHUB_WORKSPACE/build-zephyr-nrf9151"
+
+      - name: Upload Zephyr firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcpv2-zephyr-nrf9151-${{ github.sha }}
+          path: |
+            build-zephyr-nrf9151/zephyr/*.hex
+            build-zephyr-nrf9151/zephyr/*.bin
+            build-zephyr-nrf9151/zephyr/*.elf
+            build-zephyr-nrf9151/zephyr/*.map
+            build-zephyr-nrf9151/zephyr/.config
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Windows x64 driver
+    needs: validate
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.build_windows == true
+    runs-on: [self-hosted, windows, x64, stcp-windows]
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout STCPv2 only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          clean: false
+          submodules: false
+          lfs: false
+          sparse-checkout: |
+            STCPv2
+            .github/workflows/build.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Locate Windows solution
+        id: solution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $candidates = @(
+            "STCPv2/windows/STCP-Windows.sln",
+            "STCPv2/Windows/STCP-Windows.sln"
+          )
+
+          foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) {
+              "path=$candidate" |
+                Out-File -FilePath $env:GITHUB_OUTPUT -Append
+              exit 0
+            }
+          }
+
+          throw "STCP-Windows.sln was not found"
+
+      - name: Locate MSBuild
+        id: msbuild
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) {
+            throw "vswhere.exe was not found"
+          }
+
+          $installPath = & $vswhere `
+            -latest `
+            -products * `
+            -requires Microsoft.Component.MSBuild `
+            -property installationPath
+
+          if (-not $installPath) {
+            throw "Visual Studio with MSBuild was not found"
+          }
+
+          $msbuild = Join-Path $installPath "MSBuild\Current\Bin\MSBuild.exe"
+          if (-not (Test-Path $msbuild)) {
+            throw "MSBuild.exe was not found: $msbuild"
+          }
+
+          "path=$msbuild" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Verify WDK integration
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $wdkBuild = "${env:ProgramFiles(x86)}\Windows Kits\10\build"
+          if (-not (Test-Path $wdkBuild)) {
+            throw "WDK build directory was not found"
+          }
+
+          $targets = Get-ChildItem `
+            $wdkBuild `
+            -Recurse `
+            -Filter "WindowsDriver.*.targets" `
+            -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+
+          if (-not $targets) {
+            throw "WDK MSBuild integration was not found"
+          }
+
+      - name: Build Windows solution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          & "${{ steps.msbuild.outputs.path }}" `
+            "${{ steps.solution.outputs.path }}" `
+            /m `
+            /restore `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /verbosity:minimal
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "MSBuild failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcpv2-windows-x64-${{ github.sha }}
+          path: |
+            STCPv2/windows/**/*.sys
+            STCPv2/windows/**/*.dll
+            STCPv2/windows/**/*.exe
+            STCPv2/windows/**/*.inf
+            STCPv2/windows/**/*.cat
+            STCPv2/windows/**/*.pdb
+            STCPv2/Windows/**/*.sys
+            STCPv2/Windows/**/*.dll
+            STCPv2/Windows/**/*.exe
+            STCPv2/Windows/**/*.inf
+            STCPv2/Windows/**/*.cat
+            STCPv2/Windows/**/*.pdb
+          if-no-files-found: error
+          retention-days: 14

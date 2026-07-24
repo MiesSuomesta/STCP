@@ -10,8 +10,8 @@ WEB_DIR="${WEB_DIR:-$PROJECT_ROOT/web}"
   exit 1
 }
 
-PROJECT_ROOT="$PROJECT_ROOT" \
-BENCHMARK_DIR="$SCRIPT_DIR" \
-WEB_DIR="$WEB_DIR" \
-PUBLISH_TARGET="${PUBLISH_TARGET:-www-data@fuji:~/html/public/stcp.fi/}" \
-"$WEB_DIR/publish-latest.sh"
+ PROJECT_ROOT="$PROJECT_ROOT" \
+ BENCHMARK_DIR="$SCRIPT_DIR" \
+ WEB_DIR="$WEB_DIR" \
+ PUBLISH_TARGET="${PUBLISH_TARGET:-www-data@fuji:/var/www/html/public/stcp.fi/}" \
+	"$WEB_DIR/publish-latest.sh"

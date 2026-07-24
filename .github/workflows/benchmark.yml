@@ -206,8 +206,7 @@ jobs:
 
           if [[ -z "$result_dir" || ! -d "$result_dir" ]]; then
             result_dir="$(
-              find benchmark/results                 -mindepth 1                 -maxdepth 1                 -type d                 -name 'full-*'                 -printf '%T@ %p
-' 2>/dev/null |
+              find benchmark/results                 -mindepth 1                 -maxdepth 1                 -type d                 -name 'full-*'                 -printf '%T@ %p' 2>/dev/null |
               sort -nr |
               head -1 |
               cut -d' ' -f2-

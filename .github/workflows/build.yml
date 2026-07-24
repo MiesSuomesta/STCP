@@ -154,6 +154,7 @@ jobs:
             .github/workflows/build.yml
           sparse-checkout-cone-mode: false
 
+
       - name: Resolve kernel build trees
         run: |
           set -Eeuo pipefail
@@ -166,8 +167,11 @@ jobs:
           fi
 
           if [[ -z "$RPI_KDIR" ]]; then
-            RPI_KDIR="$GITHUB_WORKSPACE/STCPv2/kernel-module/raspberry-kernel-sources"
+            RPI_KDIR="/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kernel-sources"
           fi
+
+          echo "X86 kernel tree: $X86_KDIR"
+          echo "Raspberry kernel tree: $RPI_KDIR"
 
           {
             echo "X86_KDIR=$X86_KDIR"
@@ -175,9 +179,23 @@ jobs:
             echo "JOBS=$(nproc)"
           } >> "$GITHUB_ENV"
 
-          test -f "$X86_KDIR/Makefile"
-          test -f "$RPI_KDIR/Makefile"
-          test -f "$RPI_KDIR/Module.symvers"
+          [[ -f "$X86_KDIR/Makefile" ]] || {
+            echo "[FAIL] Missing x86 Makefile: $X86_KDIR/Makefile" >&2
+            exit 1
+          }
+
+          [[ -f "$RPI_KDIR/Makefile" ]] || {
+            echo "[FAIL] Missing Raspberry Makefile: $RPI_KDIR/Makefile" >&2
+            exit 1
+          }
+
+          [[ -f "$RPI_KDIR/Module.symvers" ]] || {
+            echo "[FAIL] Missing Raspberry Module.symvers: $RPI_KDIR/Module.symvers" >&2
+            echo "Kernel tree must be prepared and modules built before STCP module build." >&2
+            exit 1
+          }
+
+          echo "[ OK ] Kernel build trees are ready"
 
       - name: Verify Linux build environment
         run: |

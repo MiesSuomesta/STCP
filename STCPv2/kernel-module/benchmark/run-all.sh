@@ -10,6 +10,7 @@ Q="${PIPELINES:-1 4 8}"
 TCP_PORT="${TCP_PORT:-19000}"
 TLS_PORT="${TLS_PORT:-19001}"
 STCP_PORT="${STCP_PORT:-19002}"
+UDP_PORT="${UDP_PORT:-19003}"
 O="${RESULT_DIR:-$D/results/$(date +%Y%m%d-%H%M%S)-$T}"
 RPI_SSH="${RPI_SSH:-pi@$H}"
 RPI_BENCHMARK_DIR="${RPI_BENCHMARK_DIR:-/home/pi/benchmark}"
@@ -20,7 +21,8 @@ PERF_METRICS="${PERF_METRICS:-1}"
 PERF_EVENTS="${PERF_EVENTS:-task-clock,context-switches,cpu-migrations,page-faults,cycles,instructions,branches,branch-misses,cache-references,cache-misses}"
 PERF_GRACE_SECONDS="${PERF_GRACE_SECONDS:-2}"
 
-STCP_OPERATION_TIMEOUT="${STCP_OPERATION_TIMEOUT:-30}"
+STCP_CASE_TIMEOUT=$(( $DU + 20 ))
+STCP_OPERATION_TIMEOUT="${STCP_OPERATION_TIMEOUT:-$STCP_CASE_TIMEOUT}"
 CASE_GRACE_SECONDS="${CASE_GRACE_SECONDS:-20}"
 CONTINUE_CASE_ON_ERROR="${CONTINUE_CASE_ON_ERROR:-1}"
 PERF_STARTUP_WAIT_SECONDS="${PERF_STARTUP_WAIT_SECONDS:-0.6}"
@@ -194,11 +196,16 @@ CASE=0
 for payload in $PL; do
   for clients in $CL; do
     for pipeline in $Q; do
-      run_case tcp "$TCP_PORT" "$clients" "$payload" "$pipeline"
+      if [[ "$T" == "udp" ]]; then
+        run_case udp "$UDP_PORT" "$clients" "$payload" "$pipeline"
+      else
+        run_case tcp "$TCP_PORT" "$clients" "$payload" "$pipeline"
+      fi
       run_case tls "$TLS_PORT" "$clients" "$payload" "$pipeline"
       run_case stcp "$STCP_PORT" "$clients" "$payload" "$pipeline"
       CASE=$(( $CASE + 1))
-      echo "Cases done: $CASE / $CASES ..."
+      PERCENT=$(( ( $CASE * 100 ) / $CASES ))
+      echo "Cases done: $CASE / $CASES (${PERCENT}% Completed)"
     done
   done
 done

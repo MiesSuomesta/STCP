@@ -98,7 +98,7 @@ def worker(conn: socket.socket) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("tcp", "tls", "stcp"), required=True)
+    parser.add_argument("--mode", choices=("tcp", "udp", "tls", "stcp"), required=True)
     parser.add_argument("--transport", choices=("tcp", "udp"), default="tcp", help="STCP carrier transport")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, required=True)
@@ -109,12 +109,17 @@ def main() -> int:
     if args.mode == "stcp":
         proto = STCP_PROTO_TCP if args.transport == "tcp" else STCP_PROTO_UDP
         listener = socket.socket(AF_STCP, socket.SOCK_STREAM, proto)
+        bind_listener(listener, args.mode, args.host, args.port)
+        listener.listen(256)
+    elif args.mode == "udp":
+        listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind((args.host, args.port))
     else:
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-    bind_listener(listener, args.mode, args.host, args.port)
-    listener.listen(256)
+        listener.bind((args.host, args.port))
+        listener.listen(256)
 
     context: ssl.SSLContext | None = None
     if args.mode == "tls":
@@ -126,6 +131,12 @@ def main() -> int:
 
     label = f"stcp/{args.transport}" if args.mode == "stcp" else args.mode
     print(f"benchmark server: mode={label} listen={args.host}:{args.port}", flush=True)
+
+    if args.mode == "udp":
+        while True:
+            data, peer = listener.recvfrom(65535)
+            if data:
+                listener.sendto(data, peer)
 
     while True:
         conn = accept_connection(listener, args.mode, args.transport)

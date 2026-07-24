@@ -3,11 +3,22 @@ name: Build STCPv2
 on:
   push:
     branches: [main, master, develop]
+    paths:
+      - "STCPv2/**"
+      - ".github/workflows/build.yml"
   pull_request:
+    paths:
+      - "STCPv2/**"
+      - ".github/workflows/build.yml"
   workflow_dispatch:
     inputs:
+      build_linux:
+        description: Build Linux x86_64 and Raspberry Pi ARM64 modules
+        required: false
+        type: boolean
+        default: true
       build_zephyr:
-        description: Build Nordic/Zephyr firmware
+        description: Build Nordic nRF9151 firmware
         required: false
         type: boolean
         default: true
@@ -30,17 +41,22 @@ env:
 
 jobs:
   validate:
-    name: Validate repository
+    name: Validate STCPv2
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
-      - name: Checkout
+      - name: Checkout STCPv2 only
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           clean: false
           submodules: false
+          lfs: false
+          sparse-checkout: |
+            STCPv2
+            .github/workflows/build.yml
+          sparse-checkout-cone-mode: false
 
       - name: Install validation tools
         run: |
@@ -49,7 +65,7 @@ jobs:
             shellcheck \
             python3
 
-      - name: Check shell syntax
+      - name: Check STCPv2 shell syntax
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -58,45 +74,48 @@ jobs:
             echo "bash -n $script"
             bash -n "$script"
           done < <(
-            find . \
-              -path './kernel-module/raspberry-kernel-sources' -prune -o \
-              -path './kernel-module/linux-kernel-sources' -prune -o \
-              -path './kernel-module/linux-next' -prune -o \
+            find STCPv2 \
+              -path 'STCPv2/kernel-module/raspberry-kernel-sources' -prune -o \
+              -path 'STCPv2/zephyr/nordic/ncs-3.3.0' -prune -o \
+              -path 'STCPv2/zephyr/nordic-3.4.0' -prune -o \
               -path '*/target' -prune -o \
               -path '*/build' -prune -o \
+              -path '*/results' -prune -o \
               -name '*.sh' -type f -print0
           )
 
-      - name: ShellCheck critical scripts
+      - name: ShellCheck STCPv2 orchestration scripts
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          files=(
-            kernel-module/build-and-deploy.sh
-            kernel-module/build-benchmark-publish.sh
-            kernel-module/build-rpi-package.sh
-            kernel-module/benchmark/run-all-full.sh
+          scripts=(
+            STCPv2/kernel-module/build-and-deploy.sh
+            STCPv2/kernel-module/build-benchmark-publish.sh
+            STCPv2/kernel-module/build-rpi-package.sh
+            STCPv2/kernel-module/benchmark/run-all-full.sh
+            STCPv2/web/publish-latest.sh
           )
 
           existing=()
-          for file in "${files[@]}"; do
-            [[ -f "$file" ]] && existing+=("$file")
+          for script in "${scripts[@]}"; do
+            [[ -f "$script" ]] && existing+=("$script")
           done
 
           if ((${#existing[@]})); then
-            # Fail only on real errors; style warnings stay advisory.
             shellcheck --severity=error -x "${existing[@]}"
           fi
 
-      - name: Python syntax check
+      - name: Check STCPv2 Python syntax
         shell: bash
         run: |
           set -Eeuo pipefail
 
           dirs=()
-          [[ -d kernel-module/benchmark ]] && dirs+=(kernel-module/benchmark)
-          [[ -d kernel-module/echo-server ]] && dirs+=(kernel-module/echo-server)
+          [[ -d STCPv2/kernel-module/benchmark ]] &&
+            dirs+=(STCPv2/kernel-module/benchmark)
+          [[ -d STCPv2/kernel-module/echo-server ]] &&
+            dirs+=(STCPv2/kernel-module/echo-server)
 
           if ((${#dirs[@]})); then
             python3 -m compileall -q "${dirs[@]}"
@@ -105,47 +124,49 @@ jobs:
   linux-kernel-modules:
     name: Linux x86_64 + Raspberry Pi ARM64
     needs: validate
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.build_linux == true
     runs-on: [self-hosted, linux, x64, stcp-builder]
-    timeout-minutes: 120
-
-    env:
-      CROSS_COMPILE: aarch64-linux-gnu-
-      STOP_BENCHMARKS: "0"
-      CARRIER_DEBUG: "0"
-      DRY_RUN: "0"
-
-      # These match build-and-deploy.sh. Override RPI_KDIR with a repository
-      # variable when the Raspberry kernel tree is stored outside the checkout.
-      X86_KDIR: /lib/modules/${{ vars.STCP_RUNNER_KERNEL_RELEASE }}/build
-      RPI_KDIR: ${{ vars.STCP_RPI_KDIR }}
+    timeout-minutes: 150
 
     defaults:
       run:
         shell: bash
-        working-directory: kernel-module
+        working-directory: STCPv2/kernel-module
+
+    env:
+      CROSS_COMPILE: aarch64-linux-gnu-
+      CARRIER_DEBUG: "0"
+      STOP_BENCHMARKS: "0"
+      DRY_RUN: "0"
 
     steps:
-      - name: Checkout
+      - name: Checkout STCPv2 only
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          # Important: the self-hosted runner may keep the large Raspberry
-          # kernel source tree as an untracked directory inside the checkout.
-          # The default checkout clean runs git clean -ffdx and deletes it.
           clean: false
           submodules: false
-
+          lfs: false
+          sparse-checkout: |
+            STCPv2
+            .github/workflows/build.yml
+          sparse-checkout-cone-mode: false
 
       - name: Resolve kernel build trees
         run: |
           set -Eeuo pipefail
 
-          if [[ -z "${X86_KDIR:-}" || "$X86_KDIR" == "/lib/modules//build" ]]; then
+          X86_KDIR="${{ vars.STCP_X86_KDIR }}"
+          RPI_KDIR="${{ vars.STCP_RPI_KDIR }}"
+
+          if [[ -z "$X86_KDIR" ]]; then
             X86_KDIR="/lib/modules/$(uname -r)/build"
           fi
 
-          if [[ -z "${RPI_KDIR:-}" ]]; then
-            RPI_KDIR="$GITHUB_WORKSPACE/kernel-module/raspberry-kernel-sources"
+          if [[ -z "$RPI_KDIR" ]]; then
+            RPI_KDIR="$GITHUB_WORKSPACE/STCPv2/kernel-module/raspberry-kernel-sources"
           fi
 
           {
@@ -154,20 +175,16 @@ jobs:
             echo "JOBS=$(nproc)"
           } >> "$GITHUB_ENV"
 
-          test -d "$X86_KDIR"
           test -f "$X86_KDIR/Makefile"
-
-          test -d "$RPI_KDIR"
           test -f "$RPI_KDIR/Makefile"
           test -f "$RPI_KDIR/Module.symvers"
 
-      - name: Verify build environment
+      - name: Verify Linux build environment
         run: |
           set -Eeuo pipefail
 
           commands=(
-            make rustup cargo rustc
-            file modinfo
+            make rustup cargo rustc file modinfo
             "${CROSS_COMPILE}gcc"
             "${CROSS_COMPILE}ld"
             "${CROSS_COMPILE}ar"
@@ -194,11 +211,9 @@ jobs:
 
           rustup component add rust-src --toolchain nightly
 
-      - name: Build x86_64 and Raspberry Pi modules
+      - name: Build Linux modules
         run: |
           set -Eeuo pipefail
-
-          test -f build-and-deploy.sh
 
           X86_KDIR="$X86_KDIR" \
           RPI_KDIR="$RPI_KDIR" \
@@ -257,10 +272,6 @@ jobs:
           modinfo raspberry-kernel-module/stcp.ko \
             > ci-artifacts/raspberry-pi-arm64/modinfo.txt
 
-          "${CROSS_COMPILE}readelf" \
-            -h raspberry-kernel-module/stcp.ko \
-            > ci-artifacts/raspberry-pi-arm64/readelf-header.txt
-
           (
             cd ci-artifacts
             sha256sum \
@@ -273,7 +284,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: stcpv2-linux-modules-${{ github.sha }}
-          path: kernel-module/ci-artifacts/
+          path: STCPv2/kernel-module/ci-artifacts/
           if-no-files-found: error
           retention-days: 14
 
@@ -284,21 +295,25 @@ jobs:
       github.event_name != 'workflow_dispatch' ||
       inputs.build_zephyr == true
     runs-on: [self-hosted, linux, x64, stcp-zephyr]
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     env:
       BOARD: nrf9151dk/nrf9151
-      NCS_ROOT: ${{ vars.STCP_NCS_ROOT }}
 
     steps:
-      - name: Checkout
+      - name: Checkout STCPv2 only
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           clean: false
           submodules: false
+          lfs: false
+          sparse-checkout: |
+            STCPv2
+            .github/workflows/build.yml
+          sparse-checkout-cone-mode: false
 
-      - name: Resolve Nordic workspace and application
+      - name: Resolve Nordic paths
         id: paths
         shell: bash
         run: |
@@ -306,9 +321,8 @@ jobs:
 
           app=""
           for candidate in \
-            "$GITHUB_WORKSPACE/zephyr/nordic/stcp-mqtt" \
-            "$GITHUB_WORKSPACE/kernel-module/stcp-mqtt" \
-            "$GITHUB_WORKSPACE/stcp-mqtt"; do
+            "$GITHUB_WORKSPACE/STCPv2/zephyr/nordic/stcp-mqtt" \
+            "$GITHUB_WORKSPACE/STCPv2/kernel-module/stcp-mqtt"; do
             if [[ -f "$candidate/CMakeLists.txt" &&
                   -f "$candidate/prj.conf" ]]; then
               app="$candidate"
@@ -317,26 +331,17 @@ jobs:
           done
 
           [[ -n "$app" ]] || {
-            echo "Zephyr application was not found" >&2
+            echo "Zephyr application not found" >&2
             exit 1
           }
 
-          ncs_root="${NCS_ROOT:-}"
+          ncs_root="${{ vars.STCP_NCS_ROOT }}"
           if [[ -z "$ncs_root" ]]; then
-            for candidate in \
-              "$GITHUB_WORKSPACE/zephyr/nordic/ncs-3.3.0" \
-              "$GITHUB_WORKSPACE/zephyr/nordic/ncs-3.4.0" \
-              "$GITHUB_WORKSPACE/zephyr/nordic/ncs"; do
-              if [[ -d "$candidate/.west" ||
-                    -f "$candidate/west.yml" ]]; then
-                ncs_root="$candidate"
-                break
-              fi
-            done
+            ncs_root="$GITHUB_WORKSPACE/STCPv2/zephyr/nordic/ncs-3.3.0"
           fi
 
-          [[ -n "$ncs_root" && -d "$ncs_root" ]] || {
-            echo "Nordic NCS workspace was not found." >&2
+          [[ -d "$ncs_root" ]] || {
+            echo "Nordic NCS workspace not found: $ncs_root" >&2
             echo "Set repository variable STCP_NCS_ROOT." >&2
             exit 1
           }
@@ -365,30 +370,16 @@ jobs:
             --source-dir "${{ steps.paths.outputs.app }}" \
             --build-dir "$GITHUB_WORKSPACE/build-zephyr-nrf9151"
 
-      - name: Package Zephyr artifacts
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          rm -rf zephyr-ci-artifacts
-          mkdir -p zephyr-ci-artifacts
-
-          find build-zephyr-nrf9151/zephyr \
-            -maxdepth 1 -type f \
-            \( -name '*.hex' -o \
-               -name '*.bin' -o \
-               -name '*.elf' -o \
-               -name '*.map' -o \
-               -name '*.config' \) \
-            -exec cp {} zephyr-ci-artifacts/ \;
-
-          test -n "$(find zephyr-ci-artifacts -type f -print -quit)"
-
       - name: Upload Zephyr firmware
         uses: actions/upload-artifact@v4
         with:
           name: stcpv2-zephyr-nrf9151-${{ github.sha }}
-          path: zephyr-ci-artifacts/
+          path: |
+            build-zephyr-nrf9151/zephyr/*.hex
+            build-zephyr-nrf9151/zephyr/*.bin
+            build-zephyr-nrf9151/zephyr/*.elf
+            build-zephyr-nrf9151/zephyr/*.map
+            build-zephyr-nrf9151/zephyr/.config
           if-no-files-found: error
           retention-days: 14
 
@@ -398,20 +389,21 @@ jobs:
     if: >-
       github.event_name != 'workflow_dispatch' ||
       inputs.build_windows == true
-
-    # A self-hosted Windows runner is intentional. The STCP driver requires
-    # a verified WDK/KMDF + MSBuild integration, which cannot be assumed on
-    # the current GitHub-hosted Windows images.
     runs-on: [self-hosted, windows, x64, stcp-windows]
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     steps:
-      - name: Checkout
+      - name: Checkout STCPv2 only
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           clean: false
           submodules: false
+          lfs: false
+          sparse-checkout: |
+            STCPv2
+            .github/workflows/build.yml
+          sparse-checkout-cone-mode: false
 
       - name: Locate Windows solution
         id: solution
@@ -420,9 +412,8 @@ jobs:
           $ErrorActionPreference = "Stop"
 
           $candidates = @(
-            "windows/STCP-Windows.sln",
-            "Windows/STCP-Windows.sln",
-            "STCPv2/windows/STCP-Windows.sln"
+            "STCPv2/windows/STCP-Windows.sln",
+            "STCPv2/Windows/STCP-Windows.sln"
           )
 
           foreach ($candidate in $candidates) {
@@ -458,7 +449,7 @@ jobs:
 
           $msbuild = Join-Path $installPath "MSBuild\Current\Bin\MSBuild.exe"
           if (-not (Test-Path $msbuild)) {
-            throw "MSBuild.exe was not found at $msbuild"
+            throw "MSBuild.exe was not found: $msbuild"
           }
 
           "path=$msbuild" |
@@ -469,29 +460,21 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          $roots = @(
-            "${env:ProgramFiles(x86)}\Windows Kits\10\build",
-            "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
-          )
-
-          foreach ($root in $roots) {
-            if (-not (Test-Path $root)) {
-              throw "Required WDK path is missing: $root"
-            }
+          $wdkBuild = "${env:ProgramFiles(x86)}\Windows Kits\10\build"
+          if (-not (Test-Path $wdkBuild)) {
+            throw "WDK build directory was not found"
           }
 
           $targets = Get-ChildItem `
-            "${env:ProgramFiles(x86)}\Windows Kits\10\build" `
+            $wdkBuild `
             -Recurse `
             -Filter "WindowsDriver.*.targets" `
             -ErrorAction SilentlyContinue |
             Select-Object -First 1
 
           if (-not $targets) {
-            throw "WDK MSBuild driver targets were not found"
+            throw "WDK MSBuild integration was not found"
           }
-
-          Write-Host "WDK targets: $($targets.FullName)"
 
       - name: Build Windows solution
         shell: pwsh
@@ -510,40 +493,22 @@ jobs:
             throw "MSBuild failed with exit code $LASTEXITCODE"
           }
 
-      - name: Collect Windows artifacts
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          Remove-Item windows-ci-artifacts `
-            -Recurse -Force -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory `
-            -Force -Path windows-ci-artifacts | Out-Null
-
-          Get-ChildItem -Recurse -File |
-            Where-Object {
-              $_.FullName -notlike "*\windows-ci-artifacts\*" -and
-              $_.Extension -in ".sys", ".dll", ".exe", ".inf", ".cat", ".pdb"
-            } |
-            ForEach-Object {
-              $relative = $_.FullName.Substring(
-                (Get-Location).Path.Length
-              ).TrimStart('\')
-
-              $destination = Join-Path windows-ci-artifacts $relative
-              New-Item -ItemType Directory `
-                -Force -Path (Split-Path $destination) | Out-Null
-              Copy-Item $_.FullName $destination -Force
-            }
-
-          if (-not (Get-ChildItem windows-ci-artifacts -Recurse -File)) {
-            throw "No Windows build artifacts were produced"
-          }
-
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: stcpv2-windows-x64-${{ github.sha }}
-          path: windows-ci-artifacts/
+          path: |
+            STCPv2/windows/**/*.sys
+            STCPv2/windows/**/*.dll
+            STCPv2/windows/**/*.exe
+            STCPv2/windows/**/*.inf
+            STCPv2/windows/**/*.cat
+            STCPv2/windows/**/*.pdb
+            STCPv2/Windows/**/*.sys
+            STCPv2/Windows/**/*.dll
+            STCPv2/Windows/**/*.exe
+            STCPv2/Windows/**/*.inf
+            STCPv2/Windows/**/*.cat
+            STCPv2/Windows/**/*.pdb
           if-no-files-found: error
           retention-days: 14

@@ -3,7 +3,7 @@
   const D = window.STCP_BENCHMARK_DATA;
   if (!D) throw new Error('Missing STCP_BENCHMARK_DATA');
   const colors = {tcp:'#69a7ff',udp:'#ffb86b',stcp:'#5de1c2',tls:'#b99cff'};
-  const labels = {tcp:'TCP',udp:'UDP',stcp:'STCP',tls:'TLS'};
+  const labels = Object.assign({tcp:'TCP',udp:'UDP',stcp:'STCP',tls:'TLS'}, D.dimensions.protocol_labels || {});
   const $ = s => document.querySelector(s);
   const fmt = (v, digits=2) => v == null || !Number.isFinite(Number(v)) ? 'n/a' : Number(v).toLocaleString(undefined,{maximumFractionDigits:digits});
   const pct = v => v == null ? 'n/a' : `${v>=0?'+':''}${fmt(v,1)}%`;
@@ -37,9 +37,16 @@
   function currentCases(){return D.cases.filter(c=>c.payload_bytes===state.payload&&c.clients===state.clients&&c.pipeline===state.pipeline&&(!state.passOnly||c.errors===0));}
   function caseByProtocol(){return Object.fromEntries(currentCases().map(c=>[c.protocol,c]));}
   function setupSummary(){
-    const vs=D.summary.comparisons.stcp_vs_tls, v=vs.median_percent_change;
-    $('#executive-copy').textContent=`Across ${vs.matched_pass_cases} directly matched successful cases, STCP is evaluated against TLS with identical payload, client and pipeline settings. Failed cases stay visible in the reliability section and are excluded from the headline medians.`;
-    const metrics=[['Throughput vs TLS',v.combined_mib_s,true],['Median RTT vs TLS',v.rtt_p50_ms,false],['Client CPU vs TLS',v.client_cpu_percent,false],['Instructions/op vs TLS',v.server_perf_instructions_per_op,false]];
+    const isUdp=D.metadata.transport==='udp';
+    const baselineKey=isUdp?'stcp_vs_udp':'stcp_vs_tcp';
+    const baselineName=isUdp?'Raw UDP':'Raw TCP';
+    const base=D.summary.comparisons[baselineKey] || {matched_pass_cases:0,median_percent_change:{}};
+    const tls=D.summary.comparisons.stcp_vs_tls || {matched_pass_cases:0,median_percent_change:{}};
+    const v=base.median_percent_change;
+    $('#executive-copy').textContent=isUdp
+      ? `Across ${base.matched_pass_cases} matched successful cases, STCP/UDP is compared directly with Raw UDP. TLS/TCP remains visible as a secure-stream reference only. Failed cases are excluded from headline medians but remain visible below.`
+      : `Across ${base.matched_pass_cases} matched successful cases, STCP/TCP is compared directly with Raw TCP. TLS/TCP is retained as the secure-stream reference. Failed cases remain visible below.`;
+    const metrics=[[`Throughput vs ${baselineName}`,v.combined_mib_s,true],[`Median RTT vs ${baselineName}`,v.rtt_p50_ms,false],['Throughput vs TLS/TCP',tls.median_percent_change.combined_mib_s,true],['Instructions/op vs TLS/TCP',tls.median_percent_change.server_perf_instructions_per_op,false]];
     $('#comparison-cards').innerHTML=metrics.map(([name,val,higher])=>{const good=val!=null&&(higher?val>0:val<0);return `<div class="comparison"><small>${name}</small><strong style="color:${good?'var(--accent)':val==null?'var(--muted)':'var(--warn)'}">${pct(val)}</strong><small>Median matched-case change</small></div>`}).join('');
   }
 
@@ -80,7 +87,7 @@
   function renderAll(){
     barChart('#chart-ops','operations_s',' ops/s',0);barChart('#chart-throughput','combined_mib_s',' MiB/s',2);
     groupedBar('#chart-latency',[{key:'rtt_p50_ms',label:'p50',color:'#5de1c2'},{key:'rtt_p95_ms',label:'p95',color:'#69a7ff'},{key:'rtt_p99_ms',label:'p99',color:'#b99cff'}]);
-    barChart('#chart-connect','connect_mean_ms',' ms',2);barChart('#chart-client-cpu','client_cpu_percent','%',1);barChart('#chart-cycles','server_perf_cycles_per_op','',0);barChart('#chart-instructions','server_perf_instructions_per_op','',0);barChart('#chart-context','server_perf_context_switches_per_1k_ops','',0);barChart('#chart-kernel','server_kernel_network_events_per_1k_ops','',0);lineChart('#chart-scaling','combined_mib_s',' MiB/s',2);renderReliability();
+    barChart('#chart-connect','connect_mean_ms',' ms',2);barChart('#chart-client-cpu','client_cpu_percent','%',1);barChart('#chart-cycles','server_perf_cycles_per_op','',0);barChart('#chart-instructions','server_perf_instructions_per_op','',0);barChart('#chart-context','server_perf_context_switches_per_1k_ops','',0);barChart('#chart-kernel','server_kernel_network_events_per_1k_ops','',0);barChart('#chart-memory','max_rss_kib',' KiB',0);barChart('#chart-ops-cpu','operations_per_cpu_percent','',1);barChart('#chart-mib-cpu','mib_per_cpu_percent','',3);barChart('#chart-ipc','server_perf_ipc','',3);barChart('#chart-cache','server_perf_cache_miss_percent','%',2);lineChart('#chart-scaling','combined_mib_s',' MiB/s',2);renderReliability();
   }
   setupMeta();setupStatus();setupControls();setupSummary();renderAll();
 })();

@@ -2287,3 +2287,79 @@ rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c2-p64-q4-1362794.csv': Operation not
 rm: cannot remove '/tmp/stcp-perf-pomo-tls-c2-p64-q4-1362794.csv': Operation not permitted
 {"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-070259/udp/tls-c2-p64-q4.json", "cycles_per_op": 171727.64511321747, "instructions_per_op": 99444.92152711954, "context_switches_per_1k_ops": 2770.889942074776, "warnings": ["branches: <not supported>"]}
 ===== stcp-udp-c2-p64-q4 =====
+{
+  "mode": "stcp",
+  "transport": "udp",
+  "clients": 2,
+  "payload_bytes": 64,
+  "pipeline": 4,
+  "elapsed_s": 30.00164395698812,
+  "operations": 165788,
+  "errors": 0,
+  "tx_mib_s": 0.3372780671246537,
+  "rx_mib_s": 0.3372780671246537,
+  "combined_mib_s": 0.6745561342493074,
+  "operations_s": 5525.963851770326,
+  "connect_mean_ms": 4.102783481357619,
+  "rtt_p50_ms": 0.3392710059415549,
+  "rtt_p95_ms": 0.5812580056954175,
+  "rtt_p99_ms": 0.8726210216991603,
+  "client_cpu_percent": 51.45944676276299,
+  "max_rss_kib": 21252,
+  "error_details": []
+}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-070259/udp/stcp-udp-c2-p64-q4.json", "network_irq": 492522, "net_rx_softirq": 1024576, "net_tx_softirq": 0, "events_per_1k_ops": 9150.83118199146}
+rm: cannot remove '/tmp/stcp-perf-pomo-stcp-udp-c2-p64-q4-1362794.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-070259/udp/stcp-udp-c2-p64-q4.json", "cycles_per_op": 192033.61906772506, "instructions_per_op": 108609.55802591261, "context_switches_per_1k_ops": 5278.51231693488, "warnings": ["branches: <not supported>"]}
+Cases done: 5 / 72 ...
+===== tcp-c2-p64-q8 =====
+{
+  "mode": "tcp",
+  "transport": "tcp",
+  "clients": 2,
+  "payload_bytes": 64,
+  "pipeline": 8,
+  "elapsed_s": 30.001775324024493,
+  "operations": 300248,
+  "errors": 0,
+  "tx_mib_s": 0.6108199730125757,
+  "rx_mib_s": 0.6108199730125757,
+  "combined_mib_s": 1.2216399460251515,
+  "operations_s": 10007.67443783804,
+  "connect_mean_ms": 0.3299825038993731,
+  "rtt_p50_ms": 0.14519202522933483,
+  "rtt_p95_ms": 0.36420300602912903,
+  "rtt_p99_ms": 0.5499699909705669,
+  "client_cpu_percent": 60.17770550245609,
+  "max_rss_kib": 21156,
+  "error_details": []
+}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-070259/udp/tcp-c2-p64-q8.json", "network_irq": 520521, "net_rx_softirq": 953887, "net_tx_softirq": 0, "events_per_1k_ops": 4910.6338759958435}
+rm: cannot remove '/tmp/stcp-perf-pomo-tcp-c2-p64-q8-1362794.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-070259/udp/tcp-c2-p64-q8.json", "cycles_per_op": 91297.8104800032, "instructions_per_op": 47500.505149076766, "context_switches_per_1k_ops": 2192.0112706829022, "warnings": ["branches: <not supported>"]}
+===== tls-c2-p64-q8 =====
+{
+  "mode": "tls",
+  "transport": "tls",
+  "clients": 2,
+  "payload_bytes": 64,
+  "pipeline": 8,
+  "elapsed_s": 30.0063258910086,
+  "operations": 182496,
+  "errors": 0,
+  "tx_mib_s": 0.37121078786715783,
+  "rx_mib_s": 0.37121078786715783,
+  "combined_mib_s": 0.7424215757343157,
+  "operations_s": 6081.917548415514,
+  "connect_mean_ms": 55.72405552084092,
+  "rtt_p50_ms": 0.2972999936901033,
+  "rtt_p95_ms": 0.5192940006963909,
+  "rtt_p99_ms": 0.75840501813218,
+  "client_cpu_percent": 62.198164706304425,
+  "max_rss_kib": 25988,
+  "error_details": []
+}
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-070259/udp/tls-c2-p64-q8.json", "network_irq": 345167, "net_rx_softirq": 659846, "net_tx_softirq": 0, "events_per_1k_ops": 5507.041250219183}
+rm: cannot remove '/tmp/stcp-perf-pomo-tls-c2-p64-q8-1362794.csv': Operation not permitted
+{"result": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260724-070259/udp/tls-c2-p64-q8.json", "cycles_per_op": 170244.54285025425, "instructions_per_op": 99053.56139860599, "context_switches_per_1k_ops": 2705.9716377345258, "warnings": ["branches: <not supported>"]}
+===== stcp-udp-c2-p64-q8 =====

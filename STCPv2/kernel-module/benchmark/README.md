@@ -172,3 +172,9 @@ STCP_OPERATION_TIMEOUT=30 CASE_GRACE_SECONDS=20 ./run-all-full.sh
 A timed-out worker is recorded in the result's `error_details`. A process-level
 timeout is printed as `[TIMEOUT]` and the matrix proceeds when the caller uses
 its normal continue-on-error policy.
+
+
+## Native UDP baseline
+
+When `STCP_TRANSPORT=udp`, the matrix now compares native UDP, TLS/TCP, and STCP/UDP.
+The native UDP client uses application-level fragmentation with 60,000-byte datagrams, so payloads up to the existing 64 MiB benchmark limit remain supported. The UDP echo server is stateless and listens on port 19003 by default.

@@ -19,6 +19,9 @@ AF_STCP = 45
 STCP_PROTO_TCP = 253
 STCP_PROTO_UDP = 254
 HEADER = struct.Struct("!I")
+UDP_MAGIC = b"SUDP"
+UDP_HEADER = struct.Struct("!4sIHHI")
+UDP_CHUNK_PAYLOAD = 60_000
 
 
 class SockAddrIn(ctypes.Structure):
@@ -99,6 +102,50 @@ def recv_exact(conn: socket.socket, size: int, timeout_s: float, use_poll: bool)
     return b"".join(chunks)
 
 
+
+def udp_roundtrip(conn: socket.socket, payload: bytes, message_id: int) -> bytes:
+    chunk_count = max(1, (len(payload) + UDP_CHUNK_PAYLOAD - 1) // UDP_CHUNK_PAYLOAD)
+    echoed_parts: list[bytes] = []
+
+    for chunk_index in range(chunk_count):
+        start = chunk_index * UDP_CHUNK_PAYLOAD
+        chunk = payload[start:start + UDP_CHUNK_PAYLOAD]
+        packet = UDP_HEADER.pack(
+            UDP_MAGIC,
+            message_id & 0xFFFFFFFF,
+            chunk_index,
+            chunk_count,
+            len(payload),
+        ) + chunk
+
+        sent = conn.send(packet)
+        if sent != len(packet):
+            raise OSError(f"partial UDP datagram send: {sent}/{len(packet)}")
+
+        echoed = conn.recv(65535)
+        if len(echoed) < UDP_HEADER.size:
+            raise ValueError(f"short UDP echo: {len(echoed)} bytes")
+
+        magic, echoed_id, echoed_index, echoed_count, echoed_total = UDP_HEADER.unpack_from(echoed)
+        if magic != UDP_MAGIC:
+            raise ValueError("invalid UDP echo magic")
+        if echoed_id != (message_id & 0xFFFFFFFF):
+            raise ValueError(f"UDP echo message id mismatch: {echoed_id} != {message_id & 0xFFFFFFFF}")
+        if echoed_index != chunk_index or echoed_count != chunk_count:
+            raise ValueError("UDP echo fragment metadata mismatch")
+        if echoed_total != len(payload):
+            raise ValueError("UDP echo total length mismatch")
+
+        echoed_parts.append(echoed[UDP_HEADER.size:])
+
+    echoed_payload = b"".join(echoed_parts)
+    if len(echoed_payload) != len(payload):
+        raise ValueError(
+            f"UDP reassembly length mismatch: {len(echoed_payload)} != {len(payload)}"
+        )
+    return echoed_payload
+
+
 def percentile(values: list[float], fraction: float) -> float:
     if not values:
         return 0.0
@@ -118,6 +165,10 @@ def open_connection(args: argparse.Namespace) -> tuple[socket.socket, float]:
             conn.close()
             native_error("STCP connect")
         # Keep AF_STCP blocking. Python settimeout() would set O_NONBLOCK.
+    elif args.mode == "udp":
+        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        conn.settimeout(args.timeout)
+        conn.connect((args.host, args.port))
     else:
         raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         raw.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -137,7 +188,7 @@ def open_connection(args: argparse.Namespace) -> tuple[socket.socket, float]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("tcp", "tls", "stcp"), required=True)
+    parser.add_argument("--mode", choices=("tcp", "udp", "tls", "stcp"), required=True)
     parser.add_argument("--transport", choices=("tcp", "udp"), default="tcp", help="STCP carrier transport")
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", type=int, required=True)
@@ -169,6 +220,7 @@ def main() -> int:
         frame = HEADER.pack(len(payload)) + payload
         conn: socket.socket | None = None
         barrier_passed = False
+        message_id = (worker_id << 24) & 0xFFFFFFFF
 
         try:
             conn, connect_ms = open_connection(args)
@@ -180,10 +232,14 @@ def main() -> int:
                 for _ in range(args.pipeline):
                     started = time.perf_counter()
                     use_poll = args.mode == "stcp"
-                    send_exact(conn, frame, args.timeout, use_poll)
-                    raw_length = recv_exact(conn, HEADER.size, args.timeout, use_poll)
-                    (length,) = HEADER.unpack(raw_length)
-                    echoed = recv_exact(conn, length, args.timeout, use_poll)
+                    if args.mode == "udp":
+                        echoed = udp_roundtrip(conn, payload, message_id)
+                        message_id = (message_id + 1) & 0xFFFFFFFF
+                    else:
+                        send_exact(conn, frame, args.timeout, use_poll)
+                        raw_length = recv_exact(conn, HEADER.size, args.timeout, use_poll)
+                        (length,) = HEADER.unpack(raw_length)
+                        echoed = recv_exact(conn, length, args.timeout, use_poll)
                     elapsed_ms = (time.perf_counter() - started) * 1000.0
 
                     if args.verify and echoed != payload:

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 D="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 T="${STCP_TRANSPORT:-tcp}"
-TCP_PORT="${TCP_PORT:-19000}"; TLS_PORT="${TLS_PORT:-19001}"; STCP_PORT="${STCP_PORT:-19002}"
+TCP_PORT="${TCP_PORT:-19000}"; TLS_PORT="${TLS_PORT:-19001}"; STCP_PORT="${STCP_PORT:-19002}"; UDP_PORT="${UDP_PORT:-19003}"
 [[ "$T" == tcp || "$T" == udp ]] || { echo "STCP_TRANSPORT must be tcp or udp" >&2; exit 2; }
 mkdir -p "$D"/{run,logs,certs}
 if [[ ! -f "$D/certs/server.crt" || ! -f "$D/certs/server.key" ]]; then
@@ -17,7 +17,11 @@ start(){
   echo $! >"$D/run/$mode.pid"
   echo "$name server started on port $port (PID $!)"
 }
-start tcp "$TCP_PORT"
+if [[ "$T" == "udp" ]]; then
+  start udp "$UDP_PORT"
+else
+  start tcp "$TCP_PORT"
+fi
 start tls "$TLS_PORT" --cert "$D/certs/server.crt" --key "$D/certs/server.key"
 start stcp "$STCP_PORT"
 sleep 1

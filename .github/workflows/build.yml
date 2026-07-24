@@ -38,6 +38,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
+  PATH: "/home/pomo/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 jobs:
   validate:
@@ -62,7 +63,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            shellcheck \
+            shellcheck kmod \
             python3
 
       - name: Check STCPv2 shell syntax

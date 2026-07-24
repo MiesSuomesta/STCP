@@ -28,3 +28,5 @@ doc/api/
 .flutter-plugins-dependencies
 
 STCPv2/kernel-module/benchmark/results/*
+
+*.log

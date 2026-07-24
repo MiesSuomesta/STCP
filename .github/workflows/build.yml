@@ -35,7 +35,6 @@ jobs:
     timeout-minutes: 20
 
     steps:
-    lfs: false
       - name: Checkout
         uses: actions/checkout@v4
         with:

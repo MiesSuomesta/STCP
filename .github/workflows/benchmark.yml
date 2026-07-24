@@ -1,0 +1,274 @@
+name: STCPv2 Benchmark
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "STCPv2/kernel-module/**"
+      - "STCPv2/common-rust/**"
+      - "STCPv2/web/**"
+      - ".github/workflows/benchmark.yml"
+
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: Seconds per benchmark case
+        required: false
+        default: "150"
+      clients:
+        description: Space-separated client counts
+        required: false
+        default: "1 4 8"
+      payloads:
+        description: Space-separated payload sizes in bytes
+        required: false
+        default: "64 4096 65536 1048576"
+      pipelines:
+        description: Space-separated pipeline depths
+        required: false
+        default: "1 4 8"
+      publish:
+        description: Publish generated dashboards to stcp.fi
+        required: false
+        type: boolean
+        default: true
+
+  schedule:
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stcpv2-benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: Raspberry Pi TCP + UDP benchmark
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 1440
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: STCPv2/kernel-module
+
+    env:
+      RPI_ADDR: "192.168.1.199"
+      RPI_USER: "pi"
+      RPI_BENCHMARK_DIR: "/home/pi/benchmark"
+      RPI_REMOTE_DIR: "/tmp/stcp-deploy"
+      CROSS_COMPILE: "aarch64-linux-gnu-"
+      JOBS: "4"
+      CARRIER_DEBUG: "0"
+      IRQ_METRICS: "1"
+      PERF_METRICS: "1"
+      REMOTE_PERF_PREFIX: "sudo -n"
+      VERIFY: "0"
+      CONTINUE_ON_ERROR: "0"
+      SYNC_RPI: "1"
+      CLEAN_OLD_RESULTS: "1"
+      KEEP_RESULT_RUNS: "5"
+      WEB_DEPLOY_TARGET: "lja@fuji:/var/www/html/public/stcp.fi/benchmarks/raspberry-pi/"
+
+    steps:
+      - name: Checkout STCPv2 only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          clean: false
+          submodules: false
+          lfs: false
+          sparse-checkout: |
+            STCPv2
+            .github/workflows/benchmark.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve benchmark configuration
+        id: config
+        run: |
+          set -Eeuo pipefail
+
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            duration="300"
+            clients="1 4 8"
+            payloads="64 4096 65536 1048576"
+            pipelines="1 4 8"
+            publish="true"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            duration="${{ inputs.duration }}"
+            clients="${{ inputs.clients }}"
+            payloads="${{ inputs.payloads }}"
+            pipelines="${{ inputs.pipelines }}"
+            publish="${{ inputs.publish }}"
+          else
+            duration="150"
+            clients="1 4 8"
+            payloads="64 4096 65536 1048576"
+            pipelines="1 4 8"
+            publish="true"
+          fi
+
+          {
+            echo "DURATION=$duration"
+            echo "CLIENTS_LIST=$clients"
+            echo "PAYLOADS=$payloads"
+            echo "PIPELINES=$pipelines"
+            echo "AUTO_PUBLISH_WEB=$([[ "$publish" == "true" ]] && echo 1 || echo 0)"
+          } >> "$GITHUB_ENV"
+
+          echo "duration=$duration" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+          echo "Duration:  $duration s"
+          echo "Clients:   $clients"
+          echo "Payloads:  $payloads"
+          echo "Pipelines: $pipelines"
+          echo "Publish:   $publish"
+
+      - name: Resolve external build trees
+        run: |
+          set -Eeuo pipefail
+
+          X86_KDIR="${{ vars.STCP_X86_KDIR }}"
+          RPI_KDIR="${{ vars.STCP_RPI_KDIR }}"
+
+          if [[ -z "$X86_KDIR" ]]; then
+            X86_KDIR="/lib/modules/$(uname -r)/build"
+          fi
+
+          if [[ -z "$RPI_KDIR" ]]; then
+            RPI_KDIR="/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kernel-sources"
+          fi
+
+          {
+            echo "X86_KDIR=$X86_KDIR"
+            echo "RPI_KDIR=$RPI_KDIR"
+          } >> "$GITHUB_ENV"
+
+          test -f "$X86_KDIR/Makefile"
+          test -f "$RPI_KDIR/Makefile"
+          test -f "$RPI_KDIR/Module.symvers"
+
+          echo "x86 kernel tree: $X86_KDIR"
+          echo "Raspberry tree:  $RPI_KDIR"
+
+      - name: Verify runner tools
+        run: |
+          set -Eeuo pipefail
+
+          export PATH="/home/pomo/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+          commands=(
+            bash make python3 ssh scp tar git sha256sum tee
+            perf modinfo rustup cargo rustc
+            "${CROSS_COMPILE}gcc"
+            "${CROSS_COMPILE}readelf"
+          )
+
+          for command_name in "${commands[@]}"; do
+            command -v "$command_name" >/dev/null || {
+              echo "[FAIL] Missing command: $command_name" >&2
+              exit 1
+            }
+          done
+
+      - name: Verify Raspberry Pi connectivity
+        run: |
+          set -Eeuo pipefail
+
+          ssh             -o BatchMode=yes             -o ConnectTimeout=10             -o StrictHostKeyChecking=accept-new             "${RPI_USER}@${RPI_ADDR}"             'set -Eeuo pipefail
+             uname -a
+             command -v python3
+             command -v sudo
+             test -d /lib/modules/$(uname -r)'
+
+      - name: Build, deploy, benchmark and publish
+        run: |
+          set -Eeuo pipefail
+
+          export PATH="/home/pomo/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+          X86_KDIR="$X86_KDIR"           RPI_KDIR="$RPI_KDIR"           RPI_ADDR="$RPI_ADDR"           RPI_USER="$RPI_USER"           RPI_BENCHMARK_DIR="$RPI_BENCHMARK_DIR"           RPI_REMOTE_DIR="$RPI_REMOTE_DIR"           CROSS_COMPILE="$CROSS_COMPILE"           JOBS="$JOBS"           DURATION="$DURATION"           CLIENTS_LIST="$CLIENTS_LIST"           PAYLOADS="$PAYLOADS"           PIPELINES="$PIPELINES"           CARRIER_DEBUG="$CARRIER_DEBUG"           IRQ_METRICS="$IRQ_METRICS"           PERF_METRICS="$PERF_METRICS"           REMOTE_PERF_PREFIX="$REMOTE_PERF_PREFIX"           VERIFY="$VERIFY"           CONTINUE_ON_ERROR="$CONTINUE_ON_ERROR"           SYNC_RPI="$SYNC_RPI"           AUTO_PUBLISH_WEB="$AUTO_PUBLISH_WEB"           WEB_DEPLOY_TARGET="$WEB_DEPLOY_TARGET"           CLEAN_OLD_RESULTS="$CLEAN_OLD_RESULTS"           KEEP_RESULT_RUNS="$KEEP_RESULT_RUNS"             bash ./build-benchmark-publish.sh all
+
+      - name: Locate latest result
+        id: result
+        if: always()
+        run: |
+          set -Eeuo pipefail
+
+          result_dir=""
+
+          if [[ -f benchmark/results/latest-full.txt ]]; then
+            result_dir="$(cat benchmark/results/latest-full.txt)"
+          fi
+
+          if [[ -z "$result_dir" || ! -d "$result_dir" ]]; then
+            result_dir="$(
+              find benchmark/results                 -mindepth 1                 -maxdepth 1                 -type d                 -name 'full-*'                 -printf '%T@ %p
+' 2>/dev/null |
+              sort -nr |
+              head -1 |
+              cut -d' ' -f2-
+            )"
+          fi
+
+          if [[ -n "$result_dir" && -d "$result_dir" ]]; then
+            echo "path=$result_dir" >> "$GITHUB_OUTPUT"
+            echo "name=$(basename "$result_dir")" >> "$GITHUB_OUTPUT"
+            echo "Latest result: $result_dir"
+          else
+            echo "No benchmark result directory found"
+          fi
+
+      - name: Write benchmark summary
+        if: always() && steps.result.outputs.path != ''
+        run: |
+          set -Eeuo pipefail
+
+          result_dir="${{ steps.result.outputs.path }}"
+
+          {
+            echo "# STCPv2 benchmark"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Duration per case: \`${DURATION} s\`"
+            echo "- Clients: \`${CLIENTS_LIST}\`"
+            echo "- Payloads: \`${PAYLOADS}\`"
+            echo "- Pipelines: \`${PIPELINES}\`"
+            echo "- Result: \`${result_dir}\`"
+            echo
+            if [[ -f "$result_dir/summary.json" ]]; then
+              echo "Combined summary generated successfully."
+            fi
+            if [[ -f "$result_dir/tcp/report.md" ]]; then
+              echo
+              echo "## TCP carrier"
+              cat "$result_dir/tcp/report.md"
+            fi
+            if [[ -f "$result_dir/udp/report.md" ]]; then
+              echo
+              echo "## UDP carrier"
+              cat "$result_dir/udp/report.md"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        if: always() && steps.result.outputs.path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcpv2-benchmark-${{ steps.result.outputs.name }}-${{ github.sha }}
+          path: ${{ steps.result.outputs.path }}
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload pipeline logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stcpv2-benchmark-logs-${{ github.sha }}
+          path: STCPv2/kernel-module/benchmark/pipeline-logs/
+          if-no-files-found: warn
+          retention-days: 30

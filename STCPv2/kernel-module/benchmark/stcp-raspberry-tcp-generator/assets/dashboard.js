@@ -2,8 +2,8 @@
   'use strict';
   const D = window.STCP_BENCHMARK_DATA;
   if (!D) throw new Error('Missing STCP_BENCHMARK_DATA');
-  const colors = {tcp:'#69a7ff',stcp:'#5de1c2',tls:'#b99cff'};
-  const labels = {tcp:'TCP',stcp:'STCP',tls:'TLS'};
+  const colors = {tcp:'#69a7ff',udp:'#ffb86b',stcp:'#5de1c2',tls:'#b99cff'};
+  const labels = {tcp:'TCP',udp:'UDP',stcp:'STCP',tls:'TLS'};
   const $ = s => document.querySelector(s);
   const fmt = (v, digits=2) => v == null || !Number.isFinite(Number(v)) ? 'n/a' : Number(v).toLocaleString(undefined,{maximumFractionDigits:digits});
   const pct = v => v == null ? 'n/a' : `${v>=0?'+':''}${fmt(v,1)}%`;

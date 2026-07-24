@@ -129,13 +129,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          clean: false
-          submodules: false
-
           # Important: the self-hosted runner may keep the large Raspberry
           # kernel source tree as an untracked directory inside the checkout.
           # The default checkout clean runs git clean -ffdx and deletes it.
           clean: false
+          submodules: false
+
 
       - name: Resolve kernel build trees
         run: |

@@ -19,7 +19,7 @@ set -Eeuo pipefail
 #   RPI_ADDR=192.168.1.199 \
 #   RPI_USER=pi \
 #   RPI_BENCHMARK_DIR=/home/pi/benchmark \
-#   WEB_DEPLOY_TARGET='www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry-pi/' \
+#   WEB_DEPLOY_TARGET='www-data@fuji:/var/www/html/public/stcp.fi/benchmarks/raspberry-pi/' \
 #   ./build-benchmark-publish.sh all
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -47,7 +47,7 @@ fi
 SSH_OPTS="${SSH_OPTS:--o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new}"
 RPI_BENCHMARK_DIR="${RPI_BENCHMARK_DIR:-/home/pi/benchmark}"
 RPI_REMOTE_DIR="${RPI_REMOTE_DIR:-/tmp/stcp-deploy}"
-WEB_DEPLOY_TARGET="${WEB_DEPLOY_TARGET:-www-data@fuji:~/html/public/stcp.fi/benchmarks/raspberry-pi/}"
+WEB_DEPLOY_TARGET="${WEB_DEPLOY_TARGET:-www-data@fuji:/var/www/html/public/stcp.fi/benchmarks/raspberry-pi/}"
 
 JOBS="${JOBS:-$(nproc)}"
 CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
@@ -301,6 +301,25 @@ generate_and_publish() {
     ok "Static site ready: $web_output"
 }
 
+
+validate_web_target() {
+    [[ "$WEB_DEPLOY_TARGET" == *:* ]] ||
+        die "Invalid WEB_DEPLOY_TARGET: $WEB_DEPLOY_TARGET"
+
+    local remote_host="${WEB_DEPLOY_TARGET%%:*}"
+    local remote_path="${WEB_DEPLOY_TARGET#*:}"
+
+    [[ -n "$remote_host" && -n "$remote_path" ]] ||
+        die "Invalid WEB_DEPLOY_TARGET: $WEB_DEPLOY_TARGET"
+
+    [[ "$remote_path" == /* ]] ||
+        die "WEB_DEPLOY_TARGET must use an absolute remote path: $remote_path"
+
+    #if [[ "$remote_host" == www-data@* ]]; then
+    #    die "Do not publish through www-data SSH account; use a normal deploy user"
+    #fi
+}
+
 print_configuration() {
     cat <<EOF_CONFIG
 == STCP build, benchmark and publish ==
@@ -322,6 +341,7 @@ Dry run:             $DRY_RUN
 EOF_CONFIG
 }
 
+validate_web_target
 print_configuration
 preflight
 collect_metadata

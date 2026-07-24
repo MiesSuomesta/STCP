@@ -30,3 +30,9 @@ doc/api/
 STCPv2/kernel-module/benchmark/results/*
 
 *.log
+
+/STCPv2/kernel-module/raspberry-kernel-sources/
+/STCPv2/zephyr/nordic/ncs-*/
+/STCPv2/zephyr/nordic-*/
+/**/target/
+/**/build/

@@ -104,6 +104,7 @@ def main() -> int:
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--cert")
     parser.add_argument("--key")
+    parser.add_argument("--udp-buffer-bytes", type=int, default=32 * 1024 * 1024)
     args = parser.parse_args()
 
     if args.mode == "stcp":
@@ -114,6 +115,8 @@ def main() -> int:
     elif args.mode == "udp":
         listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, args.udp_buffer_bytes)
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, args.udp_buffer_bytes)
         listener.bind((args.host, args.port))
     else:
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -134,9 +137,12 @@ def main() -> int:
 
     if args.mode == "udp":
         while True:
-            data, peer = listener.recvfrom(65535)
-            if data:
-                listener.sendto(data, peer)
+            data, peer = listener.recvfrom(65_535)
+            if not data:
+                continue
+            sent = listener.sendto(data, peer)
+            if sent != len(data):
+                raise OSError(f"partial UDP echo send: {sent}/{len(data)}")
 
     while True:
         conn = accept_connection(listener, args.mode, args.transport)

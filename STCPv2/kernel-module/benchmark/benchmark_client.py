@@ -21,7 +21,10 @@ STCP_PROTO_UDP = 254
 HEADER = struct.Struct("!I")
 UDP_MAGIC = b"SUDP"
 UDP_HEADER = struct.Struct("!4sIHHI")
-UDP_CHUNK_PAYLOAD = 60_000
+UDP_CHUNK_PAYLOAD = 1_200
+UDP_FRAGMENT_TIMEOUT = 2.0
+UDP_RETRIES = 3
+UDP_WINDOW = 64
 
 
 class SockAddrIn(ctypes.Structure):
@@ -103,47 +106,148 @@ def recv_exact(conn: socket.socket, size: int, timeout_s: float, use_poll: bool)
 
 
 
-def udp_roundtrip(conn: socket.socket, payload: bytes, message_id: int) -> bytes:
-    chunk_count = max(1, (len(payload) + UDP_CHUNK_PAYLOAD - 1) // UDP_CHUNK_PAYLOAD)
-    echoed_parts: list[bytes] = []
+def udp_roundtrip(
+    conn: socket.socket,
+    payload: bytes,
+    message_id: int,
+    *,
+    chunk_payload: int,
+    fragment_timeout_s: float,
+    retries: int,
+    window_size: int,
+) -> tuple[bytes, dict[str, int]]:
+    """Echo a logical payload over MTU-safe UDP using a sliding window.
 
+    A window of fragments is transmitted back-to-back. Echoes may arrive in
+    any order. Only missing fragments are retransmitted after a window timeout.
+    """
+    if chunk_payload <= 0 or chunk_payload > 65_507 - UDP_HEADER.size:
+        raise ValueError(f"invalid UDP chunk payload: {chunk_payload}")
+    if fragment_timeout_s <= 0:
+        raise ValueError("UDP fragment timeout must be positive")
+    if retries < 0:
+        raise ValueError("UDP retries cannot be negative")
+    if window_size <= 0:
+        raise ValueError("UDP window size must be positive")
+
+    chunk_count = max(1, (len(payload) + chunk_payload - 1) // chunk_payload)
+    if chunk_count > 0xFFFF:
+        raise ValueError(f"payload requires too many UDP fragments: {chunk_count}")
+
+    packets: list[bytes] = []
+    expected_chunks: list[bytes] = []
     for chunk_index in range(chunk_count):
-        start = chunk_index * UDP_CHUNK_PAYLOAD
-        chunk = payload[start:start + UDP_CHUNK_PAYLOAD]
-        packet = UDP_HEADER.pack(
-            UDP_MAGIC,
-            message_id & 0xFFFFFFFF,
-            chunk_index,
-            chunk_count,
-            len(payload),
-        ) + chunk
+        offset = chunk_index * chunk_payload
+        chunk = payload[offset:offset + chunk_payload]
+        expected_chunks.append(chunk)
+        packets.append(
+            UDP_HEADER.pack(
+                UDP_MAGIC,
+                message_id & 0xFFFFFFFF,
+                chunk_index,
+                chunk_count,
+                len(payload),
+            ) + chunk
+        )
 
-        sent = conn.send(packet)
-        if sent != len(packet):
-            raise OSError(f"partial UDP datagram send: {sent}/{len(packet)}")
+    echoed_parts: list[bytes | None] = [None] * chunk_count
+    stats = {
+        "udp_fragments": chunk_count,
+        "udp_datagrams_sent": 0,
+        "udp_datagrams_received": 0,
+        "udp_retransmits": 0,
+        "udp_duplicates": 0,
+        "udp_stale": 0,
+        "udp_timeouts": 0,
+    }
 
-        echoed = conn.recv(65535)
-        if len(echoed) < UDP_HEADER.size:
-            raise ValueError(f"short UDP echo: {len(echoed)} bytes")
+    for window_start in range(0, chunk_count, window_size):
+        window_end = min(chunk_count, window_start + window_size)
+        missing = set(range(window_start, window_end))
 
-        magic, echoed_id, echoed_index, echoed_count, echoed_total = UDP_HEADER.unpack_from(echoed)
-        if magic != UDP_MAGIC:
-            raise ValueError("invalid UDP echo magic")
-        if echoed_id != (message_id & 0xFFFFFFFF):
-            raise ValueError(f"UDP echo message id mismatch: {echoed_id} != {message_id & 0xFFFFFFFF}")
-        if echoed_index != chunk_index or echoed_count != chunk_count:
-            raise ValueError("UDP echo fragment metadata mismatch")
-        if echoed_total != len(payload):
-            raise ValueError("UDP echo total length mismatch")
+        for attempt in range(retries + 1):
+            for chunk_index in sorted(missing):
+                packet = packets[chunk_index]
+                sent = conn.send(packet)
+                if sent != len(packet):
+                    raise OSError(
+                        f"partial UDP datagram send: {sent}/{len(packet)}"
+                    )
+                stats["udp_datagrams_sent"] += 1
+                if attempt > 0:
+                    stats["udp_retransmits"] += 1
 
-        echoed_parts.append(echoed[UDP_HEADER.size:])
+            deadline = time.perf_counter() + fragment_timeout_s
 
-    echoed_payload = b"".join(echoed_parts)
+            while missing:
+                remaining = deadline - time.perf_counter()
+                if remaining <= 0:
+                    stats["udp_timeouts"] += 1
+                    break
+
+                conn.settimeout(remaining)
+                try:
+                    echoed = conn.recv(65_535)
+                except TimeoutError:
+                    stats["udp_timeouts"] += 1
+                    break
+
+                stats["udp_datagrams_received"] += 1
+
+                if len(echoed) < UDP_HEADER.size:
+                    stats["udp_stale"] += 1
+                    continue
+
+                magic, echoed_id, echoed_index, echoed_count, echoed_total = (
+                    UDP_HEADER.unpack_from(echoed)
+                )
+
+                if magic != UDP_MAGIC:
+                    stats["udp_stale"] += 1
+                    continue
+                if echoed_id != (message_id & 0xFFFFFFFF):
+                    stats["udp_stale"] += 1
+                    continue
+                if echoed_count != chunk_count or echoed_total != len(payload):
+                    raise ValueError("UDP echo message metadata mismatch")
+                if echoed_index < window_start or echoed_index >= window_end:
+                    stats["udp_stale"] += 1
+                    continue
+
+                echoed_chunk = echoed[UDP_HEADER.size:]
+                if echoed_chunk != expected_chunks[echoed_index]:
+                    raise ValueError(
+                        f"UDP echo fragment payload mismatch: "
+                        f"{echoed_index + 1}/{chunk_count}"
+                    )
+
+                if echoed_index not in missing:
+                    stats["udp_duplicates"] += 1
+                    continue
+
+                echoed_parts[echoed_index] = echoed_chunk
+                missing.remove(echoed_index)
+
+            if not missing:
+                break
+        else:
+            missing_text = ",".join(str(index) for index in sorted(missing)[:16])
+            raise TimeoutError(
+                f"UDP window timed out: message={message_id & 0xFFFFFFFF} "
+                f"window={window_start}-{window_end - 1} "
+                f"missing={missing_text}"
+            )
+
+    if any(part is None for part in echoed_parts):
+        raise ValueError("UDP reassembly contains missing fragments")
+
+    echoed_payload = b"".join(part for part in echoed_parts if part is not None)
     if len(echoed_payload) != len(payload):
         raise ValueError(
             f"UDP reassembly length mismatch: {len(echoed_payload)} != {len(payload)}"
         )
-    return echoed_payload
+
+    return echoed_payload, stats
 
 
 def percentile(values: list[float], fraction: float) -> float:
@@ -167,7 +271,9 @@ def open_connection(args: argparse.Namespace) -> tuple[socket.socket, float]:
         # Keep AF_STCP blocking. Python settimeout() would set O_NONBLOCK.
     elif args.mode == "udp":
         conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        conn.settimeout(args.timeout)
+        conn.settimeout(min(args.timeout, args.udp_fragment_timeout))
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 16 * 1024 * 1024)
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 16 * 1024 * 1024)
         conn.connect((args.host, args.port))
     else:
         raw = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -200,6 +306,15 @@ def main() -> int:
     parser.add_argument("--verify", action="store_true")
     parser.add_argument("--output-json")
     parser.add_argument("--max-samples", type=int, default=10000)
+    parser.add_argument("--udp-chunk-payload", type=int, default=UDP_CHUNK_PAYLOAD)
+    parser.add_argument("--udp-fragment-timeout", type=float, default=UDP_FRAGMENT_TIMEOUT)
+    parser.add_argument("--udp-retries", type=int, default=UDP_RETRIES)
+    parser.add_argument(
+        "--udp-window",
+        type=int,
+        default=UDP_WINDOW,
+        help="Raw UDP fragments sent before waiting for echoes",
+    )
     args = parser.parse_args()
 
     barrier = threading.Barrier(args.clients)
@@ -215,6 +330,13 @@ def main() -> int:
             "rx": 0,
             "rtt": [],
             "connect_ms": 0.0,
+            "udp_fragments": 0,
+            "udp_datagrams_sent": 0,
+            "udp_datagrams_received": 0,
+            "udp_retransmits": 0,
+            "udp_duplicates": 0,
+            "udp_stale": 0,
+            "udp_timeouts": 0,
         }
         payload = bytes(((worker_id + offset) & 0xFF) for offset in range(args.payload))
         frame = HEADER.pack(len(payload)) + payload
@@ -233,7 +355,20 @@ def main() -> int:
                     started = time.perf_counter()
                     use_poll = args.mode == "stcp"
                     if args.mode == "udp":
-                        echoed = udp_roundtrip(conn, payload, message_id)
+                        echoed, udp_stats = udp_roundtrip(
+                            conn,
+                            payload,
+                            message_id,
+                            chunk_payload=args.udp_chunk_payload,
+                            fragment_timeout_s=min(
+                                args.timeout,
+                                args.udp_fragment_timeout,
+                            ),
+                            retries=args.udp_retries,
+                            window_size=args.udp_window,
+                        )
+                        for key, value in udp_stats.items():
+                            result[key] = int(result[key]) + value
                         message_id = (message_id + 1) & 0xFFFFFFFF
                     else:
                         send_exact(conn, frame, args.timeout, use_poll)
@@ -291,6 +426,19 @@ def main() -> int:
     bytes_rx = sum(int(item["rx"]) for item in results)
     connect_times = [float(item["connect_ms"]) for item in results]
     rtts = [float(value) for item in results for value in item["rtt"]]  # type: ignore[index]
+    udp_metric_names = (
+        "udp_fragments",
+        "udp_datagrams_sent",
+        "udp_datagrams_received",
+        "udp_retransmits",
+        "udp_duplicates",
+        "udp_stale",
+        "udp_timeouts",
+    )
+    udp_totals = {
+        name: sum(int(item.get(name, 0)) for item in results)
+        for name in udp_metric_names
+    }
 
     output = {
         "mode": args.mode,
@@ -312,6 +460,17 @@ def main() -> int:
         "client_cpu_percent": cpu_percent,
         "max_rss_kib": usage_after.ru_maxrss,
         "error_details": [item.get("error_text") for item in results if item.get("error_text")],
+        "udp_chunk_payload_bytes": args.udp_chunk_payload if args.mode == "udp" else None,
+        "udp_window": args.udp_window if args.mode == "udp" else None,
+        "udp_retries_per_window": args.udp_retries if args.mode == "udp" else None,
+        **udp_totals,
+        "udp_retransmit_percent": (
+            udp_totals["udp_retransmits"]
+            / udp_totals["udp_datagrams_sent"]
+            * 100.0
+            if udp_totals["udp_datagrams_sent"]
+            else 0.0
+        ),
     }
 
     print(json.dumps(output, indent=2))

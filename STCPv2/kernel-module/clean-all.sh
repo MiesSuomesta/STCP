@@ -1,114 +1,47 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "== STCP Clean =="
+log() { printf '[INFO] %s\n' "$*"; }
+ok()  { printf '[ OK ] %s\n' "$*"; }
 
-# Hakemistot, joihin EI kosketa
-PRUNE=(
-    \( \
-        -path "$ROOT/kernel-module/raspberry-kernel-sources" \
-        -o -path "$ROOT/kernel-module/linux-kernel-sources" \
-        -o -path "$ROOT/kernel-module/linux-next" \
-    \) -prune -o
+# Clean only STCP-owned build trees. Never walk or modify kernel/NCS source
+# trees such as raspberry-kernel-sources, linux-next or Nordic SDK folders.
+MODULE_DIRS=(
+  "$ROOT/x86-kernel-module"
+  "$ROOT/raspberry-kernel-module"
 )
 
-#
-# Kernel-moduulin buildituotteet (mutta EI kernelin lähdepuussa)
-#
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    \( -name '*.o' \
-    -o -name '*.ko' \
-    -o -name '*.mod' \
-    -o -name '*.mod.c' \
-    -o -name '*.mod.o' \
-    -o -name '*.symvers' \
-    -o -name '*.order' \
-    -o -name '*.cmd' \
-    -o -name '*.a' \
-    -o -name '*.lst' \
-    -o -name '*.su' \
-    -o -name '*.gcno' \
-    -o -name '*.gcda' \
-    \) \
-    -delete
+log "Cleaning STCP module build outputs"
 
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    -type d \
-    \( -name '.tmp_versions' \
-    -o -name '.rust-objects' \
-    -o -name '.cache' \
-    \) \
-    -exec rm -rf {} +
+for dir in "${MODULE_DIRS[@]}"; do
+  [[ -d "$dir" ]] || continue
 
-#
-# Rust
-#
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    -type d \
-    -name target \
-    -exec rm -rf {} +
+  if [[ -f "$dir/Makefile" ]]; then
+    make -C "$dir" clean >/dev/null 2>&1 || true
+  fi
 
-#
-# CMake
-#
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    -type d \
-    -name build \
-    -exec rm -rf {} +
+  find "$dir" -depth -type f \
+    \( \
+      -name '*.o' -o \
+      -name '*.o.cmd' -o \
+      -name '.*.cmd' -o \
+      -name '*.mod' -o \
+      -name '*.mod.c' -o \
+      -name '*.ko' -o \
+      -name 'Module.symvers' -o \
+      -name 'modules.order' \
+    \) -delete
 
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    -name CMakeCache.txt \
-    -delete
+done
 
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    -type d \
-    -name CMakeFiles \
-    -exec rm -rf {} +
+for rust_dir in \
+  "$ROOT/common-rust/target" \
+  "$ROOT/x86-kernel-module/rust/target" \
+  "$ROOT/raspberry-kernel-module/rust/target"; do
+  [[ -d "$rust_dir" ]] && rm -rf -- "$rust_dir"
+done
 
-#
-# Python
-#
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    -type d \
-    -name "__pycache__" \
-    -exec rm -rf {} +
-
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    \( -name "*.pyc" \
-    -o -name "*.pyo" \
-    -o -name "*.pyd" \) \
-    -delete
-
-#
-# Benchmarkit
-#
-rm -rf "$ROOT/kernel-module/benchmark/results"
-
-#
-# perf
-#
-sudo rm -f /tmp/stcp-perf-*.csv 2>/dev/null || true
-sudo rm -f /tmp/stcp-perf-*.log 2>/dev/null || true
-
-#
-# Editorit
-#
-find "$ROOT" \
-    "${PRUNE[@]}" \
-    \( -name '*~' \
-    -o -name '*.swp' \
-    -o -name '.DS_Store' \) \
-    -delete
-
-echo
-echo "Clean complete."
+# Generated benchmark pages/results are intentionally preserved.
+ok "STCP outputs cleaned; kernel source trees and benchmark results untouched"

@@ -57,9 +57,9 @@ PERF_METRICS="${PERF_METRICS:-1}"
 REMOTE_PERF_PREFIX="${REMOTE_PERF_PREFIX:-sudo -n}"
 CONTINUE_ON_ERROR="${CONTINUE_ON_ERROR:-1}"
 VERIFY="${VERIFY:-0}"
-DURATION="${DURATION:-30}"
-CLIENTS_LIST="${CLIENTS_LIST:-1 2 4 8}"
-PAYLOADS="${PAYLOADS:-64 1024 4096 65536 262144 1048576}"
+DURATION="${DURATION:-20}"
+CLIENTS_LIST="${CLIENTS_LIST:-16 8 4 2 1}"
+PAYLOADS="${PAYLOADS:-1048576 262144 65536 4096 1024 64}"
 PIPELINES="${PIPELINES:-1 4 8}"
 SYNC_RPI="${SYNC_RPI:-1}"
 AUTO_PUBLISH_WEB="${AUTO_PUBLISH_WEB:-1}"
@@ -184,7 +184,7 @@ clean_old_results() {
             | sort -nr | tail -n +$((KEEP_RESULT_RUNS + 1)) | cut -d' ' -f2-
     )
     if ((${#old_runs[@]})); then
-        run rm -rf -- "${old_runs[@]}"
+        sudo run rm -rf -- "${old_runs[@]}"
     fi
 }
 
@@ -314,10 +314,6 @@ validate_web_target() {
 
     [[ "$remote_path" == /* ]] ||
         die "WEB_DEPLOY_TARGET must use an absolute remote path: $remote_path"
-
-    #if [[ "$remote_host" == www-data@* ]]; then
-    #    die "Do not publish through www-data SSH account; use a normal deploy user"
-    #fi
 }
 
 print_configuration() {

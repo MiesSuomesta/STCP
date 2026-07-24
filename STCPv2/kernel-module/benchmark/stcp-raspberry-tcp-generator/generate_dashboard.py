@@ -41,6 +41,8 @@ METRICS = [
     "server_perf_context_switches_per_1k_ops",
     "server_perf_ipc",
     "server_perf_cache_miss_percent",
+    "operations_per_cpu_percent",
+    "mib_per_cpu_percent",
 ]
 
 
@@ -66,6 +68,22 @@ def finite_number(value: Any) -> float | int | None:
             return None
         return value
     return None
+
+
+def protocol_label(protocol: str, page_transport: str) -> str:
+    if page_transport == "udp":
+        return {
+            "udp": "Raw UDP",
+            "stcp": "STCP/UDP",
+            "tls": "TLS/TCP reference",
+            "tcp": "TCP reference",
+        }.get(protocol, protocol.upper())
+    return {
+        "tcp": "Raw TCP",
+        "stcp": "STCP/TCP",
+        "tls": "TLS/TCP",
+        "udp": "UDP reference",
+    }.get(protocol, protocol.upper())
 
 
 def load_cases(root: Path, transport: str) -> list[dict[str, Any]]:
@@ -103,7 +121,7 @@ def load_cases(root: Path, transport: str) -> list[dict[str, Any]]:
             "filename": path.name,
             "source_path": str(path),
             "protocol": protocol,
-            "protocol_label": PROTOCOL_LABEL[protocol],
+            "protocol_label": protocol_label(protocol, transport),
             "transport": case_transport,
             "clients": int(raw.get("clients", match.group("clients"))),
             "payload_bytes": int(raw.get("payload_bytes", match.group("payload"))),
@@ -116,7 +134,22 @@ def load_cases(root: Path, transport: str) -> list[dict[str, Any]]:
         }
         for metric in METRICS:
             case[metric] = finite_number(raw.get(metric))
+
+        cpu = case.get("client_cpu_percent")
+        ops = case.get("operations_s")
+        throughput = case.get("combined_mib_s")
+        if isinstance(cpu, (int, float)) and cpu > 0:
+            case["operations_per_cpu_percent"] = (float(ops) / float(cpu)) if isinstance(ops, (int, float)) else None
+            case["mib_per_cpu_percent"] = (float(throughput) / float(cpu)) if isinstance(throughput, (int, float)) else None
+        else:
+            case["operations_per_cpu_percent"] = None
+            case["mib_per_cpu_percent"] = None
         cases.append(case)
+
+    # New UDP runs contain a true udp-c* baseline. If present, suppress the
+    # legacy TCP baseline so the UDP page cannot imply that TCP is raw UDP.
+    if transport == "udp" and any(c["protocol"] == "udp" for c in cases):
+        cases = [c for c in cases if c["protocol"] != "tcp"]
 
     cases.sort(key=lambda c: (c["payload_bytes"], c["clients"], c["pipeline"], PROTOCOL_ORDER[c["protocol"]]))
     if not cases:
@@ -151,7 +184,7 @@ def aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
                 "max": max(vals) if vals else None,
             }
         protocol_stats[protocol] = {
-            "label": PROTOCOL_LABEL[protocol],
+            "label": rows[0]["protocol_label"] if rows else protocol_label(protocol, "tcp"),
             "cases": len(rows),
             "passed": len(passed),
             "failed": len(rows) - len(passed),
@@ -224,6 +257,7 @@ def make_dashboard_data(cases: list[dict[str, Any]], summary: dict[str, Any], me
         "metadata": metadata,
         "dimensions": {
             "protocols": [p for p in ("tcp", "udp", "stcp", "tls") if any(c["protocol"] == p for c in cases)],
+            "protocol_labels": {p: next(c["protocol_label"] for c in cases if c["protocol"] == p) for p in {c["protocol"] for c in cases}},
             "clients": sorted({c["clients"] for c in cases}),
             "payload_bytes": sorted({c["payload_bytes"] for c in cases}),
             "pipelines": sorted({c["pipeline"] for c in cases}),
@@ -333,7 +367,17 @@ def main() -> int:
     shutil.copytree(assets_src, assets_dest)
 
     template = (Path(__file__).resolve().parent / "index.template.html").read_text(encoding="utf-8")
-    html = template.replace("{{PAGE_TITLE}}", args.title).replace("{{PLATFORM}}", args.platform).replace("{{TRANSPORT}}", args.transport.upper())
+    page_copy = (
+        "Raw UDP is the native datagram baseline. TLS/TCP is shown only as a secure-stream reference; STCP/UDP is the directly comparable secure UDP carrier."
+        if args.transport == "udp"
+        else "Raw TCP, TLS/TCP and STCP/TCP are compared with matching payload, client and pipeline settings."
+    )
+    comparison_title = "STCP/UDP versus Raw UDP and TLS/TCP reference" if args.transport == "udp" else "STCP/TCP versus Raw TCP and TLS/TCP"
+    html = (template.replace("{{PAGE_TITLE}}", args.title)
+            .replace("{{PLATFORM}}", args.platform)
+            .replace("{{TRANSPORT}}", args.transport.upper())
+            .replace("{{PAGE_COPY}}", page_copy)
+            .replace("{{COMPARISON_TITLE}}", comparison_title))
     (output / "index.html").write_text(html, encoding="utf-8")
     (output / "dashboard-data.json").write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (output / "assets" / "data.js").write_text("window.STCP_BENCHMARK_DATA = " + json.dumps(data, separators=(",", ":"), ensure_ascii=False) + ";\n", encoding="utf-8")

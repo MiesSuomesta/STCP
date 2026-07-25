@@ -35,12 +35,15 @@ void stcp_kernel_wake_recv(void *owner)
 		wake_up_interruptible(&ssk->recv_wq);
 }
 
-/* Numeric Rust datapath tracing is disabled in performance builds. */
+/* Events below 300 are intentionally suppressed because they are hot-path
+ * tracing. Events 300+ are low-rate pressure/failure diagnostics. */
 void stcp_kernel_debug_event(u32 event, unsigned long ctx,
                              unsigned long arg0, unsigned long arg1)
 {
-	(void)event;
-	(void)ctx;
-	(void)arg0;
-	(void)arg1;
+	if (event < 300)
+		return;
+
+	pr_info_ratelimited(
+		"stcp-debug: event=%u ctx=%px arg0=%lu arg1=%lu\n",
+		event, (void *)ctx, arg0, arg1);
 }

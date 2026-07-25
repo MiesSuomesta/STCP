@@ -1,0 +1,97 @@
+--- /tmp/stcp_v4base/common-rust/src/session.rs	2026-07-25 07:34:40.000000000 +0000
++++ common-rust/src/session.rs	2026-07-25 07:48:29.377480468 +0000
+@@ -185,8 +185,8 @@
+  * applies backpressure before a session can monopolize the carrier.
+  */
+ const STCP_SEND_WINDOW: usize = 128;
+-const STCP_ACK_EVERY_FRAMES: u8 = 8;
+-const STCP_MAX_RETRANSMIT_PER_TICK: usize = 16;
++const STCP_ACK_EVERY_FRAMES: u8 = 1;
++const STCP_MAX_RETRANSMIT_PER_TICK: usize = 1;
+ const STCP_TICK_MS: u32 = 20;
+ const STCP_INITIAL_RTO_MS: u32 = 1_000;
+ const STCP_MIN_RTO_MS: u32 = 100;
+@@ -1243,11 +1243,15 @@
+         (before, inner.pending_frames.len())
+     };
+ 
++    let released = before.saturating_sub(after);
+     if before != 0 && after == 0 {
+         crate::carrier::debug_event(307, ctx, acknowledgment as usize, before);
+-    } else if before.saturating_sub(after) >= 32 {
+-        /* Low-rate cumulative ACK progress: arg0=released, arg1=remaining. */
+-        crate::carrier::debug_event(309, ctx, before - after, after);
++    } else if released != 0 {
++        /* ACK progress: arg0=released frames, arg1=remaining frames. */
++        crate::carrier::debug_event(309, ctx, released, after);
++    } else if before == STCP_SEND_WINDOW {
++        /* Duplicate/stale ACK while the send window is full. */
++        crate::carrier::debug_event(311, ctx, acknowledgment as usize, before);
+     }
+ 
+     Ok(())
+@@ -1370,40 +1374,34 @@
+         let mut retransmitted_count = 0u64;
+         let mut timed_out = false;
+ 
++        /*
++         * Go-back-to-the-gap recovery: only the oldest unacknowledged frame
++         * is eligible for retransmission in a timer pass.  A cumulative ACK
++         * can then release the whole contiguous prefix.  Retransmitting 16
++         * frames from a full 128-frame window created a self-sustaining UDP
++         * burst under concurrency: ACKs were delayed behind retransmissions,
++         * the window stayed full, and the same burst repeated until timeout.
++         */
+         for pending in &mut inner.pending_frames {
+             pending.age_ticks = pending.age_ticks.saturating_add(1);
++        }
+ 
+-            if pending.age_ticks < pending.rto_ticks {
+-                continue;
+-            }
+-
+-            if pending.retries >= STCP_MAX_RETRIES {
+-                timed_out = true;
+-                break;
+-            }
+-
+-            /* Never retransmit the entire window in one timer callback. A
+-             * delayed cumulative ACK previously made hundreds of frames fire
+-             * together, congesting loopback UDP and delaying the ACK further. */
+-            if retransmit.len() >= STCP_MAX_RETRANSMIT_PER_TICK {
+-                continue;
++        if let Some(pending) = inner.pending_frames.front_mut() {
++            if pending.age_ticks >= pending.rto_ticks {
++                if pending.retries >= STCP_MAX_RETRIES {
++                    timed_out = true;
++                } else {
++                    pending.age_ticks = 0;
++                    pending.retries = pending.retries.saturating_add(1);
++                    pending.retransmitted = true;
++                    pending.rto_ticks = pending.rto_ticks
++                        .saturating_mul(2)
++                        .min(ms_to_ticks(STCP_MAX_RTO_MS))
++                        .max(1);
++                    retransmitted_count = 1;
++                    retransmit.push(pending.bytes.clone());
++                }
+             }
+-
+-            pending.age_ticks = 0;
+-            pending.retries = pending.retries.saturating_add(1);
+-            pending.retransmitted = true;
+-
+-            /*
+-             * Exponential backoff is per frame. Clamp at the global
+-             * maximum RTO so a dead peer eventually fails predictably.
+-             */
+-            pending.rto_ticks = pending.rto_ticks
+-                .saturating_mul(2)
+-                .min(ms_to_ticks(STCP_MAX_RTO_MS))
+-                .max(1);
+-
+-            retransmitted_count = retransmitted_count.saturating_add(1);
+-            retransmit.push(pending.bytes.clone());
+         }
+ 
+         inner.stats.retransmitted_frames = inner

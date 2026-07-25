@@ -15,6 +15,8 @@
 #include <linux/socket.h>
 #include <linux/wait.h>
 #include <linux/atomic.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -31,9 +33,11 @@ bool stcp_carrier_is_udp(const struct stcp_carrier *carrier);
 #define STCP_CARRIER_TCP_RX_BUFFER_SIZE (8 * 1024 * 1024)
 #define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
 #define STCP_TCP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
-#define STCP_UDP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
+#define STCP_UDP_SOCKET_BUFFER_SIZE (128 * 1024 * 1024)
+#define STCP_UDP_RX_QUEUE_MAX 32768
+#define STCP_UDP_RX_SESSION_BUDGET 8
 
-static bool carrier_debug = true;
+static bool carrier_debug = false;
 module_param(carrier_debug, bool, 0644);
 MODULE_PARM_DESC(carrier_debug, "Enable verbose STCP carrier diagnostics");
 
@@ -43,10 +47,26 @@ MODULE_PARM_DESC(carrier_debug, "Enable verbose STCP carrier diagnostics");
 			pr_info("stcp: carrier: " fmt, ##__VA_ARGS__); \
 	} while (0)
 
+struct stcp_udp_rx_item {
+	struct list_head node;
+	struct sockaddr_storage peer;
+	size_t len;
+	u8 data[];
+};
+
 struct stcp_carrier {
 	enum stcp_carrier_kind kind;
 	struct socket *socket;
 	struct task_struct *receiver;
+	struct task_struct *dispatcher;
+	spinlock_t rx_queue_lock;
+	struct list_head rx_control_queue;
+	struct list_head rx_data_queue;
+	wait_queue_head_t rx_queue_wait;
+	unsigned int rx_queue_len;
+	u64 rx_dispatch_connection_id;
+	unsigned int rx_dispatch_budget;
+	atomic64_t rx_queue_drops;
 	struct stcp_carrier *parent;
 	refcount_t refs;
 
@@ -65,6 +85,14 @@ struct stcp_carrier {
 	 */
 	atomic_t active_sends;
 	wait_queue_head_t send_wait;
+
+	/* Carrier diagnostics. UDP listener children share the root counters. */
+	atomic64_t tx_datagrams;
+	atomic64_t tx_bytes;
+	atomic64_t tx_errors;
+	atomic64_t rx_datagrams;
+	atomic64_t rx_bytes;
+	atomic64_t rx_dispatch_errors;
 
 	void *rust_ctx;
 	void *owner;
@@ -273,15 +301,31 @@ static ssize_t stcp_udp_send_one(
 	if (ret >= 0 && (size_t)ret != len)
 		ret = -EIO;
 
+	if (ret == (int)len) {
+		atomic64_inc(&root->tx_datagrams);
+		atomic64_add(len, &root->tx_bytes);
+	} else {
+		atomic64_inc(&root->tx_errors);
+		pr_err_ratelimited(
+			"stcp: UDP TX failed ret=%d len=%zu tx=%lld errors=%lld\n",
+			ret, len,
+			atomic64_read(&root->tx_datagrams),
+			atomic64_read(&root->tx_errors));
+	}
+
 	if (atomic_dec_and_test(&root->active_sends))
 		wake_up_all(&root->send_wait);
 
 	return ret;
 }
 
+static void stcp_udp_rx_queue_purge(struct stcp_carrier *carrier);
+static int stcp_udp_dispatch_thread(void *argument);
+
 static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 {
 	struct task_struct *receiver;
+	struct task_struct *dispatcher;
 	struct socket *socket;
 	bool wait_for_other = false;
 
@@ -302,11 +346,14 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 	if (carrier->stopping) {
 		wait_for_other = true;
 		receiver = NULL;
+		dispatcher = NULL;
 		socket = NULL;
 	} else {
 		carrier->stopping = true;
 		receiver = carrier->receiver;
 		carrier->receiver = NULL;
+		dispatcher = carrier->dispatcher;
+		carrier->dispatcher = NULL;
 		socket = carrier->socket;
 	}
 
@@ -330,6 +377,7 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 			/* This path is forbidden; leak rather than free under RX. */
 			mutex_lock(&carrier->lifecycle_lock);
 			carrier->receiver = receiver;
+			carrier->dispatcher = dispatcher;
 			carrier->stopping = false;
 			mutex_unlock(&carrier->lifecycle_lock);
 			return false;
@@ -338,7 +386,25 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 		kthread_stop(receiver);
 	}
 
+	if (dispatcher && !IS_ERR(dispatcher)) {
+		wake_up_interruptible(&carrier->rx_queue_wait);
+		kthread_stop(dispatcher);
+	}
+	stcp_udp_rx_queue_purge(carrier);
+
 	/* No receiver callback can run after kthread_stop() returns. */
+	if (carrier->kind == STCP_CARRIER_UDP)
+		pr_info("stcp: UDP carrier final stats tx=%lld tx_bytes=%lld "
+			"tx_errors=%lld rx=%lld rx_bytes=%lld dispatch_errors=%lld queue_drops=%lld drops=%d\n",
+			atomic64_read(&carrier->tx_datagrams),
+			atomic64_read(&carrier->tx_bytes),
+			atomic64_read(&carrier->tx_errors),
+			atomic64_read(&carrier->rx_datagrams),
+			atomic64_read(&carrier->rx_bytes),
+			atomic64_read(&carrier->rx_dispatch_errors),
+			atomic64_read(&carrier->rx_queue_drops),
+			carrier->socket && carrier->socket->sk ?
+			atomic_read(&carrier->socket->sk->sk_drops) : -1);
 	mutex_lock(&carrier->lifecycle_lock);
 	carrier->rust_ctx = NULL;
 	carrier->owner = NULL;
@@ -379,6 +445,196 @@ static void stcp_carrier_put_root(struct stcp_carrier *carrier)
 {
 	if (carrier && refcount_dec_and_test(&carrier->refs))
 		stcp_carrier_free_root(carrier);
+}
+
+static void stcp_udp_rx_queue_purge(struct stcp_carrier *carrier)
+{
+	struct stcp_udp_rx_item *item, *tmp;
+	LIST_HEAD(purge);
+	unsigned long flags;
+
+	spin_lock_irqsave(&carrier->rx_queue_lock, flags);
+	list_splice_init(&carrier->rx_control_queue, &purge);
+	list_splice_tail_init(&carrier->rx_data_queue, &purge);
+	carrier->rx_queue_len = 0;
+	spin_unlock_irqrestore(&carrier->rx_queue_lock, flags);
+
+	list_for_each_entry_safe(item, tmp, &purge, node) {
+		list_del(&item->node);
+		kfree_sensitive(item);
+	}
+}
+
+static int stcp_udp_rx_enqueue(
+	struct stcp_carrier *carrier,
+	const u8 *data,
+	size_t len,
+	const struct sockaddr_storage *peer
+)
+{
+	struct stcp_udp_rx_item *item;
+	unsigned long flags;
+	bool control;
+
+	item = kmalloc(struct_size(item, data, len), GFP_KERNEL | __GFP_NOWARN);
+	if (!item)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&item->node);
+	item->peer = *peer;
+	item->len = len;
+	memcpy(item->data, data, len);
+	control = !stcp_is_data_frame(data, len);
+
+	spin_lock_irqsave(&carrier->rx_queue_lock, flags);
+	if (carrier->rx_queue_len >= STCP_UDP_RX_QUEUE_MAX || carrier->stopping) {
+		spin_unlock_irqrestore(&carrier->rx_queue_lock, flags);
+		kfree_sensitive(item);
+		atomic64_inc(&carrier->rx_queue_drops);
+		return -ENOBUFS;
+	}
+
+	if (control)
+		list_add_tail(&item->node, &carrier->rx_control_queue);
+	else
+		list_add_tail(&item->node, &carrier->rx_data_queue);
+	carrier->rx_queue_len++;
+	spin_unlock_irqrestore(&carrier->rx_queue_lock, flags);
+	wake_up_interruptible(&carrier->rx_queue_wait);
+	return 0;
+}
+
+static u64 stcp_udp_rx_connection_id(const struct stcp_udp_rx_item *item)
+{
+	const u8 *data;
+	u64 value = 0;
+	int index;
+
+	if (!item || item->len < 40)
+		return 0;
+	data = item->data;
+	if (data[0] != 'S' || data[1] != 'T' ||
+	    data[2] != 'C' || data[3] != 'P')
+		return 0;
+
+	for (index = 32; index < 40; index++)
+		value = (value << 8) | data[index];
+	return value;
+}
+
+static struct stcp_udp_rx_item *stcp_udp_rx_dequeue(struct stcp_carrier *carrier)
+{
+	struct stcp_udp_rx_item *item = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&carrier->rx_queue_lock, flags);
+	if (!list_empty(&carrier->rx_control_queue)) {
+		item = list_first_entry(&carrier->rx_control_queue,
+			struct stcp_udp_rx_item, node);
+		list_del_init(&item->node);
+	} else if (!list_empty(&carrier->rx_data_queue)) {
+		struct stcp_udp_rx_item *candidate;
+		u64 selected_id;
+
+		item = list_first_entry(&carrier->rx_data_queue,
+			struct stcp_udp_rx_item, node);
+
+		/*
+		 * The UDP listener is shared by every accepted child. A single FIFO
+		 * lets one large transfer monopolise the Rust dispatcher and starve
+		 * other sessions long enough for their send windows to fill. After a
+		 * small per-session budget, prefer the oldest queued frame belonging
+		 * to another connection. FIFO order is preserved within each session.
+		 */
+		if (carrier->rx_dispatch_budget >= STCP_UDP_RX_SESSION_BUDGET) {
+			list_for_each_entry(candidate, &carrier->rx_data_queue, node) {
+				u64 candidate_id = stcp_udp_rx_connection_id(candidate);
+
+				if (candidate_id != carrier->rx_dispatch_connection_id) {
+					item = candidate;
+					break;
+				}
+			}
+		}
+
+		selected_id = stcp_udp_rx_connection_id(item);
+		if (selected_id == carrier->rx_dispatch_connection_id) {
+			carrier->rx_dispatch_budget++;
+		} else {
+			carrier->rx_dispatch_connection_id = selected_id;
+			carrier->rx_dispatch_budget = 1;
+		}
+		list_del_init(&item->node);
+	}
+	if (item)
+		carrier->rx_queue_len--;
+	spin_unlock_irqrestore(&carrier->rx_queue_lock, flags);
+	return item;
+}
+
+static bool stcp_udp_rx_queue_has_data(struct stcp_carrier *carrier)
+{
+	return READ_ONCE(carrier->rx_queue_len) != 0;
+}
+
+static int stcp_udp_dispatch_thread(void *argument)
+{
+	struct stcp_carrier *carrier = argument;
+
+	for (;;) {
+		struct stcp_udp_rx_item *item;
+		void *rust_ctx;
+		u32 peer_addr = 0;
+		u16 peer_port = 0;
+		int ret;
+
+		wait_event_interruptible(carrier->rx_queue_wait,
+			kthread_should_stop() || stcp_udp_rx_queue_has_data(carrier));
+
+		item = stcp_udp_rx_dequeue(carrier);
+		if (!item) {
+			if (kthread_should_stop())
+				break;
+			continue;
+		}
+
+		if (item->peer.ss_family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&item->peer;
+			peer_addr = (__force u32)sin->sin_addr.s_addr;
+			peer_port = (__force u16)sin->sin_port;
+		}
+
+		rust_ctx = READ_ONCE(carrier->rust_ctx);
+		if (unlikely(!rust_ctx)) {
+			atomic64_inc(&carrier->rx_dispatch_errors);
+			kfree_sensitive(item);
+			continue;
+		}
+
+		ret = stcp_rust_carrier_receive_from(
+			rust_ctx, item->data, item->len, peer_addr, peer_port);
+		stcp_kernel_wake_recv(READ_ONCE(carrier->owner));
+		if (ret) {
+			atomic64_inc(&carrier->rx_dispatch_errors);
+			pr_err_ratelimited(
+				"stcp: queued Rust carrier receive failed: %d "
+				"queue=%u queue_drops=%lld dispatch_errors=%lld\n",
+				ret, READ_ONCE(carrier->rx_queue_len),
+				atomic64_read(&carrier->rx_queue_drops),
+				atomic64_read(&carrier->rx_dispatch_errors));
+		}
+		kfree_sensitive(item);
+		cond_resched();
+	}
+
+	/* Drain packets already copied from the socket before shutdown. */
+	for (;;) {
+		struct stcp_udp_rx_item *item = stcp_udp_rx_dequeue(carrier);
+		if (!item)
+			break;
+		kfree_sensitive(item);
+	}
+	return 0;
 }
 
 static int stcp_receiver_thread(void *argument)
@@ -468,8 +724,13 @@ static int stcp_receiver_thread(void *argument)
 		}
 
 		received_len = ret;
-		pr_info_ratelimited("stcp-debug-v8: RX bytes carrier=%px kind=%d len=%zd rust_ctx=%px owner=%px\n",
-			carrier, carrier->kind, received_len, carrier->rust_ctx, carrier->owner);
+		if (carrier->kind == STCP_CARRIER_UDP) {
+			atomic64_inc(&carrier->rx_datagrams);
+			atomic64_add(received_len, &carrier->rx_bytes);
+		}
+		if (unlikely(READ_ONCE(carrier_debug)))
+			pr_info_ratelimited("stcp-debug-v8: RX bytes carrier=%px kind=%d len=%zd rust_ctx=%px owner=%px\n",
+				carrier, carrier->kind, received_len, carrier->rust_ctx, carrier->owner);
 
 		if (peer.ss_family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)&peer;
@@ -477,6 +738,18 @@ static int stcp_receiver_thread(void *argument)
 			peer_port = (__force u16)sin->sin_port;
 		}
 
+
+		if (carrier->kind == STCP_CARRIER_UDP) {
+			ret = stcp_udp_rx_enqueue(carrier, buffer, received_len, &peer);
+			if (unlikely(ret))
+				pr_err_ratelimited(
+					"stcp: UDP RX dispatch queue full ret=%d queue=%u queue_drops=%lld socket_drops=%d\n",
+					ret, READ_ONCE(carrier->rx_queue_len),
+					atomic64_read(&carrier->rx_queue_drops),
+					carrier->socket && carrier->socket->sk ?
+					atomic_read(&carrier->socket->sk->sk_drops) : -1);
+			continue;
+		}
 
 		{
 			void *rust_ctx = READ_ONCE(carrier->rust_ctx);
@@ -486,26 +759,10 @@ static int stcp_receiver_thread(void *argument)
 					carrier, carrier->owner, received_len);
 				continue;
 			}
-
-			pr_info_ratelimited("stcp-debug-v8: RX rust dispatch begin carrier=%px ctx=%px len=%zd peer=0x%08x:0x%04x\n",
-				carrier, rust_ctx, received_len, peer_addr, peer_port);
 			ret = stcp_rust_carrier_receive_from(
-				rust_ctx,
-				buffer,
-				(size_t)received_len,
-				peer_addr,
-				peer_port
-			);
+				rust_ctx, buffer, (size_t)received_len, peer_addr, peer_port);
 		}
-
-		pr_info_ratelimited("stcp-debug-v8: RX rust dispatch result carrier=%px ctx=%px ret=%d\n",
-			carrier, carrier->rust_ctx, ret);
-
-		/* Always wake the owner after carrier input. Rust normally wakes on
-		 * queue/state changes, while this unconditional wake closes races during
-		 * early handshake attachment and is harmless for established sockets. */
 		stcp_kernel_wake_recv(carrier->owner);
-
 		cond_resched();
 		if (ret)
 			pr_err_ratelimited("stcp: Rust carrier receive failed: %d\n", ret);
@@ -534,6 +791,16 @@ static int stcp_carrier_start_receiver(struct stcp_carrier *carrier)
 	if (carrier->receiver)
 		goto out_unlock;
 
+	if (carrier->kind == STCP_CARRIER_UDP && !carrier->dispatcher) {
+		carrier->dispatcher = kthread_run(
+			stcp_udp_dispatch_thread, carrier, "stcp-udp-dispatch/%p", carrier);
+		if (IS_ERR(carrier->dispatcher)) {
+			ret = PTR_ERR(carrier->dispatcher);
+			carrier->dispatcher = NULL;
+			goto out_unlock;
+		}
+	}
+
 	receiver = kthread_run(
 		stcp_receiver_thread,
 		carrier,
@@ -543,6 +810,14 @@ static int stcp_carrier_start_receiver(struct stcp_carrier *carrier)
 
 	if (IS_ERR(receiver)) {
 		ret = PTR_ERR(receiver);
+		if (carrier->dispatcher) {
+			struct task_struct *dispatcher = carrier->dispatcher;
+			carrier->dispatcher = NULL;
+			wake_up_interruptible(&carrier->rx_queue_wait);
+			mutex_unlock(&carrier->lifecycle_lock);
+			kthread_stop(dispatcher);
+			return ret;
+		}
 		goto out_unlock;
 	}
 
@@ -576,6 +851,19 @@ struct stcp_carrier *stcp_carrier_create(
 	init_completion(&carrier->stop_done);
 	atomic_set(&carrier->active_sends, 0);
 	init_waitqueue_head(&carrier->send_wait);
+	spin_lock_init(&carrier->rx_queue_lock);
+	INIT_LIST_HEAD(&carrier->rx_control_queue);
+	INIT_LIST_HEAD(&carrier->rx_data_queue);
+	init_waitqueue_head(&carrier->rx_queue_wait);
+	carrier->rx_dispatch_connection_id = 0;
+	carrier->rx_dispatch_budget = 0;
+	atomic64_set(&carrier->rx_queue_drops, 0);
+	atomic64_set(&carrier->tx_datagrams, 0);
+	atomic64_set(&carrier->tx_bytes, 0);
+	atomic64_set(&carrier->tx_errors, 0);
+	atomic64_set(&carrier->rx_datagrams, 0);
+	atomic64_set(&carrier->rx_bytes, 0);
+	atomic64_set(&carrier->rx_dispatch_errors, 0);
 	mutex_init(&carrier->test_lock);
 
 	switch (kind) {
@@ -642,6 +930,19 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	init_completion(&child->stop_done);
 	atomic_set(&child->active_sends, 0);
 	init_waitqueue_head(&child->send_wait);
+	spin_lock_init(&child->rx_queue_lock);
+	INIT_LIST_HEAD(&child->rx_control_queue);
+	INIT_LIST_HEAD(&child->rx_data_queue);
+	init_waitqueue_head(&child->rx_queue_wait);
+	child->rx_dispatch_connection_id = 0;
+	child->rx_dispatch_budget = 0;
+	atomic64_set(&child->rx_queue_drops, 0);
+	atomic64_set(&child->tx_datagrams, 0);
+	atomic64_set(&child->tx_bytes, 0);
+	atomic64_set(&child->tx_errors, 0);
+	atomic64_set(&child->rx_datagrams, 0);
+	atomic64_set(&child->rx_bytes, 0);
+	atomic64_set(&child->rx_dispatch_errors, 0);
 	mutex_init(&child->test_lock);
 	child->kind = STCP_CARRIER_UDP;
 	/* UDP children borrow the root socket through parent; never copy it. */
@@ -888,6 +1189,12 @@ int stcp_carrier_accept(
 	init_completion(&child->stop_done);
 	atomic_set(&child->active_sends, 0);
 	init_waitqueue_head(&child->send_wait);
+	atomic64_set(&child->tx_datagrams, 0);
+	atomic64_set(&child->tx_bytes, 0);
+	atomic64_set(&child->tx_errors, 0);
+	atomic64_set(&child->rx_datagrams, 0);
+	atomic64_set(&child->rx_bytes, 0);
+	atomic64_set(&child->rx_dispatch_errors, 0);
 	mutex_init(&child->test_lock);
 
 	*out_child = child;
@@ -930,12 +1237,13 @@ ssize_t stcp_carrier_send(
 	struct kvec vector;
 	size_t position = 0;
 
-	pr_info_ratelimited("stcp-debug-v8: carrier_send enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px connected=%d len=%zu flags=0x%x\n",
-		carrier, carrier ? carrier->kind : -1,
-		carrier ? carrier->socket : NULL,
-		carrier ? carrier->rust_ctx : NULL,
-		carrier ? carrier->owner : NULL,
-		carrier ? carrier->connected : 0, len, flags);
+	if (unlikely(READ_ONCE(carrier_debug)))
+		pr_info_ratelimited("stcp-debug-v8: carrier_send enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px connected=%d len=%zu flags=0x%x\n",
+			carrier, carrier ? carrier->kind : -1,
+			carrier ? carrier->socket : NULL,
+			carrier ? carrier->rust_ctx : NULL,
+			carrier ? carrier->owner : NULL,
+			carrier ? carrier->connected : 0, len, flags);
 	if (!carrier)
 		return -EINVAL;
 	if (!carrier->connected) {

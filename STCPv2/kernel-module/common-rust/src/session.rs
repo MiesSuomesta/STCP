@@ -176,17 +176,29 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
     }
 }
 
-/* UDP must permit several large application messages in flight.  The old
- * 64-frame cap was exhausted by two 1 MiB writes (about 36 datagrams), which
- * caused stop-and-wait behaviour as soon as payloads crossed one frame. */
-const STCP_SEND_WINDOW: usize = 256;
+/*
+ * Keep the reliable UDP flight window deliberately bounded.  A 1 MiB write
+ * contains roughly 749 MTU-safe frames; allowing all of them to enter the
+ * network at once from 16 sessions creates a retransmit/ACK storm and starves
+ * the single UDP listener RX worker.  The C sendmsg shim feeds at most 64
+ * frames at a time, while this 128-frame window permits useful pipelining and
+ * applies backpressure before a session can monopolize the carrier.
+ */
+const STCP_SEND_WINDOW: usize = 128;
+/* ACK every eighth contiguous frame. DataChunkEnd, duplicate and gap paths
+ * still force an immediate cumulative ACK. This avoids the per-frame ACK
+ * storm seen with 16 concurrent 1 MiB transfers while keeping the sender's
+ * 128-frame flight window moving. */
 const STCP_ACK_EVERY_FRAMES: u8 = 8;
-const STCP_MAX_RETRANSMIT_PER_TICK: usize = 4;
+
+/* Recover a gap with a small bounded burst. One frame per RTO was too slow,
+ * while the old 16-frame burst starved ACK traffic on the shared UDP socket. */
+const STCP_MAX_RETRANSMIT_PER_TICK: usize = 8;
 const STCP_TICK_MS: u32 = 20;
-const STCP_INITIAL_RTO_MS: u32 = 60;
-const STCP_MIN_RTO_MS: u32 = 20;
-const STCP_MAX_RTO_MS: u32 = 3_000;
-const STCP_MAX_RETRIES: u8 = 8;
+const STCP_INITIAL_RTO_MS: u32 = 250;
+const STCP_MIN_RTO_MS: u32 = 50;
+const STCP_MAX_RTO_MS: u32 = 1_000;
+const STCP_MAX_RETRIES: u8 = 32;
 
 fn ms_to_ticks(ms: u32) -> u32 {
     ms.saturating_add(STCP_TICK_MS - 1) / STCP_TICK_MS
@@ -714,15 +726,16 @@ pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
         return false;
     }
 
-    let frame_count = if data_len == 0 {
-        0
-    } else {
-        data_len.div_ceil(frame_payload_len(ctx))
-    };
-
     let inner = ctx.inner.lock();
-    inner.state == SocketState::Ready &&
-        inner.pending_frames.len() + frame_count <= STCP_SEND_WINDOW
+    if inner.state != SocketState::Ready {
+        return false;
+    }
+
+    /* A reliable UDP send may now accept a partial write.  Readiness therefore
+     * means that at least one payload frame fits, not that the caller's entire
+     * buffer fits in the flight window.  The C SOCK_STREAM wrapper returns the
+     * accepted byte count and userspace retries the remainder normally. */
+    !reliable || data_len == 0 || inner.pending_frames.len() < STCP_SEND_WINDOW
 }
 
 pub fn send(
@@ -748,20 +761,36 @@ pub fn send(
         return Err(StcpError::Closed);
     }
 
-    let frame_count = if data.is_empty() {
-        0
-    } else {
-        data.len().div_ceil(frame_payload_len(ctx))
-    };
-
-    if reliable {
+    let payload_limit = frame_payload_len(ctx);
+    let accepted_len = if reliable {
         let inner = ctx.inner.lock();
-        if inner.pending_frames.len() + frame_count > STCP_SEND_WINDOW {
+        let available_frames = STCP_SEND_WINDOW.saturating_sub(inner.pending_frames.len());
+        if available_frames == 0 {
+            crate::carrier::debug_event(301, ctx, inner.pending_frames.len(), 0);
             return Err(StcpError::Again);
         }
+        data.len().min(available_frames.saturating_mul(payload_limit))
+    } else {
+        data.len()
+    };
+
+    let frame_count = if accepted_len == 0 {
+        0
+    } else {
+        accepted_len.div_ceil(payload_limit)
+    };
+
+    if reliable && accepted_len < data.len() {
+        let pending = ctx.inner.lock().pending_frames.len();
+        crate::carrier::debug_event(310, ctx, accepted_len, pending);
     }
 
-    let payload_limit = frame_payload_len(ctx);
+    if reliable && accepted_len >= 256 * 1024 {
+        let pending = ctx.inner.lock().pending_frames.len();
+        crate::carrier::debug_event(304, ctx, frame_count, pending);
+    }
+
+    let data = &data[..accepted_len];
     let mut position = 0usize;
 
     while position < data.len() {
@@ -880,7 +909,12 @@ pub fn send(
         position = end;
     }
 
-    Ok(data.len())
+    if reliable && accepted_len >= 256 * 1024 {
+        let pending = ctx.inner.lock().pending_frames.len();
+        crate::carrier::debug_event(305, ctx, frame_count, pending);
+    }
+
+    Ok(accepted_len)
 }
 
 pub fn recv(
@@ -961,7 +995,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
 
 fn fill_application_buffer_once(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
-    let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
+    let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_nacks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
     crate::carrier::debug_event(120,ctx,0,0);
     const MAX_RX_BATCH_FRAMES: usize = 128;
     received_frames.try_reserve(MAX_RX_BATCH_FRAMES.min(8)).map_err(|_| StcpError::NoMem)?;
@@ -972,13 +1006,14 @@ fn fill_application_buffer_once(ctx: &StcpContext) -> Result<(), StcpError> {
       extracted += 1; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
       PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext:frame.payload}); }
       PacketType::Ack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_acks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_acks.push(header.acknowledgment); }
+      PacketType::Nack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_nacks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_nacks.push(header.sequence); }
       PacketType::Ping => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_pongs.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_pongs.push(header.sequence); }
       PacketType::Pong => { if !frame.payload.is_empty(){return protocol_error(ctx);} }
       PacketType::Reset => return protocol_error(ctx), PacketType::Close => {peer_eof=true;break;}
       PacketType::PublicKey => {if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return protocol_error(ctx);}}
       PacketType::HandshakeDone => {if !frame.payload.is_empty(){return protocol_error(ctx);} late_handshake_done=true;}
     }}
-    crate::carrier::debug_event(123,ctx,deferred_acks.len(),deferred_pongs.len()); for a in deferred_acks{update_acknowledgment(ctx,a)?;} for seq in deferred_pongs{queue_pong(ctx,seq)?;} crate::carrier::debug_event(124,ctx,received_frames.len(),0);
+    crate::carrier::debug_event(123,ctx,deferred_acks.len(),deferred_pongs.len()); for a in deferred_acks{update_acknowledgment(ctx,a)?;} for missing in deferred_nacks{retransmit_missing_sequence(ctx,missing)?;} for seq in deferred_pongs{queue_pong(ctx,seq)?;} crate::carrier::debug_event(124,ctx,received_frames.len(),0);
     let mut became_readable = false;
     for frame in received_frames {
         let expected = current_expected_sequence(ctx);
@@ -987,7 +1022,18 @@ fn fill_application_buffer_once(ctx: &StcpContext) -> Result<(), StcpError> {
                 let mut inner = ctx.inner.lock();
                 inner.stats.duplicate_frames = inner.stats.duplicate_frames.saturating_add(1);
             }
-            queue_ack(ctx, frame.header.sequence, true)?;
+
+            /*
+             * A duplicate data frame usually means that our previous ACK was
+             * lost. ACK the highest contiguous sequence we have committed,
+             * not merely the old duplicate sequence. Otherwise a sender with
+             * a large pending window can release only one old frame at a time
+             * and eventually stall even though the receiver already owns all
+             * of the data.
+             */
+            if let Some(contiguous) = expected.checked_sub(1) {
+                queue_ack(ctx, contiguous, true)?;
+            }
             continue;
         }
         if frame.header.sequence > expected {
@@ -996,6 +1042,15 @@ fn fill_application_buffer_once(ctx: &StcpContext) -> Result<(), StcpError> {
                 inner.stats.reordered_frames = inner.stats.reordered_frames.saturating_add(1);
             }
             buffer_out_of_order_frame(ctx, frame)?;
+
+            /* Explicitly identify the first missing sequence. A cumulative
+             * ACK alone only says what arrived contiguously and may cause the
+             * sender to retransmit old frames that the receiver already has.
+             */
+            queue_nack(ctx, expected)?;
+            if let Some(contiguous) = expected.checked_sub(1) {
+                queue_ack(ctx, contiguous, true)?;
+            }
             continue;
         }
         became_readable |= process_in_order_frame(ctx, frame)?;
@@ -1121,6 +1176,10 @@ fn process_in_order_frame(
             .checked_add(1)
             .ok_or(StcpError::Protocol)?;
         inner.last_rx_sequence = Some(sequence);
+        if inner.last_nack_sent.map(|missing| sequence >= missing).unwrap_or(false) {
+            inner.last_nack_sent = None;
+            inner.gap_frames_since_nack = 0;
+        }
         inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)?;
 
         if packet_type == PacketType::DataChunkEnd {
@@ -1135,6 +1194,11 @@ fn process_in_order_frame(
         packet_type == PacketType::DataChunkEnd,
     )?;
 
+    if packet_type == PacketType::DataChunkEnd {
+        let queued = ctx.inner.lock().rx_app_data.len();
+        crate::carrier::debug_event(306, ctx, sequence as usize, queued);
+    }
+
     Ok(became_readable)
 }
 
@@ -1146,42 +1210,155 @@ fn update_acknowledgment(
     ctx: &StcpContext,
     acknowledgment: u64,
 ) -> Result<(), StcpError> {
-    let mut inner = ctx.inner.lock();
+    let (before, after) = {
+        let mut inner = ctx.inner.lock();
 
-    if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
-        inner.state = SocketState::Error;
-        return Err(StcpError::Protocol);
-    }
-
-    if inner.highest_acked_sequence
-        .map(|previous| acknowledgment > previous)
-        .unwrap_or(true)
-    {
-        inner.highest_acked_sequence = Some(acknowledgment);
-    }
-
-    while inner.pending_frames
-        .front()
-        .map(|frame| frame.sequence <= acknowledgment)
-        .unwrap_or(false)
-    {
-        if let Some(frame) = inner.pending_frames.pop_front() {
-            /*
-             * Karn's algorithm: never derive an RTT sample from a frame
-             * that has been retransmitted because the ACK is ambiguous.
-             */
-            if !frame.retransmitted {
-                let sample_ms = frame.age_ticks
-                    .max(1)
-                    .saturating_mul(STCP_TICK_MS);
-                update_rtt_estimator(&mut inner, sample_ms);
-            }
-
-            inner.stats.acknowledged_frames =
-                inner.stats.acknowledged_frames.saturating_add(1);
+        if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
+            inner.state = SocketState::Error;
+            return Err(StcpError::Protocol);
         }
+
+        if inner.highest_acked_sequence
+            .map(|previous| acknowledgment > previous)
+            .unwrap_or(true)
+        {
+            inner.highest_acked_sequence = Some(acknowledgment);
+        }
+
+        let before = inner.pending_frames.len();
+
+        while inner.pending_frames
+            .front()
+            .map(|frame| frame.sequence <= acknowledgment)
+            .unwrap_or(false)
+        {
+            if let Some(frame) = inner.pending_frames.pop_front() {
+                /*
+                 * Karn's algorithm: never derive an RTT sample from a frame
+                 * that has been retransmitted because the ACK is ambiguous.
+                 */
+                if !frame.retransmitted {
+                    let sample_ms = frame.age_ticks
+                        .max(1)
+                        .saturating_mul(STCP_TICK_MS);
+                    update_rtt_estimator(&mut inner, sample_ms);
+                }
+
+                inner.stats.acknowledged_frames =
+                    inner.stats.acknowledged_frames.saturating_add(1);
+            }
+        }
+
+        (before, inner.pending_frames.len())
+    };
+
+    let released = before.saturating_sub(after);
+    if before != 0 && after == 0 {
+        crate::carrier::debug_event(307, ctx, acknowledgment as usize, before);
+    } else if released != 0 {
+        /* ACK progress: arg0=released frames, arg1=remaining frames. */
+        crate::carrier::debug_event(309, ctx, released, after);
+    } else if before == STCP_SEND_WINDOW {
+        /* Duplicate/stale ACK while the send window is full. */
+        crate::carrier::debug_event(311, ctx, acknowledgment as usize, before);
     }
 
+    Ok(())
+}
+
+fn queue_nack(
+    ctx: &StcpContext,
+    missing_sequence: u64,
+) -> Result<(), StcpError> {
+    let carrier_ptr = ctx.inner.lock().carrier;
+    if !crate::carrier::reliability_required(carrier_ptr) {
+        return Ok(());
+    }
+
+    let should_send = {
+        let mut inner = ctx.inner.lock();
+        if inner.last_nack_sent == Some(missing_sequence) {
+            inner.gap_frames_since_nack = inner.gap_frames_since_nack.saturating_add(1);
+            if inner.gap_frames_since_nack < 4 {
+                false
+            } else {
+                inner.gap_frames_since_nack = 0;
+                true
+            }
+        } else {
+            inner.last_nack_sent = Some(missing_sequence);
+            inner.gap_frames_since_nack = 0;
+            true
+        }
+    };
+
+    if !should_send {
+        return Ok(());
+    }
+
+    let (shared, side) = connection_for_data(ctx)?;
+    let frame = encode_control_frame(
+        PacketType::Nack,
+        missing_sequence,
+        0,
+        connection_id(ctx),
+        &[],
+    )?;
+    crate::carrier::debug_event(314, ctx, missing_sequence as usize, 0);
+    send_frame(ctx, &shared, side, &frame, 0)?;
+    Ok(())
+}
+
+fn retransmit_missing_sequence(
+    ctx: &StcpContext,
+    missing_sequence: u64,
+) -> Result<(), StcpError> {
+    let frame = {
+        let mut inner = ctx.inner.lock();
+        let Some(position) = inner
+            .pending_frames
+            .iter()
+            .position(|frame| frame.sequence == missing_sequence)
+        else {
+            crate::carrier::debug_event(315, ctx, missing_sequence as usize, inner.pending_frames.len());
+            return Ok(());
+        };
+
+        if inner
+            .pending_frames
+            .get(position)
+            .map(|pending| pending.retries >= STCP_MAX_RETRIES)
+            .unwrap_or(true)
+        {
+            inner.state = SocketState::Error;
+            return Err(StcpError::Closed);
+        }
+
+        let frame = {
+            let pending = inner
+                .pending_frames
+                .get_mut(position)
+                .ok_or(StcpError::InvalidState)?;
+
+            pending.age_ticks = 0;
+            pending.retries = pending.retries.saturating_add(1);
+            pending.retransmitted = true;
+            pending.rto_ticks = pending
+                .rto_ticks
+                .saturating_mul(2)
+                .min(ms_to_ticks(STCP_MAX_RTO_MS))
+                .max(1);
+            pending.bytes.clone()
+        };
+
+        inner.stats.retransmitted_frames =
+            inner.stats.retransmitted_frames.saturating_add(1);
+        frame
+    };
+
+    let (shared, side) = connection_for_data(ctx)?;
+    crate::carrier::debug_event(316, ctx, missing_sequence as usize, 1);
+    send_frame(ctx, &shared, side, &frame, 0)?;
     Ok(())
 }
 
@@ -1198,11 +1375,17 @@ fn queue_ack(
     let should_send = {
         let mut inner = ctx.inner.lock();
 
-        if inner
+        let already_sent = inner
             .last_ack_sent
             .map(|acknowledged| acknowledged >= sequence)
-            .unwrap_or(false)
-        {
+            .unwrap_or(false);
+
+        /*
+         * Forced ACKs are retransmissions of cumulative receiver state. They
+         * must not be suppressed merely because the same ACK number was sent
+         * before: the previous ACK may be exactly the packet that was lost.
+         */
+        if already_sent && !force {
             return Ok(());
         }
 
@@ -1211,7 +1394,12 @@ fn queue_ack(
 
         if force || inner.rx_frames_since_ack >= STCP_ACK_EVERY_FRAMES {
             inner.rx_frames_since_ack = 0;
-            inner.last_ack_sent = Some(sequence);
+            inner.last_ack_sent = Some(
+                inner
+                    .last_ack_sent
+                    .map(|previous| previous.max(sequence))
+                    .unwrap_or(sequence),
+            );
             true
         } else {
             false
@@ -1289,40 +1477,49 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     {
         let mut inner = ctx.inner.lock();
         let mut retransmitted_count = 0u64;
-        let mut timed_out = false;
 
+        /*
+         * Bounded go-back-to-the-gap recovery. Retransmit at most the four
+         * oldest expired frames in one timer pass. This is fast enough to
+         * repair a short loss burst, but small enough that ACK/control frames
+         * are not buried behind a 16-frame retransmit storm on the shared UDP
+         * listener.
+         */
         for pending in &mut inner.pending_frames {
             pending.age_ticks = pending.age_ticks.saturating_add(1);
+        }
 
+        for pending in inner
+            .pending_frames
+            .iter_mut()
+            .take(STCP_MAX_RETRANSMIT_PER_TICK)
+        {
             if pending.age_ticks < pending.rto_ticks {
                 continue;
             }
 
             if pending.retries >= STCP_MAX_RETRIES {
-                timed_out = true;
-                break;
-            }
-
-            /* Never retransmit the entire window in one timer callback. A
-             * delayed cumulative ACK previously made hundreds of frames fire
-             * together, congesting loopback UDP and delaying the ACK further. */
-            if retransmit.len() >= STCP_MAX_RETRANSMIT_PER_TICK {
-                continue;
+                /* Do not permanently kill a healthy SOCK_STREAM because a
+                 * cumulative ACK was lost for an extended period.  Keep the
+                 * oldest frame recoverable at the capped RTO and let the
+                 * userspace socket timeout decide when to abort. */
+                pending.retries = STCP_MAX_RETRIES.saturating_sub(1);
+                crate::carrier::debug_event(
+                    334,
+                    ctx,
+                    pending.sequence as usize,
+                    pending.rto_ticks as usize,
+                );
             }
 
             pending.age_ticks = 0;
             pending.retries = pending.retries.saturating_add(1);
             pending.retransmitted = true;
-
-            /*
-             * Exponential backoff is per frame. Clamp at the global
-             * maximum RTO so a dead peer eventually fails predictably.
-             */
-            pending.rto_ticks = pending.rto_ticks
+            pending.rto_ticks = pending
+                .rto_ticks
                 .saturating_mul(2)
                 .min(ms_to_ticks(STCP_MAX_RTO_MS))
                 .max(1);
-
             retransmitted_count = retransmitted_count.saturating_add(1);
             retransmit.push(pending.bytes.clone());
         }
@@ -1332,12 +1529,16 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
             .retransmitted_frames
             .saturating_add(retransmitted_count);
 
-        if timed_out {
-            inner.stats.timeout_failures =
-                inner.stats.timeout_failures.saturating_add(1);
-            inner.state = SocketState::Error;
-            return Err(StcpError::Closed);
+        if retransmitted_count != 0 {
+            /* arg0=retransmitted this tick, arg1=pending frames. */
+            crate::carrier::debug_event(
+                308,
+                ctx,
+                retransmitted_count as usize,
+                inner.pending_frames.len(),
+            );
         }
+
     }
 
     for frame in retransmit {

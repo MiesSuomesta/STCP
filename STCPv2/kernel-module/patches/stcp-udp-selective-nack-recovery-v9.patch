@@ -1,0 +1,207 @@
+--- /tmp/stcp_v7base/common-rust/src/frame.rs	2026-07-24 17:07:48.000000000 +0000
++++ common-rust/src/frame.rs	2026-07-25 08:49:04.281551359 +0000
+@@ -32,6 +32,7 @@
+     Pong = 7,
+     Close = 8,
+     Reset = 9,
++    Nack = 10,
+ }
+ 
+ impl PacketType {
+@@ -46,6 +47,7 @@
+             7 => Ok(Self::Pong),
+             8 => Ok(Self::Close),
+             9 => Ok(Self::Reset),
++            10 => Ok(Self::Nack),
+             _ => Err(StcpError::Protocol),
+         }
+     }
+--- /tmp/stcp_v7base/common-rust/src/state.rs	2026-07-23 08:03:15.000000000 +0000
++++ common-rust/src/state.rs	2026-07-25 08:49:04.281551359 +0000
+@@ -154,6 +154,8 @@
+     pub expected_rx_sequence: u64,
+     pub highest_acked_sequence: Option<u64>,
+     pub last_ack_sent: Option<u64>,
++    pub last_nack_sent: Option<u64>,
++    pub gap_frames_since_nack: u8,
+     pub rx_frames_since_ack: u8,
+     pub srtt_ms: Option<u32>,
+     pub rttvar_ms: u32,
+@@ -204,6 +206,8 @@
+                 expected_rx_sequence: 0,
+                 highest_acked_sequence: None,
+                 last_ack_sent: None,
++                last_nack_sent: None,
++                gap_frames_since_nack: 0,
+                 rx_frames_since_ack: 0,
+                 srtt_ms: None,
+                 rttvar_ms: 0,
+@@ -255,6 +259,8 @@
+                 expected_rx_sequence: 0,
+                 highest_acked_sequence: None,
+                 last_ack_sent: None,
++                last_nack_sent: None,
++                gap_frames_since_nack: 0,
+                 rx_frames_since_ack: 0,
+                 srtt_ms: None,
+                 rttvar_ms: 0,
+--- /tmp/stcp_v7base/common-rust/src/session.rs	2026-07-25 08:06:47.000000000 +0000
++++ common-rust/src/session.rs	2026-07-25 08:50:21.489552865 +0000
+@@ -995,7 +995,7 @@
+ 
+ fn fill_application_buffer_once(ctx: &StcpContext) -> Result<(), StcpError> {
+     let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
+-    let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
++    let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_nacks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
+     crate::carrier::debug_event(120,ctx,0,0);
+     const MAX_RX_BATCH_FRAMES: usize = 128;
+     received_frames.try_reserve(MAX_RX_BATCH_FRAMES.min(8)).map_err(|_| StcpError::NoMem)?;
+@@ -1006,13 +1006,14 @@
+       extracted += 1; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
+       PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext:frame.payload}); }
+       PacketType::Ack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_acks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_acks.push(header.acknowledgment); }
++      PacketType::Nack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_nacks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_nacks.push(header.sequence); }
+       PacketType::Ping => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_pongs.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_pongs.push(header.sequence); }
+       PacketType::Pong => { if !frame.payload.is_empty(){return protocol_error(ctx);} }
+       PacketType::Reset => return protocol_error(ctx), PacketType::Close => {peer_eof=true;break;}
+       PacketType::PublicKey => {if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return protocol_error(ctx);}}
+       PacketType::HandshakeDone => {if !frame.payload.is_empty(){return protocol_error(ctx);} late_handshake_done=true;}
+     }}
+-    crate::carrier::debug_event(123,ctx,deferred_acks.len(),deferred_pongs.len()); for a in deferred_acks{update_acknowledgment(ctx,a)?;} for seq in deferred_pongs{queue_pong(ctx,seq)?;} crate::carrier::debug_event(124,ctx,received_frames.len(),0);
++    crate::carrier::debug_event(123,ctx,deferred_acks.len(),deferred_pongs.len()); for a in deferred_acks{update_acknowledgment(ctx,a)?;} for missing in deferred_nacks{retransmit_missing_sequence(ctx,missing)?;} for seq in deferred_pongs{queue_pong(ctx,seq)?;} crate::carrier::debug_event(124,ctx,received_frames.len(),0);
+     let mut became_readable = false;
+     for frame in received_frames {
+         let expected = current_expected_sequence(ctx);
+@@ -1042,14 +1043,11 @@
+             }
+             buffer_out_of_order_frame(ctx, frame)?;
+ 
+-            /*
+-             * Report the gap immediately with a duplicate cumulative ACK.
+-             * This gives the sender a stable indication of the first missing
+-             * sequence while later frames are retained in the reorder queue.
+-             * The normal timer still provides retransmission, but the ACK is
+-             * essential for recovery when an earlier ACK or data frame was
+-             * lost during a large UDP burst.
++            /* Explicitly identify the first missing sequence. A cumulative
++             * ACK alone only says what arrived contiguously and may cause the
++             * sender to retransmit old frames that the receiver already has.
+              */
++            queue_nack(ctx, expected)?;
+             if let Some(contiguous) = expected.checked_sub(1) {
+                 queue_ack(ctx, contiguous, true)?;
+             }
+@@ -1178,6 +1176,10 @@
+             .checked_add(1)
+             .ok_or(StcpError::Protocol)?;
+         inner.last_rx_sequence = Some(sequence);
++        if inner.last_nack_sent.map(|missing| sequence >= missing).unwrap_or(false) {
++            inner.last_nack_sent = None;
++            inner.gap_frames_since_nack = 0;
++        }
+         inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)?;
+ 
+         if packet_type == PacketType::DataChunkEnd {
+@@ -1264,6 +1266,102 @@
+     Ok(())
+ }
+ 
++fn queue_nack(
++    ctx: &StcpContext,
++    missing_sequence: u64,
++) -> Result<(), StcpError> {
++    let carrier_ptr = ctx.inner.lock().carrier;
++    if !crate::carrier::reliability_required(carrier_ptr) {
++        return Ok(());
++    }
++
++    let should_send = {
++        let mut inner = ctx.inner.lock();
++        if inner.last_nack_sent == Some(missing_sequence) {
++            inner.gap_frames_since_nack = inner.gap_frames_since_nack.saturating_add(1);
++            if inner.gap_frames_since_nack < 4 {
++                false
++            } else {
++                inner.gap_frames_since_nack = 0;
++                true
++            }
++        } else {
++            inner.last_nack_sent = Some(missing_sequence);
++            inner.gap_frames_since_nack = 0;
++            true
++        }
++    };
++
++    if !should_send {
++        return Ok(());
++    }
++
++    let (shared, side) = connection_for_data(ctx)?;
++    let frame = encode_control_frame(
++        PacketType::Nack,
++        missing_sequence,
++        0,
++        connection_id(ctx),
++        &[],
++    )?;
++    crate::carrier::debug_event(314, ctx, missing_sequence as usize, 0);
++    send_frame(ctx, &shared, side, &frame, 0)?;
++    Ok(())
++}
++
++fn retransmit_missing_sequence(
++    ctx: &StcpContext,
++    missing_sequence: u64,
++) -> Result<(), StcpError> {
++    let frame = {
++        let mut inner = ctx.inner.lock();
++        let Some(position) = inner
++            .pending_frames
++            .iter()
++            .position(|frame| frame.sequence == missing_sequence)
++        else {
++            crate::carrier::debug_event(315, ctx, missing_sequence as usize, inner.pending_frames.len());
++            return Ok(());
++        };
++
++        if inner
++            .pending_frames
++            .get(position)
++            .map(|pending| pending.retries >= STCP_MAX_RETRIES)
++            .unwrap_or(true)
++        {
++            inner.state = SocketState::Error;
++            return Err(StcpError::Closed);
++        }
++
++        let frame = {
++            let pending = inner
++                .pending_frames
++                .get_mut(position)
++                .ok_or(StcpError::InvalidState)?;
++
++            pending.age_ticks = 0;
++            pending.retries = pending.retries.saturating_add(1);
++            pending.retransmitted = true;
++            pending.rto_ticks = pending
++                .rto_ticks
++                .saturating_mul(2)
++                .min(ms_to_ticks(STCP_MAX_RTO_MS))
++                .max(1);
++            pending.bytes.clone()
++        };
++
++        inner.stats.retransmitted_frames =
++            inner.stats.retransmitted_frames.saturating_add(1);
++        frame
++    };
++
++    let (shared, side) = connection_for_data(ctx)?;
++    crate::carrier::debug_event(316, ctx, missing_sequence as usize, 1);
++    send_frame(ctx, &shared, side, &frame, 0)?;
++    Ok(())
++}
++
+ fn queue_ack(
+     ctx: &StcpContext,
+     sequence: u64,

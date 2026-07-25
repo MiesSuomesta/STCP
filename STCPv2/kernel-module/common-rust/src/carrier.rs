@@ -45,13 +45,21 @@ struct UdpSessionEntry {
 }
 
 static UDP_SESSIONS: SpinLock<Vec<UdpSessionEntry>> = SpinLock::new(Vec::new());
-/* Serializes the lookup-create-publish sequence for a new UDP session. */
-static UDP_SESSION_CREATE_LOCK: SpinLock<()> = SpinLock::new(());
 
 
 #[inline(always)]
-pub(crate) fn debug_event(_event: u32, _ctx: &StcpContext, _arg0: usize, _arg1: usize) {
-    // High-frequency numeric event tracing is disabled in performance builds.
+pub(crate) fn debug_event(event: u32, ctx: &StcpContext, arg0: usize, arg1: usize) {
+    /* Reserve 300+ for low-rate failure/pressure diagnostics. */
+    if event >= 300 {
+        unsafe {
+            stcp_kernel_debug_event(
+                event,
+                ctx as *const StcpContext as usize,
+                arg0,
+                arg1,
+            );
+        }
+    }
 }
 
 pub(crate) fn wake_accept(owner: usize) {
@@ -132,6 +140,22 @@ pub(crate) fn transmit(
     Ok(())
 }
 
+#[inline]
+fn udp_control_advances_tx_window(bytes: &[u8]) -> bool {
+    if bytes.len() < STCP_HEADER_LEN {
+        return false;
+    }
+
+    matches!(
+        Header::decode(bytes).map(|header| header.packet_type),
+        Ok(PacketType::Ack) |
+        Ok(PacketType::Nack) |
+        Ok(PacketType::Pong) |
+        Ok(PacketType::Reset) |
+        Ok(PacketType::Close)
+    )
+}
+
 fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
@@ -165,7 +189,18 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
              * its timeout even though the Rust session is already connected.
              * Partial TCP frames still do not generate wakeups.
              */
-            if readable || became_connected {
+            /*
+             * recv_wq is also the blocking sendmsg() readiness wait queue.
+             * ACK/NACK processing may free pending_frames without publishing
+             * application data, so `readable` remains false.  Previously the
+             * sender then slept until STCP_SEND_READY_TIMEOUT_MS (30 seconds)
+             * even though the ACK had already opened the UDP flight window.
+             * Wake the owner for UDP control frames that can change TX state.
+             */
+            let tx_window_changed =
+                ctx.proto == 254 && udp_control_advances_tx_window(bytes);
+
+            if readable || became_connected || tx_window_changed {
                 wake_recv(owner);
             }
         }
@@ -180,31 +215,10 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     0
 }
 
-#[inline]
-fn udp_session_matches(
-    entry: &UdpSessionEntry,
-    listener: usize,
-    connection_id: u64,
-    peer_addr: u32,
-    peer_port: u16,
-) -> bool {
-    entry.listener == listener
-        && entry.connection_id == connection_id
-        && entry.peer_addr == peer_addr
-        && entry.peer_port == peer_port
-}
-
 /*
- * Dispatch while UDP_SESSIONS is locked. release() unregisters a context
- * before the Box<StcpContext> is dropped, so retaining this lock until
- * queue_to_context() has finished prevents a child pointer from becoming
- * stale between lookup and use.
- *
- * The peer tuple is part of the session key. Connection IDs are generated
- * independently by each remote host and may be reused after a reboot or
- * module reload. Looking up only by (listener, connection_id) caused a valid
- * PublicKey/Data frame from another peer with the same ID to be silently
- * discarded as a peer mismatch.
+ * Keep UDP_SESSIONS locked while dereferencing the raw child pointer and
+ * publishing received bytes. unregister_context() takes the same lock before
+ * the child Box is released, closing the RX-vs-release use-after-free race.
  */
 fn dispatch_udp_child(
     listener: usize,
@@ -214,17 +228,30 @@ fn dispatch_udp_child(
     bytes: &[u8],
 ) -> Option<c_int> {
     let sessions = UDP_SESSIONS.lock();
+
+    /*
+     * The listener and cryptographically random connection ID are the stable
+     * session identity. The peer tuple is useful diagnostics, but must not be
+     * part of the lookup key: UDP source metadata may differ in representation
+     * between listener RX and child creation paths, and a strict tuple match
+     * silently discarded otherwise valid ACK/control frames under load.
+     *
+     * Keep UDP_SESSIONS locked until queue_to_context() returns so the raw
+     * child pointer cannot be released concurrently by unregister_context().
+     */
     let entry = sessions.iter().find(|entry| {
-        udp_session_matches(
-            entry,
-            listener,
-            connection_id,
-            peer_addr,
-            peer_port,
-        )
+        entry.listener == listener &&
+        entry.connection_id == connection_id
     })?;
 
     let child = unsafe { &*(entry.child as *const StcpContext) };
+
+    if entry.peer_addr != peer_addr || entry.peer_port != peer_port {
+        /* Event 312: valid connection ID matched, but peer metadata differed.
+         * arg0 = received port, arg1 = registered port. */
+        debug_event(312, child, peer_port as usize, entry.peer_port as usize);
+    }
+
     Some(queue_to_context(child, bytes))
 }
 
@@ -371,55 +398,45 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
     }
 
     let listener_ptr = ctx as *const StcpContext as usize;
-
-    if let Some(result) = dispatch_udp_child(
+    if let Some(ret) = dispatch_udp_child(
         listener_ptr,
         header.connection_id,
         peer_addr,
         peer_port,
         bytes,
     ) {
-        return result;
+        return ret;
     }
 
     if header.packet_type != PacketType::PublicKey {
-        /* Unknown session tuple: silently discard until PublicKey opens it. */
+        /* Event 313: no child exists for this listener/connection-ID pair.
+         * Keep the wire behaviour unchanged (drop the frame), but make lost
+         * ACK/control routing visible instead of silently hiding it. */
+        debug_event(
+            313,
+            ctx,
+            header.connection_id as usize,
+            peer_port as usize,
+        );
         return 0;
     }
 
-    /*
-     * Two receiver contexts must not both observe a missing tuple and create
-     * duplicate children for the same opening PublicKey. Recheck after taking
-     * the creation lock because another receiver may have published it while
-     * this one was waiting.
-     */
-    let _create_guard = UDP_SESSION_CREATE_LOCK.lock();
-
-    if let Some(result) = dispatch_udp_child(
-        listener_ptr,
-        header.connection_id,
-        peer_addr,
-        peer_port,
-        bytes,
-    ) {
-        return result;
-    }
-
-    let child_ptr = match create_udp_child(
+    match create_udp_child(
         ctx,
         listener_ptr,
         header.connection_id,
         peer_addr,
         peer_port,
     ) {
-        Ok(child) => child,
-        Err(error) => return error.errno(),
-    };
-
-    /* create_udp_child() registers the complete tuple before publishing the
-     * child to accept_queue. Queue the opening PublicKey directly. */
-    let child = unsafe { &*(child_ptr as *const StcpContext) };
-    queue_to_context(child, bytes)
+        Ok(_) => dispatch_udp_child(
+            listener_ptr,
+            header.connection_id,
+            peer_addr,
+            peer_port,
+            bytes,
+        ).unwrap_or(-107),
+        Err(error) => error.errno(),
+    }
 }
 
 #[unsafe(no_mangle)]

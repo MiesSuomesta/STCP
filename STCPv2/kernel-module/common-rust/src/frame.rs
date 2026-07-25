@@ -8,7 +8,13 @@ pub const STCP_HEADER_LEN: usize = 40;
 pub const STCP_PUBLIC_KEY_LEN: usize = 64;
 pub const STCP_NONCE_LEN: usize = 8;
 pub const STCP_AUTH_TAG_LEN: usize = 16;
-pub const STCP_UDP_FRAME_PAYLOAD_LEN: usize = 60 * 1024;
+/*
+ * Keep one encrypted STCP/UDP frame below the normal Ethernet MTU.
+ * Wire size is payload + 40-byte STCP header + 8-byte nonce + 16-byte tag,
+ * then 28 bytes of IPv4/UDP overhead. 1400 bytes therefore becomes 1492
+ * bytes on the wire and avoids IPv4 fragmentation.
+ */
+pub const STCP_UDP_FRAME_PAYLOAD_LEN: usize = 1400;
 pub const STCP_STREAM_FRAME_PAYLOAD_LEN: usize = 2 * 1024 * 1024;
 /* Compatibility default for code paths without a context. */
 pub const STCP_FRAME_PAYLOAD_LEN: usize = STCP_UDP_FRAME_PAYLOAD_LEN;
@@ -26,6 +32,7 @@ pub enum PacketType {
     Pong = 7,
     Close = 8,
     Reset = 9,
+    Nack = 10,
 }
 
 impl PacketType {
@@ -40,6 +47,7 @@ impl PacketType {
             7 => Ok(Self::Pong),
             8 => Ok(Self::Close),
             9 => Ok(Self::Reset),
+            10 => Ok(Self::Nack),
             _ => Err(StcpError::Protocol),
         }
     }

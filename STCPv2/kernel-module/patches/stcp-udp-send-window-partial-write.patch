@@ -1,0 +1,98 @@
+--- /mnt/data/stcp_v3compat/common-rust/src/session.rs	2026-07-25 02:45:57.000000000 +0000
++++ /mnt/data/stcp_v4work/common-rust/src/session.rs	2026-07-25 07:34:40.293464298 +0000
+@@ -719,15 +719,16 @@
+         return false;
+     }
+ 
+-    let frame_count = if data_len == 0 {
+-        0
+-    } else {
+-        data_len.div_ceil(frame_payload_len(ctx))
+-    };
+-
+     let inner = ctx.inner.lock();
+-    inner.state == SocketState::Ready &&
+-        inner.pending_frames.len() + frame_count <= STCP_SEND_WINDOW
++    if inner.state != SocketState::Ready {
++        return false;
++    }
++
++    /* A reliable UDP send may now accept a partial write.  Readiness therefore
++     * means that at least one payload frame fits, not that the caller's entire
++     * buffer fits in the flight window.  The C SOCK_STREAM wrapper returns the
++     * accepted byte count and userspace retries the remainder normally. */
++    !reliable || data_len == 0 || inner.pending_frames.len() < STCP_SEND_WINDOW
+ }
+ 
+ pub fn send(
+@@ -753,35 +754,36 @@
+         return Err(StcpError::Closed);
+     }
+ 
+-    let frame_count = if data.is_empty() {
++    let payload_limit = frame_payload_len(ctx);
++    let accepted_len = if reliable {
++        let inner = ctx.inner.lock();
++        let available_frames = STCP_SEND_WINDOW.saturating_sub(inner.pending_frames.len());
++        if available_frames == 0 {
++            crate::carrier::debug_event(301, ctx, inner.pending_frames.len(), 0);
++            return Err(StcpError::Again);
++        }
++        data.len().min(available_frames.saturating_mul(payload_limit))
++    } else {
++        data.len()
++    };
++
++    let frame_count = if accepted_len == 0 {
+         0
+     } else {
+-        data.len().div_ceil(frame_payload_len(ctx))
++        accepted_len.div_ceil(payload_limit)
+     };
+ 
+-    if reliable {
+-        let inner = ctx.inner.lock();
+-        if frame_count > STCP_SEND_WINDOW {
+-            crate::carrier::debug_event(303, ctx, frame_count, STCP_SEND_WINDOW);
+-            return Err(StcpError::Kernel(-90));
+-        }
+-        if inner.pending_frames.len() + frame_count > STCP_SEND_WINDOW {
+-            crate::carrier::debug_event(
+-                301,
+-                ctx,
+-                inner.pending_frames.len(),
+-                frame_count,
+-            );
+-            return Err(StcpError::Again);
+-        }
++    if reliable && accepted_len < data.len() {
++        let pending = ctx.inner.lock().pending_frames.len();
++        crate::carrier::debug_event(310, ctx, accepted_len, pending);
+     }
+ 
+-    if reliable && data.len() >= 256 * 1024 {
++    if reliable && accepted_len >= 256 * 1024 {
+         let pending = ctx.inner.lock().pending_frames.len();
+         crate::carrier::debug_event(304, ctx, frame_count, pending);
+     }
+ 
+-    let payload_limit = frame_payload_len(ctx);
++    let data = &data[..accepted_len];
+     let mut position = 0usize;
+ 
+     while position < data.len() {
+@@ -900,12 +902,12 @@
+         position = end;
+     }
+ 
+-    if reliable && data.len() >= 256 * 1024 {
++    if reliable && accepted_len >= 256 * 1024 {
+         let pending = ctx.inner.lock().pending_frames.len();
+         crate::carrier::debug_event(305, ctx, frame_count, pending);
+     }
+ 
+-    Ok(data.len())
++    Ok(accepted_len)
+ }
+ 
+ pub fn recv(

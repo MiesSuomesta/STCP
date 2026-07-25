@@ -81,16 +81,23 @@ static void stcp_retransmit_workfn(struct work_struct *work)
 		return;
 	}
 
-	if (stcp_rust_tick(rust_ctx) > 0 &&
-	    READ_ONCE(ssk->retransmit_work_started) &&
-	    READ_ONCE(ssk->rust_ctx) == rust_ctx) {
-		mod_delayed_work(
-			system_dfl_wq,
-			&ssk->retransmit_work,
-			msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
-		);
-	} else {
-		WRITE_ONCE(ssk->retransmit_work_started, false);
+	{
+		int tick_ret = stcp_rust_tick(rust_ctx);
+
+		/* A transient parser/carrier error must not permanently stop the only
+		 * reliability timer.  Keep the worker alive while the socket/context is
+		 * still attached; Rust returns 0 only for a terminal Closed/Error state. */
+		if (tick_ret != 0 &&
+		    READ_ONCE(ssk->retransmit_work_started) &&
+		    READ_ONCE(ssk->rust_ctx) == rust_ctx) {
+			mod_delayed_work(
+				system_highpri_wq,
+				&ssk->retransmit_work,
+				msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
+			);
+		} else {
+			WRITE_ONCE(ssk->retransmit_work_started, false);
+		}
 	}
 }
 
@@ -104,7 +111,7 @@ void stcp_start_retransmit_work(struct stcp_sock *ssk)
 		return;
 
 	mod_delayed_work(
-		system_dfl_wq,
+		system_highpri_wq,
 		&ssk->retransmit_work,
 		msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
 	);

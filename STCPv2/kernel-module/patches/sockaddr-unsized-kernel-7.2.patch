@@ -1,0 +1,40 @@
+--- stcp_v3orig/x86-kernel-module/src/stcp_carrier.c	2026-07-25 03:11:50.000000000 +0000
++++ stcp_v3fix/x86-kernel-module/src/stcp_carrier.c	2026-07-25 07:07:53.781432967 +0000
+@@ -986,7 +986,7 @@
+ 		&sin->sin_addr.s_addr, ntohs(sin->sin_port), address, port);
+ 	stcp_carrier_dump_socket("before bind", carrier);
+ 
+-	ret = kernel_bind(carrier->socket, (struct sockaddr *)&socket_address,
++	ret = kernel_bind(carrier->socket, (struct sockaddr_unsized *)&socket_address,
+ 		sizeof(struct sockaddr_in));
+ 
+ 	stcp_carrier_dbg("bind result carrier=%px requested=%pI4:%u ret=%d\n",
+@@ -1049,7 +1049,7 @@
+ 	stcp_carrier_dump_socket("before connect", carrier);
+ 
+ 	ret = kernel_connect(carrier->socket,
+-		(struct sockaddr *)&socket_address, sizeof(struct sockaddr_in), flags);
++		(struct sockaddr_unsized *)&socket_address, sizeof(struct sockaddr_in), flags);
+ 
+ 	stcp_carrier_dbg("kernel_connect result carrier=%px target=%pI4:%u flags=0x%x ret=%d\n",
+ 		carrier, &sin->sin_addr.s_addr, ntohs(sin->sin_port), flags, ret);
+--- stcp_v3orig/raspberry-kernel-module/src/stcp_carrier.c	2026-07-25 03:11:50.000000000 +0000
++++ stcp_v3fix/raspberry-kernel-module/src/stcp_carrier.c	2026-07-25 07:07:53.781432967 +0000
+@@ -986,7 +986,7 @@
+ 		&sin->sin_addr.s_addr, ntohs(sin->sin_port), address, port);
+ 	stcp_carrier_dump_socket("before bind", carrier);
+ 
+-	ret = kernel_bind(carrier->socket, (struct sockaddr *)&socket_address,
++	ret = kernel_bind(carrier->socket, (struct sockaddr_unsized *)&socket_address,
+ 		sizeof(struct sockaddr_in));
+ 
+ 	stcp_carrier_dbg("bind result carrier=%px requested=%pI4:%u ret=%d\n",
+@@ -1049,7 +1049,7 @@
+ 	stcp_carrier_dump_socket("before connect", carrier);
+ 
+ 	ret = kernel_connect(carrier->socket,
+-		(struct sockaddr *)&socket_address, sizeof(struct sockaddr_in), flags);
++		(struct sockaddr_unsized *)&socket_address, sizeof(struct sockaddr_in), flags);
+ 
+ 	stcp_carrier_dbg("kernel_connect result carrier=%px target=%pI4:%u flags=0x%x ret=%d\n",
+ 		carrier, &sin->sin_addr.s_addr, ntohs(sin->sin_port), flags, ret);

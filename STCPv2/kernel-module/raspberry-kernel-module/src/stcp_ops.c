@@ -32,6 +32,30 @@ void *stcp_rust_create_stream_accepted_child_ptr(void *listener_ctx);
 int stcp_rust_create_stream_accepted_child(void *listener_ctx, void **out_ctx);
 
 #define STCP_IO_BUFFER_MAX (2 * 1024 * 1024)
+/* 64 MTU-safe STCP/UDP payload frames per sendmsg chunk. */
+#define STCP_UDP_FRAME_PAYLOAD_BYTES 1400U
+#define STCP_UDP_SENDMSG_FRAMES_MIN 1U
+#define STCP_UDP_SENDMSG_FRAMES_MAX 64U
+
+/*
+ * Keep each synchronous UDP send burst small enough that one connection does
+ * not monopolize the shared root socket.  This remains a module parameter so
+ * Raspberry Pi benchmark tuning does not require rebuilding the module.
+ */
+static unsigned int udp_sendmsg_frames = 8;
+module_param(udp_sendmsg_frames, uint, 0644);
+MODULE_PARM_DESC(udp_sendmsg_frames,
+                 "STCP/UDP data frames accepted per sendmsg burst (1..64)");
+
+static size_t stcp_udp_sendmsg_chunk_limit(void)
+{
+        unsigned int frames = clamp_t(unsigned int,
+                                      READ_ONCE(udp_sendmsg_frames),
+                                      STCP_UDP_SENDMSG_FRAMES_MIN,
+                                      STCP_UDP_SENDMSG_FRAMES_MAX);
+
+        return (size_t)frames * STCP_UDP_FRAME_PAYLOAD_BYTES;
+}
 #define STCP_CONNECT_TIMEOUT_MS 30000
 #define STCP_SEND_READY_TIMEOUT_MS 30000
 
@@ -574,8 +598,19 @@ static int stcp_sendmsg(
 	mutex_lock(&ssk->tx_lock);
 
 	while (total < len) {
-		size_t chunk = min_t(size_t, len - total, STCP_IO_BUFFER_MAX);
+		size_t chunk_limit = STCP_IO_BUFFER_MAX;
+		size_t chunk;
 		int wait_ret;
+
+		/*
+		 * Do not hand a complete multi-megabyte userspace write to the
+		 * reliable UDP engine in one burst.  Bounded chunks let cumulative
+		 * ACKs drain the Rust flight window and prevent one of many sessions
+		 * from monopolizing the shared listener RX path.
+		 */
+		if (ssk->carrier && stcp_carrier_is_udp(ssk->carrier))
+			chunk_limit = stcp_udp_sendmsg_chunk_limit();
+		chunk = min_t(size_t, len - total, chunk_limit);
 
 		ret = stcp_ensure_io_buffer(
 			&ssk->tx_buffer,

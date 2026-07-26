@@ -262,6 +262,7 @@ set -Eeuo pipefail
 
 log() { echo "[INFO] $*"; }
 die() { echo "[FAIL] $*" >&2; exit 1; }
+trap 'rc=$?; echo "[FAIL] install.sh line=$LINENO command=$BASH_COMMAND rc=$rc" >&2' ERR
 
 [[ "$(id -u)" == "0" ]] || die "Run this installer as root: sudo ./install.sh"
 
@@ -363,15 +364,23 @@ fi
     die "No overlays available: neither package nor $BOOT_DIR/overlays contained .dtbo files"
 
 log "Activating the new boot set in config.txt"
-TMP_CONFIG="$(mktemp)"
+CONFIG_DIR="$(dirname "$CONFIG_TXT")"
+TMP_BASE="$(mktemp "$CONFIG_DIR/.config.txt.stcp-base.XXXXXX")"
+TMP_NEW="$(mktemp "$CONFIG_DIR/.config.txt.stcp-new.XXXXXX")"
+cleanup_config_tmp() {
+    rm -f "$TMP_BASE" "$TMP_NEW"
+}
+trap cleanup_config_tmp RETURN
+
 awk '
     /^# BEGIN STCP KERNEL$/ { skip=1; next }
     /^# END STCP KERNEL$/   { skip=0; next }
     !skip { print }
-' "$CONFIG_TXT" > "$TMP_CONFIG"
+' "$CONFIG_TXT" > "$TMP_BASE" || die "Could not prepare config.txt without old STCP block"
 
-{
-    cat <<CFG
+cat "$TMP_BASE" > "$TMP_NEW"
+cat >> "$TMP_NEW" <<CFG
+
 # BEGIN STCP KERNEL
 [all]
 arm_64bit=1
@@ -379,11 +388,27 @@ os_prefix=${PREFIX}/
 kernel=kernel8.img
 auto_initramfs=1
 # END STCP KERNEL
-
 CFG
-    cat "$TMP_CONFIG"
-} > "$CONFIG_TXT"
-rm -f "$TMP_CONFIG"
+
+# Preserve the original owner/mode when replacing the active firmware config.
+chown --reference="$CONFIG_TXT" "$TMP_NEW"
+chmod --reference="$CONFIG_TXT" "$TMP_NEW"
+
+# mv within the same filesystem makes activation atomic.
+mv -f "$TMP_NEW" "$CONFIG_TXT" || die "Could not atomically replace $CONFIG_TXT"
+rm -f "$TMP_BASE"
+trap - RETURN
+sync
+
+# Hard verification: installation is not successful unless the active config
+# contains exactly the prefix and kernel that were just installed.
+grep -Fxq "# BEGIN STCP KERNEL" "$CONFIG_TXT" ||     die "config.txt verification failed: STCP marker missing"
+grep -Fxq "os_prefix=${PREFIX}/" "$CONFIG_TXT" ||     die "config.txt verification failed: os_prefix=${PREFIX}/ missing"
+grep -Fxq "kernel=kernel8.img" "$CONFIG_TXT" ||     die "config.txt verification failed: kernel=kernel8.img missing"
+grep -Fxq "auto_initramfs=1" "$CONFIG_TXT" ||     die "config.txt verification failed: auto_initramfs=1 missing"
+
+log "Active boot configuration updated successfully:"
+grep -A6 -B1 'BEGIN STCP KERNEL' "$CONFIG_TXT"
 
 ROLLBACK="/usr/local/sbin/rollback-stcp-kernel-${KREL}.sh"
 cat > "$ROLLBACK" <<ROLLBACK_SCRIPT
@@ -456,5 +481,21 @@ tar -C "$WORK" -czf "$PACKAGE" "$PKG_NAME"
 log "Package ready: $PACKAGE"
 log "Install on Raspberry Pi with: tar -xzf $(basename "$PACKAGE") && cd $PKG_NAME && sudo ./install.sh"
 
-scp -v "$PACKAGE" pi@192.168.1.199:~/
-ssh pi@192.168.1.199 "tar -xzf $(basename "$PACKAGE") && cd $PKG_NAME && sudo ./install.sh"
+RPI_TARGET="${RPI_TARGET:-pi@192.168.1.199}"
+REMOTE_PACKAGE="$(basename "$PACKAGE")"
+
+scp -v "$PACKAGE" "$RPI_TARGET:~/"
+ssh "$RPI_TARGET" "bash -s" <<REMOTE_INSTALL
+set -Eeuo pipefail
+cd "\$HOME"
+rm -rf "$PKG_NAME"
+tar -xzf "$REMOTE_PACKAGE"
+cd "$PKG_NAME"
+sudo bash -x ./install.sh 2>&1 | tee "\$HOME/stcp-install-${KREL}.log"
+CONFIG=/boot/firmware/config.txt
+[[ -f "\$CONFIG" ]] || CONFIG=/boot/config.txt
+grep -Fxq "os_prefix=stcp-${KREL}/" "\$CONFIG"
+grep -Fxq "kernel=kernel8.img" "\$CONFIG"
+echo "[INFO] Verified active config: \$CONFIG"
+grep -A6 -B1 'BEGIN STCP KERNEL' "\$CONFIG"
+REMOTE_INSTALL

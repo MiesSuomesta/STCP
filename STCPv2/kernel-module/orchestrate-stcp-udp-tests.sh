@@ -229,25 +229,34 @@ stop_servers() {
         cd '$RPI_BENCH_DIR' 2>/dev/null || true
 
         if [[ -x ./stop-servers.sh ]]; then
-            ./stop-servers.sh >/dev/null 2>&1 || true
+            timeout 10s ./stop-servers.sh >/dev/null 2>&1 || true
+        fi
+
+        # Kill a stuck helper from an earlier run.
+        pkill -f '^bash ./start-servers\.sh$' 2>/dev/null || true
+
+        # Kill only the recursive log cat pattern seen in the broken helper.
+        pids=\$(pgrep -f '^cat .*/logs/start-servers-.*\.log' || true)
+        if [[ -n "\$pids" ]]; then
+            kill -KILL \$pids 2>/dev/null || true
         fi
 
         pids=\$(pgrep -f '^python3 .*benchmark_server\.py' || true)
-        if [[ -n \"\$pids\" ]]; then
+        if [[ -n "\$pids" ]]; then
             kill \$pids 2>/dev/null || true
             sleep 1
         fi
 
         pids=\$(pgrep -f '^python3 .*benchmark_server\.py' || true)
-        if [[ -n \"\$pids\" ]]; then
+        if [[ -n "\$pids" ]]; then
             kill -KILL \$pids 2>/dev/null || true
             sleep 1
         fi
 
         remaining=\$(pgrep -af '^python3 .*benchmark_server\.py' || true)
-        if [[ -n \"\$remaining\" ]]; then
+        if [[ -n "\$remaining" ]]; then
             echo 'ERROR: benchmark_server.py processes are still running:' >&2
-            echo \"\$remaining\" >&2
+            echo "\$remaining" >&2
             exit 1
         fi
 
@@ -267,51 +276,82 @@ start_servers() {
         cd '$RPI_BENCH_DIR' || exit 1
         mkdir -p logs
 
-        # Start the project's normal server set first so TCP/TLS/raw UDP
-        # retain their existing certificate and command-line handling.
+        # Never allow start-servers.sh to block the orchestration forever.
+        # Its stdout goes to a dedicated file which is never included in the
+        # live server log aggregation below.
         if [[ -x ./start-servers.sh ]]; then
-            ./start-servers.sh >logs/start-servers-${run_label}.log 2>&1
+            timeout 15s ./start-servers.sh \
+                >logs/start-helper-${run_label}.log 2>&1
+            helper_rc=\$?
+
+            if [[ \$helper_rc -eq 124 ]]; then
+                echo 'ERROR: start-servers.sh timed out after 15 seconds' >&2
+                pgrep -af '[s]tart-servers.sh' >&2 || true
+                pkill -f '^bash ./start-servers\.sh$' 2>/dev/null || true
+            elif [[ \$helper_rc -ne 0 ]]; then
+                echo \"ERROR: start-servers.sh failed with status \$helper_rc\" >&2
+                tail -100 logs/start-helper-${run_label}.log >&2 || true
+            fi
         else
             echo 'ERROR: start-servers.sh is missing or not executable' >&2
             exit 1
         fi
 
-        sleep 1
-
-        # The ba2c943-era helper may start port 19002 with --transport tcp.
-        # Stop only STCP benchmark_server.py instances and restart exactly one
-        # STCP/UDP server. Do not use broad pkill patterns that can kill SSH.
+        # Remove only STCP benchmark server instances. Leave TCP/TLS/raw UDP
+        # servers alone.
         stcp_pids=\$(pgrep -f '^python3 .*benchmark_server\.py .*--mode stcp( |$)' || true)
         if [[ -n \"\$stcp_pids\" ]]; then
             kill \$stcp_pids 2>/dev/null || true
             sleep 1
         fi
 
+        stcp_pids=\$(pgrep -f '^python3 .*benchmark_server\.py .*--mode stcp( |$)' || true)
+        if [[ -n \"\$stcp_pids\" ]]; then
+            kill -KILL \$stcp_pids 2>/dev/null || true
+            sleep 1
+        fi
+
+        # Start exactly one STCP/UDP server on the requested port.
         nohup python3 ./benchmark_server.py \
             --mode stcp \
             --transport udp \
             --host 0.0.0.0 \
             --port '$PORT' \
-            >logs/stcp-udp-${run_label}.log 2>&1 &
+            >logs/stcp-udp-${run_label}.log 2>&1 </dev/null &
 
         echo \$! >logs/stcp-udp-${run_label}.pid
-        sleep 2
+
+        started=0
+        for attempt in \$(seq 1 20); do
+            if pgrep -af '^python3 .*benchmark_server\.py .*--mode stcp .*--transport udp .*--port $PORT( |$)' >/dev/null; then
+                started=1
+                break
+            fi
+            sleep 1
+        done
 
         echo '=== benchmark processes ==='
         pgrep -af '^python3 .*benchmark_server\.py' || true
 
         echo
-        echo '=== port 19002 ==='
-        ss -lunp 2>/dev/null | grep ':$PORT ' || true
+        echo '=== listening sockets ==='
+        ss -lntup 2>/dev/null | grep -E ':(19000|19001|19002|19003)\b' || true
 
-        # Hard validation: refuse to benchmark if port 19002 is not served by
-        # an explicitly UDP-configured STCP process.
+        if [[ \$started -ne 1 ]]; then
+            echo 'ERROR: STCP/UDP server did not start' >&2
+            tail -200 logs/stcp-udp-${run_label}.log >&2 || true
+            exit 1
+        fi
+
+        # Hard validation: there must be one UDP STCP process and no TCP STCP
+        # process on the benchmark port.
+        if pgrep -af '^python3 .*benchmark_server\.py .*--mode stcp .*--transport tcp .*--port $PORT( |$)' >/dev/null; then
+            echo 'ERROR: stale STCP/TCP server is still running on port $PORT' >&2
+            exit 1
+        fi
+
         if ! pgrep -af '^python3 .*benchmark_server\.py .*--mode stcp .*--transport udp .*--port $PORT( |$)' >/dev/null; then
             echo 'ERROR: STCP server on port $PORT is not using UDP transport' >&2
-            echo 'start-server output:' >&2
-            tail -200 logs/start-servers-${run_label}.log >&2 || true
-            echo 'STCP/UDP output:' >&2
-            tail -200 logs/stcp-udp-${run_label}.log >&2 || true
             exit 1
         fi
 
@@ -325,8 +365,6 @@ start_servers() {
         return "$rc"
     fi
 
-    # Preserve carrier creation/listen lines. dmesg is cleared before this
-    # function, so these lines belong to the current case.
     remote_tty "
         set +e
         sudo dmesg --color=never |
@@ -334,11 +372,6 @@ start_servers() {
             tail -80
         exit 0
     " >"$carrier_log" 2>&1 || true
-
-    if grep -q 'kind=tcp.*19002\|transport tcp' "$carrier_log" 2>/dev/null; then
-        log "ERROR: Raspberry dmesg suggests TCP carrier on STCP port"
-        return 1
-    fi
 
     return 0
 }
@@ -388,12 +421,12 @@ collect_logs() {
             logs/stcp.log \
             logs/stcp-tcp.log \
             logs/stcp-udp-${run_label}.log \
-            logs/start-servers-${run_label}.log
+            logs/start-helper-${run_label}.log
         do
-            [[ -f \"\$file\" ]] || continue
+            [[ -f "\$file" ]] || continue
             echo
-            echo \"===== \$file =====\"
-            tail -500 \"\$file\"
+            echo "===== \$file ====="
+            tail -500 "\$file"
         done
     " >"$run_dir/raspberry-server-state.log" 2>&1 || true
 

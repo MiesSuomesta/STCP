@@ -78,6 +78,7 @@ jobs:
       - name: Show environment
         run: |
           set -Eeuo pipefail
+
           echo "Runner: $(hostname)"
           echo "Kernel: $(uname -r)"
           echo "Commit: $GITHUB_SHA"
@@ -95,6 +96,7 @@ jobs:
       - name: Validate scripts
         run: |
           set -Eeuo pipefail
+
           bash -n benchmark/run-overnight-matrix.sh
           bash -n build-benchmark-publish.sh
           bash -n benchmark/run-all-full.sh
@@ -102,6 +104,7 @@ jobs:
       - name: Verify Raspberry connectivity
         run: |
           set -Eeuo pipefail
+
           ssh -o BatchMode=yes -o ConnectTimeout=10 \
             "${RPI_USER}@${RPI_ADDR}" \
             'echo "Raspberry: $(hostname)"; uname -a; lsmod | grep "^stcp "'
@@ -109,7 +112,8 @@ jobs:
       - name: Run extended overnight matrix
         id: benchmark
         run: |
-          set -o pipefail
+          set -Eeuo pipefail
+
           bash benchmark/run-overnight-matrix.sh
 
       - name: Resolve result files
@@ -159,31 +163,36 @@ jobs:
           inputs.create_golden_tag
         env:
           TAG_NAME: stcp-golden-${{ github.run_id }}-${{ github.run_attempt }}
+          RESULT_DIR: ${{ steps.results.outputs.result_dir }}
+          RESULT_ARCHIVE: ${{ steps.results.outputs.result_archive }}
         run: |
           set -Eeuo pipefail
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          result_dir="${{ steps.results.outputs.result_dir }}"
-          result_archive="${{ steps.results.outputs.result_archive }}"
+          printf -v tag_details '%s\n' \
+            "Workflow: $GITHUB_WORKFLOW" \
+            "Run: $GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT" \
+            "Commit: $GITHUB_SHA" \
+            "Clients: $CLIENTS_LIST" \
+            "Payloads: $PAYLOADS" \
+            "Pipelines: $PIPELINES" \
+            "Duration: $DURATION" \
+            "Result directory: $RESULT_DIR" \
+            "Result archive: $RESULT_ARCHIVE"
 
           git tag -a "$TAG_NAME" \
             -m "STCP extended overnight benchmark passed" \
-            -m "Workflow: $GITHUB_WORKFLOW
-Run: $GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT
-Commit: $GITHUB_SHA
-Clients: $CLIENTS_LIST
-Payloads: $PAYLOADS
-Pipelines: $PIPELINES
-Duration: $DURATION
-Result directory: $result_dir
-Result archive: $result_archive"
+            -m "$tag_details"
 
           git push origin "$TAG_NAME"
 
       - name: Job summary
         if: always()
+        env:
+          RESULT_DIR: ${{ steps.results.outputs.result_dir }}
+          RESULT_ARCHIVE: ${{ steps.results.outputs.result_archive }}
         run: |
           {
             echo "## STCP extended overnight benchmark"
@@ -193,6 +202,6 @@ Result archive: $result_archive"
             echo "- Payloads: \`$PAYLOADS\`"
             echo "- Pipelines: \`$PIPELINES\`"
             echo "- Duration: \`$DURATION s\`"
-            echo "- Result: \`${{ steps.results.outputs.result_dir }}\`"
-            echo "- Archive: \`${{ steps.results.outputs.result_archive }}\`"
+            echo "- Result: \`$RESULT_DIR\`"
+            echo "- Archive: \`$RESULT_ARCHIVE\`"
           } >>"$GITHUB_STEP_SUMMARY"

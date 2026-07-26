@@ -1,0 +1,1569 @@
+[33mcommit ba2c9436fde566f8bffa4bdc6e38f239d33602f3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Sat Jul 25 17:27:47 2026 +0300
+
+    16 clientti puhas 24:llää framella
+
+[33mcommit 2d525803ab0a064bc311397e25ad3990c3211805[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Sat Jul 25 17:10:06 2026 +0300
+
+    v10
+
+[33mcommit 802df80cbee3dc99d34139a5fb47ff0e5b38d99e[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 19:32:29 2026 +0300
+
+    benchmark: overhaul UDP benchmark suite and improve STCP/UDP stability
+    
+    Highlights
+    - Added native UDP benchmark mode (no TCP fallback)
+    - Added UDP fragmentation and reliability statistics
+    - Added UDP carrier metrics to benchmark results
+    - Improved benchmark reporting for UDP-specific data
+    - Reworked benchmark execution order (largest payloads first)
+    - Increased benchmark timeout handling (duration + 20s)
+    - Improved retry scripts for failed benchmark cases
+    - Updated benchmark automation and result generation
+    
+    Current benchmark status
+    - Raw UDP benchmark fully operational
+    - STCP/UDP stable for c1, c2 and c4 with 1 MiB payloads
+    - STCP/UDP outperforms raw UDP and TLS in multiple benchmark cases
+    - Added detailed retransmit, fragment and datagram statistics
+    
+    Known issue
+    - STCP/UDP still experiences receive timeouts under heavy c16 concurrency.
+      Investigation continues around high-concurrency session scheduling.
+    
+    This commit focuses on benchmarking infrastructure, observability and
+    UDP transport validation prior to the next round of scalability work.
+
+[33mcommit ce447a83a9303410576c55186ea81e141f66fd31[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 15:13:27 2026 +0300
+
+    UDP suppoort redone, now it measures raw UDP, not TCP vs UDP
+
+[33mcommit 78fba71cc3f1065a3a32adffe6576a153c1c2960[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 12:48:37 2026 +0300
+
+    Removed build.yml from GH root
+
+[33mcommit 7c245205733300db0d891d9a453c33cc7d7599fc[m
+Author: JamppaSuomesta <32951624+MiesSuomesta@users.noreply.github.com>
+Date:   Fri Jul 24 12:47:08 2026 +0300
+
+    Update gitHUB benchmark work
+    
+    lja => www-data change
+
+[33mcommit 549508183eaa5a0f8ab28595b50d9d1bc8cb03c6[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 12:41:33 2026 +0300
+
+    GitHUB: Benchmarks fix 1
+
+[33mcommit e89b6aa2778328264af192ae807554b74fd60420[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 12:39:57 2026 +0300
+
+    GitHUB: Benchmarks
+
+[33mcommit eb1d096a37ae11193e3f33783df2bab3a82e16e7[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 12:24:50 2026 +0300
+
+    Buildistä toimimattomat vielä pois
+
+[33mcommit 7ca23d6405ebbc656f00b1cb1ea63716418cf5e9[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 12:18:03 2026 +0300
+
+    GitHUB Workflow update ver 2
+
+[33mcommit 18973f0d02577054b1b9f93b9ea5944ef460f6e3[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 12:12:16 2026 +0300
+
+    GitHUB Workflow update
+
+[33mcommit f5a6479b1ea78d0f3cdcec56fd23a9bf60024c1d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 11:48:42 2026 +0300
+
+    GitHUB hoster runner setup moved to /opt/
+
+[33mcommit 25eae59884c855f0c1d3e4ddbc6f05ab3308213d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 11:14:20 2026 +0300
+
+    STCPv2 buildi workflow
+
+[33mcommit 6e07429de5e685d9315a0e0415cd0c7540a6eb24[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 11:00:55 2026 +0300
+
+    Updated workflow vol 4
+
+[33mcommit 5f92c61317f718b69cfd5728dfbcb5713673666b[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 10:56:30 2026 +0300
+
+    Updated workflow vol 2
+
+[33mcommit 446f06890876f3fcbd32f1d850217dbe6c762c3e[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 10:54:42 2026 +0300
+
+    Updated workflow
+
+[33mcommit 5d34f3855f25f82f19d0d0dff29d3051fa7663f7[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 10:18:39 2026 +0300
+
+    Uusi build workflow
+
+[33mcommit b9a8d5017d0a4d6c84724951ea002850e749669d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 10:06:48 2026 +0300
+
+    Wodkflow: Benchamerkit
+
+[33mcommit a950cb0583cd73ef2ce6fbdc9db24dd1fadf7e87[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 07:16:52 2026 +0300
+
+    STCP/Rasberry publish muutoksia
+
+[33mcommit be95d1073718524b2db60e0e4182bf4e28499d2e[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Fri Jul 24 07:13:04 2026 +0300
+
+    * STCP / Raspberry muutoksia
+
+[33mcommit 7c3205f65fbf3f8b4505ff50b6f604be0a44a6b2[m
+Author: JamppaSuomesta <32951624+MiesSuomesta@users.noreply.github.com>
+Date:   Thu Jul 23 17:15:44 2026 +0300
+
+    STCPv2 workflow
+    
+    STCPv2 workflow done.
+
+[33mcommit b41417172718ed06269b2b5d385e7da986460905[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 17:07:44 2026 +0300
+
+    Työkaluihin päivitys: Nyt buildais scriptat toimii ok
+
+[33mcommit d9881bb0cd751ccbbf49638fc82483409df6c3ed[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 12:19:14 2026 +0300
+
+    Clean all does not touch kernel sources
+
+[33mcommit 7e9a3e796c0b220844eb0e388449444fc74418bf[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 11:09:18 2026 +0300
+
+    Results deleted from git
+
+[33mcommit a675473b686bb9131fc30d7e67cd5cac380c9699[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 11:07:04 2026 +0300
+
+    STCP linux/rasb: Common code changes for timeout
+
+[33mcommit 33ee2c160c2862a8c893df5e4b515bf9d65846e9[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 10:57:16 2026 +0300
+
+    STCP Rasp: common koodiin pieniä parannuksia, pitäisi olla timeout ongelmat selätetty
+
+[33mcommit c58ef49fc42a0f4d79ed64a1dae584368cc3f400[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 10:32:41 2026 +0300
+
+    Cleanups vol 2
+
+[33mcommit 5ffaa3432db6e90643c99f7c5b08c4a15438b9d7[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 10:32:02 2026 +0300
+
+    Cleanups
+
+[33mcommit 2eff8d344594781e4f5d161fe9a4afb67e1a8b00[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 23 10:19:38 2026 +0300
+
+    STCP rasp: tulosten automaattinen generointi stcp.fi hin
+
+[33mcommit dcfc239bdad50bb0e09f63574f4efd9affa64d84[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 22 21:26:19 2026 +0300
+
+    STCP Testin results better now:
+
+[33mcommit cfbbea0cae42a9050b4d175fc2a1c916f84dd20d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 22 18:14:30 2026 +0300
+
+    * STCP Comparison (with Raspberry PI 4):
+    
+    Protocol        Combined        Ops/s   RTT p50         Connect         Client CPU
+    TCP             6.90 MiB/s      3534    0.251 ms        0.941 ms        28.70 %
+    STCP            4.70 MiB/s      2404    0.396 ms        2.686 ms        20.63 %
+    TLS             3.08 MiB/s      1578    0.604 ms        47.85 ms        38.87 %
+
+[33mcommit 8e70d7161a946758204c9f932476432eceed5a7b[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 22 13:33:05 2026 +0300
+
+    Rasberry rokkaa
+
+[33mcommit 54e36ee6531918844752ebb0f62614dd7a468943[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 21 13:37:02 2026 +0300
+
+    Internet APN asetettaan
+
+[33mcommit 1c24968917e770aadff11f192063ba8ed36b5113[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 21 08:18:08 2026 +0300
+
+    Summary lisätty stcp bench all komentoon
+
+[33mcommit 926ea9d679a2b2a78f3e99feec2fb5c63f7c0c01[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 18:50:35 2026 +0300
+
+    * STCPv2  optimisation + modem shell commands to benchmark
+
+[33mcommit fc0f3a285ac231fea25fefc820e1afc2068dbdeb[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 17:15:38 2026 +0300
+
+    Kernelo logit rajattu max INFo tasolle
+
+[33mcommit b85a866ff94d0c7c3b038c0e9adddf4d29e91570[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 17:14:00 2026 +0300
+
+    STCP shelli ok
+
+[33mcommit 2b9c80f77e54591fe37b1fba4e5eb8e4bc62ecdf[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 15:38:36 2026 +0300
+
+    Binäääriä pois
+
+[33mcommit bbea1bb8b49ecebd58f04335a71bd3cef1f5077d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 15:35:27 2026 +0300
+
+    LTE nousee ok, ei IP:tä vielä
+
+[33mcommit 18a6314c49b07541cdfe40838675b7cab3d22ba2[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 15:08:12 2026 +0300
+
+    STCPv2 kääntyy ja flässäytyy ok
+
+[33mcommit 7379581241d12beef7062864bbbbbd771838c531[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 14:25:04 2026 +0300
+
+    Comparison document
+
+[33mcommit 76c88e23d1c75ebb5f7e384b978833302f36825b[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 14:22:57 2026 +0300
+
+    bench: add STCP vs TCP/TLS performance benchmark
+    
+    Add a unified benchmark suite for comparing AF_STCP against plain TCP
+    and TLS 1.3 over TCP using the same echo workload.
+    
+    The benchmark supports:
+    
+        plain TCP
+    
+        TLS 1.3 over TCP
+    
+        AF_STCP with protocol 253
+    
+        configurable clients, payload size and duration
+    
+        throughput and operations-per-second reporting
+    
+        connection latency measurements
+    
+        RTT p50, p95 and p99 statistics
+    
+        client-side CPU usage reporting
+    
+        automated local comparison runs
+    
+        TLS test certificate generation
+    
+        STCP support through direct libc bind, connect and accept calls
+    
+    Fix Python compatibility with the custom AF_STCP socket family by
+    passing sockaddr_in structures directly to the kernel and explicitly
+    wrapping accepted STCP file descriptors with AF_STCP metadata.
+    
+    Also fix a benchmark start race where worker threads could observe an
+    unset deadline, causing zero-duration TLS runs.
+    
+    Benchmark results with 4 clients, 256 KiB payloads and a 30-second run:
+    
+    TCP:
+    
+        TX: 617.53 MiB/s
+    
+        RX: 617.53 MiB/s
+    
+        RTT p50: 1.317 ms
+    
+        RTT p99: 3.779 ms
+    
+        CPU: 144.1%
+    
+    TLS 1.3:
+    
+        TX: 51.81 MiB/s
+    
+        RX: 51.81 MiB/s
+    
+        RTT p50: 18.446 ms
+    
+        RTT p99: 28.754 ms
+    
+        CPU: 189.5%
+    
+    STCP:
+    
+        TX: 143.46 MiB/s
+    
+        RX: 143.46 MiB/s
+    
+        RTT p50: 6.151 ms
+    
+        RTT p99: 13.458 ms
+    
+        CPU: 95.6%
+    
+    STCP completed the test without errors and achieved approximately:
+    
+        2.77x the TLS throughput
+    
+        2.77x the TLS operation rate
+    
+        66.7% lower median RTT than TLS
+    
+        53.2% lower p99 RTT than TLS
+    
+        49.6% lower client CPU usage than TLS
+
+[33mcommit 34e81b50732d69deefc27d2ae1f1e4c05331ba03[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 09:58:30 2026 +0300
+
+    STCP moduuli importattu, nyt fiksailla kasvukipuja
+
+[33mcommit 10970f9a69719b088a587075b6eab35b33ed5523[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 08:48:13 2026 +0300
+
+    Zephyr OFFLOAD stubi toteutus
+
+[33mcommit 63a0807dea1bb03606ce68910656e39759a74b90[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 07:50:16 2026 +0300
+
+    Jees eka versio NSC envistä
+
+[33mcommit 6025cc711fa2638afa9d925b8efc9e5d9e226754[m[33m ([m[1;33mtag: [m[1;33mv2-churn-stable[m[33m)[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 07:12:39 2026 +0300
+
+    $ python3 stcp_stress.py     --mode churn     --clients 16     --payload 4096     --duration 60     --report-every 5     --no-verify
+    === STCP Python stress test ===
+    transport:        TCP
+    protocol:         253
+    mode:             churn
+    clients:          16
+    payload:          4096 bytes
+    duration:         60.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    
+    [    5.0s] TX   0.56 MiB/s  RX   0.56 MiB/s  ops    142.2/s  conn +711/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.86 p95=  16.59 p99=  23.63 ms  CPU=  38.6% RSS=   20.4 MiB  total=2.8 MiB
+    [   10.0s] TX   0.54 MiB/s  RX   0.54 MiB/s  ops    137.3/s  conn +687/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.10 p95=  17.74 p99=  24.59 ms  CPU=  37.0% RSS=   20.6 MiB  total=5.5 MiB
+    [   15.0s] TX   0.55 MiB/s  RX   0.55 MiB/s  ops    140.1/s  conn +702/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.10 p95=  18.15 p99=  27.70 ms  CPU=  37.1% RSS=   20.6 MiB  total=8.2 MiB
+    [   20.0s] TX   0.53 MiB/s  RX   0.53 MiB/s  ops    136.9/s  conn +685/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.97 p95=  20.73 p99=  31.35 ms  CPU=  36.4% RSS=   20.6 MiB  total=10.9 MiB
+    [   25.0s] TX   0.54 MiB/s  RX   0.54 MiB/s  ops    138.9/s  conn +695/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.59 p95=  16.47 p99=  25.11 ms  CPU=  36.6% RSS=   20.7 MiB  total=13.6 MiB
+    [   30.0s] TX   0.55 MiB/s  RX   0.55 MiB/s  ops    139.7/s  conn +700/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.97 p95=  18.65 p99=  28.46 ms  CPU=  37.1% RSS=   20.7 MiB  total=16.3 MiB
+    [   35.0s] TX   0.53 MiB/s  RX   0.53 MiB/s  ops    136.0/s  conn +680/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.40 p95=  18.80 p99=  28.39 ms  CPU=  37.2% RSS=   21.0 MiB  total=19.0 MiB
+    [   40.0s] TX   0.54 MiB/s  RX   0.54 MiB/s  ops    137.9/s  conn +690/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.39 p95=  14.16 p99=  21.37 ms  CPU=  35.8% RSS=   21.0 MiB  total=21.7 MiB
+    [   45.0s] TX   0.55 MiB/s  RX   0.55 MiB/s  ops    139.8/s  conn +700/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.15 p95=  18.31 p99=  26.66 ms  CPU=  36.9% RSS=   21.1 MiB  total=24.4 MiB
+    [   50.0s] TX   0.52 MiB/s  RX   0.52 MiB/s  ops    134.3/s  conn +672/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.52 p95=  17.80 p99=  24.38 ms  CPU=  36.6% RSS=   21.3 MiB  total=27.0 MiB
+    [   55.0s] TX   0.52 MiB/s  RX   0.52 MiB/s  ops    134.0/s  conn +670/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.47 p95=  17.41 p99=  28.00 ms  CPU=  36.8% RSS=   21.4 MiB  total=29.7 MiB
+    [   60.0s] TX   0.53 MiB/s  RX   0.53 MiB/s  ops    136.3/s  conn +676/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.80 p95=  19.95 p99=  30.89 ms  CPU=  35.5% RSS=   21.5 MiB  total=32.3 MiB
+    
+    === Final result ===
+    elapsed:             62.005 s
+    connections ok:      8268
+    connections failed:  0
+    sends ok/failed:     8268/0
+    recvs ok/failed:     8268/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          33865728
+    bytes received:      33865728
+    TX throughput:       0.52 MiB/s
+    RX throughput:       0.52 MiB/s
+    operations:          133.3/s
+    RTT latency:         avg=6.65 p50=5.15 p95=17.95 p99=27.33 max=51.38 ms
+    JSON result:         stcp-stress-result.json
+    
+    $ python3 stcp_stress.py   --udp  --mode churn     --clients 16     --payload 4096     --duration 60     --report-every 5     --no-verify
+    === STCP Python stress test ===
+    transport:        UDP
+    protocol:         254
+    mode:             churn
+    clients:          16
+    payload:          4096 bytes
+    duration:         60.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    
+    [    5.0s] TX   5.68 MiB/s  RX   5.68 MiB/s  ops   1453.6/s  conn +7268/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.87 p95=   2.01 p99=   2.92 ms  CPU= 140.2% RSS=   20.5 MiB  total=28.4 MiB
+    [   10.0s] TX   4.77 MiB/s  RX   4.77 MiB/s  ops   1219.9/s  conn +6100/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.47 p95=   1.37 p99=   2.21 ms  CPU= 107.8% RSS=   20.8 MiB  total=52.2 MiB
+    [   15.0s] TX   3.89 MiB/s  RX   3.89 MiB/s  ops    995.6/s  conn +4978/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.23 p95=   0.36 p99=   0.61 ms  CPU=  85.0% RSS=   21.2 MiB  total=71.7 MiB
+    [   20.0s] TX   4.20 MiB/s  RX   4.20 MiB/s  ops   1075.6/s  conn +5378/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.21 p95=   0.35 p99=   0.55 ms  CPU=  93.4% RSS=   21.6 MiB  total=92.7 MiB
+    [   25.0s] TX   4.10 MiB/s  RX   4.10 MiB/s  ops   1048.6/s  conn +5243/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.22 p95=   0.36 p99=   0.63 ms  CPU=  90.6% RSS=   21.6 MiB  total=113.2 MiB
+    [   30.0s] TX   3.87 MiB/s  RX   3.87 MiB/s  ops    990.6/s  conn +4953/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.23 p95=   0.39 p99=   0.58 ms  CPU=  85.4% RSS=   22.1 MiB  total=132.5 MiB
+    [   35.0s] TX   3.98 MiB/s  RX   3.98 MiB/s  ops   1017.8/s  conn +5089/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.22 p95=   0.37 p99=   0.57 ms  CPU=  88.2% RSS=   22.0 MiB  total=152.4 MiB
+    [   40.0s] TX   4.00 MiB/s  RX   4.00 MiB/s  ops   1024.8/s  conn +5124/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.21 p95=   0.39 p99=   1.17 ms  CPU=  89.2% RSS=   22.6 MiB  total=172.4 MiB
+    [   45.0s] TX   3.78 MiB/s  RX   3.78 MiB/s  ops    968.6/s  conn +4843/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.23 p95=   0.41 p99=   0.81 ms  CPU=  82.8% RSS=   22.4 MiB  total=191.3 MiB
+    [   50.0s] TX   3.90 MiB/s  RX   3.90 MiB/s  ops    998.1/s  conn +4991/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.23 p95=   0.38 p99=   0.62 ms  CPU=  85.0% RSS=   23.1 MiB  total=210.8 MiB
+    [   55.0s] TX   4.19 MiB/s  RX   4.19 MiB/s  ops   1073.0/s  conn +5365/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.21 p95=   0.35 p99=   0.56 ms  CPU=  93.2% RSS=   22.9 MiB  total=231.8 MiB
+    [   60.0s] TX   4.14 MiB/s  RX   4.14 MiB/s  ops   1060.3/s  conn +5300/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.22 p95=   0.34 p99=   0.55 ms  CPU=  92.2% RSS=   23.7 MiB  total=252.5 MiB
+    
+    === Final result ===
+    elapsed:             62.007 s
+    connections ok:      64634
+    connections failed:  0
+    sends ok/failed:     64634/0
+    recvs ok/failed:     64634/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          264740864
+    bytes received:      264740864
+    TX throughput:       4.07 MiB/s
+    RX throughput:       4.07 MiB/s
+    operations:          1042.4/s
+    RTT latency:         avg=0.36 p50=0.23 p95=1.08 p99=1.89 max=20.38 ms
+    JSON result:         stcp-stress-result.json
+
+[33mcommit 5474b549211aa5975a8a4c902786510eb132fe76[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 07:10:28 2026 +0300
+
+    $ python3 stcp_stress.py     --mode churn     --clients 16     --payload 4096     --duration 60     --report-every 5     --no-verify
+    === STCP Python stress test ===
+    transport:        TCP
+    protocol:         253
+    mode:             churn
+    clients:          16
+    payload:          4096 bytes
+    duration:         60.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    
+    [    5.0s] TX   0.56 MiB/s  RX   0.56 MiB/s  ops    142.2/s  conn +711/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.86 p95=  16.59 p99=  23.63 ms  CPU=  38.6% RSS=   20.4 MiB  total=2.8 MiB
+    [   10.0s] TX   0.54 MiB/s  RX   0.54 MiB/s  ops    137.3/s  conn +687/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.10 p95=  17.74 p99=  24.59 ms  CPU=  37.0% RSS=   20.6 MiB  total=5.5 MiB
+    [   15.0s] TX   0.55 MiB/s  RX   0.55 MiB/s  ops    140.1/s  conn +702/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.10 p95=  18.15 p99=  27.70 ms  CPU=  37.1% RSS=   20.6 MiB  total=8.2 MiB
+    [   20.0s] TX   0.53 MiB/s  RX   0.53 MiB/s  ops    136.9/s  conn +685/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.97 p95=  20.73 p99=  31.35 ms  CPU=  36.4% RSS=   20.6 MiB  total=10.9 MiB
+    [   25.0s] TX   0.54 MiB/s  RX   0.54 MiB/s  ops    138.9/s  conn +695/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.59 p95=  16.47 p99=  25.11 ms  CPU=  36.6% RSS=   20.7 MiB  total=13.6 MiB
+    [   30.0s] TX   0.55 MiB/s  RX   0.55 MiB/s  ops    139.7/s  conn +700/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.97 p95=  18.65 p99=  28.46 ms  CPU=  37.1% RSS=   20.7 MiB  total=16.3 MiB
+    [   35.0s] TX   0.53 MiB/s  RX   0.53 MiB/s  ops    136.0/s  conn +680/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.40 p95=  18.80 p99=  28.39 ms  CPU=  37.2% RSS=   21.0 MiB  total=19.0 MiB
+    [   40.0s] TX   0.54 MiB/s  RX   0.54 MiB/s  ops    137.9/s  conn +690/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   4.39 p95=  14.16 p99=  21.37 ms  CPU=  35.8% RSS=   21.0 MiB  total=21.7 MiB
+    [   45.0s] TX   0.55 MiB/s  RX   0.55 MiB/s  ops    139.8/s  conn +700/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.15 p95=  18.31 p99=  26.66 ms  CPU=  36.9% RSS=   21.1 MiB  total=24.4 MiB
+    [   50.0s] TX   0.52 MiB/s  RX   0.52 MiB/s  ops    134.3/s  conn +672/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.52 p95=  17.80 p99=  24.38 ms  CPU=  36.6% RSS=   21.3 MiB  total=27.0 MiB
+    [   55.0s] TX   0.52 MiB/s  RX   0.52 MiB/s  ops    134.0/s  conn +670/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.47 p95=  17.41 p99=  28.00 ms  CPU=  36.8% RSS=   21.4 MiB  total=29.7 MiB
+    [   60.0s] TX   0.53 MiB/s  RX   0.53 MiB/s  ops    136.3/s  conn +676/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   5.80 p95=  19.95 p99=  30.89 ms  CPU=  35.5% RSS=   21.5 MiB  total=32.3 MiB
+    
+    === Final result ===
+    elapsed:             62.005 s
+    connections ok:      8268
+    connections failed:  0
+    sends ok/failed:     8268/0
+    recvs ok/failed:     8268/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          33865728
+    bytes received:      33865728
+    TX throughput:       0.52 MiB/s
+    RX throughput:       0.52 MiB/s
+    operations:          133.3/s
+    RTT latency:         avg=6.65 p50=5.15 p95=17.95 p99=27.33 max=51.38 ms
+    JSON result:         stcp-stress-result.json
+
+[33mcommit 0686f033c7d8b8e1569f1efcaf346c6a88f28310[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 06:48:10 2026 +0300
+
+    Lisä optimointeja
+
+[33mcommit 5c1e676bfa2fde60f5609b7fbd32c1dd13753d09[m[33m ([m[1;33mtag: [m[1;33mv2-udp-148mbps[m[33m)[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 06:26:43 2026 +0300
+
+    Jsoneita pois
+
+[33mcommit 631937d7c111c8478b2779a76e0cefc4b53804eb[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 06:25:44 2026 +0300
+
+    * UDP: 140MiB/s
+
+[33mcommit 30afb7ba1d322b5c375af4f5d9c748391807214c[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 06:22:16 2026 +0300
+
+    $ for p in 1 2 4; do     python3 stcp_stress.py         --udp         --mode throughput         --clients 4         --payload 98304         --pipeline "$p"         --duration 30         --report-every 5         --no-verify         --json "udp-98k-p${p}.json"; done
+    === STCP Python stress test ===
+    transport:        UDP
+    protocol:         254
+    mode:             throughput
+    clients:          4
+    payload:          98304 bytes
+    duration:         30.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    pipeline depth:   1
+    
+    [    5.0s] TX 125.65 MiB/s  RX 125.57 MiB/s  ops   1339.4/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.80 p95=   4.35 p99=   5.42 ms  CPU= 160.6% RSS=   20.1 MiB  total=627.9 MiB
+    [   10.0s] TX 134.17 MiB/s  RX 134.20 MiB/s  ops   1431.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.59 p95=   4.19 p99=   5.37 ms  CPU= 174.2% RSS=   20.5 MiB  total=1299.0 MiB
+    [   15.0s] TX 145.25 MiB/s  RX 145.23 MiB/s  ops   1549.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.40 p95=   3.78 p99=   4.85 ms  CPU= 181.6% RSS=   21.0 MiB  total=2025.2 MiB
+    [   20.0s] TX 126.39 MiB/s  RX 126.39 MiB/s  ops   1348.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.78 p95=   4.35 p99=   5.39 ms  CPU= 162.2% RSS=   21.2 MiB  total=2657.2 MiB
+    [   25.0s] TX 126.35 MiB/s  RX 126.34 MiB/s  ops   1347.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.79 p95=   4.40 p99=   5.50 ms  CPU= 165.8% RSS=   21.6 MiB  total=3288.8 MiB
+    [   30.0s] TX 142.52 MiB/s  RX 142.54 MiB/s  ops   1520.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.41 p95=   4.00 p99=   5.32 ms  CPU= 179.2% RSS=   21.9 MiB  total=4001.3 MiB
+    
+    === Final result ===
+    elapsed:             30.030 s
+    connections ok:      4
+    connections failed:  0
+    sends ok/failed:     42688/0
+    recvs ok/failed:     42684/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          4196401152
+    bytes received:      4196007936
+    TX throughput:       133.27 MiB/s
+    RX throughput:       133.25 MiB/s
+    operations:          1421.4/s
+    RTT latency:         avg=2.81 p50=2.63 p95=4.21 p99=5.34 max=31.64 ms
+    JSON result:         udp-98k-p1.json
+    === STCP Python stress test ===
+    transport:        UDP
+    protocol:         254
+    mode:             throughput
+    clients:          4
+    payload:          98304 bytes
+    duration:         30.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    pipeline depth:   2
+    
+    [    5.0s] TX 129.64 MiB/s  RX 129.49 MiB/s  ops   1381.2/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.75 p95=   4.51 p99=   5.66 ms  CPU= 167.2% RSS=   19.8 MiB  total=647.6 MiB
+    [   10.0s] TX 134.69 MiB/s  RX 134.73 MiB/s  ops   1437.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.68 p95=   4.11 p99=   5.07 ms  CPU= 169.4% RSS=   20.0 MiB  total=1321.3 MiB
+    [   15.0s] TX 148.93 MiB/s  RX 148.97 MiB/s  ops   1589.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.38 p95=   3.85 p99=   4.62 ms  CPU= 187.0% RSS=   20.2 MiB  total=2066.2 MiB
+    [   20.0s] TX 149.35 MiB/s  RX 149.35 MiB/s  ops   1593.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.36 p95=   3.90 p99=   5.06 ms  CPU= 186.0% RSS=   20.5 MiB  total=2813.1 MiB
+    [   25.0s] TX 136.12 MiB/s  RX 136.08 MiB/s  ops   1451.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.63 p95=   4.08 p99=   5.00 ms  CPU= 169.3% RSS=   20.6 MiB  total=3493.7 MiB
+    [   30.0s] TX 136.65 MiB/s  RX 136.69 MiB/s  ops   1458.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.61 p95=   4.19 p99=   5.13 ms  CPU= 174.5% RSS=   20.8 MiB  total=4176.6 MiB
+    
+    === Final result ===
+    elapsed:             30.041 s
+    connections ok:      4
+    connections failed:  0
+    sends ok/failed:     44560/0
+    recvs ok/failed:     44554/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          4380426240
+    bytes received:      4379836416
+    TX throughput:       139.06 MiB/s
+    RX throughput:       139.04 MiB/s
+    operations:          1483.1/s
+    RTT latency:         avg=2.69 p50=2.57 p95=4.12 p99=5.12 max=18.23 ms
+    JSON result:         udp-98k-p2.json
+    === STCP Python stress test ===
+    transport:        UDP
+    protocol:         254
+    mode:             throughput
+    clients:          4
+    payload:          98304 bytes
+    duration:         30.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    pipeline depth:   4
+    
+    [    5.0s] TX 170.60 MiB/s  RX 170.30 MiB/s  ops   1816.5/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.12 p95=   3.12 p99=   3.74 ms  CPU= 209.8% RSS=   19.7 MiB  total=851.6 MiB
+    [   10.0s] TX 137.96 MiB/s  RX 137.96 MiB/s  ops   1471.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.64 p95=   3.93 p99=   4.66 ms  CPU= 172.4% RSS=   19.8 MiB  total=1541.6 MiB
+    [   15.0s] TX 134.65 MiB/s  RX 134.72 MiB/s  ops   1437.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.68 p95=   4.16 p99=   4.93 ms  CPU= 167.5% RSS=   19.9 MiB  total=2215.5 MiB
+    [   20.0s] TX 151.84 MiB/s  RX 151.92 MiB/s  ops   1620.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.32 p95=   3.85 p99=   4.73 ms  CPU= 189.4% RSS=   20.1 MiB  total=2975.2 MiB
+    [   25.0s] TX 157.65 MiB/s  RX 157.65 MiB/s  ops   1681.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.27 p95=   3.54 p99=   4.23 ms  CPU= 194.6% RSS=   20.2 MiB  total=3763.5 MiB
+    [   30.0s] TX 137.36 MiB/s  RX 137.36 MiB/s  ops   1465.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   2.64 p95=   3.98 p99=   4.69 ms  CPU= 170.2% RSS=   20.3 MiB  total=4450.1 MiB
+    
+    === Final result ===
+    elapsed:             30.049 s
+    connections ok:      4
+    connections failed:  0
+    sends ok/failed:     47480/0
+    recvs ok/failed:     47476/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          4667473920
+    bytes received:      4667080704
+    TX throughput:       148.13 MiB/s
+    RX throughput:       148.12 MiB/s
+    operations:          1580.0/s
+    RTT latency:         avg=2.53 p50=2.43 p95=3.82 p99=4.64 max=8.86 ms
+    JSON result:         udp-98k-p4.json
+
+[33mcommit 040da9a2192640dce99e151c5bc070a0dacc3827[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 06:17:51 2026 +0300
+
+    * Korjauksia:
+    
+        lifecycle_lock vapautetaan ennen kernel_sendmsg()-kutsua.
+    
+        Root-carrieriin lisätty aktiivisten lähetysten laskuri.
+    
+        Moduulin teardown odottaa aktiivisten UDP-sendien valmistumisen ennen socketin sulkemista.
+    
+        UDP-socketin TX/RX-bufferit nostettu 16 MiB:iin.
+    
+        Turhat ACK- ja PONG-polkujen wake_recv()-kutsut poistettu.
+    
+        Initial RTO pienennetty 100 → 60 ms.
+    
+        Minimum RTO pienennetty 40 → 20 ms.
+    
+        Aiemmat cumulative ACK-, send-window- ja retransmit-rajoitukset säilyvät.
+
+[33mcommit 6baf65c97235dd91557fe46d11e1928059a7c65c[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 05:54:06 2026 +0300
+
+    Lisä optimointeja + UDP perffi
+
+[33mcommit 27e49915486967b11c5e1268a62d990bf4ffb3d7[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 05:35:35 2026 +0300
+
+    $ python3 stcp_stress.py \
+        --udp \
+        --mode throughput \
+        --clients 4 \
+        --payload 49152 \
+        --pipeline 1 \
+        --duration 60 \
+        --report-every 5 \
+        --no-verify
+    
+    === STCP Python stress test ===
+    transport:        UDP
+    protocol:         254
+    mode:             throughput
+    clients:          4
+    payload:          49152 bytes
+    duration:         60.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    pipeline depth:   1
+    
+    [    5.0s] TX 118.96 MiB/s  RX 118.94 MiB/s  ops   2537.3/s  conn +4/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.45 p95=   2.46 p99=   3.47 ms  CPU= 168.0% RSS=   19.9 MiB  total=594.7 MiB
+    [   10.0s] TX 118.88 MiB/s  RX 118.88 MiB/s  ops   2536.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.46 p95=   2.42 p99=   3.35 ms  CPU= 168.6% RSS=   20.6 MiB  total=1189.2 MiB
+    [   15.0s] TX 122.42 MiB/s  RX 122.40 MiB/s  ops   2611.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.42 p95=   2.32 p99=   3.07 ms  CPU= 173.6% RSS=   21.2 MiB  total=1801.3 MiB
+    [   20.0s] TX 134.36 MiB/s  RX 134.37 MiB/s  ops   2866.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.31 p95=   1.99 p99=   2.48 ms  CPU= 190.0% RSS=   22.0 MiB  total=2473.2 MiB
+    [   25.0s] TX 101.37 MiB/s  RX 101.36 MiB/s  ops   2162.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.66 p95=   3.20 p99=   4.46 ms  CPU= 147.0% RSS=   22.5 MiB  total=2980.1 MiB
+    [   30.0s] TX 124.82 MiB/s  RX 124.83 MiB/s  ops   2663.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.36 p95=   2.37 p99=   3.39 ms  CPU= 178.0% RSS=   23.1 MiB  total=3604.3 MiB
+    [   35.0s] TX 107.19 MiB/s  RX 107.17 MiB/s  ops   2286.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.59 p95=   2.82 p99=   4.13 ms  CPU= 154.0% RSS=   23.6 MiB  total=4140.2 MiB
+    [   40.0s] TX 112.77 MiB/s  RX 112.78 MiB/s  ops   2406.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   1.48 p95=   2.80 p99=   3.93 ms  CPU= 162.0% RSS=   24.2 MiB  total=4704.1 MiB
+    [   45.0s] TX 107.45 MiB/s  RX 107.45 MiB/s  ops   2292.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.00 p95=   0.00 p99=   0.00 ms  CPU= 155.7% RSS=   24.5 MiB  total=5241.8 MiB
+    [   50.0s] TX 116.73 MiB/s  RX 116.73 MiB/s  ops   2490.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.00 p95=   0.00 p99=   0.00 ms  CPU= 167.8% RSS=   24.2 MiB  total=5825.4 MiB
+    [   55.0s] TX 108.26 MiB/s  RX 108.26 MiB/s  ops   2309.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.00 p95=   0.00 p99=   0.00 ms  CPU= 156.8% RSS=   25.0 MiB  total=6366.8 MiB
+    [   60.0s] TX 131.62 MiB/s  RX 131.61 MiB/s  ops   2807.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.00 p95=   0.00 p99=   0.00 ms  CPU= 185.9% RSS=   25.1 MiB  total=7023.7 MiB
+    
+    === Final result ===
+    elapsed:             60.047 s
+    connections ok:      4
+    connections failed:  0
+    sends ok/failed:     149847/0
+    recvs ok/failed:     149846/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          7365279744
+    bytes received:      7365230592
+    TX throughput:       116.98 MiB/s
+    RX throughput:       116.97 MiB/s
+    operations:          2495.5/s
+    RTT latency:         avg=1.64 p50=1.47 p95=2.73 p99=3.91 max=15.16 ms
+    JSON result:         stcp-stress-result.json
+
+[33mcommit b03a72bb5efa65eceea4107ee159d30414780678[m[33m ([m[1;33mtag: [m[1;33mv2-stable-129mbps[m[33m)[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 04:57:11 2026 +0300
+
+    perf: reach stable 129 MiB/s bidirectional throughput
+
+[33mcommit 54a2cedff13135a94a872f55193a24c273e724ce[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 04:40:33 2026 +0300
+
+    === STCP Python stress test ===
+    mode:             throughput
+    clients:          8
+    payload:          1048576 bytes
+    duration:         60.0 s
+    report interval:  5.0 s
+    verify payload:   False
+    pipeline depth:   8
+    
+    [    5.0s] TX  91.10 MiB/s  RX  87.90 MiB/s  ops     87.9/s  conn +8/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.30 p95= 102.95 p99= 117.00 ms  CPU= 183.0% RSS=   36.8 MiB  total=440.0 MiB
+    [   10.0s] TX  94.34 MiB/s  RX  91.14 MiB/s  ops     91.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.00 p95= 101.78 p99= 108.98 ms  CPU= 180.9% RSS=   36.8 MiB  total=896.0 MiB
+    [   15.0s] TX  92.66 MiB/s  RX  97.45 MiB/s  ops     97.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.79 p95= 100.97 p99= 104.18 ms  CPU= 184.9% RSS=   36.8 MiB  total=1384.0 MiB
+    [   20.0s] TX  91.12 MiB/s  RX  89.52 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.80 p95= 105.25 p99= 111.84 ms  CPU= 182.0% RSS=   36.8 MiB  total=1832.0 MiB
+    [   25.0s] TX  95.82 MiB/s  RX  92.62 MiB/s  ops     92.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.10 p95= 109.54 p99= 125.24 ms  CPU= 185.6% RSS=   36.8 MiB  total=2296.0 MiB
+    [   30.0s] TX  92.73 MiB/s  RX  91.13 MiB/s  ops     91.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  89.13 p95= 102.52 p99= 115.80 ms  CPU= 180.9% RSS=   36.8 MiB  total=2752.0 MiB
+    [   35.0s] TX  89.46 MiB/s  RX  94.26 MiB/s  ops     94.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.84 p95= 101.48 p99= 110.82 ms  CPU= 185.9% RSS=   36.8 MiB  total=3224.0 MiB
+    [   40.0s] TX  95.94 MiB/s  RX  92.74 MiB/s  ops     92.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.91 p95= 104.25 p99= 114.97 ms  CPU= 183.3% RSS=   36.8 MiB  total=3688.0 MiB
+    [   45.1s] TX  91.05 MiB/s  RX  92.65 MiB/s  ops     92.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.79 p95= 101.50 p99= 129.24 ms  CPU= 182.5% RSS=   36.8 MiB  total=4152.0 MiB
+    [   50.1s] TX  92.49 MiB/s  RX  95.68 MiB/s  ops     95.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.76 p95= 102.84 p99= 135.40 ms  CPU= 185.8% RSS=   36.8 MiB  total=4632.0 MiB
+    [   55.1s] TX  97.17 MiB/s  RX  93.98 MiB/s  ops     94.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  84.38 p95= 110.58 p99= 118.34 ms  CPU= 184.8% RSS=   36.8 MiB  total=5104.0 MiB
+    [   60.0s] TX  94.39 MiB/s  RX  94.39 MiB/s  ops     94.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.69 p95=  97.85 p99= 113.17 ms  CPU= 186.1% RSS=   36.8 MiB  total=5568.0 MiB
+    
+    === Final result ===
+    elapsed:             60.181 s
+    connections ok:      8
+    connections failed:  0
+    sends ok/failed:     5592/0
+    recvs ok/failed:     5568/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          5863636992
+    bytes received:      5838471168
+    TX throughput:       92.92 MiB/s
+    RX throughput:       92.52 MiB/s
+    operations:          92.5/s
+    RTT latency:         avg=85.82 p50=85.96 p95=102.00 p99=115.80 max=135.40 ms
+    JSON result:         stcp-stress-result.json
+
+[33mcommit 1b6fd07813d361200299881c215b42877a470e26[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 04:30:28 2026 +0300
+
+    perf: batch RX wakeups and reach stable 84 MiB/s echo throughput
+
+[33mcommit 587ea751be4b1bc40af19f0b8cb8c4833080878d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 04:22:07 2026 +0300
+
+    * STCP läpivienti on 82MB/s
+
+[33mcommit 08003e4d12080d93993192b37bc1045bc4e860de[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 03:56:00 2026 +0300
+
+    pomo@devaus:~/git/STCP/STCPv2/linux-kernel/linux-module/python$ python3 stcp_stress.py     --mode throughput     --clients 8     --payload 1048576     --pipeline 8     --duration 60     --report-every 5
+    === STCP Python stress test ===
+    mode:             throughput
+    clients:          8
+    payload:          1048576 bytes
+    duration:         60.0 s
+    report interval:  5.0 s
+    verify payload:   True
+    pipeline depth:   8
+    
+    [    5.0s] TX   0.00 MiB/s  RX   0.00 MiB/s  ops      0.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.00 p95=   0.00 p99=   0.00 ms  CPU=   1.4% RSS=   36.6 MiB  total=0.0 MiB
+    [   10.0s] TX  68.57 MiB/s  RX  57.40 MiB/s  ops     57.4/s  conn +8/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 117.94 p95= 144.23 p99= 150.85 ms  CPU= 200.1% RSS=   36.8 MiB  total=288.0 MiB
+    [   15.0s] TX  68.66 MiB/s  RX  73.45 MiB/s  ops     73.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 112.58 p95= 126.99 p99= 140.68 ms  CPU= 209.6% RSS=   36.8 MiB  total=656.0 MiB
+    [   20.0s] TX  70.30 MiB/s  RX  70.30 MiB/s  ops     70.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 114.04 p95= 126.52 p99= 134.45 ms  CPU= 211.9% RSS=   36.8 MiB  total=1008.0 MiB
+    [   25.0s] TX  71.97 MiB/s  RX  71.97 MiB/s  ops     72.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 113.59 p95= 131.92 p99= 146.49 ms  CPU= 207.5% RSS=   36.8 MiB  total=1368.0 MiB
+    [   30.0s] TX  70.27 MiB/s  RX  70.27 MiB/s  ops     70.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 111.97 p95= 130.96 p99= 141.40 ms  CPU= 209.0% RSS=   36.8 MiB  total=1720.0 MiB
+    [   35.0s] TX  65.57 MiB/s  RX  68.77 MiB/s  ops     68.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 118.26 p95= 143.86 p99= 151.05 ms  CPU= 195.9% RSS=   36.8 MiB  total=2064.0 MiB
+    [   40.1s] TX  62.19 MiB/s  RX  55.81 MiB/s  ops     55.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 133.38 p95= 150.17 p99= 155.25 ms  CPU= 178.6% RSS=   36.8 MiB  total=2344.0 MiB
+    [   45.1s] TX  66.99 MiB/s  RX  71.78 MiB/s  ops     71.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 121.54 p95= 139.30 p99= 142.64 ms  CPU= 197.4% RSS=   36.8 MiB  total=2704.0 MiB
+    [   50.1s] TX  65.56 MiB/s  RX  62.37 MiB/s  ops     62.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 119.43 p95= 144.57 p99= 165.31 ms  CPU= 191.1% RSS=   36.8 MiB  total=3016.0 MiB
+    [   55.1s] TX  55.66 MiB/s  RX  58.84 MiB/s  ops     58.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 140.11 p95= 169.37 p99= 185.93 ms  CPU= 167.8% RSS=   36.8 MiB  total=3312.0 MiB
+    [   60.0s] TX  66.92 MiB/s  RX  60.39 MiB/s  ops     60.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 123.44 p95= 146.30 p99= 151.29 ms  CPU= 188.3% RSS=   36.8 MiB  total=3608.0 MiB
+    
+    === Final result ===
+    elapsed:             60.823 s
+    connections ok:      8
+    connections failed:  0
+    sends ok/failed:     3672/0
+    recvs ok/failed:     3608/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          3850371072
+    bytes received:      3783262208
+    TX throughput:       60.37 MiB/s
+    RX throughput:       59.32 MiB/s
+    operations:          59.3/s
+    RTT latency:         avg=120.14 p50=118.98 p95=146.30 p99=162.91 max=185.93 ms
+    JSON result:         stcp-stress-result.json
+    pomo@devaus:~/git/STCP/STCPv2/linux-kernel/linux-module/python$
+
+[33mcommit 6593fd618334362c9884420bba2b3796ff741a2d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 03:49:50 2026 +0300
+
+    pomo@devaus:~/git/STCP/STCPv2/linux-kernel/linux-module/python$ python3 stcp_stress.py     --mode throughput     --clients 8     --payload 1048576     --pipeline 8     --duration 60     --report-every 5
+    === STCP Python stress test ===
+    mode:             throughput
+    clients:          8
+    payload:          1048576 bytes
+    duration:         60.0 s
+    report interval:  5.0 s
+    verify payload:   True
+    pipeline depth:   8
+    
+    [    5.0s] TX   0.00 MiB/s  RX   0.00 MiB/s  ops      0.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.00 p95=   0.00 p99=   0.00 ms  CPU=   1.4% RSS=   36.8 MiB  total=0.0 MiB
+    [   10.0s] TX  68.36 MiB/s  RX  60.42 MiB/s  ops     60.4/s  conn +8/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 118.73 p95= 145.15 p99= 148.19 ms  CPU= 201.3% RSS=   36.9 MiB  total=304.0 MiB
+    [   15.0s] TX  70.34 MiB/s  RX  70.34 MiB/s  ops     70.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 112.52 p95= 129.97 p99= 148.54 ms  CPU= 208.0% RSS=   36.9 MiB  total=656.0 MiB
+    [   20.0s] TX  68.77 MiB/s  RX  71.97 MiB/s  ops     72.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 112.43 p95= 135.54 p99= 137.85 ms  CPU= 207.3% RSS=   36.9 MiB  total=1016.0 MiB
+    [   25.1s] TX  71.61 MiB/s  RX  66.83 MiB/s  ops     66.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 116.34 p95= 132.60 p99= 137.78 ms  CPU= 201.7% RSS=   36.9 MiB  total=1352.0 MiB
+    [   30.1s] TX  70.16 MiB/s  RX  70.16 MiB/s  ops     70.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 114.05 p95= 132.94 p99= 143.47 ms  CPU= 209.9% RSS=   36.9 MiB  total=1704.0 MiB
+    [   35.1s] TX  68.74 MiB/s  RX  73.53 MiB/s  ops     73.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 110.87 p95= 132.60 p99= 139.05 ms  CPU= 209.0% RSS=   36.9 MiB  total=2072.0 MiB
+    [   40.1s] TX  71.98 MiB/s  RX  68.78 MiB/s  ops     68.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 112.37 p95= 130.17 p99= 132.82 ms  CPU= 208.8% RSS=   36.9 MiB  total=2416.0 MiB
+    [   45.1s] TX  63.96 MiB/s  RX  67.16 MiB/s  ops     67.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 123.60 p95= 141.29 p99= 145.67 ms  CPU= 188.3% RSS=   36.9 MiB  total=2752.0 MiB
+    [   50.1s] TX  66.91 MiB/s  RX  65.31 MiB/s  ops     65.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 117.61 p95= 143.02 p99= 152.59 ms  CPU= 195.7% RSS=   36.9 MiB  total=3080.0 MiB
+    [   55.1s] TX  70.30 MiB/s  RX  67.10 MiB/s  ops     67.1/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 117.01 p95= 136.71 p99= 143.64 ms  CPU= 202.9% RSS=   36.9 MiB  total=3416.0 MiB
+    [   60.0s] TX  63.77 MiB/s  RX  63.77 MiB/s  ops     63.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50= 119.38 p95= 148.58 p99= 163.23 ms  CPU= 194.2% RSS=   36.9 MiB  total=3728.0 MiB
+    
+    === Final result ===
+    elapsed:             60.448 s
+    connections ok:      8
+    connections failed:  0
+    sends ok/failed:     3784/0
+    recvs ok/failed:     3736/0
+    verify failures:     0
+    server errors:       0
+    bytes sent:          3967811584
+    bytes received:      3917479936
+    TX throughput:       62.60 MiB/s
+    RX throughput:       61.81 MiB/s
+    operations:          61.8/s
+    RTT latency:         avg=116.68 p50=116.51 p95=138.86 p99=148.25 max=163.23 ms
+    JSON result:         stcp-stress-result.json
+
+[33mcommit ab9327e2b2bb16621f8695b1b5ff5ca8edde768f[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 03:19:02 2026 +0300
+
+    60M/s parempi
+
+[33mcommit e1ace3168ffd389b1f6a278c0fbc17163148d161[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Mon Jul 20 03:05:57 2026 +0300
+
+    * 60MB/s
+
+[33mcommit 68a5cbe4d943d1bac951e21aad2454108df10ab8[m[33m ([m[1;33mtag: [m[1;33mv2-40mbps-working[m[33m)[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Sun Jul 19 21:22:32 2026 +0300
+
+    fix(handshake): require peer HandshakeDone before Ready
+
+[33mcommit 1ad073e2234fb79e409930ed990e39366beb81b1[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Sun Jul 19 20:49:06 2026 +0300
+
+    * Bugi fiksejä paljon, että testit menee passiin viimeinkin.
+    
+    === STCP functional smoke test ===
+    payload sizes: 64, 4096, 65536 bytes
+    timeout:       5.0 s per case
+    
+    [1/3] 64 bytes on port 7777: PASS (21.20 ms)
+    [2/3] 4096 bytes on port 7778: PASS (18.42 ms)
+    [3/3] 65536 bytes on port 7779: PASS (16.91 ms)
+    
+    STCP functional test: PASS
+
+[33mcommit a1e404f472f1406ad2e458310781f86d2f597057[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Sun Jul 19 16:48:23 2026 +0300
+
+    KErneli vikanen
+
+[33mcommit d77aeef0c10ae83dfcf30c934d8b215ac12044d0[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Sun Jul 19 16:45:21 2026 +0300
+
+    Kääntyy, uusilla testikoodeilla
+
+[33mcommit 491fa7c057f1e604709b7977edb0978f13bd8f3a[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Sun Jul 19 16:14:06 2026 +0300
+
+    Korjaukset:
+    
+        kaikki listener-, client- ja accepted-socketit rekisteröidään keskitetysti
+    
+        stop() sulkee kaikki socketit heti, jolloin jumissa oleva poll(), accept(), send() tai recv() herää
+    
+        serveri- ja client-threadit eivät enää ole daemon-threadeja
+    
+        kaikki threadit joinataan ennen ohjelman poistumista
+    
+        ohjelma ilmoittaa virheen, jos jokin thread jää edelleen eloon
+    
+        Ctrl+C ja SIGTERM pysäyttävät Python-prosessin hallitusti
+    
+        run_stress_suite.sh siivoaa aktiivisen lapsiprosessin myös keskeytys- ja virhetilanteissa
+    
+        SIGKILL käytetään runnerissa vasta viimeisenä varmistuksena
+    
+        throughput-testin otsikko korjattu vastaamaan 25 sekunnin ajoa
+
+[33mcommit a82a3373a6ab7e085ce7ea662ef9e8bb90e69cd4[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 16 16:39:02 2026 +0300
+
+    Stressi testit
+
+[33mcommit 57f7bda0aa014a9c8be7894c456b3a88c6001951[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 16 15:02:54 2026 +0300
+
+        SRTT- ja RTTVAR-laskenta
+    
+        dynaaminen RTO välillä 100–3000 ms
+    
+        Karnin algoritmi: retransmitatuista frameista ei oteta RTT-näytettä
+    
+        per-frame exponential backoff
+    
+        enintään kahdeksan uudelleenlähetystä
+    
+        timeoutissa yhteys siirtyy virhetilaan
+    
+        reliability-tilastot:
+    
+            lähetetyt
+    
+            ACKatut
+    
+            retransmitatut
+    
+            duplikaatit
+    
+            reorderit
+    
+            timeoutit
+    
+            RTT-näytteet
+    
+        tilastot tulostetaan dmesgiin socketin sulkeutuessa
+    
+        deterministinen drop_percent
+    
+        delay_first_data_ms
+    
+        testit:
+    
+            baseline
+    
+            ensimmäisen framen pudotus
+    
+            10 % hävikki
+    
+            30 % hävikki
+    
+            250 ms viive
+    
+            duplicate
+    
+            reorder
+    
+    Testit: OK
+
+[33mcommit 873d0e372293e1521bfef0adf887cff78feaf751[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 16 14:46:14 2026 +0300
+
+    * UDP koodi update:
+    
+        client-socket käynnistää nyt retransmit-workin myös connect()-polussa
+    
+        64-bittiset sequence- ja cumulative ACK -numerot
+    
+        kahdeksan framen send-window
+    
+        lähetyt salatut framet säilytetään ACK:iin asti
+    
+        retransmit 300 ms jälkeen
+    
+        enintään viisi uudelleenlähetystä
+    
+        duplicate suppression
+    
+        rajattu out-of-order-jono
+    
+        blocking send() odottaa nyt myös vapautuvaa ACK-windowta eikä vain handshakea
+    
+        deterministiset testiparametrit:
+    
+            drop_first_data=1
+    
+            duplicate_first_data=1
+    
+            reorder_first_pair=1
+    
+        uusi 256 KiB UDP reliability -testi
+    
+    Test:
+    === UDP reliability: drop ===
+    udp reliability server verified 262144 bytes
+    udp reliability client sent 262144 bytes
+    === UDP reliability: duplicate ===
+    udp reliability server verified 262144 bytes
+    udp reliability client sent 262144 bytes
+    === UDP reliability: reorder ===
+    udp reliability server verified 262144 bytes
+    udp reliability client sent 262144 bytes
+    All UDP reliability tests passed
+
+[33mcommit 7be7e0cb9078d4f51555d15a3edccf25ba57fe37[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 16 13:13:02 2026 +0300
+
+    UDP ok
+
+[33mcommit 6ede30368018990749525d6ad269ce31046e7f02[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 16 13:05:10 2026 +0300
+
+    Errori fiksejä:
+    
+       client connect()
+       → asettaa peerin ja connection_id:n
+       → lähettää PublicKey-datagrammin
+       → listener vastaanottaa datagrammin
+       → luo child-sessionin oikealla peer IP/portilla
+       → lisää childin accept_queueen
+       → accept() liittää jaetun UDP-carrierin childiin
+    
+       → server vastaanottaa kaikki 204800 tavua
+       → tarkistaa jokaisen tavun sisällön
+       → lähettää OK vasta onnistuneen tarkistuksen jälkeen
+       → SIGPIPE ohitetaan testissä
+       → serverin vastaus käyttää MSG_NOSIGNAL
+
+[33mcommit cc62818d08de5c5ecc92c55539d1678bca46cc93[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 16 12:38:12 2026 +0300
+
+    Errori fiksejä:
+    
+      accept() palauttaa child-socketin
+      → child on vielä Handshake-tilassa
+      → server kutsuu heti recv()
+      → Rust palautti -EINVAL
+      → server sulkeutui
+      → clientin carrier katkesi
+      → client send palautti -ENOTCONN
+    
+    Testit menee läpi.
+
+[33mcommit 1af6e916bdc1d2273e322e6f2a76582be9e38f16[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jul 16 12:31:41 2026 +0300
+
+    Fiksejä:
+    
+        session::release() ei enää kutsu shutdown()ia eikä lähetä Close-framea.
+    
+        Rustin owner- ja carrier-osoittimet irrotetaan ennen carrierin vapautusta.
+    
+        Carrierin vastaanottosäie pysäytetään ennen Rust-kontekstin vapautusta.
+    
+        Varsinainen shutdown() lähettää Close-framen ennen carrier-socketin sulkemista.
+    
+        Myös alkuperäiselle client-socketille alustetaan retransmit-work.
+    
+        Acceptin virhepolut vapauttavat child-socketin, carrierin ja Rust-kontekstin turvallisessa järjestyksessä.
+    
+        stcp_rust_shutdown()-prototyyppi korjattu vastaamaan Rustin void-paluuarvoa.
+    
+        Mukana FIX_UAF_RELEASE.md, jossa muutos on kuvattu.
+
+[33mcommit 55019c3975d10fc74f5df5537ff1fe330631ba3b[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 15 13:56:24 2026 +0300
+
+    kernel: synchronize Rust/C FFI and restore successful module build
+    
+      - synchronize Rust and C FFI interfaces
+      - restore carrier support
+      - fix sockaddr_unsized compatibility
+      - unify allocator implementation
+      - restore retransmit and proto registration
+      - fix Kbuild object list
+      - module builds successfully again
+
+[33mcommit 4f089b53b35d527bf2a6f81fc9d1bb4af8e655e3[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 15 11:26:18 2026 +0300
+
+    * Out of order fiksattu:
+    
+        * duplikaatti-frames ACKataan uudelleen
+    
+        * payload toimitetaan vain kerran
+    
+        * out-of-order-puskuri rajataan kahdeksaan frameen (TBD: Nostaako 16 frameen?)
+    
+        * nonce tarkistetaan vasta, kun frame on seuraava käsiteltävä frame
+    
+        * yhteyttä ei enää siirretä Error-tilaan pelkän järjestyshypyn vuoksi
+    
+    === Basic STCP handshake test ===
+    server: waiting in accept()
+    server received: hello through BSD API
+    client received: reply from kernel STCP
+    === Large framed handshake test ===
+    server: verified 0 framed bytes
+    server: reply sent successfully
+    reply recv returned 2 bytes
+    client: sent 204800 bytes through STCP frames
+    All STCP window/retransmission tests passed
+
+[33mcommit 29b4759029b47ed79524633376d4ca3fa72b0af3[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 15 09:58:07 2026 +0300
+
+    * Muutoksia:
+    
+        STCP-header kasvoi 32 tavuun.
+    
+        Jokaisella DATA-framella on 64-bittinen sequence.
+    
+        Headerissa on erillinen 64-bittinen acknowledgment.
+    
+        ACK lähetetään vasta onnistuneen AEAD-tarkistuksen jälkeen.
+    
+        Duplikaatit, ohitetut sekvenssit ja väärä järjestys hylätään.
+    
+        Lisätty PING, PONG, CLOSE ja RESET.
+    
+        Header on edelleen kokonaisuudessaan AEAD:n associated dataa.
+    
+        Mukana docs/specification/STCPv2-wire.md.
+
+[33mcommit a40201ee0673e5662b6ab66b3a4f7dfdf687025d[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 15 09:47:16 2026 +0300
+
+    Rust-puoli on erotettu selkeästi kerroksiin ilman, että C:n BSD socket -rajapinta tai testit muuttuvat.
+    
+      Keskeiset vastuut:
+    
+        ffi.rs: vain C↔Rust ABI ja errno-muunnokset
+    
+        session.rs: bind/listen/connect/accept/handshake/send/recv/shutdown
+    
+        frame.rs: STCP-headerit, pakettityypit ja framejen koodaus
+    
+        crypto.rs: session-avaimet ja AEAD
+    
+        carrier.rs: loopback-jonot ja kernelin wakeupit
+    
+        state.rs: socketin ja yhteyden tila
+    
+      ARCHITECTURE.md: kerrosten vastuut on kuvattu.
+
+[33mcommit 8084b8ae9341d2a924a18c3e32210bf02461cf00[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 15 09:28:51 2026 +0300
+
+        * HKDF-SHA256 no_std-Rustilla
+    
+        * erillinen client → server -avain
+    
+        * erillinen server → client -avain
+    
+        * molempien suuntien noncet alkavat nollasta
+    
+        * TX-nonce kasvaa vasta onnistuneen salauksen jälkeen
+    
+        * RX-nonce kasvaa vasta onnistuneen tagin tarkistuksen jälkeen
+    
+        * replay-, ohitus- ja epäjärjestysframejen hylkäys
+    
+        * STCP-header AEAD:n associated datana
+    
+        * crypto-selftest moduulin latauksessa
+    
+        * muokatun tagin hylkäystesti
+    
+        * väärän suunnan avaimen hylkäystesti
+    
+        * avainmateriaalin nollaus Drop-vaiheessa
+    
+        * Makefile lataa automaattisesti:
+    
+            libcurve25519
+            libchacha20poly1305
+
+[33mcommit 8811b3a86bd12576c949797ab8ab666cb46ca977[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jul 15 09:03:13 2026 +0300
+
+    Crypto kääntyy ok
+
+[33mcommit 0b522799808758acd2a3e8ed82797baee1678c62[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 14 15:21:42 2026 +0300
+
+    Testit menee ok:
+    
+    === Basic STCP handshake test ===
+    server: waiting in accept()
+    server received: hello through BSD API
+    client received: reply from kernel STCP
+    === Large framed handshake test ===
+    server: verified 204800 framed bytes
+    client: sent 204800 bytes through STCP frames
+    All STCP handshake tests passed
+
+[33mcommit c69343db6e08015646d153f0ebd152d7182e9ff2[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 14 15:13:11 2026 +0300
+
+    Testaus makefileen
+
+[33mcommit 60af5beecabcb3295170af984507b1eb5e4bdecc[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 14 15:07:57 2026 +0300
+
+    Netti konsoli scripta mukaan
+
+[33mcommit 4a3904adbbfa5e4343181dca9c609c95c74375b1[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 14 15:07:09 2026 +0300
+
+    Kääntää ja toimii, ei kaada masiinaa enää
+
+[33mcommit b6230588a3637c90dc6f242d96a372796d86be25[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 14 12:50:57 2026 +0300
+
+    Loopback toteutus ok
+
+[33mcommit d59fbff2a06b6d8dac19637c386ee836c573299c[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Tue Jul 14 12:31:24 2026 +0300
+
+    Ei enää relocate erroria!
+
+[33mcommit 9842aeea9d89d627dee9dd90529358047fc6185a[m
+Author: pomo <pomo@devaus.sokeavartija.org>
+Date:   Tue Jul 14 11:49:24 2026 +0300
+
+    Kääntyy, mut ongelmaa latauksessa
+
+[33mcommit b38ac8abb3d7a7f604988f3228607a85c083ff7d[m
+Author: pomo <pomo@devaus.sokeavartija.org>
+Date:   Tue Jul 14 11:23:09 2026 +0300
+
+    STCPv" Ensimmäinen moduuli?
+
+[33mcommit a45af0fdd793bf10e21130aeffc633a0cce69087[m
+Author: pomo <pomo@devaus.sokeavartija.org>
+Date:   Tue Jul 14 09:59:29 2026 +0300
+
+    STCPv2 module base
+
+[33mcommit d367cf3843c1fc02d3f8e9b69b6421fce8e81cc9[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Thu Jun 25 07:02:09 2026 +0300
+
+    Optimize STCPv2 transport and add comprehensive benchmark suite
+    
+    - Optimize encrypted data path
+    - Reuse receive buffers
+    - Cache cipher context
+    - Increase frame payload to 128 KB
+    - Improve socket I/O performance
+    - Reduce memory allocations
+    - Add FlameGraph profiling
+    - Add perf profiling
+    - Add turbostat power benchmarking
+    - Add STCP vs TLS benchmark suite
+    - Improve throughput and connection churn performance
+    - Prepare protocol for future Linux kernel and Zephyr ports
+    
+    Comparison STCP vs TLS:
+    
+    ===STCP  steady summary ===
+    Max payload per frame:   131072
+    RX bufffer len:          1048576
+    clients:                 5
+    connections:             5
+    total sent:              1742733312 bytes (1662.000 MB)
+    total recv:              1742733312 bytes (1662.000 MB)
+    wall time:               12.019 s
+    slowest client time:     12.011 s
+    aggregate app speed:     138.279 MB/s
+    aggregate echo traffic:  276.557 MB/s
+    =======================
+    
+    === TLS steady summary ===
+    Max payload per frame:   131072
+    RX bufffer len:          1048576
+    clients:                 5
+    connections:             5
+    total sent:              1206910976 bytes (1151.000 MB)
+    total recv:              1206910976 bytes (1151.000 MB)
+    wall time:               24.076 s
+    slowest client time:     23.985 s
+    aggregate app speed:     47.808 MB/s
+    aggregate echo traffic:  95.616 MB/s
+    =======================
+    
+    === STCP churn summary ===
+    Max payload per frame:   131072
+    RX bufffer len:          1048576
+    clients:                 5
+    connections:             5290
+    total sent:              5546967040 bytes (5290.000 MB)
+    total recv:              5546967040 bytes (5290.000 MB)
+    wall time:               48.064 s
+    slowest client time:     48.063 s
+    aggregate app speed:     110.062 MB/s
+    aggregate echo traffic:  220.124 MB/s
+    =======================
+    
+    === TLS churn summary ===
+    Max payload per frame:   131072
+    RX bufffer len:          1048576
+    clients:                 5
+    connections:             4481
+    total sent:              4698669056 bytes (4481.000 MB)
+    total recv:              4698669056 bytes (4481.000 MB)
+    wall time:               96.059 s
+    slowest client time:     96.054 s
+    aggregate app speed:     46.648 MB/s
+    aggregate echo traffic:  93.297 MB/s
+    =======================
+
+[33mcommit a6ea975cee6fe467d884ace534b811f65d7a874f[m[33m ([m[1;33mtag: [m[1;33mSTCPv2-julkaistu-linux-app[m[33m)[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jun 24 21:12:52 2026 +0300
+
+    This release focuses on major performance optimizations throughout the STCPv2 stack.
+    
+    * Added AES-GCM cipher caching to eliminate repeated cipher initialization.
+    * Optimized data transmission path using vectored I/O (`writev`).
+    * Increased frame payload size to 128 KB.
+    * Added receive buffer reuse and dynamic buffer growth.
+    * Reduced memory allocations in the critical data path.
+    * Improved socket send/receive handling.
+    * Optimized encrypted frame processing.
+    
+    STCPv2 now achieves approximately:
+    
+    * **48 MB/s application throughput**
+    * **96 MB/s aggregate echo throughput**
+    
+    on the current benchmark platform.
+    
+    For short-lived encrypted request/response workloads:
+    
+    * **~3057 encrypted connections/sec (STCPv2)**
+    * **~102 encrypted connections/sec (TLS)**
+    
+    STCPv2 demonstrates approximately **30x higher connection establishment throughput** than the TLS benchmark in this specific workload.
+    
+    Under sustained encrypted traffic:
+    
+    * STCPv2 reaches between **75% and 100% of TLS throughput**, depending on workload characteristics.
+    * In several steady-state benchmarks, STCPv2 performs on par with TLS.
+    
+    STCPv2 uses:
+    
+    * X25519 key exchange
+    * AES-256-GCM encryption
+    * Lightweight symmetric handshake
+    * BSD socket implementation
+    * Zero-copy oriented optimizations where practical
+    
+    The following benchmarking environments were added and validated:
+    
+    * Standard throughput benchmarks
+    * Connection churn benchmarks
+    * FlameGraph profiling
+    * perf-based profiling
+    * turbostat power/CPU analysis
+    
+    The following optimization experiments were evaluated and intentionally not included in the final implementation:
+    
+    * `encrypt_into()`
+    * `decrypt_into()`
+    * handshake `writev()` optimization
+    
+    Benchmark results showed no measurable benefit or performance regressions.
+    
+    This release establishes a stable performance baseline for future work.
+    
+    Current focus areas for future releases:
+    
+    * Further handshake optimization
+    * Reduced cryptographic setup overhead
+    * Zephyr RTOS integration
+    * Linux kernel integration experiments
+    * PMCI transport integration
+    
+    ---
+    
+    STCPv2 continues to evolve as a lightweight encrypted transport protocol designed for embedded, IoT, LTE-M, DECT NR+, and low-overhead secure communication environments.
+    
+    Planned next development steps for STCPv2:
+    
+    1. **Linux application-level MQTT support**
+       - Implement and validate MQTT over STCPv2 on Linux user space.
+       - Create a working MQTT client/server or proxy demo using STCPv2 as the encrypted transport layer.
+       - Benchmark MQTT-over-STCPv2 against MQTT-over-TLS.
+    
+    2. **Linux kernel module port**
+       - Port the STCPv2 transport logic toward a Linux kernel module implementation.
+       - Evaluate kernel-space socket integration and encrypted transport handling.
+       - Keep the protocol logic reusable between user space and kernel space where practical.
+    
+    3. **Zephyr RTOS port based on the Linux kernel implementation**
+       - Use the Linux kernel-oriented implementation as a reference for the Zephyr port.
+       - Adapt STCPv2 for Zephyr networking APIs.
+       - Target embedded secure transport use cases such as LTE-M, DECT NR+, and low-power IoT devices.
+
+[33mcommit 72198334fafa6aa7b54f7edaa6116f8eb91f5ce9[m
+Author: Lauri Jakku <lja@lja.fi>
+Date:   Wed Jun 24 21:10:25 2026 +0300
+
+    STCPv1 talteen
+
+[33mcommit 9b1ac4a86cac71ef192ee34a33471e09d3407d53[m[33m ([m[1;33mtag: [m[1;33mstcp-mqtt-golden-20260529[m[33m)[m
+Author: Lauri Jakku <lauri.jakku@paxsudos.fi>
+Date:   Fri May 29 12:03:43 2026 +0300
+
+        🚀 Major Milestone Reached: STCP + MQTT over LTE is now fully operational
+    
+             After a long series of development, debugging, refactoring, and
+             optimization sessions, I’m happy to announce that the first complete
+             end-to-end demonstration of STCP (Secure TCP) transporting MQTT traffic
+             over LTE is now working successfully.
+    
+             What was achieved?
+    
+                  ✅ Custom STCP transport integrated into Zephyr MQTT library
+    
+                  ✅ MQTT CONNECT / CONNACK flow working correctly
+    
+                  ✅ End-to-end encrypted MQTT communication using STCP
+    
+                  ✅ ECDH key exchange and AES-256-GCM encrypted transport
+    
+                  ✅ Nordic nRF9151 LTE-M platform support
+    
+                  ✅ Zephyr RTOS integration
+    
+                  ✅ Rust-based cryptographic and protocol implementation
+    
+                  ✅ STCP proxy successfully bridging MQTT traffic
+    
+                  ✅ Stable connection lifecycle and transport management
+    
+                  ✅ FSM, API lifetime, mutex, and threading issues resolved
+    
+             What is the architechture?
+    
+                     MQTT Application
+                             ↓
+                     Zephyr MQTT Library
+                             ↓
+                     STCP MQTT Transport
+                             ↓
+                     STCP API Layer
+                             ↓
+                     Rust Crypto Engine
+                             ↓
+                     LTE Modem (nRF9151)
+                             ↓
+                     STCP Proxy
+                             ↓
+                     MQTT Broker
+    
+             The system now successfully:
+    
+                  * Establishes LTE connectivity
+    
+                  * Performs STCP handshake
+    
+                  * Negotiates encryption keys
+    
+                  * Switches to AES encrypted transport
+    
+                  * Establishes MQTT session
+    
+                  * Receives MQTT CONNACK
+    
+                  * Publishes and receives MQTT messages
+    
+                  * Maintains encrypted end-to-end communication
+    
+             Why this matters
+    
+                The goal of STCP has always been to provide a lightweight,
+                high-performance secure transport layer suitable for embedded
+                and constrained devices while remaining independent of tradi-
+                tional TLS stacks.
+    
+                Seeing MQTT traffic successfully transported over STCP on a real
+                LTE-connected embedded device is a significant validation of the
+                architecture and years of work invested into the protocol.
+
+[33mcommit 6a21802287f9f3c04c04021a2fc8894875152e7a[m
+Author: Lauri Jakku <lauri.jakku@paxsudos.fi>
+Date:   Mon Mar 23 19:27:57 2026 +0200
+
+    Raspberry PI integration completed: Ported Linux-kernel module for Raspberry Pi
+    
+      * Module is OOT-module
+
+[33mcommit 623a37befe942821ab12eb20b3bc53c79884723c[m
+Author: Lauri Jakku <lauri.jakku@paxsudos.fi>
+Date:   Fri Mar 20 16:40:29 2026 +0200
+
+    AES moodi päälle
+
+[33mcommit b72456879e679ac280908efabb2206be2354ee60[m
+Author: Lauri Jakku <lauri.jakku@paxsudos.fi>
+Date:   Fri Mar 20 16:36:57 2026 +0200
+
+    * Koodi viety uusimman NCS v3.3.0-preview3 :n päälle
+    
+    * Koodi on tehty stabiilimmaksi, nyt tuo ei bugaa DNS tietojen
+      käsiyttelyssä
+    
+    * Pitää kirjaa missä on allokoitu mikäkin FD handle, tallentaen
+      link registerin taulukkoon, mistä kutsu tuli luoda handle.
+    
+    * LTEM Moodi pakotus päällä

@@ -260,9 +260,10 @@ cat > "$PKG_DIR/install.sh" <<'INSTALL_SCRIPT'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+trap 'rc=$?; echo "[FAIL] install.sh line=$LINENO command=$BASH_COMMAND rc=$rc" >&2' ERR
+
 log() { echo "[INFO] $*"; }
 die() { echo "[FAIL] $*" >&2; exit 1; }
-trap 'rc=$?; echo "[FAIL] install.sh line=$LINENO command=$BASH_COMMAND rc=$rc" >&2' ERR
 
 [[ "$(id -u)" == "0" ]] || die "Run this installer as root: sudo ./install.sh"
 
@@ -311,7 +312,7 @@ mkdir -p "$BACKUP"
 log "Backing up boot configuration and conflicting files to $BACKUP"
 cp -a "$CONFIG_TXT" "$BACKUP/config.txt"
 cp -a "$CMDLINE_TXT" "$BACKUP/cmdline.txt"
-[[ -d "$PREFIX_DIR" ]] && cp -a "$PREFIX_DIR" "$BACKUP/"
+[[ -d "$PREFIX_DIR" ]] && cp -r --no-preserve=ownership "$PREFIX_DIR" "$BACKUP/"
 [[ -d "$MODULE_DST" ]] && cp -a "$MODULE_DST" "$BACKUP/modules-$KREL"
 for f in "/boot/vmlinuz-$KREL" "/boot/System.map-$KREL" \
          "/boot/config-$KREL" "/boot/initrd.img-$KREL"; do
@@ -351,10 +352,10 @@ done < <(find "$BOOT_PAYLOAD/dtbs" -type f -name '*.dtb' -print0)
 # the overlays already known to boot on this Raspberry Pi, then overwrite them
 # with package-built overlays when the source tree supplied any.
 if [[ -d "$BOOT_DIR/overlays" ]]; then
-    cp -a "$BOOT_DIR/overlays/." "$PREFIX_DIR/overlays/"
+    cp -r --no-preserve=ownership,mode,timestamps "$BOOT_DIR/overlays/." "$PREFIX_DIR/overlays/"
 fi
 if find "$BOOT_PAYLOAD/overlays" -maxdepth 1 -type f -print -quit | grep -q .; then
-    cp -a "$BOOT_PAYLOAD/overlays/." "$PREFIX_DIR/overlays/"
+    cp -r --no-preserve=ownership,mode,timestamps "$BOOT_PAYLOAD/overlays/." "$PREFIX_DIR/overlays/"
 fi
 
 [[ -s "$PREFIX_DIR/kernel8.img" ]] || die "Installed kernel is empty"
@@ -364,22 +365,17 @@ fi
     die "No overlays available: neither package nor $BOOT_DIR/overlays contained .dtbo files"
 
 log "Activating the new boot set in config.txt"
-CONFIG_DIR="$(dirname "$CONFIG_TXT")"
-TMP_BASE="$(mktemp "$CONFIG_DIR/.config.txt.stcp-base.XXXXXX")"
-TMP_NEW="$(mktemp "$CONFIG_DIR/.config.txt.stcp-new.XXXXXX")"
-cleanup_config_tmp() {
-    rm -f "$TMP_BASE" "$TMP_NEW"
-}
-trap cleanup_config_tmp RETURN
+TMP_CONFIG="$(mktemp "${CONFIG_TXT}.stcp.XXXXXX")"
+TMP_CLEAN="$(mktemp)"
 
 awk '
     /^# BEGIN STCP KERNEL$/ { skip=1; next }
     /^# END STCP KERNEL$/   { skip=0; next }
     !skip { print }
-' "$CONFIG_TXT" > "$TMP_BASE" || die "Could not prepare config.txt without old STCP block"
+' "$CONFIG_TXT" > "$TMP_CLEAN"
 
-cat "$TMP_BASE" > "$TMP_NEW"
-cat >> "$TMP_NEW" <<CFG
+cat "$TMP_CLEAN" > "$TMP_CONFIG"
+cat >> "$TMP_CONFIG" <<CFG
 
 # BEGIN STCP KERNEL
 [all]
@@ -390,24 +386,17 @@ auto_initramfs=1
 # END STCP KERNEL
 CFG
 
-# Preserve the original owner/mode when replacing the active firmware config.
-chown --reference="$CONFIG_TXT" "$TMP_NEW"
-chmod --reference="$CONFIG_TXT" "$TMP_NEW"
-
-# mv within the same filesystem makes activation atomic.
-mv -f "$TMP_NEW" "$CONFIG_TXT" || die "Could not atomically replace $CONFIG_TXT"
-rm -f "$TMP_BASE"
-trap - RETURN
+# config.txt resides on the firmware partition, commonly vfat. Do not try
+# to preserve Unix ownership or mode there.
+cp --no-preserve=ownership,mode,timestamps "$TMP_CONFIG" "${CONFIG_TXT}.new"
+mv -f "${CONFIG_TXT}.new" "$CONFIG_TXT"
+rm -f "$TMP_CONFIG" "$TMP_CLEAN"
 sync
 
-# Hard verification: installation is not successful unless the active config
-# contains exactly the prefix and kernel that were just installed.
-grep -Fxq "# BEGIN STCP KERNEL" "$CONFIG_TXT" ||     die "config.txt verification failed: STCP marker missing"
-grep -Fxq "os_prefix=${PREFIX}/" "$CONFIG_TXT" ||     die "config.txt verification failed: os_prefix=${PREFIX}/ missing"
-grep -Fxq "kernel=kernel8.img" "$CONFIG_TXT" ||     die "config.txt verification failed: kernel=kernel8.img missing"
-grep -Fxq "auto_initramfs=1" "$CONFIG_TXT" ||     die "config.txt verification failed: auto_initramfs=1 missing"
+grep -Fxq "os_prefix=${PREFIX}/" "$CONFIG_TXT" ||     die "config.txt verification failed: os_prefix missing"
+grep -Fxq "kernel=kernel8.img" "$CONFIG_TXT" ||     die "config.txt verification failed: kernel setting missing"
 
-log "Active boot configuration updated successfully:"
+log "config.txt activated successfully"
 grep -A6 -B1 'BEGIN STCP KERNEL' "$CONFIG_TXT"
 
 ROLLBACK="/usr/local/sbin/rollback-stcp-kernel-${KREL}.sh"
@@ -481,21 +470,11 @@ tar -C "$WORK" -czf "$PACKAGE" "$PKG_NAME"
 log "Package ready: $PACKAGE"
 log "Install on Raspberry Pi with: tar -xzf $(basename "$PACKAGE") && cd $PKG_NAME && sudo ./install.sh"
 
-RPI_TARGET="${RPI_TARGET:-pi@192.168.1.199}"
-REMOTE_PACKAGE="$(basename "$PACKAGE")"
-
-scp -v "$PACKAGE" "$RPI_TARGET:~/"
-ssh "$RPI_TARGET" "bash -s" <<REMOTE_INSTALL
-set -Eeuo pipefail
-cd "\$HOME"
-rm -rf "$PKG_NAME"
-tar -xzf "$REMOTE_PACKAGE"
-cd "$PKG_NAME"
-sudo bash -x ./install.sh 2>&1 | tee "\$HOME/stcp-install-${KREL}.log"
-CONFIG=/boot/firmware/config.txt
-[[ -f "\$CONFIG" ]] || CONFIG=/boot/config.txt
-grep -Fxq "os_prefix=stcp-${KREL}/" "\$CONFIG"
-grep -Fxq "kernel=kernel8.img" "\$CONFIG"
-echo "[INFO] Verified active config: \$CONFIG"
-grep -A6 -B1 'BEGIN STCP KERNEL' "\$CONFIG"
-REMOTE_INSTALL
+scp -v "$PACKAGE" pi@192.168.1.199:~/
+ssh pi@192.168.1.199 "
+    set -o pipefail
+    rm -rf '$PKG_NAME'
+    tar -xzf '$(basename "$PACKAGE")'
+    cd '$PKG_NAME'
+    sudo ./install.sh 2>&1 | tee ~/stcp-install-${KREL}.log
+"

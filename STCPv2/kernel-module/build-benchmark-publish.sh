@@ -69,7 +69,7 @@ DRY_RUN="${DRY_RUN:-0}"
 
 BUILD_DEPLOY="$ROOT/build-and-deploy.sh"
 FULL_BENCH="$ROOT/benchmark/run-all-full.sh"
-WEB_GENERATOR="$ROOT/benchmark/stcp-raspberry-tcp-generator/generate-all.sh"
+WEB_GENERATOR="$ROOT/benchmark/stcp-raspberry-generator/generate-all.sh"
 RESULTS_ROOT="$ROOT/benchmark/results"
 PIPELINE_LOG_DIR="$ROOT/benchmark/pipeline-logs"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -354,13 +354,13 @@ case "$MODE" in
         ;;
     benchmark)
         run_benchmarks
-        generate_and_publish "$LAST_RESULT_DIR"
+ 	RESULT_ROOT="$LAST_RESULT_DIR" PUBLISH=1 bash publish-latest-benchmarks.sh both
         ;;
     benchmark-only)
         run_benchmarks
         ;;
     publish)
-        generate_and_publish "$PUBLISH_RESULT_DIR"
+ 	RESULT_ROOT="$PUBLISH_RESULT_DIR" PUBLISH=1 bash publish-latest-benchmarks.sh both
         ;;
     generate)
         AUTO_PUBLISH_WEB=0

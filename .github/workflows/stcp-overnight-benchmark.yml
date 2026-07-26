@@ -111,6 +111,7 @@ jobs:
 
       - name: Run extended overnight matrix
         id: benchmark
+        continue-on-error: true
         run: |
           set -Eeuo pipefail
 
@@ -118,7 +119,7 @@ jobs:
 
       - name: Resolve result files
         id: results
-        if: always()
+        if: always() && !cancelled()
         run: |
           set -uo pipefail
 
@@ -142,7 +143,8 @@ jobs:
           echo "Result archive:   $result_archive"
 
       - name: Upload overnight results
-        if: always()
+        if: always() && !cancelled()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: stcp-overnight-${{ github.run_id }}-${{ github.run_attempt }}
@@ -158,7 +160,8 @@ jobs:
 
       - name: Create golden tag
         if: >-
-          success() &&
+          !cancelled() &&
+          steps.benchmark.outcome == 'success' &&
           github.event_name == 'workflow_dispatch' &&
           inputs.create_golden_tag
         env:
@@ -189,7 +192,7 @@ jobs:
           git push origin "$TAG_NAME"
 
       - name: Job summary
-        if: always()
+        if: always() && !cancelled()
         env:
           RESULT_DIR: ${{ steps.results.outputs.result_dir }}
           RESULT_ARCHIVE: ${{ steps.results.outputs.result_archive }}
@@ -205,3 +208,10 @@ jobs:
             echo "- Result: \`$RESULT_DIR\`"
             echo "- Archive: \`$RESULT_ARCHIVE\`"
           } >>"$GITHUB_STEP_SUMMARY"
+
+
+      - name: Fail job after artifacts if benchmark failed
+        if: always() && !cancelled() && steps.benchmark.outcome == 'failure'
+        run: |
+          echo "Benchmark step failed; artifacts and summaries were collected first." >&2
+          exit 1

@@ -221,6 +221,8 @@ jobs:
           rustup component add rust-src --toolchain nightly
 
       - name: Build Linux modules
+        id: build_modules
+        continue-on-error: true
         run: |
           set -Eeuo pipefail
 
@@ -234,6 +236,9 @@ jobs:
             bash ./build-and-deploy.sh build
 
       - name: Verify produced modules
+        id: verify_modules
+        if: always() && !cancelled() && steps.build_modules.outcome == 'success'
+        continue-on-error: true
         run: |
           set -Eeuo pipefail
 
@@ -254,6 +259,9 @@ jobs:
             grep -E '^(description|license|depends|name|vermagic):'
 
       - name: Package Linux artifacts
+        id: package_modules
+        if: always() && !cancelled() && steps.build_modules.outcome == 'success' && steps.verify_modules.outcome == 'success'
+        continue-on-error: true
         run: |
           set -Eeuo pipefail
 
@@ -290,10 +298,23 @@ jobs:
           )
 
       - name: Upload Linux modules
+        if: always() && !cancelled()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: stcpv2-linux-modules-${{ github.sha }}
+          name: stcpv2-linux-modules-${{ github.run_id }}-${{ github.run_attempt }}
           path: STCPv2/kernel-module/ci-artifacts/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
+
+
+      - name: Fail job after artifact upload if build failed
+        if: >-
+          always() && !cancelled() &&
+          (steps.build_modules.outcome == 'failure' ||
+           steps.verify_modules.outcome == 'failure' ||
+           steps.package_modules.outcome == 'failure')
+        run: |
+          echo "Linux module build/verification/package failed; artifact upload was attempted first." >&2
+          exit 1

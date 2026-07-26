@@ -1210,7 +1210,7 @@ fn update_acknowledgment(
     ctx: &StcpContext,
     acknowledgment: u64,
 ) -> Result<(), StcpError> {
-    let (before, after) = {
+    let (before, after, owner) = {
         let mut inner = ctx.inner.lock();
 
         if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
@@ -1249,10 +1249,22 @@ fn update_acknowledgment(
             }
         }
 
-        (before, inner.pending_frames.len())
+        (before, inner.pending_frames.len(), inner.owner)
     };
 
     let released = before.saturating_sub(after);
+
+    /*
+     * recv_wq is shared by blocking recvmsg() and sendmsg(). Waking on every
+     * cumulative ACK creates avoidable scheduler/IPI traffic under load. A
+     * blocked sender only needs a wakeup when the reliability window changes
+     * from full to writable. Wake directly from the ACK parser so a concurrent
+     * parser pass cannot leave a deferred wakeup unconsumed.
+     */
+    if before >= STCP_SEND_WINDOW && after < STCP_SEND_WINDOW {
+        wake_recv(owner);
+    }
+
     if before != 0 && after == 0 {
         crate::carrier::debug_event(307, ctx, acknowledgment as usize, before);
     } else if released != 0 {

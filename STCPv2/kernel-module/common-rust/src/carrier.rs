@@ -140,22 +140,6 @@ pub(crate) fn transmit(
     Ok(())
 }
 
-#[inline]
-fn udp_control_advances_tx_window(bytes: &[u8]) -> bool {
-    if bytes.len() < STCP_HEADER_LEN {
-        return false;
-    }
-
-    matches!(
-        Header::decode(bytes).map(|header| header.packet_type),
-        Ok(PacketType::Ack) |
-        Ok(PacketType::Nack) |
-        Ok(PacketType::Pong) |
-        Ok(PacketType::Reset) |
-        Ok(PacketType::Close)
-    )
-}
-
 fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
@@ -189,18 +173,10 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
              * its timeout even though the Rust session is already connected.
              * Partial TCP frames still do not generate wakeups.
              */
-            /*
-             * recv_wq is also the blocking sendmsg() readiness wait queue.
-             * ACK/NACK processing may free pending_frames without publishing
-             * application data, so `readable` remains false.  Previously the
-             * sender then slept until STCP_SEND_READY_TIMEOUT_MS (30 seconds)
-             * even though the ACK had already opened the UDP flight window.
-             * Wake the owner for UDP control frames that can change TX state.
-             */
-            let tx_window_changed =
-                ctx.proto == 254 && udp_control_advances_tx_window(bytes);
-
-            if readable || became_connected || tx_window_changed {
+            /* ACK processing wakes blocked senders directly only on the
+             * full-to-writable transition. This path remains responsible for
+             * application readability and handshake completion wakeups. */
+            if readable || became_connected {
                 wake_recv(owner);
             }
         }

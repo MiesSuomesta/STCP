@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -Euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="${1:-pi4}"
@@ -434,7 +434,7 @@ chmod 0755 "$PKG_DIR/install.sh"
 
 cat > "$PKG_DIR/verify-package.sh" <<'VERIFY_SCRIPT'
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -Euo pipefail
 PKG_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 KREL="$(cat "$PKG_DIR/KERNEL_RELEASE")"
 TARGET_DTB="$(cat "$PKG_DIR/TARGET_DTB")"

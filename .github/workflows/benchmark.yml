@@ -185,6 +185,8 @@ jobs:
              test -d /lib/modules/$(uname -r)'
 
       - name: Build, deploy, benchmark and publish
+        id: benchmark_run
+        continue-on-error: true
         run: |
           set -Eeuo pipefail
 
@@ -194,7 +196,7 @@ jobs:
 
       - name: Locate latest result
         id: result
-        if: always()
+        if: always() && !cancelled()
         run: |
           set -Eeuo pipefail
 
@@ -222,7 +224,7 @@ jobs:
           fi
 
       - name: Write benchmark summary
-        if: always() && steps.result.outputs.path != ''
+        if: always() && !cancelled() && steps.result.outputs.path != ''
         run: |
           set -Eeuo pipefail
 
@@ -254,20 +256,29 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark results
-        if: always() && steps.result.outputs.path != ''
+        if: always() && !cancelled() && steps.result.outputs.path != ''
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: stcpv2-benchmark-${{ steps.result.outputs.name }}-${{ github.sha }}
+          name: stcpv2-benchmark-${{ steps.result.outputs.name }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ steps.result.outputs.path }}
           if-no-files-found: warn
           retention-days: 30
           compression-level: 6
 
       - name: Upload pipeline logs
-        if: always()
+        if: always() && !cancelled()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: stcpv2-benchmark-logs-${{ github.sha }}
+          name: stcpv2-benchmark-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: STCPv2/kernel-module/benchmark/pipeline-logs/
           if-no-files-found: warn
           retention-days: 30
+
+
+      - name: Fail job after artifacts if benchmark failed
+        if: always() && !cancelled() && steps.benchmark_run.outcome == 'failure'
+        run: |
+          echo "Benchmark pipeline failed; result and log uploads were attempted first." >&2
+          exit 1

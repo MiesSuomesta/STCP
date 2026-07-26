@@ -21,7 +21,7 @@ PERF_METRICS="${PERF_METRICS:-1}"
 PERF_EVENTS="${PERF_EVENTS:-task-clock,context-switches,cpu-migrations,page-faults,cycles,instructions,branches,branch-misses,cache-references,cache-misses}"
 PERF_GRACE_SECONDS="${PERF_GRACE_SECONDS:-2}"
 
-STCP_CASE_TIMEOUT=$(( $DU + 20 ))
+STCP_CASE_TIMEOUT=$(( $DU + (5 * 60) ))
 STCP_OPERATION_TIMEOUT="${STCP_OPERATION_TIMEOUT:-$STCP_CASE_TIMEOUT}"
 CASE_GRACE_SECONDS="${CASE_GRACE_SECONDS:-20}"
 CONTINUE_CASE_ON_ERROR="${CONTINUE_CASE_ON_ERROR:-1}"

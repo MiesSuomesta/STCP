@@ -1,0 +1,85 @@
+diff -ruN /mnt/data/kernel4-orig/common-rust/src/carrier.rs /mnt/data/kernel4-work/common-rust/src/carrier.rs
+--- /mnt/data/kernel4-orig/common-rust/src/carrier.rs	2026-07-25 17:52:21.000000000 +0000
++++ /mnt/data/kernel4-work/common-rust/src/carrier.rs	2026-07-26 00:39:06.481368651 +0000
+@@ -140,22 +140,6 @@
+     Ok(())
+ }
+ 
+-#[inline]
+-fn udp_control_advances_tx_window(bytes: &[u8]) -> bool {
+-    if bytes.len() < STCP_HEADER_LEN {
+-        return false;
+-    }
+-
+-    matches!(
+-        Header::decode(bytes).map(|header| header.packet_type),
+-        Ok(PacketType::Ack) |
+-        Ok(PacketType::Nack) |
+-        Ok(PacketType::Pong) |
+-        Ok(PacketType::Reset) |
+-        Ok(PacketType::Close)
+-    )
+-}
+-
+ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
+     let (shared, side, owner) = {
+         let inner = ctx.inner.lock();
+@@ -189,18 +173,10 @@
+              * its timeout even though the Rust session is already connected.
+              * Partial TCP frames still do not generate wakeups.
+              */
+-            /*
+-             * recv_wq is also the blocking sendmsg() readiness wait queue.
+-             * ACK/NACK processing may free pending_frames without publishing
+-             * application data, so `readable` remains false.  Previously the
+-             * sender then slept until STCP_SEND_READY_TIMEOUT_MS (30 seconds)
+-             * even though the ACK had already opened the UDP flight window.
+-             * Wake the owner for UDP control frames that can change TX state.
+-             */
+-            let tx_window_changed =
+-                ctx.proto == 254 && udp_control_advances_tx_window(bytes);
+-
+-            if readable || became_connected || tx_window_changed {
++            /* ACK processing wakes blocked senders directly only on the
++             * full-to-writable transition. This path remains responsible for
++             * application readability and handshake completion wakeups. */
++            if readable || became_connected {
+                 wake_recv(owner);
+             }
+         }
+diff -ruN /mnt/data/kernel4-orig/common-rust/src/session.rs /mnt/data/kernel4-work/common-rust/src/session.rs
+--- /mnt/data/kernel4-orig/common-rust/src/session.rs	2026-07-25 17:52:20.000000000 +0000
++++ /mnt/data/kernel4-work/common-rust/src/session.rs	2026-07-26 00:39:06.481368651 +0000
+@@ -1210,7 +1210,7 @@
+     ctx: &StcpContext,
+     acknowledgment: u64,
+ ) -> Result<(), StcpError> {
+-    let (before, after) = {
++    let (before, after, owner) = {
+         let mut inner = ctx.inner.lock();
+ 
+         if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
+@@ -1249,10 +1249,22 @@
+             }
+         }
+ 
+-        (before, inner.pending_frames.len())
++        (before, inner.pending_frames.len(), inner.owner)
+     };
+ 
+     let released = before.saturating_sub(after);
++
++    /*
++     * recv_wq is shared by blocking recvmsg() and sendmsg(). Waking on every
++     * cumulative ACK creates avoidable scheduler/IPI traffic under load. A
++     * blocked sender only needs a wakeup when the reliability window changes
++     * from full to writable. Wake directly from the ACK parser so a concurrent
++     * parser pass cannot leave a deferred wakeup unconsumed.
++     */
++    if before >= STCP_SEND_WINDOW && after < STCP_SEND_WINDOW {
++        wake_recv(owner);
++    }
++
+     if before != 0 && after == 0 {
+         crate::carrier::debug_event(307, ctx, acknowledgment as usize, before);
+     } else if released != 0 {

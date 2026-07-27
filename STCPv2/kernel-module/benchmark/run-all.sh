@@ -1,214 +1,217 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-D="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-H="${RPI_HOST:-192.168.1.50}"
-T="${STCP_TRANSPORT:-tcp}"
-DU="${DURATION:-30}"
-CL="${CLIENTS_LIST:-1 2 4 8}"
-PL="${PAYLOADS:-64 1024 4096 65536 262144 1048576}"
-Q="${PIPELINES:-1 4 8}"
-TCP_PORT="${TCP_PORT:-19000}"
-TLS_PORT="${TLS_PORT:-19001}"
-STCP_PORT="${STCP_PORT:-19002}"
-UDP_PORT="${UDP_PORT:-19003}"
-O="${RESULT_DIR:-$D/results/$(date +%Y%m%d-%H%M%S)-$T}"
-RPI_SSH="${RPI_SSH:-pi@$H}"
-RPI_BENCHMARK_DIR="${RPI_BENCHMARK_DIR:-/home/pi/benchmark}"
-SSH_OPTS="${SSH_OPTS:--o StrictHostKeyChecking=accept-new}"
-IRQ_METRICS="${IRQ_METRICS:-1}"
-IRQ_NETWORK_PATTERN="${IRQ_NETWORK_PATTERN:-(eth|enp|eno|end|bcmgenet|genet|lan|wlan|wifi|brcm|dwc|fec|gmac|eqos)}"
-PERF_METRICS="${PERF_METRICS:-1}"
-PERF_EVENTS="${PERF_EVENTS:-task-clock,context-switches,cpu-migrations,page-faults,cycles,instructions,branches,branch-misses,cache-references,cache-misses}"
-PERF_GRACE_SECONDS="${PERF_GRACE_SECONDS:-2}"
 
-STCP_CASE_TIMEOUT=$(( $DU + (5 * 60) ))
-STCP_OPERATION_TIMEOUT="${STCP_OPERATION_TIMEOUT:-$STCP_CASE_TIMEOUT}"
-CASE_GRACE_SECONDS="${CASE_GRACE_SECONDS:-20}"
-CONTINUE_CASE_ON_ERROR="${CONTINUE_CASE_ON_ERROR:-1}"
-PERF_STARTUP_WAIT_SECONDS="${PERF_STARTUP_WAIT_SECONDS:-0.6}"
+# Run the complete benchmark matrix through run-case.sh.
+#
+# Usage:
+#   run-all.sh tcp|udp|both [RESULT_DIR]
+#
+# A custom exact matrix can be supplied through CASE_FILE. Format:
+#   kind<TAB>clients<TAB>payload<TAB>pipeline<TAB>duration
+#
+# Without CASE_FILE the matrix is built from environment variables:
+#   CLIENTS_LIST="1 4 8 16"
+#   PAYLOADS_LIST="64 1024 4096 16384 65536 262144 1048576"
+#   PIPELINES_LIST="1 4 8"
+#   DURATION=15
 
-REMOTE_PERF_PREFIX="${REMOTE_PERF_PREFIX:-sudo -n}"
-[[ "$T" == tcp || "$T" == udp ]] || { echo "STCP_TRANSPORT must be tcp or udp" >&2; exit 2; }
-mkdir -p "$O"
-V=(); [[ "${VERIFY:-0}" == 1 ]] && V=(--verify)
-remote_irq_snapshot(){
-  local output="$1"
-  ssh $SSH_OPTS "$RPI_SSH" \
-    "python3 '$RPI_BENCHMARK_DIR/irq_snapshot.py' --network-pattern $(printf '%q' "$IRQ_NETWORK_PATTERN")" \
-    >"$output"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
+
+MODE="${1:-both}"
+RESULT_DIR="${2:-$SCRIPT_DIR/results/full-$(date +%Y%m%d-%H%M%S)}"
+
+RUN_CASE="${RUN_CASE:-$SCRIPT_DIR/run-case.sh}"
+CASE_FILE="${CASE_FILE:-}"
+
+CLIENTS_LIST="${CLIENTS_LIST:-1 4 8 16}"
+PAYLOADS_LIST="${PAYLOADS_LIST:-64 1024 4096 16384 65536 262144 1048576}"
+PIPELINES_LIST="${PIPELINES_LIST:-1 4 8}"
+DURATION="${DURATION:-15}"
+CONTINUE_ON_FAILURE="${CONTINUE_ON_FAILURE:-0}"
+
+log()  { printf '[INFO] %s\n' "$*"; }
+ok()   { printf '[ OK ] %s\n' "$*"; }
+warn() { printf '[WARN] %s\n' "$*" >&2; }
+die()  { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
+
+
+format_hms() {
+    local total="${1:-0}"
+    local hours minutes seconds
+
+    (( total < 0 )) && total=0
+
+    hours=$((total / 3600))
+    minutes=$(((total % 3600) / 60))
+    seconds=$((total % 60))
+
+    printf '%02d:%02d:%02d' "$hours" "$minutes" "$seconds"
 }
 
+print_progress() {
+    local current="$1"
+    local total="$2"
+    local passed="$3"
+    local failed="$4"
+    local now elapsed eta percent
 
-remote_perf_start(){
-  local remote_output="$1"
-  local remote_log="$2"
-  local seconds="$3"
-  local remote_pid_file="$4"
+    now="$(date +%s)"
+    elapsed=$((now - RUN_STARTED_AT))
 
-  ssh $SSH_OPTS "$RPI_SSH" "bash -s -- $(printf '%q ' "$remote_output" "$remote_log" "$seconds" "$remote_pid_file" "$PERF_EVENTS" "$REMOTE_PERF_PREFIX" "$PERF_STARTUP_WAIT_SECONDS")" <<'REMOTE_PERF'
-set -u
-output="$1"
-log="$2"
-seconds="$3"
-pid_file="$4"
-events="$5"
-prefix="$6"
-startup_wait="$7"
-
-rm -f "$output" "$log" "$pid_file"
-
-perf_bin="$(command -v perf 2>/dev/null || true)"
-if [[ -z "$perf_bin" ]]; then
-  echo "perf command not found on $(hostname)" >"$log"
-  exit 3
-fi
-
-# Run through a small wrapper so an optional prefix such as 'sudo -n' works.
-# The wrapper records both perf diagnostics and its final exit status.
-cmd="$prefix '$perf_bin' stat -a -x ';' -o '$output' -e '$events' -- sleep '$seconds'"
-nohup bash -c "$cmd; rc=\$?; echo \$rc > '${pid_file}.status'; exit \$rc" \
-  >"$log" 2>&1 &
-pid=$!
-echo "$pid" >"$pid_file"
-
-sleep "$startup_wait"
-if ! kill -0 "$pid" 2>/dev/null; then
-  rc="$(cat "${pid_file}.status" 2>/dev/null || echo 1)"
-  echo "perf exited during startup (status $rc)" >>"$log"
-  exit "$rc"
-fi
-REMOTE_PERF
-}
-remote_perf_finish(){
-  local remote_output="$1"
-  local remote_log="$2"
-  local remote_pid_file="$3"
-  local local_output="$4"
-  local local_log="$5"
-
-  ssh $SSH_OPTS "$RPI_SSH" "bash -s -- $(printf '%q ' "$remote_output" "$remote_log" "$remote_pid_file")" <<'REMOTE_WAIT' >"$local_output"
-set -u
-output="$1"
-log="$2"
-pid_file="$3"
-
-if [[ -f "$pid_file" ]]; then
-  pid="$(cat "$pid_file" 2>/dev/null || true)"
-  if [[ -n "$pid" ]]; then
-    while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done
-  fi
-fi
-
-[[ -f "$output" ]] && cat "$output"
-REMOTE_WAIT
-
-  ssh $SSH_OPTS "$RPI_SSH" \
-    "cat $(printf '%q' "$remote_log") 2>/dev/null || true; rm -f $(printf '%q' "$remote_output") $(printf '%q' "$remote_log") $(printf '%q' "$remote_pid_file") $(printf '%q' "${remote_pid_file}.status")" \
-    >"$local_log" || true
-}
-run_case(){
-  local mode="$1" port="$2" clients="$3" payload="$4" pipeline="$5"
-  local label="$mode"; [[ "$mode" == stcp ]] && label="stcp-$T"
-  local name="${label}-c${clients}-p${payload}-q${pipeline}"
-  local before="$O/$name.irq-before.json"
-  local after="$O/$name.irq-after.json"
-  local result="$O/$name.json"
-  local perf_local="$O/$name.perf.csv"
-  local perf_log_local="$O/$name.perf.log"
-  local perf_remote="/tmp/stcp-perf-$USER-$name-$$.csv"
-  local perf_log_remote="/tmp/stcp-perf-$USER-$name-$$.log"
-  local perf_pid_remote="/tmp/stcp-perf-$USER-$name-$$.pid"
-  local perf_seconds=$((DU + PERF_GRACE_SECONDS))
-  local perf_started=0
-  local rc=0
-
-  echo "===== $name ====="
-
-  if [[ "$IRQ_METRICS" == 1 ]]; then
-    remote_irq_snapshot "$before"
-  fi
-
-  if [[ "$PERF_METRICS" == 1 ]]; then
-    if remote_perf_start         "$perf_remote" "$perf_log_remote" "$perf_seconds" "$perf_pid_remote"; then
-      perf_started=1
+    if (( current > 0 )); then
+        eta=$(( elapsed * (total - current) / current ))
     else
-      ssh $SSH_OPTS "$RPI_SSH" "cat $(printf '%q' "$perf_log_remote") 2>/dev/null || true" >"$perf_log_local" || true
-      echo "[WARN] perf start failed for $name; continuing without perf metrics"
-      [[ -s "$perf_log_local" ]] && sed 's/^/[perf] /' "$perf_log_local"
+        eta=0
     fi
-  fi
 
-  set +e
-  timeout --signal=TERM --kill-after=5 "$((DU + STCP_OPERATION_TIMEOUT + CASE_GRACE_SECONDS))" \
-    python3 "$D/benchmark_client.py" \
-      --mode "$mode" --transport "$T" --host "$H" --port "$port" \
-      --clients "$clients" --payload "$payload" --pipeline "$pipeline" \
-      --duration "$DU" --timeout "$STCP_OPERATION_TIMEOUT" \
-      --output-json "$result" "${V[@]}"
-  rc=$?
-  set -e
-  if [[ "$rc" == 124 || "$rc" == 137 ]]; then
-    echo "[TIMEOUT] $name exceeded the case deadline; continuing to the next case"
-  fi
-
-  if [[ "$IRQ_METRICS" == 1 ]]; then
-    remote_irq_snapshot "$after"
-    if [[ -f "$result" ]]; then
-      python3 "$D/enrich_irq_metrics.py" \
-        --result "$result" --before "$before" --after "$after"
-    fi
-  fi
-
-  if [[ "$perf_started" == 1 ]]; then
-    remote_perf_finish \
-      "$perf_remote" "$perf_log_remote" "$perf_pid_remote" \
-      "$perf_local" "$perf_log_local"
-    if [[ -f "$result" && -s "$perf_local" ]]; then
-      python3 "$D/enrich_perf_metrics.py" \
-        --result "$result" --perf "$perf_local"
+    if (( total > 0 )); then
+        percent=$(( current * 100 / total ))
     else
-      echo "[WARN] perf produced no counters for $name"
-      [[ -s "$perf_log_local" ]] && sed 's/^/[perf] /' "$perf_log_local"
+        percent=0
     fi
-  fi
 
-  if (( rc != 0 )); then
-    echo "[FAIL] $name exited with status $rc"
-    if [[ "$CONTINUE_CASE_ON_ERROR" == 1 ]]; then
-      echo "[INFO] Continuing benchmark matrix after failed case"
-      return 0
-    fi
-  fi
-  return "$rc"
+    printf '[PROGRESS] %d/%d => %d%% complete | PASS=%d FAIL=%d | elapsed %s | ETA %s\n\n' \
+        "$current" "$total" "$percent" "$passed" "$failed" \
+        "$(format_hms "$elapsed")" "$(format_hms "$eta")"
 }
 
-CASES=0
 
-for payload in $PL; do
-  for clients in $CL; do
-    for pipeline in $Q; do
-      CASES=$(( $CASES + 1))
+result_file_for_case() {
+    local kind="$1"
+    local clients="$2"
+    local payload="$3"
+    local pipeline="$4"
+    local carrier
+
+    case "$kind" in
+        tcp|tls|stcp-tcp) carrier=tcp ;;
+        udp|stcp-udp)     carrier=udp ;;
+        *) return 1 ;;
+    esac
+
+    printf '%s/%s/%s-c%s-p%s-q%s.json\n' \
+        "$RESULT_DIR" "$carrier" "$kind" "$clients" "$payload" "$pipeline"
+}
+
+print_case_result() {
+    local file="$1"
+
+    [[ -f "$file" ]] || {
+        warn "Missing result JSON: $file"
+        return
+    }
+
+    echo
+    printf '%(%d.%m.%Y %H:%M:%S)T ' -1
+    printf '%0.s-' {1..67}
+    echo
+    echo
+
+    cat "$file"
+    echo
+}
+
+case "$MODE" in
+    tcp)  KINDS=(tcp tls stcp-tcp) ;;
+    udp)  KINDS=(udp stcp-udp) ;;
+    both) KINDS=(tcp tls stcp-tcp udp stcp-udp) ;;
+    *) die "Unknown mode: $MODE" ;;
+esac
+
+[[ -x "$RUN_CASE" || -f "$RUN_CASE" ]] || die "Missing run-case script: $RUN_CASE"
+
+RESULT_DIR="$(mkdir -p -- "$RESULT_DIR" && cd -- "$RESULT_DIR" && pwd -P)"
+MANIFEST="$RESULT_DIR/cases.tsv"
+SUMMARY="$RESULT_DIR/run-summary.tsv"
+
+printf 'kind\tclients\tpayload\tpipeline\tduration\n' >"$MANIFEST"
+printf 'kind\tclients\tpayload\tpipeline\tduration\tstatus\n' >"$SUMMARY"
+
+emit_cases() {
+    local kind clients payload pipeline duration
+
+    if [[ -n "$CASE_FILE" ]]; then
+        [[ -f "$CASE_FILE" ]] || die "CASE_FILE not found: $CASE_FILE"
+
+        while IFS=$'\t' read -r kind clients payload pipeline duration; do
+            [[ -z "$kind" || "$kind" == \#* || "$kind" == "kind" ]] && continue
+
+            case "$MODE:$kind" in
+                tcp:tcp|tcp:tls|tcp:stcp-tcp|udp:udp|udp:stcp-udp|both:*)
+                    printf '%s\t%s\t%s\t%s\t%s\n' \
+                        "$kind" "$clients" "$payload" "$pipeline" "${duration:-$DURATION}"
+                    ;;
+            esac
+        done <"$CASE_FILE"
+        return
+    fi
+
+    for kind in "${KINDS[@]}"; do
+        for clients in $CLIENTS_LIST; do
+            for payload in $PAYLOADS_LIST; do
+                for pipeline in $PIPELINES_LIST; do
+                    printf '%s\t%s\t%s\t%s\t%s\n' \
+                        "$kind" "$clients" "$payload" "$pipeline" "$DURATION"
+                done
+            done
+        done
     done
-  done
+}
+
+mapfile -t CASES < <(emit_cases)
+(( ${#CASES[@]} > 0 )) || die "No benchmark cases selected"
+
+printf '%s\n' "${CASES[@]}" >>"$MANIFEST"
+
+log "Mode:       $MODE"
+log "Result set: $RESULT_DIR"
+log "Cases:      ${#CASES[@]}"
+
+passed=0
+failed=0
+index=0
+RUN_STARTED_AT="$(date +%s)"
+
+for line in "${CASES[@]}"; do
+    index=$((index + 1))
+    IFS=$'\t' read -r kind clients payload pipeline duration <<<"$line"
+
+    log "Case $index/${#CASES[@]}: $kind c=$clients p=$payload q=$pipeline"
+
+    result_file="$(result_file_for_case "$kind" "$clients" "$payload" "$pipeline")"
+
+    if bash "$RUN_CASE" "$RESULT_DIR" "$kind" "$clients" "$payload" "$pipeline" "$duration"; then
+        status=PASS
+        passed=$((passed + 1))
+        print_case_result "$result_file"
+        print_progress "$index" "${#CASES[@]}" "$passed" "$failed"
+    else
+        status=FAIL
+        failed=$((failed + 1))
+        warn "Case result: $kind c=$clients p=$payload q=$pipeline FAILED"
+        print_progress "$index" "${#CASES[@]}" "$passed" "$failed"
+    fi
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$kind" "$clients" "$payload" "$pipeline" "$duration" "$status" \
+        >>"$SUMMARY"
+
+    if [[ "$status" == FAIL && "$CONTINUE_ON_FAILURE" != 1 ]]; then
+        die "Stopped at failed case; set CONTINUE_ON_FAILURE=1 to finish the matrix"
+    fi
 done
 
-CASE=0
-for payload in $PL; do
-  for clients in $CL; do
-    for pipeline in $Q; do
-      if [[ "$T" == "udp" ]]; then
-        run_case udp "$UDP_PORT" "$clients" "$payload" "$pipeline"
-      else
-        run_case tcp "$TCP_PORT" "$clients" "$payload" "$pipeline"
-      fi
-      run_case tls "$TLS_PORT" "$clients" "$payload" "$pipeline"
-      run_case stcp "$STCP_PORT" "$clients" "$payload" "$pipeline"
-      CASE=$(( $CASE + 1))
-      PERCENT=$(( ( $CASE * 100 ) / $CASES ))
-      echo "Cases done: $CASE / $CASES (${PERCENT}% Completed)"
-    done
-  done
-done
+cat <<EOF
 
-python3 "$D/generate_report.py" --input-dir "$O"
-echo "Reports: $O/report.md $O/results.csv $O/summary.json"
+Benchmark summary
+-----------------
+Result set: $RESULT_DIR
+Passed:     $passed
+Failed:     $failed
+Manifest:   $MANIFEST
+Summary:    $SUMMARY
+EOF
+
+(( failed == 0 )) || exit 1
+ok "All benchmark cases passed"

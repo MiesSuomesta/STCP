@@ -4,8 +4,8 @@
     "title": "Raspberry Pi TCP benchmark",
     "platform": "Raspberry Pi",
     "transport": "tcp",
-    "generated_at": "2026-07-26T16:27:21+00:00",
-    "commit": "1011dceee",
+    "generated_at": "2026-07-27T16:02:26+00:00",
+    "commit": "1c43c92f3",
     "kernel": "unknown",
     "compiler": "unknown",
     "source": "/home/pomo/git/STCP/STCPv2/kernel-module/benchmark/results/full-20260726-154142/tcp"
@@ -18,8 +18,8 @@
     ],
     "protocol_labels": {
       "stcp": "STCP/TCP",
-      "tcp": "Raw TCP",
-      "tls": "TLS/TCP"
+      "tls": "TLS/TCP",
+      "tcp": "Raw TCP"
     },
     "clients": [
       1,

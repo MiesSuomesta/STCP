@@ -1,0 +1,16 @@
+test_name=stcp-udp-orchestrated
+timestamp=20260726-045252
+project_root=/home/pomo/git/STCP/STCPv2/kernel-module
+test_script=benchmark/test-stcp-udp-direct-tx-burst-v13.sh
+host=192.168.1.199
+port=19002
+clients_list=16 8 4 2 1
+rpi_target=pi@192.168.1.199
+rpi_bench_dir=/home/pi/stcp-benchmark
+restart_servers_each_run=1
+clear_dmesg=1
+git_commit=2e1962eb6a6b073c08dada5e11269a9b4f025eea
+git_description=v2-churn-stable-47-g2e1962eb6-dirty
+started_at=2026-07-26T04:52:53+03:00
+exit_status=1
+finished_at=2026-07-26T04:53:36+03:00

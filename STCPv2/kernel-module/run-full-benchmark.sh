@@ -51,6 +51,8 @@ SKIP_DEPLOY="${SKIP_DEPLOY:-0}"
 SKIP_REBOOT="${SKIP_REBOOT:-0}"
 SKIP_BENCHMARK="${SKIP_BENCHMARK:-0}"
 KEEP_REMOTE_RUNNING="${KEEP_REMOTE_RUNNING:-0}"
+RESTART_SERVERS_EACH_CASE="${RESTART_SERVERS_EACH_CASE:-1}"
+SERVER_RESTART_DELAY="${SERVER_RESTART_DELAY:-2}"
 
 TIMESTAMP="${TIMESTAMP:-$(date +%Y%m%d-%H%M%S)}"
 RUN_NAME="${RUN_NAME:-full-${TIMESTAMP}}"
@@ -67,10 +69,17 @@ COMMON_RUST_DIR="${COMMON_RUST_DIR:-$PROJECT_ROOT/common-rust}"
 BENCH_DIR="${BENCH_DIR:-$PROJECT_ROOT/benchmark}"
 
 REBUILD_SCRIPT="${REBUILD_SCRIPT:-$PROJECT_ROOT/rebuild-all.sh}"
-ORCHESTRATOR="${ORCHESTRATOR:-$PROJECT_ROOT/orchestrate-stcp-udp-tests-fixed.sh}"
+ORCHESTRATOR="${ORCHESTRATOR:-$BENCH_DIR/orchestrate-stcp-udp-tests.sh}"
 
 SSH_OPTS=(
     -p "$RPI_SSH_PORT"
+    -o ConnectTimeout=10
+    -o ServerAliveInterval=15
+    -o ServerAliveCountMax=4
+)
+
+SCP_OPTS=(
+    -P "$RPI_SSH_PORT"
     -o ConnectTimeout=10
     -o ServerAliveInterval=15
     -o ServerAliveCountMax=4
@@ -285,7 +294,7 @@ deploy_rpi() {
     fi
 
     run_logged "scp-rpi-module" \
-        scp "${SSH_OPTS[@]}" "$RPI_DIR/stcp.ko" "$RPI_TARGET:/tmp/stcp.ko" || return $?
+        scp "${SCP_OPTS[@]}" "$RPI_DIR/stcp.ko" "$RPI_TARGET:/tmp/stcp.ko" || return $?
 
     remote_tty "
         set +e
@@ -365,6 +374,16 @@ verify_remote_runtime() {
         vcgencmd get_throttled 2>/dev/null || true
     " >"$SYSTEM_DIR/raspberry-runtime.txt" 2>&1
 
+
+    log "Doing module installation ...."
+    if remote "sudo modprobe stcp"; then
+        log "Module installed"
+    else
+        fail "STCP Module loading error!"
+        return 2
+    fi
+
+
     if ! remote "lsmod | grep -q '^stcp '" >/dev/null 2>&1; then
         fail "STCP module is not loaded on Raspberry"
         return 1
@@ -419,6 +438,8 @@ run_benchmarks() {
         CONTINUE_ON_FAILURE=1 \
         CLEAR_DMESG=1 \
         RESTART_SERVERS_EACH_RUN=1 \
+        RESTART_SERVERS_EACH_CASE="$RESTART_SERVERS_EACH_CASE" \
+        SERVER_RESTART_DELAY="$SERVER_RESTART_DELAY" \
         bash "$ORCHESTRATOR"
 
     return $?

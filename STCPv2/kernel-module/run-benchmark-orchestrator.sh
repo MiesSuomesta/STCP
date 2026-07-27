@@ -38,6 +38,7 @@ PUBLISH_RESULT_DIR="${2:-}"
 
 PIPELINE="${PIPELINE:-$ROOT/build-benchmark-publish.sh}"
 PUBLISH_TOOL="${PUBLISH_TOOL:-$ROOT/publish-latest-benchmarks.sh}"
+RETRY_TOOL="${RETRY_TOOL:-$ROOT/benchmark/retry-failed-cases.sh}"
 RESULTS_ROOT="${RESULTS_ROOT:-$ROOT/benchmark/results}"
 LOG_DIR="${LOG_DIR:-$ROOT/benchmark/pipeline-logs}"
 
@@ -63,6 +64,15 @@ KEEP_RESULT_RUNS="${KEEP_RESULT_RUNS:-5}"
 BUILD_FIRST="${BUILD_FIRST:-0}"
 AUTO_PUBLISH_WEB="${AUTO_PUBLISH_WEB:-1}"
 AUTO_ARCHIVE="${AUTO_ARCHIVE:-1}"
+
+RETRY_FAILED_CASES="${RETRY_FAILED_CASES:-1}"
+MAX_CASE_RETRIES="${MAX_CASE_RETRIES:-5}"
+RETRY_DELAY="${RETRY_DELAY:-3}"
+
+RESTART_SERVERS_EACH_CASE="${RESTART_SERVERS_EACH_CASE:-1}"
+SERVER_RESTART_DELAY="${SERVER_RESTART_DELAY:-2}"
+SERVER_RESTART_TOOL="${SERVER_RESTART_TOOL:-$ROOT/benchmark/restart-rpi-servers.sh}"
+PYTHON_WRAPPER_DIR="${PYTHON_WRAPPER_DIR:-$ROOT/benchmark/.case-python-wrapper}"
 
 AUTO_GOLDEN="${AUTO_GOLDEN:-0}"
 AUTO_PUSH="${AUTO_PUSH:-0}"
@@ -148,10 +158,16 @@ preflight() {
         die "Missing benchmark/run-all-full.sh"
     [[ -f "$PUBLISH_TOOL" ]] || \
         die "Missing publish tool: $PUBLISH_TOOL"
+    [[ -f "$RETRY_TOOL" ]] || \
+        die "Missing retry tool: $RETRY_TOOL"
+    [[ -f "$SERVER_RESTART_TOOL" ]] || \
+        die "Missing server restart tool: $SERVER_RESTART_TOOL"
 
     bash -n "$PIPELINE"
     bash -n "$ROOT/benchmark/run-all-full.sh"
     bash -n "$PUBLISH_TOOL"
+    bash -n "$RETRY_TOOL"
+    bash -n "$SERVER_RESTART_TOOL"
 
     if [[ "$MODE" != "publish" ]]; then
         log "Checking Raspberry connectivity"
@@ -193,6 +209,54 @@ latest_result() {
     cut -d' ' -f2-
 }
 
+
+prepare_case_python_wrapper() {
+    [[ "$RESTART_SERVERS_EACH_CASE" == "1" ]] || return 0
+
+    CURRENT_PHASE="case restart wrapper setup"
+
+    local real_python
+    real_python="$(command -v python3)"
+    [[ -x "$real_python" ]] || die "Unable to resolve real python3"
+
+    rm -rf "$PYTHON_WRAPPER_DIR"
+    mkdir -p "$PYTHON_WRAPPER_DIR"
+
+    cat >"$PYTHON_WRAPPER_DIR/python3" <<'WRAPPER'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+REAL_PYTHON="${STCP_REAL_PYTHON:?STCP_REAL_PYTHON is not set}"
+RESTART_TOOL="${STCP_SERVER_RESTART_TOOL:?STCP_SERVER_RESTART_TOOL is not set}"
+
+is_benchmark_client=0
+for arg in "$@"; do
+    case "$arg" in
+        */benchmark_client.py|benchmark_client.py)
+            is_benchmark_client=1
+            break
+            ;;
+    esac
+done
+
+if (( is_benchmark_client )); then
+    bash "$RESTART_TOOL"
+fi
+
+exec "$REAL_PYTHON" "$@"
+WRAPPER
+
+    chmod +x "$PYTHON_WRAPPER_DIR/python3"
+
+    cp "$PYTHON_WRAPPER_DIR/python3" "$PYTHON_WRAPPER_DIR/python"
+    chmod +x "$PYTHON_WRAPPER_DIR/python"
+
+    export STCP_REAL_PYTHON="$real_python"
+    export STCP_SERVER_RESTART_TOOL="$SERVER_RESTART_TOOL"
+
+    ok "Per-case Raspberry server restart wrapper enabled"
+}
+
 run_pipeline() {
     CURRENT_PHASE="benchmark matrix"
 
@@ -210,6 +274,10 @@ run_pipeline() {
     log "Payloads:  $PAYLOADS"
     log "Pipelines: $PIPELINES"
     log "Duration:  $DURATION seconds"
+
+    log "Restarted python servers?"
+    prepare_case_python_wrapper
+    log "Restarted python servers.."
 
     CARRIERS="$SELECTED_CARRIERS" \
     STCP_CARRIERS="$SELECTED_CARRIERS" \
@@ -230,6 +298,8 @@ run_pipeline() {
     CLEAN_OLD_RESULTS="$CLEAN_OLD_RESULTS" \
     KEEP_RESULT_RUNS="$KEEP_RESULT_RUNS" \
     AUTO_PUBLISH_WEB=0 \
+    RESTART_SERVERS_EACH_CASE="$RESTART_SERVERS_EACH_CASE" \
+    PATH="$PYTHON_WRAPPER_DIR:$PATH" \
         bash "$PIPELINE" "$pipeline_mode"
 
     LAST_RESULT_DIR="$(latest_result)"
@@ -243,6 +313,36 @@ run_pipeline() {
 
     printf '%s\n' "$LAST_RESULT_DIR" >"$RESULTS_ROOT/latest-orchestrated.txt"
     ok "Benchmark complete: $LAST_RESULT_DIR"
+}
+
+retry_failed_results() {
+    CURRENT_PHASE="failed case retries"
+
+    [[ "$RETRY_FAILED_CASES" == "1" ]] || {
+        warn "RETRY_FAILED_CASES=0; retry phase disabled"
+        return 0
+    }
+
+    log "Retrying failed tuples up to $MAX_CASE_RETRIES time(s)"
+
+    MAX_RETRIES="$MAX_CASE_RETRIES" \
+    RETRY_DELAY="$RETRY_DELAY" \
+    DURATION="$DURATION" \
+    PIPELINE="$PIPELINE" \
+    RESULTS_ROOT="$RESULTS_ROOT" \
+    PERF_METRICS="$PERF_METRICS" \
+    IRQ_METRICS="$IRQ_METRICS" \
+    VERIFY="$VERIFY" \
+    SYNC_RPI="$SYNC_RPI" \
+    CONTINUE_ON_ERROR="$CONTINUE_ON_ERROR" \
+    RPI_ADDR="$RPI_ADDR" \
+    RPI_USER="$RPI_USER" \
+    RPI_BENCHMARK_DIR="$RPI_BENCHMARK_DIR" \
+    RESTART_SERVERS_EACH_CASE="$RESTART_SERVERS_EACH_CASE" \
+    STCP_REAL_PYTHON="${STCP_REAL_PYTHON:-$(command -v python3)}" \
+    STCP_SERVER_RESTART_TOOL="$SERVER_RESTART_TOOL" \
+    PATH="$PYTHON_WRAPPER_DIR:$PATH" \
+        bash "$RETRY_TOOL" "$LAST_RESULT_DIR" "$SELECTED_CARRIERS"
 }
 
 validate_results() {
@@ -489,6 +589,7 @@ main() {
     fi
 
     run_pipeline
+    retry_failed_results
     validate_results
     archive_results
     publish_results

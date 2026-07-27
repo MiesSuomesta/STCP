@@ -1,69 +1,45 @@
-# STCP benchmark web publication orchestrator
+# STCP Raspberry restart before every real benchmark case
 
-This replaces the missing `publish-latest.sh`.
-
-## Install
+Install from the `kernel-module` root:
 
 ```bash
-cp publish-benchmark-site.sh \
-  ~/git/STCP/STCPv2/kernel-module/
+cp run-full-benchmark.sh .
+cp benchmark/orchestrate-stcp-udp-tests.sh benchmark/
+cp benchmark/restart-rpi-benchmark-servers.sh benchmark/
 
 chmod +x \
-  ~/git/STCP/STCPv2/kernel-module/publish-benchmark-site.sh
+  run-full-benchmark.sh \
+  benchmark/orchestrate-stcp-udp-tests.sh \
+  benchmark/restart-rpi-benchmark-servers.sh
 ```
 
-Replace:
+Run:
 
 ```bash
-"$WEB_DIR/publish-latest.sh"
+RESTART_SERVERS_EACH_CASE=1 \
+SERVER_RESTART_DELAY=2 \
+bash run-full-benchmark.sh
 ```
 
-with:
+The case loop is inside `TEST_SCRIPT`, so restarting only in `run_case()` is
+not sufficient. The corrected orchestrator prepends a `python3` wrapper to
+`PATH`. Every invocation whose arguments contain `benchmark_client.py` calls
+the Raspberry restart helper first.
 
-```bash
-"$ROOT/publish-benchmark-site.sh" "$RESULT_DIR"
-```
+The helper verifies that the Raspberry server PID set changed. A failed
+restart aborts that benchmark invocation instead of silently continuing.
 
-## Publish latest results
-
-```bash
-./publish-benchmark-site.sh
-```
-
-## Publish named results
-
-```bash
-./publish-benchmark-site.sh \
-  benchmark/results/full-20260726-122140
-```
-
-## Dry run
-
-```bash
-DRY_RUN=1 ./publish-benchmark-site.sh
-```
-
-## Commit, tag and push
-
-```bash
-AUTO_GIT=1 AUTO_PUSH=1 \
-./publish-benchmark-site.sh \
-  benchmark/results/full-20260726-122140
-```
-
-Default target:
+Expected output before every client invocation:
 
 ```text
-lja@fuji:/var/www/html/public/stcp.fi/benchmarks/raspberry-pi
+[CASE-RESTART] Restarting Raspberry servers...
+[CASE-RESTART] PID set changed successfully
+[CASE-RESTART] Before: ...
+[CASE-RESTART] After:  ...
 ```
 
-Publication is atomic:
+Disable:
 
-```text
-raspberry-pi/
-├── index.html
-├── latest -> releases/<publish-id>
-└── releases/<publish-id>/
+```bash
+RESTART_SERVERS_EACH_CASE=0 bash run-full-benchmark.sh
 ```
-
-Failed or incomplete result sets are not published.

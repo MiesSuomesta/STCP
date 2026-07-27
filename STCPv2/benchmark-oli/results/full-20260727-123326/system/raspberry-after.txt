@@ -1,0 +1,1247 @@
+2026-07-25T10:48:33+03:00
+Linux raspi 6.18.38-2026.07.26_04-35-20-stcp-2026.07.26_04-35-20-stcp #49 SMP PREEMPT Sun Jul 26 04:35:59 EEST 2026 aarch64 GNU/Linux
+
+stcp                  679936  3
+
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/mmcblk0p2   29G  8.4G   19G  31% /
+/dev/mmcblk0p2   29G  8.4G   19G  31% /
+
+throttled=0x50005
+
+[ 3183.974472] stcp-debug-v8: accept waiting handshake child=ffffff8042784840 ctx=ffffff80415f9400 timeout_ms=30000
+[ 3183.974750] stcp-debug-v8: accept wait result child=ffffff8042784840 ctx=ffffff80415f9400 wait_ret=7500 connected=1
+[ 3183.974772] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042784840 ctx=ffffff80415f9400 carrier=ffffff804137a200 sk=ffffff8042784840
+[ 3183.976355] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a738680 flags=0x2
+[ 3183.976403] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3183.976424] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3183.976438] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3183.993523] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3183.993546] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415f8400 ret=0
+[ 3183.993567] stcp-debug-v8: accept alloc child newsock=ffffff808a738680 newsk=ffffff8042784400 err=0
+[ 3183.994210] stcp-debug-v8: accept UDP carrier attach child=ffffff8042784400 carrier=ffffff8041377c00 ret=0
+[ 3183.994222] stcp-debug-v8: accept wire child=ffffff8042784400 ctx=ffffff80415f8400 carrier=ffffff8041377c00
+[ 3183.994233] stcp-debug-v8: accept receiver start child=ffffff8042784400 carrier=ffffff8041377c00 ret=0
+[ 3183.994243] stcp-debug-v8: accept handshake start begin child=ffffff8042784400 ctx=ffffff80415f8400
+[ 3183.994292] stcp-debug-v8: accept handshake start result child=ffffff8042784400 ctx=ffffff80415f8400 ret=0 connected=0
+[ 3183.994306] stcp-debug-v8: accept waiting handshake child=ffffff8042784400 ctx=ffffff80415f8400 timeout_ms=30000
+[ 3183.994771] stcp-debug-v8: accept wait result child=ffffff8042784400 ctx=ffffff80415f8400 wait_ret=7500 connected=1
+[ 3183.994792] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042784400 ctx=ffffff80415f8400 carrier=ffffff8041377c00 sk=ffffff8042784400
+[ 3183.995447] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a738000 flags=0x2
+[ 3183.995469] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3183.995480] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3183.995490] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.023467] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.023498] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415f8000 ret=0
+[ 3184.023520] stcp-debug-v8: accept alloc child newsock=ffffff808a738000 newsk=ffffff8042781540 err=0
+[ 3184.024228] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781540 carrier=ffffff8041377e00 ret=0
+[ 3184.024244] stcp-debug-v8: accept wire child=ffffff8042781540 ctx=ffffff80415f8000 carrier=ffffff8041377e00
+[ 3184.024257] stcp-debug-v8: accept receiver start child=ffffff8042781540 carrier=ffffff8041377e00 ret=0
+[ 3184.024268] stcp-debug-v8: accept handshake start begin child=ffffff8042781540 ctx=ffffff80415f8000
+[ 3184.024323] stcp-debug-v8: accept handshake start result child=ffffff8042781540 ctx=ffffff80415f8000 ret=0 connected=0
+[ 3184.024337] stcp-debug-v8: accept waiting handshake child=ffffff8042781540 ctx=ffffff80415f8000 timeout_ms=30000
+[ 3184.024598] stcp-debug-v8: accept wait result child=ffffff8042781540 ctx=ffffff80415f8000 wait_ret=7500 connected=1
+[ 3184.024620] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781540 ctx=ffffff80415f8000 carrier=ffffff8041377e00 sk=ffffff8042781540
+[ 3184.025492] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a73a080 flags=0x2
+[ 3184.025517] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.025528] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.025537] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.139803] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.139835] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415fa000 ret=0
+[ 3184.139856] stcp-debug-v8: accept alloc child newsock=ffffff808a73a080 newsk=ffffff8042783b80 err=0
+[ 3184.140564] stcp-debug-v8: accept UDP carrier attach child=ffffff8042783b80 carrier=ffffff80446dee00 ret=0
+[ 3184.140582] stcp-debug-v8: accept wire child=ffffff8042783b80 ctx=ffffff80415fa000 carrier=ffffff80446dee00
+[ 3184.140596] stcp-debug-v8: accept receiver start child=ffffff8042783b80 carrier=ffffff80446dee00 ret=0
+[ 3184.140608] stcp-debug-v8: accept handshake start begin child=ffffff8042783b80 ctx=ffffff80415fa000
+[ 3184.140656] stcp-debug-v8: accept handshake start result child=ffffff8042783b80 ctx=ffffff80415fa000 ret=0 connected=0
+[ 3184.140670] stcp-debug-v8: accept waiting handshake child=ffffff8042783b80 ctx=ffffff80415fa000 timeout_ms=30000
+[ 3184.140901] stcp-debug-v8: accept wait result child=ffffff8042783b80 ctx=ffffff80415fa000 wait_ret=7500 connected=1
+[ 3184.140918] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042783b80 ctx=ffffff80415fa000 carrier=ffffff80446dee00 sk=ffffff8042783b80
+[ 3184.141732] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7396c0 flags=0x2
+[ 3184.141761] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.141772] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.141782] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.390105] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.390139] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415f8c00 ret=0
+[ 3184.390163] stcp-debug-v8: accept alloc child newsock=ffffff808a7396c0 newsk=ffffff8042783300 err=0
+[ 3184.390797] stcp-debug-v8: accept UDP carrier attach child=ffffff8042783300 carrier=ffffff804476ee00 ret=0
+[ 3184.390807] stcp-debug-v8: accept wire child=ffffff8042783300 ctx=ffffff80415f8c00 carrier=ffffff804476ee00
+[ 3184.390819] stcp-debug-v8: accept receiver start child=ffffff8042783300 carrier=ffffff804476ee00 ret=0
+[ 3184.390829] stcp-debug-v8: accept handshake start begin child=ffffff8042783300 ctx=ffffff80415f8c00
+[ 3184.390886] stcp-debug-v8: accept handshake start result child=ffffff8042783300 ctx=ffffff80415f8c00 ret=0 connected=0
+[ 3184.390901] stcp-debug-v8: accept waiting handshake child=ffffff8042783300 ctx=ffffff80415f8c00 timeout_ms=30000
+[ 3184.391150] stcp-debug-v8: accept wait result child=ffffff8042783300 ctx=ffffff80415f8c00 wait_ret=7500 connected=1
+[ 3184.391168] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042783300 ctx=ffffff80415f8c00 carrier=ffffff804476ee00 sk=ffffff8042783300
+[ 3184.392219] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a739a00 flags=0x2
+[ 3184.392250] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.392261] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.392271] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.568488] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.568521] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415f9c00 ret=0
+[ 3184.568544] stcp-debug-v8: accept alloc child newsock=ffffff808a739a00 newsk=ffffff8042782640 err=0
+[ 3184.569185] stcp-debug-v8: accept UDP carrier attach child=ffffff8042782640 carrier=ffffff804f434800 ret=0
+[ 3184.569195] stcp-debug-v8: accept wire child=ffffff8042782640 ctx=ffffff80415f9c00 carrier=ffffff804f434800
+[ 3184.569206] stcp-debug-v8: accept receiver start child=ffffff8042782640 carrier=ffffff804f434800 ret=0
+[ 3184.569216] stcp-debug-v8: accept handshake start begin child=ffffff8042782640 ctx=ffffff80415f9c00
+[ 3184.569267] stcp-debug-v8: accept handshake start result child=ffffff8042782640 ctx=ffffff80415f9c00 ret=0 connected=0
+[ 3184.569282] stcp-debug-v8: accept waiting handshake child=ffffff8042782640 ctx=ffffff80415f9c00 timeout_ms=30000
+[ 3184.569500] stcp-debug-v8: accept wait result child=ffffff8042782640 ctx=ffffff80415f9c00 wait_ret=7500 connected=1
+[ 3184.569520] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042782640 ctx=ffffff80415f9c00 carrier=ffffff804f434800 sk=ffffff8042782640
+[ 3184.570447] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7389c0 flags=0x2
+[ 3184.570476] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.570488] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.570499] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.597725] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.597753] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415fa400 ret=0
+[ 3184.597776] stcp-debug-v8: accept alloc child newsock=ffffff808a7389c0 newsk=ffffff8042782a80 err=0
+[ 3184.598420] stcp-debug-v8: accept UDP carrier attach child=ffffff8042782a80 carrier=ffffff804f435400 ret=0
+[ 3184.598431] stcp-debug-v8: accept wire child=ffffff8042782a80 ctx=ffffff80415fa400 carrier=ffffff804f435400
+[ 3184.598442] stcp-debug-v8: accept receiver start child=ffffff8042782a80 carrier=ffffff804f435400 ret=0
+[ 3184.598452] stcp-debug-v8: accept handshake start begin child=ffffff8042782a80 ctx=ffffff80415fa400
+[ 3184.598499] stcp-debug-v8: accept handshake start result child=ffffff8042782a80 ctx=ffffff80415fa400 ret=0 connected=0
+[ 3184.598513] stcp-debug-v8: accept waiting handshake child=ffffff8042782a80 ctx=ffffff80415fa400 timeout_ms=30000
+[ 3184.598908] stcp-debug-v8: accept wait result child=ffffff8042782a80 ctx=ffffff80415fa400 wait_ret=7500 connected=1
+[ 3184.598927] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042782a80 ctx=ffffff80415fa400 carrier=ffffff804f435400 sk=ffffff8042782a80
+[ 3184.599810] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a738d00 flags=0x2
+[ 3184.599838] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.599850] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.599860] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.660251] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.660282] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415fb400 ret=0
+[ 3184.660302] stcp-debug-v8: accept alloc child newsock=ffffff808a738d00 newsk=ffffff8042781100 err=0
+[ 3184.660947] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781100 carrier=ffffff804f435e00 ret=0
+[ 3184.660957] stcp-debug-v8: accept wire child=ffffff8042781100 ctx=ffffff80415fb400 carrier=ffffff804f435e00
+[ 3184.660968] stcp-debug-v8: accept receiver start child=ffffff8042781100 carrier=ffffff804f435e00 ret=0
+[ 3184.660979] stcp-debug-v8: accept handshake start begin child=ffffff8042781100 ctx=ffffff80415fb400
+[ 3184.661026] stcp-debug-v8: accept handshake start result child=ffffff8042781100 ctx=ffffff80415fb400 ret=0 connected=0
+[ 3184.661041] stcp-debug-v8: accept waiting handshake child=ffffff8042781100 ctx=ffffff80415fb400 timeout_ms=30000
+[ 3184.661272] stcp-debug-v8: accept wait result child=ffffff8042781100 ctx=ffffff80415fb400 wait_ret=7500 connected=1
+[ 3184.661290] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781100 ctx=ffffff80415fb400 carrier=ffffff804f435e00 sk=ffffff8042781100
+[ 3184.662078] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a73aa40 flags=0x2
+[ 3184.662103] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.662114] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.662124] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.685188] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.685214] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415f9000 ret=0
+[ 3184.685233] stcp-debug-v8: accept alloc child newsock=ffffff808a73aa40 newsk=ffffff8042781980 err=0
+[ 3184.685885] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781980 carrier=ffffff804f434e00 ret=0
+[ 3184.685895] stcp-debug-v8: accept wire child=ffffff8042781980 ctx=ffffff80415f9000 carrier=ffffff804f434e00
+[ 3184.685907] stcp-debug-v8: accept receiver start child=ffffff8042781980 carrier=ffffff804f434e00 ret=0
+[ 3184.685916] stcp-debug-v8: accept handshake start begin child=ffffff8042781980 ctx=ffffff80415f9000
+[ 3184.685963] stcp-debug-v8: accept handshake start result child=ffffff8042781980 ctx=ffffff80415f9000 ret=0 connected=0
+[ 3184.685979] stcp-debug-v8: accept waiting handshake child=ffffff8042781980 ctx=ffffff80415f9000 timeout_ms=30000
+[ 3184.687333] stcp-debug-v8: accept wait result child=ffffff8042781980 ctx=ffffff80415f9000 wait_ret=7500 connected=1
+[ 3184.687351] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781980 ctx=ffffff80415f9000 carrier=ffffff804f434e00 sk=ffffff8042781980
+[ 3184.688326] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a739d40 flags=0x2
+[ 3184.688356] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.688367] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.688378] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415fbc00 ret=0
+[ 3184.688399] stcp-debug-v8: accept alloc child newsock=ffffff808a739d40 newsk=ffffff8042781dc0 err=0
+[ 3184.688411] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781dc0 carrier=ffffff804f434c00 ret=0
+[ 3184.688420] stcp-debug-v8: accept wire child=ffffff8042781dc0 ctx=ffffff80415fbc00 carrier=ffffff804f434c00
+[ 3184.688431] stcp-debug-v8: accept receiver start child=ffffff8042781dc0 carrier=ffffff804f434c00 ret=0
+[ 3184.688441] stcp-debug-v8: accept handshake start begin child=ffffff8042781dc0 ctx=ffffff80415fbc00
+[ 3184.688500] stcp-debug-v8: accept handshake start result child=ffffff8042781dc0 ctx=ffffff80415fbc00 ret=0 connected=0
+[ 3184.688514] stcp-debug-v8: accept waiting handshake child=ffffff8042781dc0 ctx=ffffff80415fbc00 timeout_ms=30000
+[ 3184.688762] stcp-debug-v8: accept wait result child=ffffff8042781dc0 ctx=ffffff80415fbc00 wait_ret=7500 connected=1
+[ 3184.688781] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781dc0 ctx=ffffff80415fbc00 carrier=ffffff804f434c00 sk=ffffff8042781dc0
+[ 3184.689575] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a73b740 flags=0x2
+[ 3184.689598] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.689609] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.689619] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.693021] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.693041] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415fb800 ret=0
+[ 3184.693063] stcp-debug-v8: accept alloc child newsock=ffffff808a73b740 newsk=ffffff8042783740 err=0
+[ 3184.693717] stcp-debug-v8: accept UDP carrier attach child=ffffff8042783740 carrier=ffffff804f434400 ret=0
+[ 3184.693727] stcp-debug-v8: accept wire child=ffffff8042783740 ctx=ffffff80415fb800 carrier=ffffff804f434400
+[ 3184.693738] stcp-debug-v8: accept receiver start child=ffffff8042783740 carrier=ffffff804f434400 ret=0
+[ 3184.693748] stcp-debug-v8: accept handshake start begin child=ffffff8042783740 ctx=ffffff80415fb800
+[ 3184.693796] stcp-debug-v8: accept handshake start result child=ffffff8042783740 ctx=ffffff80415fb800 ret=0 connected=0
+[ 3184.693810] stcp-debug-v8: accept waiting handshake child=ffffff8042783740 ctx=ffffff80415fb800 timeout_ms=30000
+[ 3184.694021] stcp-debug-v8: accept wait result child=ffffff8042783740 ctx=ffffff80415fb800 wait_ret=7500 connected=1
+[ 3184.694040] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042783740 ctx=ffffff80415fb800 carrier=ffffff804f434400 sk=ffffff8042783740
+[ 3184.694852] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a73a3c0 flags=0x2
+[ 3184.694874] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.694885] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.694894] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.720368] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.720395] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415f8800 ret=0
+[ 3184.720417] stcp-debug-v8: accept alloc child newsock=ffffff808a73a3c0 newsk=ffffff80427850c0 err=0
+[ 3184.721066] stcp-debug-v8: accept UDP carrier attach child=ffffff80427850c0 carrier=ffffff8041f61200 ret=0
+[ 3184.721076] stcp-debug-v8: accept wire child=ffffff80427850c0 ctx=ffffff80415f8800 carrier=ffffff8041f61200
+[ 3184.721087] stcp-debug-v8: accept receiver start child=ffffff80427850c0 carrier=ffffff8041f61200 ret=0
+[ 3184.721097] stcp-debug-v8: accept handshake start begin child=ffffff80427850c0 ctx=ffffff80415f8800
+[ 3184.721145] stcp-debug-v8: accept handshake start result child=ffffff80427850c0 ctx=ffffff80415f8800 ret=0 connected=0
+[ 3184.721160] stcp-debug-v8: accept waiting handshake child=ffffff80427850c0 ctx=ffffff80415f8800 timeout_ms=30000
+[ 3184.721404] stcp-debug-v8: accept wait result child=ffffff80427850c0 ctx=ffffff80415f8800 wait_ret=7500 connected=1
+[ 3184.721421] stcp-debug-v8: ACCEPT COMPLETE child=ffffff80427850c0 ctx=ffffff80415f8800 carrier=ffffff8041f61200 sk=ffffff80427850c0
+[ 3184.722328] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a73ad80 flags=0x2
+[ 3184.722352] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.722364] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.722373] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.885291] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.885326] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415fa800 ret=0
+[ 3184.885349] stcp-debug-v8: accept alloc child newsock=ffffff808a73ad80 newsk=ffffff8042785500 err=0
+[ 3184.885985] stcp-debug-v8: accept UDP carrier attach child=ffffff8042785500 carrier=ffffff8041f61a00 ret=0
+[ 3184.885996] stcp-debug-v8: accept wire child=ffffff8042785500 ctx=ffffff80415fa800 carrier=ffffff8041f61a00
+[ 3184.886008] stcp-debug-v8: accept receiver start child=ffffff8042785500 carrier=ffffff8041f61a00 ret=0
+[ 3184.886018] stcp-debug-v8: accept handshake start begin child=ffffff8042785500 ctx=ffffff80415fa800
+[ 3184.886068] stcp-debug-v8: accept handshake start result child=ffffff8042785500 ctx=ffffff80415fa800 ret=0 connected=0
+[ 3184.886083] stcp-debug-v8: accept waiting handshake child=ffffff8042785500 ctx=ffffff80415fa800 timeout_ms=30000
+[ 3184.886321] stcp-debug-v8: accept wait result child=ffffff8042785500 ctx=ffffff80415fa800 wait_ret=7500 connected=1
+[ 3184.886338] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042785500 ctx=ffffff80415fa800 carrier=ffffff8041f61a00 sk=ffffff8042785500
+[ 3184.887334] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a73b400 flags=0x2
+[ 3184.887362] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.887374] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.887383] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.891124] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.891147] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8041973c00 ret=0
+[ 3184.891171] stcp-debug-v8: accept alloc child newsock=ffffff808a73b400 newsk=ffffff8042785940 err=0
+[ 3184.891819] stcp-debug-v8: accept UDP carrier attach child=ffffff8042785940 carrier=ffffff8041f61800 ret=0
+[ 3184.891829] stcp-debug-v8: accept wire child=ffffff8042785940 ctx=ffffff8041973c00 carrier=ffffff8041f61800
+[ 3184.891841] stcp-debug-v8: accept receiver start child=ffffff8042785940 carrier=ffffff8041f61800 ret=0
+[ 3184.891851] stcp-debug-v8: accept handshake start begin child=ffffff8042785940 ctx=ffffff8041973c00
+[ 3184.891899] stcp-debug-v8: accept handshake start result child=ffffff8042785940 ctx=ffffff8041973c00 ret=0 connected=0
+[ 3184.891914] stcp-debug-v8: accept waiting handshake child=ffffff8042785940 ctx=ffffff8041973c00 timeout_ms=30000
+[ 3184.892202] stcp-debug-v8: accept wait result child=ffffff8042785940 ctx=ffffff8041973c00 wait_ret=7499 connected=1
+[ 3184.892223] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042785940 ctx=ffffff8041973c00 carrier=ffffff8041f61800 sk=ffffff8042785940
+[ 3184.893214] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a739380 flags=0x2
+[ 3184.893241] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.893254] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.893263] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3184.894448] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.894462] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80841f0400 ret=0
+[ 3184.894481] stcp-debug-v8: accept alloc child newsock=ffffff808a739380 newsk=ffffff8042785d80 err=0
+[ 3184.895143] stcp-debug-v8: accept UDP carrier attach child=ffffff8042785d80 carrier=ffffff8041f60a00 ret=0
+[ 3184.895153] stcp-debug-v8: accept wire child=ffffff8042785d80 ctx=ffffff80841f0400 carrier=ffffff8041f60a00
+[ 3184.895164] stcp-debug-v8: accept receiver start child=ffffff8042785d80 carrier=ffffff8041f60a00 ret=0
+[ 3184.895173] stcp-debug-v8: accept handshake start begin child=ffffff8042785d80 ctx=ffffff80841f0400
+[ 3184.895218] stcp-debug-v8: accept handshake start result child=ffffff8042785d80 ctx=ffffff80841f0400 ret=0 connected=0
+[ 3184.895233] stcp-debug-v8: accept waiting handshake child=ffffff8042785d80 ctx=ffffff80841f0400 timeout_ms=30000
+[ 3184.896841] stcp-debug-v8: accept wait result child=ffffff8042785d80 ctx=ffffff80841f0400 wait_ret=7499 connected=1
+[ 3184.896864] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042785d80 ctx=ffffff80841f0400 carrier=ffffff8041f60a00 sk=ffffff8042785d80
+[ 3184.897736] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff804069e080 flags=0x2
+[ 3184.897762] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.897774] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.897783] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8042b4bc00 ret=0
+[ 3184.897803] stcp-debug-v8: accept alloc child newsock=ffffff804069e080 newsk=ffffff80427861c0 err=0
+[ 3184.897817] stcp-debug-v8: accept UDP carrier attach child=ffffff80427861c0 carrier=ffffff8041f60e00 ret=0
+[ 3184.897827] stcp-debug-v8: accept wire child=ffffff80427861c0 ctx=ffffff8042b4bc00 carrier=ffffff8041f60e00
+[ 3184.897839] stcp-debug-v8: accept receiver start child=ffffff80427861c0 carrier=ffffff8041f60e00 ret=0
+[ 3184.897849] stcp-debug-v8: accept handshake start begin child=ffffff80427861c0 ctx=ffffff8042b4bc00
+[ 3184.897907] stcp-debug-v8: accept handshake start result child=ffffff80427861c0 ctx=ffffff8042b4bc00 ret=0 connected=0
+[ 3184.897921] stcp-debug-v8: accept waiting handshake child=ffffff80427861c0 ctx=ffffff8042b4bc00 timeout_ms=30000
+[ 3184.898147] stcp-debug-v8: accept wait result child=ffffff80427861c0 ctx=ffffff8042b4bc00 wait_ret=7500 connected=1
+[ 3184.898165] stcp-debug-v8: ACCEPT COMPLETE child=ffffff80427861c0 ctx=ffffff8042b4bc00 carrier=ffffff8041f60e00 sk=ffffff80427861c0
+[ 3184.898827] stcp_kernel_debug_event: 21609 callbacks suppressed
+[ 3184.898849] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=7 arg1=11200
+[ 3184.899259] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=15 arg1=22400
+[ 3184.899612] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=23 arg1=33600
+[ 3184.899965] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=31 arg1=44800
+[ 3184.900508] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=39 arg1=56000
+[ 3184.900874] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=47 arg1=67200
+[ 3184.901253] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=55 arg1=78400
+[ 3184.901331] stcp-debug: event=306 ctx=ffffff80415f9c00 arg0=7 arg1=11200
+[ 3184.902054] stcp-debug: event=306 ctx=ffffff8042b4bc00 arg0=63 arg1=89600
+[ 3184.902140] stcp-debug: event=306 ctx=ffffff80415f9c00 arg0=15 arg1=22396
+[ 3184.906914] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff804069cd00 flags=0x2
+[ 3184.906958] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3184.906971] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3184.906981] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3189.900430] stcp_kernel_debug_event: 26948 callbacks suppressed
+[ 3189.900484] stcp-debug: event=306 ctx=ffffff80415f8000 arg0=6263 arg1=11200
+[ 3189.900602] stcp-debug: event=309 ctx=ffffff80415fa000 arg0=8 arg1=16
+[ 3189.900937] stcp-debug: event=309 ctx=ffffff80415fa000 arg0=8 arg1=9
+[ 3189.900993] stcp-debug: event=309 ctx=ffffff80415fa000 arg0=8 arg1=1
+[ 3189.901141] stcp-debug: event=306 ctx=ffffff80415f8000 arg0=6271 arg1=11200
+[ 3189.901568] stcp-debug: event=306 ctx=ffffff80415fb400 arg0=6876 arg1=11200
+[ 3189.902008] stcp-debug: event=309 ctx=ffffff80415fa000 arg0=8 arg1=6
+[ 3189.902143] stcp-debug: event=306 ctx=ffffff80415fb400 arg0=6884 arg1=11200
+[ 3189.902485] stcp-debug: event=309 ctx=ffffff80415fa000 arg0=8 arg1=7
+[ 3189.902676] stcp-debug: event=306 ctx=ffffff80415fb400 arg0=6892 arg1=11200
+[ 3229.387140] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.387181] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082ead800 ret=0
+[ 3229.387204] stcp-debug-v8: accept alloc child newsock=ffffff804069cd00 newsk=ffffff804fa50cc0 err=0
+[ 3229.387813] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa50cc0 carrier=ffffff804f941000 ret=0
+[ 3229.387825] stcp-debug-v8: accept wire child=ffffff804fa50cc0 ctx=ffffff8082ead800 carrier=ffffff804f941000
+[ 3229.387839] stcp-debug-v8: accept receiver start child=ffffff804fa50cc0 carrier=ffffff804f941000 ret=0
+[ 3229.387850] stcp-debug-v8: accept handshake start begin child=ffffff804fa50cc0 ctx=ffffff8082ead800
+[ 3229.387906] stcp-debug-v8: accept handshake start result child=ffffff804fa50cc0 ctx=ffffff8082ead800 ret=0 connected=0
+[ 3229.387921] stcp-debug-v8: accept waiting handshake child=ffffff804fa50cc0 ctx=ffffff8082ead800 timeout_ms=30000
+[ 3229.389404] stcp-debug-v8: accept wait result child=ffffff804fa50cc0 ctx=ffffff8082ead800 wait_ret=7499 connected=1
+[ 3229.389437] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa50cc0 ctx=ffffff8082ead800 carrier=ffffff804f941000 sk=ffffff804fa50cc0
+[ 3229.390314] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff80948749c0 flags=0x2
+[ 3229.390342] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.390355] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.390365] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082ead000 ret=0
+[ 3229.390386] stcp-debug-v8: accept alloc child newsock=ffffff80948749c0 newsk=ffffff804fa51540 err=0
+[ 3229.390398] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa51540 carrier=ffffff804f941200 ret=0
+[ 3229.390408] stcp-debug-v8: accept wire child=ffffff804fa51540 ctx=ffffff8082ead000 carrier=ffffff804f941200
+[ 3229.390419] stcp-debug-v8: accept receiver start child=ffffff804fa51540 carrier=ffffff804f941200 ret=0
+[ 3229.390430] stcp-debug-v8: accept handshake start begin child=ffffff804fa51540 ctx=ffffff8082ead000
+[ 3229.390490] stcp-debug-v8: accept handshake start result child=ffffff804fa51540 ctx=ffffff8082ead000 ret=0 connected=0
+[ 3229.390506] stcp-debug-v8: accept waiting handshake child=ffffff804fa51540 ctx=ffffff8082ead000 timeout_ms=30000
+[ 3229.391367] stcp-debug-v8: accept wait result child=ffffff804fa51540 ctx=ffffff8082ead000 wait_ret=7500 connected=1
+[ 3229.391387] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa51540 ctx=ffffff8082ead000 carrier=ffffff804f941200 sk=ffffff804fa51540
+[ 3229.392189] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094876d80 flags=0x2
+[ 3229.392219] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.392232] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.392241] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3229.678612] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.678648] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eaf400 ret=0
+[ 3229.678669] stcp-debug-v8: accept alloc child newsock=ffffff8094876d80 newsk=ffffff804fa51dc0 err=0
+[ 3229.679300] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa51dc0 carrier=ffffff804f940200 ret=0
+[ 3229.679311] stcp-debug-v8: accept wire child=ffffff804fa51dc0 ctx=ffffff8082eaf400 carrier=ffffff804f940200
+[ 3229.679323] stcp-debug-v8: accept receiver start child=ffffff804fa51dc0 carrier=ffffff804f940200 ret=0
+[ 3229.679333] stcp-debug-v8: accept handshake start begin child=ffffff804fa51dc0 ctx=ffffff8082eaf400
+[ 3229.679383] stcp-debug-v8: accept handshake start result child=ffffff804fa51dc0 ctx=ffffff8082eaf400 ret=0 connected=0
+[ 3229.679398] stcp-debug-v8: accept waiting handshake child=ffffff804fa51dc0 ctx=ffffff8082eaf400 timeout_ms=30000
+[ 3229.679656] stcp-debug-v8: accept wait result child=ffffff804fa51dc0 ctx=ffffff8082eaf400 wait_ret=7500 connected=1
+[ 3229.679676] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa51dc0 ctx=ffffff8082eaf400 carrier=ffffff804f940200 sk=ffffff804fa51dc0
+[ 3229.680702] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff80948770c0 flags=0x2
+[ 3229.680731] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.680743] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.680752] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3229.712960] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.712990] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eac800 ret=0
+[ 3229.713010] stcp-debug-v8: accept alloc child newsock=ffffff80948770c0 newsk=ffffff804fa52200 err=0
+[ 3229.713656] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa52200 carrier=ffffff804f940800 ret=0
+[ 3229.713665] stcp-debug-v8: accept wire child=ffffff804fa52200 ctx=ffffff8082eac800 carrier=ffffff804f940800
+[ 3229.713677] stcp-debug-v8: accept receiver start child=ffffff804fa52200 carrier=ffffff804f940800 ret=0
+[ 3229.713687] stcp-debug-v8: accept handshake start begin child=ffffff804fa52200 ctx=ffffff8082eac800
+[ 3229.713736] stcp-debug-v8: accept handshake start result child=ffffff804fa52200 ctx=ffffff8082eac800 ret=0 connected=0
+[ 3229.713752] stcp-debug-v8: accept waiting handshake child=ffffff804fa52200 ctx=ffffff8082eac800 timeout_ms=30000
+[ 3229.713986] stcp-debug-v8: accept wait result child=ffffff804fa52200 ctx=ffffff8082eac800 wait_ret=7500 connected=1
+[ 3229.714005] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa52200 ctx=ffffff8082eac800 carrier=ffffff804f940800 sk=ffffff804fa52200
+[ 3229.714820] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094876a40 flags=0x2
+[ 3229.714848] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.714860] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.714870] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3229.781254] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.781286] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eac000 ret=0
+[ 3229.781307] stcp-debug-v8: accept alloc child newsock=ffffff8094876a40 newsk=ffffff804fa52640 err=0
+[ 3229.781952] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa52640 carrier=ffffff804f940600 ret=0
+[ 3229.781961] stcp-debug-v8: accept wire child=ffffff804fa52640 ctx=ffffff8082eac000 carrier=ffffff804f940600
+[ 3229.781973] stcp-debug-v8: accept receiver start child=ffffff804fa52640 carrier=ffffff804f940600 ret=0
+[ 3229.781983] stcp-debug-v8: accept handshake start begin child=ffffff804fa52640 ctx=ffffff8082eac000
+[ 3229.782032] stcp-debug-v8: accept handshake start result child=ffffff804fa52640 ctx=ffffff8082eac000 ret=0 connected=0
+[ 3229.782047] stcp-debug-v8: accept waiting handshake child=ffffff804fa52640 ctx=ffffff8082eac000 timeout_ms=30000
+[ 3229.782293] stcp-debug-v8: accept wait result child=ffffff804fa52640 ctx=ffffff8082eac000 wait_ret=7500 connected=1
+[ 3229.782310] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa52640 ctx=ffffff8082eac000 carrier=ffffff804f940600 sk=ffffff804fa52640
+[ 3229.783223] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094874340 flags=0x2
+[ 3229.783249] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.783261] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.783270] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3229.922218] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.922254] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082ead400 ret=0
+[ 3229.922276] stcp-debug-v8: accept alloc child newsock=ffffff8094874340 newsk=ffffff804fa52a80 err=0
+[ 3229.922909] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa52a80 carrier=ffffff804f940a00 ret=0
+[ 3229.922920] stcp-debug-v8: accept wire child=ffffff804fa52a80 ctx=ffffff8082ead400 carrier=ffffff804f940a00
+[ 3229.922931] stcp-debug-v8: accept receiver start child=ffffff804fa52a80 carrier=ffffff804f940a00 ret=0
+[ 3229.922941] stcp-debug-v8: accept handshake start begin child=ffffff804fa52a80 ctx=ffffff8082ead400
+[ 3229.922993] stcp-debug-v8: accept handshake start result child=ffffff804fa52a80 ctx=ffffff8082ead400 ret=0 connected=0
+[ 3229.923009] stcp-debug-v8: accept waiting handshake child=ffffff804fa52a80 ctx=ffffff8082ead400 timeout_ms=30000
+[ 3229.923247] stcp-debug-v8: accept wait result child=ffffff804fa52a80 ctx=ffffff8082ead400 wait_ret=7500 connected=1
+[ 3229.923265] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa52a80 ctx=ffffff8082ead400 carrier=ffffff804f940a00 sk=ffffff804fa52a80
+[ 3229.924634] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094875a00 flags=0x2
+[ 3229.924665] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.924677] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.924686] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3229.934501] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.934526] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eafc00 ret=0
+[ 3229.934547] stcp-debug-v8: accept alloc child newsock=ffffff8094875a00 newsk=ffffff804fa52ec0 err=0
+[ 3229.935193] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa52ec0 carrier=ffffff804f941a00 ret=0
+[ 3229.935203] stcp-debug-v8: accept wire child=ffffff804fa52ec0 ctx=ffffff8082eafc00 carrier=ffffff804f941a00
+[ 3229.935216] stcp-debug-v8: accept receiver start child=ffffff804fa52ec0 carrier=ffffff804f941a00 ret=0
+[ 3229.935225] stcp-debug-v8: accept handshake start begin child=ffffff804fa52ec0 ctx=ffffff8082eafc00
+[ 3229.935293] stcp-debug-v8: accept handshake start result child=ffffff804fa52ec0 ctx=ffffff8082eafc00 ret=0 connected=0
+[ 3229.935307] stcp-debug-v8: accept waiting handshake child=ffffff804fa52ec0 ctx=ffffff8082eafc00 timeout_ms=30000
+[ 3229.935499] stcp-debug-v8: accept wait result child=ffffff804fa52ec0 ctx=ffffff8082eafc00 wait_ret=7500 connected=1
+[ 3229.935516] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa52ec0 ctx=ffffff8082eafc00 carrier=ffffff804f941a00 sk=ffffff804fa52ec0
+[ 3229.936520] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094874000 flags=0x2
+[ 3229.936549] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.936560] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.936571] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3229.974520] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.974584] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eac400 ret=0
+[ 3229.974620] stcp-debug-v8: accept alloc child newsock=ffffff8094874000 newsk=ffffff804fa53300 err=0
+[ 3229.975212] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa53300 carrier=ffffff804f940c00 ret=0
+[ 3229.975224] stcp-debug-v8: accept wire child=ffffff804fa53300 ctx=ffffff8082eac400 carrier=ffffff804f940c00
+[ 3229.975239] stcp-debug-v8: accept receiver start child=ffffff804fa53300 carrier=ffffff804f940c00 ret=0
+[ 3229.975249] stcp-debug-v8: accept handshake start begin child=ffffff804fa53300 ctx=ffffff8082eac400
+[ 3229.975311] stcp-debug-v8: accept handshake start result child=ffffff804fa53300 ctx=ffffff8082eac400 ret=0 connected=0
+[ 3229.975329] stcp-debug-v8: accept waiting handshake child=ffffff804fa53300 ctx=ffffff8082eac400 timeout_ms=30000
+[ 3229.975563] stcp-debug-v8: accept wait result child=ffffff804fa53300 ctx=ffffff8082eac400 wait_ret=7500 connected=1
+[ 3229.975583] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa53300 ctx=ffffff8082eac400 carrier=ffffff804f940c00 sk=ffffff804fa53300
+[ 3229.977604] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094874d00 flags=0x2
+[ 3229.977656] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3229.977670] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3229.977681] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3230.003896] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.003928] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eaec00 ret=0
+[ 3230.003952] stcp-debug-v8: accept alloc child newsock=ffffff8094874d00 newsk=ffffff804fa53740 err=0
+[ 3230.004657] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa53740 carrier=ffffff804f940400 ret=0
+[ 3230.004673] stcp-debug-v8: accept wire child=ffffff804fa53740 ctx=ffffff8082eaec00 carrier=ffffff804f940400
+[ 3230.004685] stcp-debug-v8: accept receiver start child=ffffff804fa53740 carrier=ffffff804f940400 ret=0
+[ 3230.004697] stcp-debug-v8: accept handshake start begin child=ffffff804fa53740 ctx=ffffff8082eaec00
+[ 3230.004753] stcp-debug-v8: accept handshake start result child=ffffff804fa53740 ctx=ffffff8082eaec00 ret=0 connected=0
+[ 3230.004768] stcp-debug-v8: accept waiting handshake child=ffffff804fa53740 ctx=ffffff8082eaec00 timeout_ms=30000
+[ 3230.005034] stcp-debug-v8: accept wait result child=ffffff804fa53740 ctx=ffffff8082eaec00 wait_ret=7500 connected=1
+[ 3230.005051] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa53740 ctx=ffffff8082eaec00 carrier=ffffff804f940400 sk=ffffff804fa53740
+[ 3230.006035] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff80948763c0 flags=0x2
+[ 3230.006063] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.006075] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.006084] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3230.028130] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.028153] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eae800 ret=0
+[ 3230.028172] stcp-debug-v8: accept alloc child newsock=ffffff80948763c0 newsk=ffffff804fa53b80 err=0
+[ 3230.028827] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa53b80 carrier=ffffff804f941600 ret=0
+[ 3230.028838] stcp-debug-v8: accept wire child=ffffff804fa53b80 ctx=ffffff8082eae800 carrier=ffffff804f941600
+[ 3230.028849] stcp-debug-v8: accept receiver start child=ffffff804fa53b80 carrier=ffffff804f941600 ret=0
+[ 3230.028859] stcp-debug-v8: accept handshake start begin child=ffffff804fa53b80 ctx=ffffff8082eae800
+[ 3230.028907] stcp-debug-v8: accept handshake start result child=ffffff804fa53b80 ctx=ffffff8082eae800 ret=0 connected=0
+[ 3230.028922] stcp-debug-v8: accept waiting handshake child=ffffff804fa53b80 ctx=ffffff8082eae800 timeout_ms=30000
+[ 3230.030432] stcp-debug-v8: accept wait result child=ffffff804fa53b80 ctx=ffffff8082eae800 wait_ret=7500 connected=1
+[ 3230.030451] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa53b80 ctx=ffffff8082eae800 carrier=ffffff804f941600 sk=ffffff804fa53b80
+[ 3230.031380] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094874680 flags=0x2
+[ 3230.031409] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.031421] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.031432] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eae400 ret=0
+[ 3230.031451] stcp-debug-v8: accept alloc child newsock=ffffff8094874680 newsk=ffffff804fa53fc0 err=0
+[ 3230.031462] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa53fc0 carrier=ffffff8058633c00 ret=0
+[ 3230.031472] stcp-debug-v8: accept wire child=ffffff804fa53fc0 ctx=ffffff8082eae400 carrier=ffffff8058633c00
+[ 3230.031483] stcp-debug-v8: accept receiver start child=ffffff804fa53fc0 carrier=ffffff8058633c00 ret=0
+[ 3230.031492] stcp-debug-v8: accept handshake start begin child=ffffff804fa53fc0 ctx=ffffff8082eae400
+[ 3230.031547] stcp-debug-v8: accept handshake start result child=ffffff804fa53fc0 ctx=ffffff8082eae400 ret=0 connected=0
+[ 3230.031561] stcp-debug-v8: accept waiting handshake child=ffffff804fa53fc0 ctx=ffffff8082eae400 timeout_ms=30000
+[ 3230.031800] stcp-debug-v8: accept wait result child=ffffff804fa53fc0 ctx=ffffff8082eae400 wait_ret=7500 connected=1
+[ 3230.031820] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa53fc0 ctx=ffffff8082eae400 carrier=ffffff8058633c00 sk=ffffff804fa53fc0
+[ 3230.032809] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff80948756c0 flags=0x2
+[ 3230.032835] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.032846] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.032856] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3230.134382] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.134414] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eaf800 ret=0
+[ 3230.134434] stcp-debug-v8: accept alloc child newsock=ffffff80948756c0 newsk=ffffff804fa54400 err=0
+[ 3230.135078] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa54400 carrier=ffffff8058633a00 ret=0
+[ 3230.135088] stcp-debug-v8: accept wire child=ffffff804fa54400 ctx=ffffff8082eaf800 carrier=ffffff8058633a00
+[ 3230.135100] stcp-debug-v8: accept receiver start child=ffffff804fa54400 carrier=ffffff8058633a00 ret=0
+[ 3230.135111] stcp-debug-v8: accept handshake start begin child=ffffff804fa54400 ctx=ffffff8082eaf800
+[ 3230.135163] stcp-debug-v8: accept handshake start result child=ffffff804fa54400 ctx=ffffff8082eaf800 ret=0 connected=0
+[ 3230.135179] stcp-debug-v8: accept waiting handshake child=ffffff804fa54400 ctx=ffffff8082eaf800 timeout_ms=30000
+[ 3230.135423] stcp-debug-v8: accept wait result child=ffffff804fa54400 ctx=ffffff8082eaf800 wait_ret=7500 connected=1
+[ 3230.135444] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa54400 ctx=ffffff8082eaf800 carrier=ffffff8058633a00 sk=ffffff804fa54400
+[ 3230.136637] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094876080 flags=0x2
+[ 3230.136667] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.136679] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.136690] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3230.147425] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.147450] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff8082eadc00 ret=0
+[ 3230.147470] stcp-debug-v8: accept alloc child newsock=ffffff8094876080 newsk=ffffff804fa54840 err=0
+[ 3230.148195] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa54840 carrier=ffffff8058633800 ret=0
+[ 3230.148211] stcp-debug-v8: accept wire child=ffffff804fa54840 ctx=ffffff8082eadc00 carrier=ffffff8058633800
+[ 3230.148224] stcp-debug-v8: accept receiver start child=ffffff804fa54840 carrier=ffffff8058633800 ret=0
+[ 3230.148234] stcp-debug-v8: accept handshake start begin child=ffffff804fa54840 ctx=ffffff8082eadc00
+[ 3230.148286] stcp-debug-v8: accept handshake start result child=ffffff804fa54840 ctx=ffffff8082eadc00 ret=0 connected=0
+[ 3230.148300] stcp-debug-v8: accept waiting handshake child=ffffff804fa54840 ctx=ffffff8082eadc00 timeout_ms=30000
+[ 3230.148599] stcp-debug-v8: accept wait result child=ffffff804fa54840 ctx=ffffff8082eadc00 wait_ret=7500 connected=1
+[ 3230.148626] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa54840 ctx=ffffff8082eadc00 carrier=ffffff8058633800 sk=ffffff804fa54840
+[ 3230.149572] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ae3c0 flags=0x2
+[ 3230.149601] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.149614] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.149624] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3230.171397] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.171425] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2dc00 ret=0
+[ 3230.171450] stcp-debug-v8: accept alloc child newsock=ffffff808a7ae3c0 newsk=ffffff8042783300 err=0
+[ 3230.172296] stcp-debug-v8: accept UDP carrier attach child=ffffff8042783300 carrier=ffffff8041f61800 ret=0
+[ 3230.172314] stcp-debug-v8: accept wire child=ffffff8042783300 ctx=ffffff804fa2dc00 carrier=ffffff8041f61800
+[ 3230.172328] stcp-debug-v8: accept receiver start child=ffffff8042783300 carrier=ffffff8041f61800 ret=0
+[ 3230.172338] stcp-debug-v8: accept handshake start begin child=ffffff8042783300 ctx=ffffff804fa2dc00
+[ 3230.172391] stcp-debug-v8: accept handshake start result child=ffffff8042783300 ctx=ffffff804fa2dc00 ret=0 connected=0
+[ 3230.172407] stcp-debug-v8: accept waiting handshake child=ffffff8042783300 ctx=ffffff804fa2dc00 timeout_ms=30000
+[ 3230.172635] stcp-debug-v8: accept wait result child=ffffff8042783300 ctx=ffffff804fa2dc00 wait_ret=7500 connected=1
+[ 3230.172655] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042783300 ctx=ffffff804fa2dc00 carrier=ffffff8041f61800 sk=ffffff8042783300
+[ 3230.173783] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff804f373400 flags=0x2
+[ 3230.173865] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.173901] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.173914] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2cc00 ret=0
+[ 3230.173939] stcp-debug-v8: accept alloc child newsock=ffffff804f373400 newsk=ffffff8081b12640 err=0
+[ 3230.174290] stcp-debug-v8: accept UDP carrier attach child=ffffff8081b12640 carrier=ffffff8041f61a00 ret=0
+[ 3230.174368] stcp-debug-v8: accept wire child=ffffff8081b12640 ctx=ffffff804fa2cc00 carrier=ffffff8041f61a00
+[ 3230.174382] stcp-debug-v8: accept receiver start child=ffffff8081b12640 carrier=ffffff8041f61a00 ret=0
+[ 3230.174392] stcp-debug-v8: accept handshake start begin child=ffffff8081b12640 ctx=ffffff804fa2cc00
+[ 3230.174493] stcp-debug-v8: accept handshake start result child=ffffff8081b12640 ctx=ffffff804fa2cc00 ret=0 connected=0
+[ 3230.174571] stcp-debug-v8: accept waiting handshake child=ffffff8081b12640 ctx=ffffff804fa2cc00 timeout_ms=30000
+[ 3230.174747] stcp-debug-v8: accept wait result child=ffffff8081b12640 ctx=ffffff804fa2cc00 wait_ret=7500 connected=1
+[ 3230.174771] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8081b12640 ctx=ffffff804fa2cc00 carrier=ffffff8041f61a00 sk=ffffff8081b12640
+[ 3230.175774] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7aed80 flags=0x2
+[ 3230.175802] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.175814] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.175823] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3230.182077] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.182108] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff805862d800 ret=0
+[ 3230.182131] stcp-debug-v8: accept alloc child newsock=ffffff808a7aed80 newsk=ffffff804fa54c80 err=0
+[ 3230.183907] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa54c80 carrier=ffffff8041925000 ret=0
+[ 3230.183917] stcp-debug-v8: accept wire child=ffffff804fa54c80 ctx=ffffff805862d800 carrier=ffffff8041925000
+[ 3230.183929] stcp-debug-v8: accept receiver start child=ffffff804fa54c80 carrier=ffffff8041925000 ret=0
+[ 3230.183941] stcp-debug-v8: accept handshake start begin child=ffffff804fa54c80 ctx=ffffff805862d800
+[ 3230.183997] stcp-debug-v8: accept handshake start result child=ffffff804fa54c80 ctx=ffffff805862d800 ret=0 connected=0
+[ 3230.184013] stcp-debug-v8: accept waiting handshake child=ffffff804fa54c80 ctx=ffffff805862d800 timeout_ms=30000
+[ 3230.184514] stcp-debug-v8: accept wait result child=ffffff804fa54c80 ctx=ffffff805862d800 wait_ret=7499 connected=1
+[ 3230.184538] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa54c80 ctx=ffffff805862d800 carrier=ffffff8041925000 sk=ffffff804fa54c80
+[ 3230.185610] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8080ab7a80 flags=0x2
+[ 3230.185644] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3230.185657] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3230.185668] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3230.188568] stcp_kernel_debug_event: 21253 callbacks suppressed
+[ 3230.188592] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=7 arg1=11200
+[ 3230.189035] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=15 arg1=7000
+[ 3230.189509] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=23 arg1=11200
+[ 3230.189736] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=31 arg1=22400
+[ 3230.190323] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=39 arg1=33600
+[ 3230.190548] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=47 arg1=44800
+[ 3230.191537] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=55 arg1=56000
+[ 3230.191771] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=63 arg1=67200
+[ 3230.191979] stcp-debug: event=306 ctx=ffffff8082ead000 arg0=71 arg1=78400
+[ 3230.193396] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=7 arg1=11200
+[ 3235.192814] stcp_kernel_debug_event: 18456 callbacks suppressed
+[ 3235.192860] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4821 arg1=11200
+[ 3235.193182] stcp-debug: event=306 ctx=ffffff8082eae800 arg0=4392 arg1=11200
+[ 3235.194173] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4829 arg1=11200
+[ 3235.195384] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4837 arg1=11200
+[ 3235.196940] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4845 arg1=11200
+[ 3235.198164] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4853 arg1=11200
+[ 3235.199255] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4861 arg1=11200
+[ 3235.200619] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4869 arg1=11200
+[ 3235.201622] stcp-debug: event=306 ctx=ffffff8082eac000 arg0=4877 arg1=11200
+[ 3235.202144] stcp-debug: event=306 ctx=ffffff8082eae800 arg0=4400 arg1=11200
+[ 3278.858414] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.858456] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2e800 ret=0
+[ 3278.858479] stcp-debug-v8: accept alloc child newsock=ffffff8080ab7a80 newsk=ffffff805834d500 err=0
+[ 3278.859097] stcp-debug-v8: accept UDP carrier attach child=ffffff805834d500 carrier=ffffff8042d97e00 ret=0
+[ 3278.859108] stcp-debug-v8: accept wire child=ffffff805834d500 ctx=ffffff804fa2e800 carrier=ffffff8042d97e00
+[ 3278.859121] stcp-debug-v8: accept receiver start child=ffffff805834d500 carrier=ffffff8042d97e00 ret=0
+[ 3278.859131] stcp-debug-v8: accept handshake start begin child=ffffff805834d500 ctx=ffffff804fa2e800
+[ 3278.859185] stcp-debug-v8: accept handshake start result child=ffffff805834d500 ctx=ffffff804fa2e800 ret=0 connected=0
+[ 3278.859200] stcp-debug-v8: accept waiting handshake child=ffffff805834d500 ctx=ffffff804fa2e800 timeout_ms=30000
+[ 3278.859417] stcp-debug-v8: accept wait result child=ffffff805834d500 ctx=ffffff804fa2e800 wait_ret=7500 connected=1
+[ 3278.859436] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834d500 ctx=ffffff804fa2e800 carrier=ffffff8042d97e00 sk=ffffff805834d500
+[ 3278.860439] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8080ab63c0 flags=0x2
+[ 3278.860469] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3278.860481] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.860492] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3278.893018] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.893043] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2fc00 ret=0
+[ 3278.893065] stcp-debug-v8: accept alloc child newsock=ffffff8080ab63c0 newsk=ffffff805834cc80 err=0
+[ 3278.893705] stcp-debug-v8: accept UDP carrier attach child=ffffff805834cc80 carrier=ffffff8042d96000 ret=0
+[ 3278.893715] stcp-debug-v8: accept wire child=ffffff805834cc80 ctx=ffffff804fa2fc00 carrier=ffffff8042d96000
+[ 3278.893728] stcp-debug-v8: accept receiver start child=ffffff805834cc80 carrier=ffffff8042d96000 ret=0
+[ 3278.893738] stcp-debug-v8: accept handshake start begin child=ffffff805834cc80 ctx=ffffff804fa2fc00
+[ 3278.893788] stcp-debug-v8: accept handshake start result child=ffffff805834cc80 ctx=ffffff804fa2fc00 ret=0 connected=0
+[ 3278.893803] stcp-debug-v8: accept waiting handshake child=ffffff805834cc80 ctx=ffffff804fa2fc00 timeout_ms=30000
+[ 3278.894017] stcp-debug-v8: accept wait result child=ffffff805834cc80 ctx=ffffff804fa2fc00 wait_ret=7500 connected=1
+[ 3278.894037] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834cc80 ctx=ffffff804fa2fc00 carrier=ffffff8042d96000 sk=ffffff805834cc80
+[ 3278.894861] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8080ab5380 flags=0x2
+[ 3278.894887] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3278.894898] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.894907] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3278.943007] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.943037] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2d400 ret=0
+[ 3278.943056] stcp-debug-v8: accept alloc child newsock=ffffff8080ab5380 newsk=ffffff805834c400 err=0
+[ 3278.943703] stcp-debug-v8: accept UDP carrier attach child=ffffff805834c400 carrier=ffffff8042d96c00 ret=0
+[ 3278.943713] stcp-debug-v8: accept wire child=ffffff805834c400 ctx=ffffff804fa2d400 carrier=ffffff8042d96c00
+[ 3278.943724] stcp-debug-v8: accept receiver start child=ffffff805834c400 carrier=ffffff8042d96c00 ret=0
+[ 3278.943734] stcp-debug-v8: accept handshake start begin child=ffffff805834c400 ctx=ffffff804fa2d400
+[ 3278.943785] stcp-debug-v8: accept handshake start result child=ffffff805834c400 ctx=ffffff804fa2d400 ret=0 connected=0
+[ 3278.943800] stcp-debug-v8: accept waiting handshake child=ffffff805834c400 ctx=ffffff804fa2d400 timeout_ms=30000
+[ 3278.944046] stcp-debug-v8: accept wait result child=ffffff805834c400 ctx=ffffff804fa2d400 wait_ret=7500 connected=1
+[ 3278.944063] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834c400 ctx=ffffff804fa2d400 carrier=ffffff8042d96c00 sk=ffffff805834c400
+[ 3278.944958] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8080ab6a40 flags=0x2
+[ 3278.944986] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3278.945017] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.945027] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3278.984986] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.985020] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2f000 ret=0
+[ 3278.985040] stcp-debug-v8: accept alloc child newsock=ffffff8080ab6a40 newsk=ffffff805834d940 err=0
+[ 3278.985670] stcp-debug-v8: accept UDP carrier attach child=ffffff805834d940 carrier=ffffff8042d97400 ret=0
+[ 3278.985680] stcp-debug-v8: accept wire child=ffffff805834d940 ctx=ffffff804fa2f000 carrier=ffffff8042d97400
+[ 3278.985692] stcp-debug-v8: accept receiver start child=ffffff805834d940 carrier=ffffff8042d97400 ret=0
+[ 3278.985703] stcp-debug-v8: accept handshake start begin child=ffffff805834d940 ctx=ffffff804fa2f000
+[ 3278.985751] stcp-debug-v8: accept handshake start result child=ffffff805834d940 ctx=ffffff804fa2f000 ret=0 connected=0
+[ 3278.985766] stcp-debug-v8: accept waiting handshake child=ffffff805834d940 ctx=ffffff804fa2f000 timeout_ms=30000
+[ 3278.986026] stcp-debug-v8: accept wait result child=ffffff805834d940 ctx=ffffff804fa2f000 wait_ret=7500 connected=1
+[ 3278.986043] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834d940 ctx=ffffff804fa2f000 carrier=ffffff8042d97400 sk=ffffff805834d940
+[ 3278.986826] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8080ab49c0 flags=0x2
+[ 3278.986853] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3278.986864] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.986874] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3278.988418] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.988441] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2c400 ret=0
+[ 3278.988463] stcp-debug-v8: accept alloc child newsock=ffffff8080ab49c0 newsk=ffffff8042781100 err=0
+[ 3278.989100] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781100 carrier=ffffff8042d97600 ret=0
+[ 3278.989111] stcp-debug-v8: accept wire child=ffffff8042781100 ctx=ffffff804fa2c400 carrier=ffffff8042d97600
+[ 3278.989123] stcp-debug-v8: accept receiver start child=ffffff8042781100 carrier=ffffff8042d97600 ret=0
+[ 3278.989133] stcp-debug-v8: accept handshake start begin child=ffffff8042781100 ctx=ffffff804fa2c400
+[ 3278.989186] stcp-debug-v8: accept handshake start result child=ffffff8042781100 ctx=ffffff804fa2c400 ret=0 connected=0
+[ 3278.989202] stcp-debug-v8: accept waiting handshake child=ffffff8042781100 ctx=ffffff804fa2c400 timeout_ms=30000
+[ 3278.989432] stcp-debug-v8: accept wait result child=ffffff8042781100 ctx=ffffff804fa2c400 wait_ret=7500 connected=1
+[ 3278.989452] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781100 ctx=ffffff804fa2c400 carrier=ffffff8042d97600 sk=ffffff8042781100
+[ 3278.990258] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ad380 flags=0x2
+[ 3278.990283] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3278.990295] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3278.990305] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3279.009406] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3279.009439] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2c800 ret=0
+[ 3279.009461] stcp-debug-v8: accept alloc child newsock=ffffff808a7ad380 newsk=ffffff8042784840 err=0
+[ 3279.010098] stcp-debug-v8: accept UDP carrier attach child=ffffff8042784840 carrier=ffffff8042d97a00 ret=0
+[ 3279.010108] stcp-debug-v8: accept wire child=ffffff8042784840 ctx=ffffff804fa2c800 carrier=ffffff8042d97a00
+[ 3279.010120] stcp-debug-v8: accept receiver start child=ffffff8042784840 carrier=ffffff8042d97a00 ret=0
+[ 3279.010130] stcp-debug-v8: accept handshake start begin child=ffffff8042784840 ctx=ffffff804fa2c800
+[ 3279.010182] stcp-debug-v8: accept handshake start result child=ffffff8042784840 ctx=ffffff804fa2c800 ret=0 connected=0
+[ 3279.010199] stcp-debug-v8: accept waiting handshake child=ffffff8042784840 ctx=ffffff804fa2c800 timeout_ms=30000
+[ 3279.010435] stcp-debug-v8: accept wait result child=ffffff8042784840 ctx=ffffff804fa2c800 wait_ret=7500 connected=1
+[ 3279.010456] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042784840 ctx=ffffff804fa2c800 carrier=ffffff8042d97a00 sk=ffffff8042784840
+[ 3279.011420] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7af0c0 flags=0x2
+[ 3279.011450] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3279.011462] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3279.011472] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3279.043322] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3279.043352] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2d800 ret=0
+[ 3279.043376] stcp-debug-v8: accept alloc child newsock=ffffff808a7af0c0 newsk=ffffff8042781980 err=0
+[ 3279.044015] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781980 carrier=ffffff8042d97200 ret=0
+[ 3279.044025] stcp-debug-v8: accept wire child=ffffff8042781980 ctx=ffffff804fa2d800 carrier=ffffff8042d97200
+[ 3279.044037] stcp-debug-v8: accept receiver start child=ffffff8042781980 carrier=ffffff8042d97200 ret=0
+[ 3279.044047] stcp-debug-v8: accept handshake start begin child=ffffff8042781980 ctx=ffffff804fa2d800
+[ 3279.044250] stcp-debug-v8: accept handshake start result child=ffffff8042781980 ctx=ffffff804fa2d800 ret=0 connected=0
+[ 3279.044270] stcp-debug-v8: accept waiting handshake child=ffffff8042781980 ctx=ffffff804fa2d800 timeout_ms=30000
+[ 3279.044543] stcp-debug-v8: accept wait result child=ffffff8042781980 ctx=ffffff804fa2d800 wait_ret=7500 connected=1
+[ 3279.044562] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781980 ctx=ffffff804fa2d800 carrier=ffffff8042d97200 sk=ffffff8042781980
+[ 3279.045503] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7aed80 flags=0x2
+[ 3279.045528] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3279.045540] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3279.045550] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3279.046473] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3279.046487] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2e400 ret=0
+[ 3279.046506] stcp-debug-v8: accept alloc child newsock=ffffff808a7aed80 newsk=ffffff8042782640 err=0
+[ 3279.047171] stcp-debug-v8: accept UDP carrier attach child=ffffff8042782640 carrier=ffffff8042d96600 ret=0
+[ 3279.047184] stcp-debug-v8: accept wire child=ffffff8042782640 ctx=ffffff804fa2e400 carrier=ffffff8042d96600
+[ 3279.047196] stcp-debug-v8: accept receiver start child=ffffff8042782640 carrier=ffffff8042d96600 ret=0
+[ 3279.047205] stcp-debug-v8: accept handshake start begin child=ffffff8042782640 ctx=ffffff804fa2e400
+[ 3279.047256] stcp-debug-v8: accept handshake start result child=ffffff8042782640 ctx=ffffff804fa2e400 ret=0 connected=0
+[ 3279.047270] stcp-debug-v8: accept waiting handshake child=ffffff8042782640 ctx=ffffff804fa2e400 timeout_ms=30000
+[ 3279.047473] stcp-debug-v8: accept wait result child=ffffff8042782640 ctx=ffffff804fa2e400 wait_ret=7500 connected=1
+[ 3279.047494] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042782640 ctx=ffffff804fa2e400 carrier=ffffff8042d96600 sk=ffffff8042782640
+[ 3279.048448] stcp_kernel_debug_event: 10521 callbacks suppressed
+[ 3279.048472] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=7 arg1=11200
+[ 3279.048928] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ad040 flags=0x2
+[ 3279.048952] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3279.048965] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3279.048975] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3279.050670] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=15 arg1=22400
+[ 3279.051115] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=23 arg1=33600
+[ 3279.051510] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=31 arg1=44800
+[ 3279.051911] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=39 arg1=55996
+[ 3279.052707] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=47 arg1=11200
+[ 3279.053185] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=55 arg1=22400
+[ 3279.053625] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=63 arg1=7000
+[ 3279.054056] stcp-debug: event=306 ctx=ffffff804fa2f000 arg0=71 arg1=11200
+[ 3279.054078] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=7 arg1=11200
+[ 3284.052682] stcp_kernel_debug_event: 24889 callbacks suppressed
+[ 3284.052722] stcp-debug: event=309 ctx=ffffff804fa2f000 arg0=8 arg1=21
+[ 3284.052836] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=12415 arg1=2800
+[ 3284.052921] stcp-debug: event=309 ctx=ffffff804fa2fc00 arg0=8 arg1=110
+[ 3284.053308] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=12423 arg1=14000
+[ 3284.053498] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=12996 arg1=11200
+[ 3284.053853] stcp-debug: event=309 ctx=ffffff804fa2f000 arg0=8 arg1=13
+[ 3284.054035] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=12431 arg1=0
+[ 3284.054088] stcp-debug: event=309 ctx=ffffff804fa2fc00 arg0=8 arg1=102
+[ 3284.054341] stcp-debug: event=309 ctx=ffffff804fa2f000 arg0=8 arg1=5
+[ 3284.054443] stcp-debug: event=307 ctx=ffffff804fa2f000 arg0=12732 arg1=5
+[ 3325.365052] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.365093] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415fbc00 ret=0
+[ 3325.365116] stcp-debug-v8: accept alloc child newsock=ffffff808a7ad040 newsk=ffffff804fa52ec0 err=0
+[ 3325.365730] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa52ec0 carrier=ffffff8042d97400 ret=0
+[ 3325.365741] stcp-debug-v8: accept wire child=ffffff804fa52ec0 ctx=ffffff80415fbc00 carrier=ffffff8042d97400
+[ 3325.365753] stcp-debug-v8: accept receiver start child=ffffff804fa52ec0 carrier=ffffff8042d97400 ret=0
+[ 3325.365764] stcp-debug-v8: accept handshake start begin child=ffffff804fa52ec0 ctx=ffffff80415fbc00
+[ 3325.365819] stcp-debug-v8: accept handshake start result child=ffffff804fa52ec0 ctx=ffffff80415fbc00 ret=0 connected=0
+[ 3325.365834] stcp-debug-v8: accept waiting handshake child=ffffff804fa52ec0 ctx=ffffff80415fbc00 timeout_ms=30000
+[ 3325.366099] stcp-debug-v8: accept wait result child=ffffff804fa52ec0 ctx=ffffff80415fbc00 wait_ret=7500 connected=1
+[ 3325.366119] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa52ec0 ctx=ffffff80415fbc00 carrier=ffffff8042d97400 sk=ffffff804fa52ec0
+[ 3325.367004] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff8094874000 flags=0x2
+[ 3325.367035] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.367047] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.367057] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3325.451795] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.451830] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff80415f8400 ret=0
+[ 3325.451852] stcp-debug-v8: accept alloc child newsock=ffffff8094874000 newsk=ffffff804fa52640 err=0
+[ 3325.452554] stcp-debug-v8: accept UDP carrier attach child=ffffff804fa52640 carrier=ffffff8042d97200 ret=0
+[ 3325.452571] stcp-debug-v8: accept wire child=ffffff804fa52640 ctx=ffffff80415f8400 carrier=ffffff8042d97200
+[ 3325.452583] stcp-debug-v8: accept receiver start child=ffffff804fa52640 carrier=ffffff8042d97200 ret=0
+[ 3325.452594] stcp-debug-v8: accept handshake start begin child=ffffff804fa52640 ctx=ffffff80415f8400
+[ 3325.452647] stcp-debug-v8: accept handshake start result child=ffffff804fa52640 ctx=ffffff80415f8400 ret=0 connected=0
+[ 3325.452662] stcp-debug-v8: accept waiting handshake child=ffffff804fa52640 ctx=ffffff80415f8400 timeout_ms=30000
+[ 3325.452923] stcp-debug-v8: accept wait result child=ffffff804fa52640 ctx=ffffff80415f8400 wait_ret=7500 connected=1
+[ 3325.452950] stcp-debug-v8: ACCEPT COMPLETE child=ffffff804fa52640 ctx=ffffff80415f8400 carrier=ffffff8042d97200 sk=ffffff804fa52640
+[ 3325.453791] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ac9c0 flags=0x2
+[ 3325.453821] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.453833] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.453845] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3325.491262] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.491290] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2d800 ret=0
+[ 3325.491315] stcp-debug-v8: accept alloc child newsock=ffffff808a7ac9c0 newsk=ffffff8042781100 err=0
+[ 3325.491959] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781100 carrier=ffffff8041c13400 ret=0
+[ 3325.491971] stcp-debug-v8: accept wire child=ffffff8042781100 ctx=ffffff804fa2d800 carrier=ffffff8041c13400
+[ 3325.491983] stcp-debug-v8: accept receiver start child=ffffff8042781100 carrier=ffffff8041c13400 ret=0
+[ 3325.491993] stcp-debug-v8: accept handshake start begin child=ffffff8042781100 ctx=ffffff804fa2d800
+[ 3325.492046] stcp-debug-v8: accept handshake start result child=ffffff8042781100 ctx=ffffff804fa2d800 ret=0 connected=0
+[ 3325.492062] stcp-debug-v8: accept waiting handshake child=ffffff8042781100 ctx=ffffff804fa2d800 timeout_ms=30000
+[ 3325.493514] stcp-debug-v8: accept wait result child=ffffff8042781100 ctx=ffffff804fa2d800 wait_ret=7499 connected=1
+[ 3325.493538] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781100 ctx=ffffff804fa2d800 carrier=ffffff8041c13400 sk=ffffff8042781100
+[ 3325.494298] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7af400 flags=0x2
+[ 3325.494325] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.494338] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.494350] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2e400 ret=0
+[ 3325.494371] stcp-debug-v8: accept alloc child newsock=ffffff808a7af400 newsk=ffffff8042784840 err=0
+[ 3325.494383] stcp-debug-v8: accept UDP carrier attach child=ffffff8042784840 carrier=ffffff8041c13c00 ret=0
+[ 3325.494392] stcp-debug-v8: accept wire child=ffffff8042784840 ctx=ffffff804fa2e400 carrier=ffffff8041c13c00
+[ 3325.494403] stcp-debug-v8: accept receiver start child=ffffff8042784840 carrier=ffffff8041c13c00 ret=0
+[ 3325.494414] stcp-debug-v8: accept handshake start begin child=ffffff8042784840 ctx=ffffff804fa2e400
+[ 3325.494463] stcp-debug-v8: accept handshake start result child=ffffff8042784840 ctx=ffffff804fa2e400 ret=0 connected=0
+[ 3325.494477] stcp-debug-v8: accept waiting handshake child=ffffff8042784840 ctx=ffffff804fa2e400 timeout_ms=30000
+[ 3325.494736] stcp-debug-v8: accept wait result child=ffffff8042784840 ctx=ffffff804fa2e400 wait_ret=7500 connected=1
+[ 3325.494754] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042784840 ctx=ffffff804fa2e400 carrier=ffffff8041c13c00 sk=ffffff8042784840
+[ 3325.495326] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7add40 flags=0x2
+[ 3325.495348] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.495360] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.495370] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3325.499505] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.499525] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2d400 ret=0
+[ 3325.499544] stcp-debug-v8: accept alloc child newsock=ffffff808a7add40 newsk=ffffff8042783b80 err=0
+[ 3325.500259] stcp-debug-v8: accept UDP carrier attach child=ffffff8042783b80 carrier=ffffff80424ef200 ret=0
+[ 3325.500276] stcp-debug-v8: accept wire child=ffffff8042783b80 ctx=ffffff804fa2d400 carrier=ffffff80424ef200
+[ 3325.500290] stcp-debug-v8: accept receiver start child=ffffff8042783b80 carrier=ffffff80424ef200 ret=0
+[ 3325.500301] stcp-debug-v8: accept handshake start begin child=ffffff8042783b80 ctx=ffffff804fa2d400
+[ 3325.500350] stcp-debug-v8: accept handshake start result child=ffffff8042783b80 ctx=ffffff804fa2d400 ret=0 connected=0
+[ 3325.500364] stcp-debug-v8: accept waiting handshake child=ffffff8042783b80 ctx=ffffff804fa2d400 timeout_ms=30000
+[ 3325.501276] stcp-debug-v8: accept wait result child=ffffff8042783b80 ctx=ffffff804fa2d400 wait_ret=7500 connected=1
+[ 3325.501295] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042783b80 ctx=ffffff804fa2d400 carrier=ffffff80424ef200 sk=ffffff8042783b80
+[ 3325.502195] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7afa80 flags=0x2
+[ 3325.502223] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.502233] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.502242] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3325.516588] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.516610] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2f000 ret=0
+[ 3325.516634] stcp-debug-v8: accept alloc child newsock=ffffff808a7afa80 newsk=ffffff8042781dc0 err=0
+[ 3325.517277] stcp-debug-v8: accept UDP carrier attach child=ffffff8042781dc0 carrier=ffffff80424ee400 ret=0
+[ 3325.517289] stcp-debug-v8: accept wire child=ffffff8042781dc0 ctx=ffffff804fa2f000 carrier=ffffff80424ee400
+[ 3325.517300] stcp-debug-v8: accept receiver start child=ffffff8042781dc0 carrier=ffffff80424ee400 ret=0
+[ 3325.517310] stcp-debug-v8: accept handshake start begin child=ffffff8042781dc0 ctx=ffffff804fa2f000
+[ 3325.517358] stcp-debug-v8: accept handshake start result child=ffffff8042781dc0 ctx=ffffff804fa2f000 ret=0 connected=0
+[ 3325.517372] stcp-debug-v8: accept waiting handshake child=ffffff8042781dc0 ctx=ffffff804fa2f000 timeout_ms=30000
+[ 3325.518904] stcp-debug-v8: accept wait result child=ffffff8042781dc0 ctx=ffffff804fa2f000 wait_ret=7500 connected=1
+[ 3325.518920] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042781dc0 ctx=ffffff804fa2f000 carrier=ffffff80424ee400 sk=ffffff8042781dc0
+[ 3325.519778] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ae080 flags=0x2
+[ 3325.519806] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.519817] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.519826] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3325.542993] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.543019] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2cc00 ret=0
+[ 3325.543040] stcp-debug-v8: accept alloc child newsock=ffffff808a7ae080 newsk=ffffff8042786600 err=0
+[ 3325.543688] stcp-debug-v8: accept UDP carrier attach child=ffffff8042786600 carrier=ffffff80424ee000 ret=0
+[ 3325.543698] stcp-debug-v8: accept wire child=ffffff8042786600 ctx=ffffff804fa2cc00 carrier=ffffff80424ee000
+[ 3325.543709] stcp-debug-v8: accept receiver start child=ffffff8042786600 carrier=ffffff80424ee000 ret=0
+[ 3325.543719] stcp-debug-v8: accept handshake start begin child=ffffff8042786600 ctx=ffffff804fa2cc00
+[ 3325.543765] stcp-debug-v8: accept handshake start result child=ffffff8042786600 ctx=ffffff804fa2cc00 ret=0 connected=0
+[ 3325.543780] stcp-debug-v8: accept waiting handshake child=ffffff8042786600 ctx=ffffff804fa2cc00 timeout_ms=30000
+[ 3325.544032] stcp-debug-v8: accept wait result child=ffffff8042786600 ctx=ffffff804fa2cc00 wait_ret=7500 connected=1
+[ 3325.544051] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042786600 ctx=ffffff804fa2cc00 carrier=ffffff80424ee000 sk=ffffff8042786600
+[ 3325.545008] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ac680 flags=0x2
+[ 3325.545036] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.545048] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.545058] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3325.547352] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.547368] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2dc00 ret=0
+[ 3325.547388] stcp-debug-v8: accept alloc child newsock=ffffff808a7ac680 newsk=ffffff8042786a40 err=0
+[ 3325.548048] stcp-debug-v8: accept UDP carrier attach child=ffffff8042786a40 carrier=ffffff80424ee800 ret=0
+[ 3325.548060] stcp-debug-v8: accept wire child=ffffff8042786a40 ctx=ffffff804fa2dc00 carrier=ffffff80424ee800
+[ 3325.548071] stcp-debug-v8: accept receiver start child=ffffff8042786a40 carrier=ffffff80424ee800 ret=0
+[ 3325.548080] stcp-debug-v8: accept handshake start begin child=ffffff8042786a40 ctx=ffffff804fa2dc00
+[ 3325.548292] stcp-debug-v8: accept handshake start result child=ffffff8042786a40 ctx=ffffff804fa2dc00 ret=0 connected=0
+[ 3325.548310] stcp-debug-v8: accept waiting handshake child=ffffff8042786a40 ctx=ffffff804fa2dc00 timeout_ms=30000
+[ 3325.549534] stcp-debug-v8: accept wait result child=ffffff8042786a40 ctx=ffffff804fa2dc00 wait_ret=7500 connected=1
+[ 3325.549553] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042786a40 ctx=ffffff804fa2dc00 carrier=ffffff80424ee800 sk=ffffff8042786a40
+[ 3325.550498] stcp_kernel_debug_event: 24821 callbacks suppressed
+[ 3325.550532] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=7 arg1=11200
+[ 3325.550832] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ad6c0 flags=0x2
+[ 3325.550857] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3325.550869] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3325.550878] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3325.550937] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=15 arg1=22396
+[ 3325.551521] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=23 arg1=11200
+[ 3325.552295] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=31 arg1=22400
+[ 3325.552561] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=39 arg1=33600
+[ 3325.552774] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=47 arg1=44800
+[ 3325.553732] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=55 arg1=56000
+[ 3325.553763] stcp-debug: event=306 ctx=ffffff804fa2dc00 arg0=7 arg1=11200
+[ 3325.553967] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=63 arg1=67200
+[ 3325.554187] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=71 arg1=78400
+[ 3330.552326] stcp_kernel_debug_event: 28454 callbacks suppressed
+[ 3330.552356] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=14406 arg1=11200
+[ 3330.552736] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=14414 arg1=8400
+[ 3330.552791] stcp-debug: event=309 ctx=ffffff804fa2f000 arg0=8 arg1=13
+[ 3330.552822] stcp-debug: event=309 ctx=ffffff804fa2f000 arg0=8 arg1=6
+[ 3330.553180] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=14422 arg1=11200
+[ 3330.553323] stcp-debug: event=309 ctx=ffffff804fa2f000 arg0=8 arg1=8
+[ 3330.553354] stcp-debug: event=309 ctx=ffffff80415fbc00 arg0=8 arg1=14
+[ 3330.553381] stcp-debug: event=309 ctx=ffffff80415fbc00 arg0=8 arg1=6
+[ 3330.553466] stcp-debug: event=306 ctx=ffffff804fa2e400 arg0=14518 arg1=11200
+[ 3330.553736] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=14430 arg1=11200
+[ 3951.694778] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3951.694812] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2d800 ret=0
+[ 3951.694835] stcp-debug-v8: accept alloc child newsock=ffffff808a7ad6c0 newsk=ffffff8042786a40 err=0
+[ 3951.695464] stcp-debug-v8: accept UDP carrier attach child=ffffff8042786a40 carrier=ffffff8042d15a00 ret=0
+[ 3951.695475] stcp-debug-v8: accept wire child=ffffff8042786a40 ctx=ffffff804fa2d800 carrier=ffffff8042d15a00
+[ 3951.695486] stcp-debug-v8: accept receiver start child=ffffff8042786a40 carrier=ffffff8042d15a00 ret=0
+[ 3951.695496] stcp-debug-v8: accept handshake start begin child=ffffff8042786a40 ctx=ffffff804fa2d800
+[ 3951.695551] stcp-debug-v8: accept handshake start result child=ffffff8042786a40 ctx=ffffff804fa2d800 ret=0 connected=0
+[ 3951.695566] stcp-debug-v8: accept waiting handshake child=ffffff8042786a40 ctx=ffffff804fa2d800 timeout_ms=30000
+[ 3951.695855] stcp-debug-v8: accept wait result child=ffffff8042786a40 ctx=ffffff804fa2d800 wait_ret=7500 connected=1
+[ 3951.695873] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042786a40 ctx=ffffff804fa2d800 carrier=ffffff8042d15a00 sk=ffffff8042786a40
+[ 3951.696807] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7af400 flags=0x2
+[ 3951.696830] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3951.696842] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3951.696852] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3951.697953] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3951.697965] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2d400 ret=0
+[ 3951.697983] stcp-debug-v8: accept alloc child newsock=ffffff808a7af400 newsk=ffffff8042786600 err=0
+[ 3951.698647] stcp-debug-v8: accept UDP carrier attach child=ffffff8042786600 carrier=ffffff8042d15600 ret=0
+[ 3951.698657] stcp-debug-v8: accept wire child=ffffff8042786600 ctx=ffffff804fa2d400 carrier=ffffff8042d15600
+[ 3951.698668] stcp-debug-v8: accept receiver start child=ffffff8042786600 carrier=ffffff8042d15600 ret=0
+[ 3951.698679] stcp-debug-v8: accept handshake start begin child=ffffff8042786600 ctx=ffffff804fa2d400
+[ 3951.698726] stcp-debug-v8: accept handshake start result child=ffffff8042786600 ctx=ffffff804fa2d400 ret=0 connected=0
+[ 3951.698741] stcp-debug-v8: accept waiting handshake child=ffffff8042786600 ctx=ffffff804fa2d400 timeout_ms=30000
+[ 3951.700194] stcp-debug-v8: accept wait result child=ffffff8042786600 ctx=ffffff804fa2d400 wait_ret=7499 connected=1
+[ 3951.700218] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042786600 ctx=ffffff804fa2d400 carrier=ffffff8042d15600 sk=ffffff8042786600
+[ 3951.700890] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ac680 flags=0x2
+[ 3951.700910] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3951.700923] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3951.700932] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2ec00 ret=0
+[ 3951.700949] stcp-debug-v8: accept alloc child newsock=ffffff808a7ac680 newsk=ffffff8042784840 err=0
+[ 3951.700962] stcp-debug-v8: accept UDP carrier attach child=ffffff8042784840 carrier=ffffff8042d14c00 ret=0
+[ 3951.700972] stcp-debug-v8: accept wire child=ffffff8042784840 ctx=ffffff804fa2ec00 carrier=ffffff8042d14c00
+[ 3951.700984] stcp-debug-v8: accept receiver start child=ffffff8042784840 carrier=ffffff8042d14c00 ret=0
+[ 3951.700994] stcp-debug-v8: accept handshake start begin child=ffffff8042784840 ctx=ffffff804fa2ec00
+[ 3951.701063] stcp-debug-v8: accept handshake start result child=ffffff8042784840 ctx=ffffff804fa2ec00 ret=0 connected=0
+[ 3951.701076] stcp-debug-v8: accept waiting handshake child=ffffff8042784840 ctx=ffffff804fa2ec00 timeout_ms=30000
+[ 3951.702345] stcp-debug-v8: accept wait result child=ffffff8042784840 ctx=ffffff804fa2ec00 wait_ret=7500 connected=1
+[ 3951.702364] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042784840 ctx=ffffff804fa2ec00 carrier=ffffff8042d14c00 sk=ffffff8042784840
+[ 3951.702986] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff808a7ae3c0 flags=0x2
+[ 3951.703006] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3951.703017] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3951.703027] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=ffffff804fa2fc00 ret=0
+[ 3951.703046] stcp-debug-v8: accept alloc child newsock=ffffff808a7ae3c0 newsk=ffffff8042783b80 err=0
+[ 3951.703058] stcp-debug-v8: accept UDP carrier attach child=ffffff8042783b80 carrier=ffffff8042d15000 ret=0
+[ 3951.703068] stcp-debug-v8: accept wire child=ffffff8042783b80 ctx=ffffff804fa2fc00 carrier=ffffff8042d15000
+[ 3951.703080] stcp-debug-v8: accept receiver start child=ffffff8042783b80 carrier=ffffff8042d15000 ret=0
+[ 3951.703090] stcp-debug-v8: accept handshake start begin child=ffffff8042783b80 ctx=ffffff804fa2fc00
+[ 3951.703156] stcp-debug-v8: accept handshake start result child=ffffff8042783b80 ctx=ffffff804fa2fc00 ret=0 connected=0
+[ 3951.703171] stcp-debug-v8: accept waiting handshake child=ffffff8042783b80 ctx=ffffff804fa2fc00 timeout_ms=30000
+[ 3951.703418] stcp-debug-v8: accept wait result child=ffffff8042783b80 ctx=ffffff804fa2fc00 wait_ret=7500 connected=1
+[ 3951.703435] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8042783b80 ctx=ffffff804fa2fc00 carrier=ffffff8042d15000 sk=ffffff8042783b80
+[ 3951.703747] stcp_kernel_debug_event: 25773 callbacks suppressed
+[ 3951.703763] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=0 arg1=68
+[ 3951.703846] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=0 arg1=68
+[ 3951.703912] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=0 arg1=68
+[ 3951.704139] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=0 arg1=68
+[ 3951.704434] stcp-debug-v8: ACCEPT ENTER sock=ffffff808a739040 sk=ffffff8042780440 newsock=ffffff80948763c0 flags=0x2
+[ 3951.704457] stcp-debug-v8: accept listener=ffffff8042780440 ctx=ffffff8082eacc00 carrier=ffffff8041161e00 udp=1
+[ 3951.704469] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff8082eacc00 flags=0x2
+[ 3951.704481] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff8082eacc00 child_ctx=0000000000000000 ret=-11
+[ 3951.704490] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=0 arg1=1
+[ 3951.704517] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=0 arg1=1
+[ 3951.704743] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=0 arg1=1
+[ 3951.705538] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=1 arg1=68
+[ 3951.705650] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=1 arg1=68
+[ 3951.705807] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=1 arg1=1
+[ 3956.704193] stcp_kernel_debug_event: 71847 callbacks suppressed
+[ 3956.704232] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=8893 arg1=68
+[ 3956.704272] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=9042 arg1=1
+[ 3956.704348] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=8985 arg1=68
+[ 3956.704507] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=9008 arg1=68
+[ 3956.704574] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=8893 arg1=1
+[ 3956.704654] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=8985 arg1=1
+[ 3956.704706] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=9008 arg1=1
+[ 3956.704813] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=9043 arg1=68
+[ 3956.704888] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=8894 arg1=68
+[ 3956.705036] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=8986 arg1=68
+[ 3961.708766] stcp_kernel_debug_event: 69521 callbacks suppressed
+[ 3961.708824] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=17645 arg1=68
+[ 3961.708922] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=17748 arg1=68
+[ 3961.709039] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=17587 arg1=68
+[ 3961.709087] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=17645 arg1=1
+[ 3961.709158] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=17714 arg1=68
+[ 3961.709332] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=17587 arg1=1
+[ 3961.709423] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=17748 arg1=1
+[ 3961.709479] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=17714 arg1=1
+[ 3961.709559] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=17646 arg1=68
+[ 3961.709632] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=17588 arg1=68
+[ 3966.712133] stcp_kernel_debug_event: 70895 callbacks suppressed
+[ 3966.712164] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=26615 arg1=68
+[ 3966.712274] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=26479 arg1=1
+[ 3966.712368] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=26620 arg1=68
+[ 3966.712444] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=26432 arg1=68
+[ 3966.712540] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=26615 arg1=1
+[ 3966.712613] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=26620 arg1=1
+[ 3966.712664] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=26432 arg1=1
+[ 3966.712802] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=26480 arg1=68
+[ 3966.712876] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=26616 arg1=68
+[ 3966.712960] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=26621 arg1=68
+[ 3971.716202] stcp_kernel_debug_event: 69510 callbacks suppressed
+[ 3971.716232] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=35250 arg1=68
+[ 3971.716270] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=35125 arg1=1
+[ 3971.716346] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=35159 arg1=68
+[ 3971.716495] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=35372 arg1=68
+[ 3971.716560] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=35250 arg1=1
+[ 3971.716665] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=35159 arg1=1
+[ 3971.716725] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=35372 arg1=1
+[ 3971.716807] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=35126 arg1=68
+[ 3971.716882] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=35251 arg1=68
+[ 3971.717033] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=35160 arg1=68
+[ 3976.720116] stcp_kernel_debug_event: 69043 callbacks suppressed
+[ 3976.720147] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=43765 arg1=1
+[ 3976.720184] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=43826 arg1=1
+[ 3976.720206] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=43786 arg1=1
+[ 3976.720228] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=44054 arg1=1
+[ 3976.720286] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=43766 arg1=68
+[ 3976.720349] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=43827 arg1=68
+[ 3976.720411] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=44055 arg1=68
+[ 3976.720485] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=43787 arg1=68
+[ 3976.720514] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=43766 arg1=1
+[ 3976.720577] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=43827 arg1=1
+[ 3981.724115] stcp_kernel_debug_event: 71492 callbacks suppressed
+[ 3981.724146] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=52716 arg1=1
+[ 3981.724181] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=52745 arg1=1
+[ 3981.724203] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=52986 arg1=1
+[ 3981.724223] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=52735 arg1=1
+[ 3981.724283] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=52717 arg1=68
+[ 3981.724344] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=52746 arg1=68
+[ 3981.724407] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=52987 arg1=68
+[ 3981.724468] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=52736 arg1=68
+[ 3981.724570] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=52717 arg1=1
+[ 3981.724632] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=52718 arg1=68
+[ 3986.728149] stcp_kernel_debug_event: 71791 callbacks suppressed
+[ 3986.728175] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=61774 arg1=68
+[ 3986.728213] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=61617 arg1=1
+[ 3986.728271] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=62007 arg1=68
+[ 3986.728334] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=61686 arg1=68
+[ 3986.728394] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=61618 arg1=68
+[ 3986.728480] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=61774 arg1=1
+[ 3986.728504] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=62007 arg1=1
+[ 3986.728602] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=61775 arg1=68
+[ 3986.728664] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=62008 arg1=68
+[ 3986.728913] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=61618 arg1=1
+[ 3991.732207] stcp_kernel_debug_event: 72620 callbacks suppressed
+[ 3991.732243] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=70850 arg1=68
+[ 3991.732286] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=70751 arg1=1
+[ 3991.732360] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=70690 arg1=68
+[ 3991.732513] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=71108 arg1=68
+[ 3991.732609] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=70850 arg1=1
+[ 3991.732644] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=70690 arg1=1
+[ 3991.732783] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=70752 arg1=68
+[ 3991.732822] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=71108 arg1=1
+[ 3991.732891] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=70851 arg1=68
+[ 3991.733078] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=70691 arg1=68
+[ 3996.736146] stcp_kernel_debug_event: 71610 callbacks suppressed
+[ 3996.736209] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=79648 arg1=68
+[ 3996.736289] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=79782 arg1=1
+[ 3996.736388] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=79714 arg1=68
+[ 3996.736535] stcp-debug: event=306 ctx=ffffff804fa2d400 arg0=80065 arg1=68
+[ 3996.736609] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=79648 arg1=1
+[ 3996.736673] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=79714 arg1=1
+[ 3996.736811] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=79783 arg1=68
+[ 3996.736849] stcp-debug: event=307 ctx=ffffff804fa2d400 arg0=80065 arg1=1
+[ 3996.736921] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=79649 arg1=68
+[ 3996.737148] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=79715 arg1=68
+[ 4001.740170] stcp_kernel_debug_event: 57412 callbacks suppressed
+[ 4001.740202] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=86762 arg1=1
+[ 4001.740365] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=86930 arg1=68
+[ 4001.740461] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=86763 arg1=68
+[ 4001.740901] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=86930 arg1=1
+[ 4001.740944] stcp-debug: event=307 ctx=ffffff804fa2fc00 arg0=86907 arg1=1
+[ 4001.741011] stcp-debug: event=306 ctx=ffffff804fa2d800 arg0=86931 arg1=68
+[ 4001.741051] stcp-debug: event=307 ctx=ffffff804fa2ec00 arg0=86763 arg1=1
+[ 4001.741115] stcp-debug: event=306 ctx=ffffff804fa2fc00 arg0=86908 arg1=68
+[ 4001.741190] stcp-debug: event=306 ctx=ffffff804fa2ec00 arg0=86764 arg1=68
+[ 4001.741442] stcp-debug: event=307 ctx=ffffff804fa2d800 arg0=86931 arg1=1
+[ 4003.081700] stcp: UDP carrier final stats tx=1737940 tx_bytes=1401273288 tx_errors=0 rx=1737936 rx_bytes=1401828856 dispatch_errors=0 queue_drops=0 drops=0
+[ 4003.670608] stcp: bind enter sk=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 addr=0.0.0.0:19002 raw_addr=0x00000000 raw_port=0x3a4a
+[ 4003.670680] stcp: bind carrier result sk=ffffff8081b12a80 carrier=ffffff8058632600 ret=0
+[ 4003.670694] stcp: bind rust result sk=ffffff8081b12a80 ctx=ffffff805862c800 ret=0
+[ 4003.670742] stcp: listen enter sk=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 backlog=256
+[ 4003.671212] stcp: listen carrier result sk=ffffff8081b12a80 carrier=ffffff8058632600 ret=0
+[ 4003.671224] stcp-debug-v8: RX thread enter carrier=ffffff8058632600 kind=2 socket=ffffff804f370340 rust_ctx=ffffff805862c800 owner=ffffff8081b12a80
+[ 4003.671237] stcp: listen rust result sk=ffffff8081b12a80 ctx=ffffff805862c800 ret=0
+[ 4003.671598] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff804f373a80 flags=0x2
+[ 4003.671621] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4003.671633] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4003.671644] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4041.557255] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.557297] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862f800 ret=0
+[ 4041.557320] stcp-debug-v8: accept alloc child newsock=ffffff804f373a80 newsk=ffffff805834ee80 err=0
+[ 4041.557913] stcp-debug-v8: accept UDP carrier attach child=ffffff805834ee80 carrier=ffffff8041f61000 ret=0
+[ 4041.557925] stcp-debug-v8: accept wire child=ffffff805834ee80 ctx=ffffff805862f800 carrier=ffffff8041f61000
+[ 4041.557938] stcp-debug-v8: accept receiver start child=ffffff805834ee80 carrier=ffffff8041f61000 ret=0
+[ 4041.557948] stcp-debug-v8: accept handshake start begin child=ffffff805834ee80 ctx=ffffff805862f800
+[ 4041.558000] stcp-debug-v8: accept handshake start result child=ffffff805834ee80 ctx=ffffff805862f800 ret=0 connected=0
+[ 4041.558015] stcp-debug-v8: accept waiting handshake child=ffffff805834ee80 ctx=ffffff805862f800 timeout_ms=30000
+[ 4041.558332] stcp-debug-v8: accept wait result child=ffffff805834ee80 ctx=ffffff805862f800 wait_ret=7500 connected=1
+[ 4041.558352] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834ee80 ctx=ffffff805862f800 carrier=ffffff8041f61000 sk=ffffff805834ee80
+[ 4041.559733] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffc9c0 flags=0x2
+[ 4041.559763] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4041.559777] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.559787] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4041.638852] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.638889] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862c400 ret=0
+[ 4041.638911] stcp-debug-v8: accept alloc child newsock=ffffff8083ffc9c0 newsk=ffffff805834f2c0 err=0
+[ 4041.639540] stcp-debug-v8: accept UDP carrier attach child=ffffff805834f2c0 carrier=ffffff8041f61200 ret=0
+[ 4041.639551] stcp-debug-v8: accept wire child=ffffff805834f2c0 ctx=ffffff805862c400 carrier=ffffff8041f61200
+[ 4041.639562] stcp-debug-v8: accept receiver start child=ffffff805834f2c0 carrier=ffffff8041f61200 ret=0
+[ 4041.639572] stcp-debug-v8: accept handshake start begin child=ffffff805834f2c0 ctx=ffffff805862c400
+[ 4041.639623] stcp-debug-v8: accept handshake start result child=ffffff805834f2c0 ctx=ffffff805862c400 ret=0 connected=0
+[ 4041.639636] stcp-debug-v8: accept waiting handshake child=ffffff805834f2c0 ctx=ffffff805862c400 timeout_ms=30000
+[ 4041.639936] stcp-debug-v8: accept wait result child=ffffff805834f2c0 ctx=ffffff805862c400 wait_ret=7500 connected=1
+[ 4041.639953] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834f2c0 ctx=ffffff805862c400 carrier=ffffff8041f61200 sk=ffffff805834f2c0
+[ 4041.641283] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffe080 flags=0x2
+[ 4041.641313] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4041.641324] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.641334] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4041.854565] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.854605] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862d800 ret=0
+[ 4041.854629] stcp-debug-v8: accept alloc child newsock=ffffff8083ffe080 newsk=ffffff805834f700 err=0
+[ 4041.855211] stcp-debug-v8: accept UDP carrier attach child=ffffff805834f700 carrier=ffffff8041c12400 ret=0
+[ 4041.855222] stcp-debug-v8: accept wire child=ffffff805834f700 ctx=ffffff805862d800 carrier=ffffff8041c12400
+[ 4041.855236] stcp-debug-v8: accept receiver start child=ffffff805834f700 carrier=ffffff8041c12400 ret=0
+[ 4041.855245] stcp-debug-v8: accept handshake start begin child=ffffff805834f700 ctx=ffffff805862d800
+[ 4041.855299] stcp-debug-v8: accept handshake start result child=ffffff805834f700 ctx=ffffff805862d800 ret=0 connected=0
+[ 4041.855313] stcp-debug-v8: accept waiting handshake child=ffffff805834f700 ctx=ffffff805862d800 timeout_ms=30000
+[ 4041.855630] stcp-debug-v8: accept wait result child=ffffff805834f700 ctx=ffffff805862d800 wait_ret=7500 connected=1
+[ 4041.855650] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834f700 ctx=ffffff805862d800 carrier=ffffff8041c12400 sk=ffffff805834f700
+[ 4041.856845] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffd6c0 flags=0x2
+[ 4041.856872] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4041.856884] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.856895] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4041.871030] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.871045] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862e000 ret=0
+[ 4041.871065] stcp-debug-v8: accept alloc child newsock=ffffff8083ffd6c0 newsk=ffffff805834fb40 err=0
+[ 4041.871719] stcp-debug-v8: accept UDP carrier attach child=ffffff805834fb40 carrier=ffffff8041c12c00 ret=0
+[ 4041.871729] stcp-debug-v8: accept wire child=ffffff805834fb40 ctx=ffffff805862e000 carrier=ffffff8041c12c00
+[ 4041.871741] stcp-debug-v8: accept receiver start child=ffffff805834fb40 carrier=ffffff8041c12c00 ret=0
+[ 4041.871750] stcp-debug-v8: accept handshake start begin child=ffffff805834fb40 ctx=ffffff805862e000
+[ 4041.871817] stcp-debug-v8: accept handshake start result child=ffffff805834fb40 ctx=ffffff805862e000 ret=0 connected=0
+[ 4041.871832] stcp-debug-v8: accept waiting handshake child=ffffff805834fb40 ctx=ffffff805862e000 timeout_ms=30000
+[ 4041.873401] stcp-debug-v8: accept wait result child=ffffff805834fb40 ctx=ffffff805862e000 wait_ret=7499 connected=1
+[ 4041.873422] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834fb40 ctx=ffffff805862e000 carrier=ffffff8041c12c00 sk=ffffff805834fb40
+[ 4041.874409] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffe700 flags=0x2
+[ 4041.874433] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4041.874445] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4041.874456] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.012772] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.012811] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862e400 ret=0
+[ 4042.012834] stcp-debug-v8: accept alloc child newsock=ffffff8083ffe700 newsk=ffffff805834d500 err=0
+[ 4042.013453] stcp-debug-v8: accept UDP carrier attach child=ffffff805834d500 carrier=ffffff8041c12200 ret=0
+[ 4042.013465] stcp-debug-v8: accept wire child=ffffff805834d500 ctx=ffffff805862e400 carrier=ffffff8041c12200
+[ 4042.013476] stcp-debug-v8: accept receiver start child=ffffff805834d500 carrier=ffffff8041c12200 ret=0
+[ 4042.013486] stcp-debug-v8: accept handshake start begin child=ffffff805834d500 ctx=ffffff805862e400
+[ 4042.013536] stcp-debug-v8: accept handshake start result child=ffffff805834d500 ctx=ffffff805862e400 ret=0 connected=0
+[ 4042.013550] stcp-debug-v8: accept waiting handshake child=ffffff805834d500 ctx=ffffff805862e400 timeout_ms=30000
+[ 4042.013854] stcp-debug-v8: accept wait result child=ffffff805834d500 ctx=ffffff805862e400 wait_ret=7500 connected=1
+[ 4042.013874] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834d500 ctx=ffffff805862e400 carrier=ffffff8041c12200 sk=ffffff805834d500
+[ 4042.015119] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffda00 flags=0x2
+[ 4042.015145] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.015157] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.015168] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.240232] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.240272] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862f400 ret=0
+[ 4042.240295] stcp-debug-v8: accept alloc child newsock=ffffff8083ffda00 newsk=ffffff805834cc80 err=0
+[ 4042.240901] stcp-debug-v8: accept UDP carrier attach child=ffffff805834cc80 carrier=ffffff8041c12600 ret=0
+[ 4042.240912] stcp-debug-v8: accept wire child=ffffff805834cc80 ctx=ffffff805862f400 carrier=ffffff8041c12600
+[ 4042.240925] stcp-debug-v8: accept receiver start child=ffffff805834cc80 carrier=ffffff8041c12600 ret=0
+[ 4042.240934] stcp-debug-v8: accept handshake start begin child=ffffff805834cc80 ctx=ffffff805862f400
+[ 4042.240989] stcp-debug-v8: accept handshake start result child=ffffff805834cc80 ctx=ffffff805862f400 ret=0 connected=0
+[ 4042.241002] stcp-debug-v8: accept waiting handshake child=ffffff805834cc80 ctx=ffffff805862f400 timeout_ms=30000
+[ 4042.241300] stcp-debug-v8: accept wait result child=ffffff805834cc80 ctx=ffffff805862f400 wait_ret=7500 connected=1
+[ 4042.241318] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834cc80 ctx=ffffff805862f400 carrier=ffffff8041c12600 sk=ffffff805834cc80
+[ 4042.242395] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffcd00 flags=0x2
+[ 4042.242420] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.242431] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.242441] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.401762] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.401801] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862d400 ret=0
+[ 4042.401822] stcp-debug-v8: accept alloc child newsock=ffffff8083ffcd00 newsk=ffffff805834c400 err=0
+[ 4042.402456] stcp-debug-v8: accept UDP carrier attach child=ffffff805834c400 carrier=ffffff8041f60e00 ret=0
+[ 4042.402466] stcp-debug-v8: accept wire child=ffffff805834c400 ctx=ffffff805862d400 carrier=ffffff8041f60e00
+[ 4042.402480] stcp-debug-v8: accept receiver start child=ffffff805834c400 carrier=ffffff8041f60e00 ret=0
+[ 4042.402489] stcp-debug-v8: accept handshake start begin child=ffffff805834c400 ctx=ffffff805862d400
+[ 4042.402538] stcp-debug-v8: accept handshake start result child=ffffff805834c400 ctx=ffffff805862d400 ret=0 connected=0
+[ 4042.402552] stcp-debug-v8: accept waiting handshake child=ffffff805834c400 ctx=ffffff805862d400 timeout_ms=30000
+[ 4042.402903] stcp-debug-v8: accept wait result child=ffffff805834c400 ctx=ffffff805862d400 wait_ret=7500 connected=1
+[ 4042.402921] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834c400 ctx=ffffff805862d400 carrier=ffffff8041f60e00 sk=ffffff805834c400
+[ 4042.403931] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffd380 flags=0x2
+[ 4042.403954] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.403966] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.403976] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.496325] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.496364] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff805862fc00 ret=0
+[ 4042.496385] stcp-debug-v8: accept alloc child newsock=ffffff8083ffd380 newsk=ffffff805834d940 err=0
+[ 4042.497010] stcp-debug-v8: accept UDP carrier attach child=ffffff805834d940 carrier=ffffff8058633e00 ret=0
+[ 4042.497021] stcp-debug-v8: accept wire child=ffffff805834d940 ctx=ffffff805862fc00 carrier=ffffff8058633e00
+[ 4042.497032] stcp-debug-v8: accept receiver start child=ffffff805834d940 carrier=ffffff8058633e00 ret=0
+[ 4042.497042] stcp-debug-v8: accept handshake start begin child=ffffff805834d940 ctx=ffffff805862fc00
+[ 4042.497094] stcp-debug-v8: accept handshake start result child=ffffff805834d940 ctx=ffffff805862fc00 ret=0 connected=0
+[ 4042.497108] stcp-debug-v8: accept waiting handshake child=ffffff805834d940 ctx=ffffff805862fc00 timeout_ms=30000
+[ 4042.497498] stcp-debug-v8: accept wait result child=ffffff805834d940 ctx=ffffff805862fc00 wait_ret=7500 connected=1
+[ 4042.497517] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834d940 ctx=ffffff805862fc00 carrier=ffffff8058633e00 sk=ffffff805834d940
+[ 4042.498664] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8083ffdd40 flags=0x2
+[ 4042.498690] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.498702] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.498712] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.503889] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.503906] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff80447fc400 ret=0
+[ 4042.503925] stcp-debug-v8: accept alloc child newsock=ffffff8083ffdd40 newsk=ffffff805834ea40 err=0
+[ 4042.504634] stcp-debug-v8: accept UDP carrier attach child=ffffff805834ea40 carrier=ffffff8058633800 ret=0
+[ 4042.504649] stcp-debug-v8: accept wire child=ffffff805834ea40 ctx=ffffff80447fc400 carrier=ffffff8058633800
+[ 4042.504661] stcp-debug-v8: accept receiver start child=ffffff805834ea40 carrier=ffffff8058633800 ret=0
+[ 4042.504670] stcp-debug-v8: accept handshake start begin child=ffffff805834ea40 ctx=ffffff80447fc400
+[ 4042.504736] stcp-debug-v8: accept handshake start result child=ffffff805834ea40 ctx=ffffff80447fc400 ret=0 connected=0
+[ 4042.504750] stcp-debug-v8: accept waiting handshake child=ffffff805834ea40 ctx=ffffff80447fc400 timeout_ms=30000
+[ 4042.505059] stcp-debug-v8: accept wait result child=ffffff805834ea40 ctx=ffffff80447fc400 wait_ret=7500 connected=1
+[ 4042.505075] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834ea40 ctx=ffffff80447fc400 carrier=ffffff8058633800 sk=ffffff805834ea40
+[ 4042.506145] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8080846d80 flags=0x2
+[ 4042.506170] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.506182] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.506191] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.573795] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.573834] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff804f4fc000 ret=0
+[ 4042.573854] stcp-debug-v8: accept alloc child newsock=ffffff8080846d80 newsk=ffffff805834e600 err=0
+[ 4042.574467] stcp-debug-v8: accept UDP carrier attach child=ffffff805834e600 carrier=ffffff8058632800 ret=0
+[ 4042.574477] stcp-debug-v8: accept wire child=ffffff805834e600 ctx=ffffff804f4fc000 carrier=ffffff8058632800
+[ 4042.574489] stcp-debug-v8: accept receiver start child=ffffff805834e600 carrier=ffffff8058632800 ret=0
+[ 4042.574499] stcp-debug-v8: accept handshake start begin child=ffffff805834e600 ctx=ffffff804f4fc000
+[ 4042.574549] stcp-debug-v8: accept handshake start result child=ffffff805834e600 ctx=ffffff804f4fc000 ret=0 connected=0
+[ 4042.574562] stcp-debug-v8: accept waiting handshake child=ffffff805834e600 ctx=ffffff804f4fc000 timeout_ms=30000
+[ 4042.577537] stcp-debug-v8: accept wait result child=ffffff805834e600 ctx=ffffff804f4fc000 wait_ret=7499 connected=1
+[ 4042.577560] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834e600 ctx=ffffff804f4fc000 carrier=ffffff8058632800 sk=ffffff805834e600
+[ 4042.578591] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8080847740 flags=0x2
+[ 4042.578614] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.578625] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.578635] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff804f4fc400 ret=0
+[ 4042.578652] stcp-debug-v8: accept alloc child newsock=ffffff8080847740 newsk=ffffff805834dd80 err=0
+[ 4042.578665] stcp-debug-v8: accept UDP carrier attach child=ffffff805834dd80 carrier=ffffff8058632400 ret=0
+[ 4042.578674] stcp-debug-v8: accept wire child=ffffff805834dd80 ctx=ffffff804f4fc400 carrier=ffffff8058632400
+[ 4042.578686] stcp-debug-v8: accept receiver start child=ffffff805834dd80 carrier=ffffff8058632400 ret=0
+[ 4042.578696] stcp-debug-v8: accept handshake start begin child=ffffff805834dd80 ctx=ffffff804f4fc400
+[ 4042.578764] stcp-debug-v8: accept handshake start result child=ffffff805834dd80 ctx=ffffff804f4fc400 ret=0 connected=0
+[ 4042.578777] stcp-debug-v8: accept waiting handshake child=ffffff805834dd80 ctx=ffffff804f4fc400 timeout_ms=30000
+[ 4042.579067] stcp-debug-v8: accept wait result child=ffffff805834dd80 ctx=ffffff804f4fc400 wait_ret=7500 connected=1
+[ 4042.579086] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834dd80 ctx=ffffff804f4fc400 carrier=ffffff8058632400 sk=ffffff805834dd80
+[ 4042.579841] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff8080847400 flags=0x2
+[ 4042.579863] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.579874] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.579884] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff804f4fc800 ret=0
+[ 4042.579902] stcp-debug-v8: accept alloc child newsock=ffffff8080847400 newsk=ffffff805834e1c0 err=0
+[ 4042.579913] stcp-debug-v8: accept UDP carrier attach child=ffffff805834e1c0 carrier=ffffff8058633600 ret=0
+[ 4042.579923] stcp-debug-v8: accept wire child=ffffff805834e1c0 ctx=ffffff804f4fc800 carrier=ffffff8058633600
+[ 4042.579934] stcp-debug-v8: accept receiver start child=ffffff805834e1c0 carrier=ffffff8058633600 ret=0
+[ 4042.579944] stcp-debug-v8: accept handshake start begin child=ffffff805834e1c0 ctx=ffffff804f4fc800
+[ 4042.580005] stcp-debug-v8: accept handshake start result child=ffffff805834e1c0 ctx=ffffff804f4fc800 ret=0 connected=0
+[ 4042.580019] stcp-debug-v8: accept waiting handshake child=ffffff805834e1c0 ctx=ffffff804f4fc800 timeout_ms=30000
+[ 4042.580415] stcp-debug-v8: accept wait result child=ffffff805834e1c0 ctx=ffffff804f4fc800 wait_ret=7499 connected=1
+[ 4042.580443] stcp-debug-v8: ACCEPT COMPLETE child=ffffff805834e1c0 ctx=ffffff804f4fc800 carrier=ffffff8058633600 sk=ffffff805834e1c0
+[ 4042.581357] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff804f3730c0 flags=0x2
+[ 4042.581380] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.581393] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.581403] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.586163] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.586182] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff8041bfec00 ret=0
+[ 4042.586203] stcp-debug-v8: accept alloc child newsock=ffffff804f3730c0 newsk=ffffff8081b12ec0 err=0
+[ 4042.586862] stcp-debug-v8: accept UDP carrier attach child=ffffff8081b12ec0 carrier=ffffff804193ba00 ret=0
+[ 4042.586872] stcp-debug-v8: accept wire child=ffffff8081b12ec0 ctx=ffffff8041bfec00 carrier=ffffff804193ba00
+[ 4042.586883] stcp-debug-v8: accept receiver start child=ffffff8081b12ec0 carrier=ffffff804193ba00 ret=0
+[ 4042.586892] stcp-debug-v8: accept handshake start begin child=ffffff8081b12ec0 ctx=ffffff8041bfec00
+[ 4042.586964] stcp-debug-v8: accept handshake start result child=ffffff8081b12ec0 ctx=ffffff8041bfec00 ret=0 connected=0
+[ 4042.586979] stcp-debug-v8: accept waiting handshake child=ffffff8081b12ec0 ctx=ffffff8041bfec00 timeout_ms=30000
+[ 4042.587218] stcp-debug-v8: accept wait result child=ffffff8081b12ec0 ctx=ffffff8041bfec00 wait_ret=7500 connected=1
+[ 4042.587239] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8081b12ec0 ctx=ffffff8041bfec00 carrier=ffffff804193ba00 sk=ffffff8081b12ec0
+[ 4042.588055] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff804f372d80 flags=0x2
+[ 4042.588076] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.588174] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.588185] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.616172] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.616189] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff8041bfd800 ret=0
+[ 4042.616207] stcp-debug-v8: accept alloc child newsock=ffffff804f372d80 newsk=ffffff8081b13300 err=0
+[ 4042.616864] stcp-debug-v8: accept UDP carrier attach child=ffffff8081b13300 carrier=ffffff804193b200 ret=0
+[ 4042.616874] stcp-debug-v8: accept wire child=ffffff8081b13300 ctx=ffffff8041bfd800 carrier=ffffff804193b200
+[ 4042.616886] stcp-debug-v8: accept receiver start child=ffffff8081b13300 carrier=ffffff804193b200 ret=0
+[ 4042.616895] stcp-debug-v8: accept handshake start begin child=ffffff8081b13300 ctx=ffffff8041bfd800
+[ 4042.616965] stcp-debug-v8: accept handshake start result child=ffffff8081b13300 ctx=ffffff8041bfd800 ret=0 connected=0
+[ 4042.616980] stcp-debug-v8: accept waiting handshake child=ffffff8081b13300 ctx=ffffff8041bfd800 timeout_ms=30000
+[ 4042.617231] stcp-debug-v8: accept wait result child=ffffff8081b13300 ctx=ffffff8041bfd800 wait_ret=7500 connected=1
+[ 4042.617250] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8081b13300 ctx=ffffff8041bfd800 carrier=ffffff804193b200 sk=ffffff8081b13300
+[ 4042.618184] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff804f3709c0 flags=0x2
+[ 4042.618205] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.618216] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.618225] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.623698] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.623714] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff8041bfdc00 ret=0
+[ 4042.623732] stcp-debug-v8: accept alloc child newsock=ffffff804f3709c0 newsk=ffffff8081b13740 err=0
+[ 4042.624457] stcp-debug-v8: accept UDP carrier attach child=ffffff8081b13740 carrier=ffffff804193bc00 ret=0
+[ 4042.624470] stcp-debug-v8: accept wire child=ffffff8081b13740 ctx=ffffff8041bfdc00 carrier=ffffff804193bc00
+[ 4042.624481] stcp-debug-v8: accept receiver start child=ffffff8081b13740 carrier=ffffff804193bc00 ret=0
+[ 4042.624490] stcp-debug-v8: accept handshake start begin child=ffffff8081b13740 ctx=ffffff8041bfdc00
+[ 4042.624577] stcp-debug-v8: accept handshake start result child=ffffff8081b13740 ctx=ffffff8041bfdc00 ret=0 connected=0
+[ 4042.624593] stcp-debug-v8: accept waiting handshake child=ffffff8081b13740 ctx=ffffff8041bfdc00 timeout_ms=30000
+[ 4042.624840] stcp-debug-v8: accept wait result child=ffffff8081b13740 ctx=ffffff8041bfdc00 wait_ret=7500 connected=1
+[ 4042.624857] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8081b13740 ctx=ffffff8041bfdc00 carrier=ffffff804193bc00 sk=ffffff8081b13740
+[ 4042.625785] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff804f373400 flags=0x2
+[ 4042.625806] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.625817] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.625828] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.627336] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.627350] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=ffffff8041bfcc00 ret=0
+[ 4042.627371] stcp-debug-v8: accept alloc child newsock=ffffff804f373400 newsk=ffffff8081b13b80 err=0
+[ 4042.628028] stcp-debug-v8: accept UDP carrier attach child=ffffff8081b13b80 carrier=ffffff804193b600 ret=0
+[ 4042.628037] stcp-debug-v8: accept wire child=ffffff8081b13b80 ctx=ffffff8041bfcc00 carrier=ffffff804193b600
+[ 4042.628048] stcp-debug-v8: accept receiver start child=ffffff8081b13b80 carrier=ffffff804193b600 ret=0
+[ 4042.628057] stcp-debug-v8: accept handshake start begin child=ffffff8081b13b80 ctx=ffffff8041bfcc00
+[ 4042.628247] stcp-debug-v8: accept handshake start result child=ffffff8081b13b80 ctx=ffffff8041bfcc00 ret=0 connected=0
+[ 4042.628265] stcp-debug-v8: accept waiting handshake child=ffffff8081b13b80 ctx=ffffff8041bfcc00 timeout_ms=30000
+[ 4042.628470] stcp-debug-v8: accept wait result child=ffffff8081b13b80 ctx=ffffff8041bfcc00 wait_ret=7500 connected=1
+[ 4042.628489] stcp-debug-v8: ACCEPT COMPLETE child=ffffff8081b13b80 ctx=ffffff8041bfcc00 carrier=ffffff804193b600 sk=ffffff8081b13b80
+[ 4042.629690] stcp_kernel_debug_event: 14721 callbacks suppressed
+[ 4042.629713] stcp-debug: event=306 ctx=ffffff8041bfcc00 arg0=7 arg1=11196
+[ 4042.630100] stcp-debug: event=306 ctx=ffffff8041bfcc00 arg0=15 arg1=22396
+[ 4042.630339] stcp-debug-v8: ACCEPT ENTER sock=ffffff804f370000 sk=ffffff8081b12a80 newsock=ffffff804f3723c0 flags=0x2
+[ 4042.630425] stcp-debug-v8: accept listener=ffffff8081b12a80 ctx=ffffff805862c800 carrier=ffffff8058632600 udp=1
+[ 4042.630531] stcp-debug-v8: accept UDP rust_accept begin listener_ctx=ffffff805862c800 flags=0x2
+[ 4042.630602] stcp-debug-v8: accept UDP rust_accept result listener_ctx=ffffff805862c800 child_ctx=0000000000000000 ret=-11
+[ 4042.630698] stcp-debug: event=306 ctx=ffffff8041bfcc00 arg0=23 arg1=4200
+[ 4042.632072] stcp-debug: event=306 ctx=ffffff805862f800 arg0=7 arg1=11200
+[ 4042.633097] stcp-debug: event=306 ctx=ffffff8041bfcc00 arg0=31 arg1=9800
+[ 4042.633276] stcp-debug: event=306 ctx=ffffff805862e000 arg0=7 arg1=11200
+[ 4042.633410] stcp-debug: event=306 ctx=ffffff805862f800 arg0=15 arg1=8400
+[ 4042.633920] stcp-debug: event=306 ctx=ffffff805862f400 arg0=7 arg1=11200
+[ 4042.634496] stcp-debug: event=306 ctx=ffffff805862e000 arg0=15 arg1=9800
+[ 4042.634656] stcp-debug: event=306 ctx=ffffff805862f800 arg0=23 arg1=11200
+[ 4047.632483] stcp_kernel_debug_event: 24854 callbacks suppressed
+[ 4047.632518] stcp-debug: event=309 ctx=ffffff805862d400 arg0=8 arg1=7
+[ 4047.632855] stcp-debug: event=306 ctx=ffffff80447fc400 arg0=5682 arg1=11200
+[ 4047.632912] stcp-debug: event=306 ctx=ffffff8041bfd800 arg0=5714 arg1=110600
+[ 4047.632921] stcp-debug: event=309 ctx=ffffff805862d400 arg0=8 arg1=5
+[ 4047.633449] stcp-debug: event=309 ctx=ffffff805862d400 arg0=8 arg1=6
+[ 4047.633636] stcp-debug: event=306 ctx=ffffff80447fc400 arg0=5690 arg1=11200
+[ 4047.633757] stcp-debug: event=309 ctx=ffffff805862d400 arg0=8 arg1=3
+[ 4047.633759] stcp-debug: event=306 ctx=ffffff8041bfd800 arg0=5722 arg1=121800
+[ 4047.634067] stcp-debug: event=306 ctx=ffffff80447fc400 arg0=5698 arg1=11200
+[ 4047.634449] stcp-debug: event=306 ctx=ffffff80447fc400 arg0=5706 arg1=11200
+Connection to 192.168.1.199 closed.

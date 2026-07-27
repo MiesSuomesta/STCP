@@ -1,0 +1,21 @@
+ERROR: start-servers.sh failed with status 1
+tcp server started on port 19000 (PID 2009)
+tls server started on port 19001 (PID 2010)
+stcp-tcp server started on port 19002 (PID 2011)
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-1-c16.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+=== benchmark processes ===
+2009 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tcp --transport tcp --port 19000
+2010 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tls --transport tcp --port 19001 --cert /home/pi/stcp-benchmark/certs/server.crt --key /home/pi/stcp-benchmark/certs/server.key
+2020 python3 ./benchmark_server.py --mode stcp --transport udp --host 0.0.0.0 --port 19002
+
+=== listening sockets ===
+tcp   LISTEN 0      256          0.0.0.0:19001      0.0.0.0:*    users:(("python3",pid=2010,fd=3))
+tcp   LISTEN 0      256          0.0.0.0:19000      0.0.0.0:*    users:(("python3",pid=2009,fd=3))

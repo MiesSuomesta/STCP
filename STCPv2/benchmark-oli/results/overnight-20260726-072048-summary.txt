@@ -1,0 +1,16 @@
+STCP extended overnight benchmark
+=================================
+
+Started:                 2026-07-26T07:20:48+03:00
+Git commit:              ba3983d2f39792ff542824e75ce28e2fd43d75fe
+Host:                    devaus
+Kernel:                  7.2.0-rc1-next-20260703-rust-stcp-debug
+Raspberry:               pi@192.168.1.199
+Duration per transport:  5 seconds
+Clients:                 1 2
+Payloads:                1024 65536
+Pipelines:               1
+Cases per carrier:       4
+TCP+UDP case groups:     8
+Individual transports:  24
+Minimum test time:       0.03 hours

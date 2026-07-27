@@ -1,0 +1,26 @@
++ echo '=== local ==='
+=== local ===
++ date --iso-8601=seconds
+2026-07-26T04:01:13+03:00
++ uname -a
+Linux devaus 7.2.0-rc1-next-20260703-rust-stcp-debug #1 SMP PREEMPT_DYNAMIC Sat Jul  4 16:51:09 EEST 2026 x86_64 GNU/Linux
++ echo
+
++ git status --short
+?? STCP-PERF-STEP1-ACK-WAKEUP-v20.md
+?? STCP-PERF-STEP1-v20.patch
+?? packages/
+?? perf.data
+?? ../kernel.zip
+?? ../../tatus
++ echo
+
++ git log -1 --oneline
+df28fda96 * UDP changes:
++ echo
+
++ [[ -r /sys/module/stcp/parameters/udp_sendmsg_frames ]]
++ printf udp_sendmsg_frames=
+udp_sendmsg_frames=+ cat /sys/module/stcp/parameters/udp_sendmsg_frames
+8
++ [[ -r /sys/module/stcp/parameters/udp_rx_control_budget ]]

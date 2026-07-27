@@ -1,0 +1,21 @@
+{
+  "mode": "stcp",
+  "transport": "udp",
+  "clients": 2,
+  "payload_bytes": 64,
+  "pipeline": 4,
+  "elapsed_s": 20.00163475901354,
+  "operations": 100600,
+  "errors": 0,
+  "tx_mib_s": 0.30698174387886007,
+  "rx_mib_s": 0.30698174387886007,
+  "combined_mib_s": 0.6139634877577201,
+  "operations_s": 5029.588891711243,
+  "connect_mean_ms": 4.531000493443571,
+  "rtt_p50_ms": 0.35444297827780247,
+  "rtt_p95_ms": 0.5949749902356416,
+  "rtt_p99_ms": 0.7783070032019168,
+  "client_cpu_percent": 56.02517561695875,
+  "max_rss_kib": 21048,
+  "error_details": []
+}

@@ -1,0 +1,2 @@
+[2026-07-26 04:00:35] Interrupted
+[2026-07-26 04:00:35] Stopping Raspberry benchmark servers

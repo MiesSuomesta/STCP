@@ -1,0 +1,10 @@
+2026-07-24T17:50:57+03:00
+Linux raspi 6.18.38-2026.07.26_04-35-20-stcp-2026.07.26_04-35-20-stcp #49 SMP PREEMPT Sun Jul 26 04:35:59 EEST 2026 aarch64 GNU/Linux
+
+2678 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tcp --transport tcp --port 19000
+2679 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tls --transport tcp --port 19001 --cert /home/pi/stcp-benchmark/certs/server.crt --key /home/pi/stcp-benchmark/certs/server.key
+2689 python3 ./benchmark_server.py --mode stcp --transport udp --host 0.0.0.0 --port 19002
+
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/mmcblk0p2   29G  8.4G   19G  31% /
+/dev/mmcblk0p2   29G  8.4G   19G  31% /

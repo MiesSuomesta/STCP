@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+REAL_PYTHON="${STCP_REAL_PYTHON:?STCP_REAL_PYTHON is not set}"
+RESTART_TOOL="${STCP_SERVER_RESTART_TOOL:?STCP_SERVER_RESTART_TOOL is not set}"
+
+is_benchmark_client=0
+for arg in "$@"; do
+    case "$arg" in
+        */benchmark_client.py|benchmark_client.py)
+            is_benchmark_client=1
+            break
+            ;;
+    esac
+done
+
+if (( is_benchmark_client )); then
+    bash "$RESTART_TOOL"
+fi
+
+exec "$REAL_PYTHON" "$@"

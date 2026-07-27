@@ -1,28 +1,58 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
-D="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-T="${STCP_TRANSPORT:-tcp}"
-TCP_PORT="${TCP_PORT:-19000}"; TLS_PORT="${TLS_PORT:-19001}"; STCP_PORT="${STCP_PORT:-19002}"; UDP_PORT="${UDP_PORT:-19003}"
-[[ "$T" == tcp || "$T" == udp ]] || { echo "STCP_TRANSPORT must be tcp or udp" >&2; exit 2; }
-mkdir -p "$D"/{run,logs,certs}
-if [[ ! -f "$D/certs/server.crt" || ! -f "$D/certs/server.key" ]]; then
-  openssl req -x509 -newkey rsa:2048 -nodes -keyout "$D/certs/server.key" -out "$D/certs/server.crt" -days 3650 -subj /CN=stcp-benchmark
-fi
-sudo modprobe stcp
-start(){
-  local mode="$1" port="$2"; shift 2
-  local name="$mode"; [[ "$mode" == stcp ]] && name="stcp-$T"
-  nohup python3 "$D/benchmark_server.py" --mode "$mode" --transport "$T" --port "$port" "$@" >"$D/logs/$name.log" 2>&1 &
-  echo $! >"$D/run/$mode.pid"
-  echo "$name server started on port $port (PID $!)"
+
+RPI_HOST="${RPI_HOST:-pi@192.168.1.199}"
+RPI_BENCHMARK_DIR="${RPI_BENCHMARK_DIR:-/home/pi/benchmark}"
+CARRIERS="${CARRIERS:-both}"
+STCP_TRANSPORT="${STCP_TRANSPORT:-tcp}"
+SERVER_RESTART_DELAY="${SERVER_RESTART_DELAY:-1}"
+
+log() {
+    printf '[CASE-RESTART] %s\n' "$*"
 }
-if [[ "$T" == "udp" ]]; then
-  start udp "$UDP_PORT"
-else
-  start tcp "$TCP_PORT"
+
+die() {
+    printf '[CASE-RESTART][FAIL] %s\n' "$*" >&2
+    exit 1
+}
+
+log "Restarting Raspberry benchmark servers"
+log "Host:           $RPI_HOST"
+log "Directory:      $RPI_BENCHMARK_DIR"
+log "Carriers:       $CARRIERS"
+log "STCP transport: $STCP_TRANSPORT"
+
+ssh "$RPI_HOST" bash -s -- \
+    "$RPI_BENCHMARK_DIR" \
+    "$CARRIERS" \
+    "$STCP_TRANSPORT" \
+    "$SERVER_RESTART_DELAY" <<'REMOTE'
+set -Eeuo pipefail
+
+BENCHMARK_DIR="$1"
+CARRIERS="$2"
+STCP_TRANSPORT="$3"
+RESTART_DELAY="$4"
+
+cd "$BENCHMARK_DIR"
+
+# Moduulin pitää olla jo asennettuna Raspberryn /lib/modules-puuhun.
+if ! lsmod | grep -q '^stcp '; then
+    sudo modprobe stcp
 fi
-start tls "$TLS_PORT" --cert "$D/certs/server.crt" --key "$D/certs/server.key"
-start stcp "$STCP_PORT"
-sleep 1
-cat "$D"/logs/*.log
+
+# Serverien puuttuminen ei ole restartissa virhe.
+if [[ -f ./stop-servers.sh ]]; then
+    bash ./stop-servers.sh || true
+else
+    pkill -f benchmark_server.py || true
+fi
+
+sleep "$RESTART_DELAY"
+
+CARRIERS="$CARRIERS" \
+STCP_TRANSPORT="$STCP_TRANSPORT" \
+bash ./start-servers.sh
+REMOTE
+
+log "Raspberry benchmark servers restarted"

@@ -1,180 +1,86 @@
-# STCP Raspberry benchmark
+# Benchmark pipeline v2
 
-Raspberry Pi:
-```bash
-chmod +x *.sh *.py
-./start-servers.sh
-```
+The pipeline has four independent responsibilities:
 
-x86 client:
-```bash
-RPI_HOST=192.168.1.50 ./run-all.sh
-```
+1. `benchmark/run-case.sh`
+   Runs exactly one case. The first run is normal. On failure it retries five
+   times by default, restarting the benchmark servers before every retry.
 
-Quick run:
-```bash
-RPI_HOST=192.168.1.50 DURATION=10 CLIENTS_LIST='1 4' PAYLOADS='1024 65536 1048576' PIPELINES='1 8' ./run-all.sh
-```
+2. `benchmark/run-all.sh`
+   Builds or reads the complete case matrix and calls `run-case.sh` for every
+   case. It creates one explicit `full-YYYYmmdd-HHMMSS` result directory.
 
-Default matrix is 216 runs (~108 min at 30 s each). Outputs go under `results/<timestamp>/`.
+3. `benchmark/generate-site.sh`
+   Receives an explicit result directory and generates a new `/tmp/www-$$`
+   directory. It never touches the live site.
 
+4. `benchmark/deploy-site.sh`
+   Receives the generated directory, backs up the live site and replaces it
+   atomically.
 
-## Carrier selection
-
-Raspberry: `STCP_TRANSPORT=tcp bash start-servers.sh` or `STCP_TRANSPORT=udp bash start-servers.sh`.
-
-Client: `STCP_TRANSPORT=tcp RPI_HOST=192.168.1.199 ./run-all.sh` or UDP respectively.
-
-## Full TCP + UDP matrix
+## Typical flow
 
 ```bash
-RPI_HOST=192.168.1.199 RPI_SSH=pi@192.168.1.199 ./run-all-full.sh
+bash benchmark/run-all.sh both
+
+bash benchmark/generate-site.sh \
+  benchmark/results/full-20260727-190000 both
+
+sudo bash benchmark/deploy-site.sh \
+  /tmp/www-12345 /var/www/stcp.fi
 ```
 
-100-client, 32 KiB test for both carriers:
+## Exact case matrix
+
+For the production benchmark matrix, use a TSV file:
+
+```text
+kind	clients	payload	pipeline	duration
+tcp	1	64	1	15
+tls	1	64	1	15
+stcp-tcp	1	64	1	15
+udp	1	64	1	15
+stcp-udp	1	64	1	15
+```
+
+Run it with:
 
 ```bash
-RPI_HOST=192.168.1.199 RPI_SSH=pi@192.168.1.199 DURATION=30 CLIENTS_LIST="100" PAYLOADS="32768" PIPELINES="1" ./run-all-full.sh
+CASE_FILE=benchmark/cases.tsv \
+  bash benchmark/run-all.sh both
 ```
 
+This keeps the production matrix explicit and version-controlled.
 
-## Raspberry server IRQ and softirq metrics
 
-IRQ collection is enabled by default. Each test captures Raspberry counters before and after the run over SSH:
+## Complete orchestration
 
-- `/proc/interrupts`
-- `/proc/softirqs`
-- `/proc/stat`
-
-Required variables:
+`benchmark/orchestrate-benchmarks.sh` runs the complete pipeline:
 
 ```bash
-RPI_HOST=192.168.1.199
-RPI_SSH=pi@192.168.1.199
-RPI_BENCHMARK_DIR=/home/pi/benchmark
+CASE_FILE=benchmark/cases.tsv \
+SITE_GENERATOR=/path/to/generator.py \
+sudo -E bash benchmark/orchestrate-benchmarks.sh \
+  both /var/www/stcp.fi
 ```
 
-Disable collection:
+It uses an exclusive lock, preserves results on failure and removes the
+temporary generated site after a successful deployment.
+
+Resume from an existing result set:
 
 ```bash
-IRQ_METRICS=0 ./run-all.sh
+SKIP_BENCHMARKS=1 \
+RESULT_DIR=benchmark/results/full-20260727-190000 \
+SITE_GENERATOR=/path/to/generator.py \
+sudo -E bash benchmark/orchestrate-benchmarks.sh \
+  both /var/www/stcp.fi
 ```
 
-Important output fields:
-
-- `server_network_irq_per_1k_ops`
-- `server_net_rx_softirq_per_1k_ops`
-- `server_net_tx_softirq_per_1k_ops`
-- `server_kernel_network_events_per_1k_ops`
-- `server_network_irq_per_mib`
-- `server_cpu_busy_percent`
-
-These are kernel-activity and processing-efficiency proxies, not direct electrical power measurements.
-
-
-## perf efficiency dashboard metrics
-
-Enabled by default with `PERF_METRICS=1`.
-
-The Raspberry Pi server captures system-wide `perf stat` counters around each test:
-
-- task-clock
-- context-switches
-- cpu-migrations
-- page-faults
-- cycles
-- instructions
-- branches
-- branch-misses
-- cache-references
-- cache-misses
-
-Normalized result fields include cycles/op, instructions/op, context switches/1k ops,
-cycles/MiB, instructions/MiB, IPC and cache/branch miss percentages.
-
-Default privilege prefix:
+Generate without publishing:
 
 ```bash
-REMOTE_PERF_PREFIX="sudo -n"
+SKIP_DEPLOY=1 KEEP_GENERATED=1 \
+bash benchmark/orchestrate-benchmarks.sh \
+  both /var/www/stcp.fi
 ```
-
-If perf is available without sudo:
-
-```bash
-REMOTE_PERF_PREFIX="" ./run-all-full.sh
-```
-
-Unsupported counters become null and do not fail the benchmark.
-These are processing-efficiency proxies, not direct electrical power measurements.
-
-
-## Publish latest benchmark to stcp.fi
-
-After a completed full run:
-
-```bash
-PUBLISH_TARGET='www-data@fuji:~/html/public/stcp.fi/' \
-./publish-latest-web.sh
-```
-
-Run and publish automatically:
-
-```bash
-AUTO_PUBLISH_WEB=1 \
-PUBLISH_TARGET='www-data@fuji:~/html/public/stcp.fi/' \
-./run-all-full.sh
-```
-
-## perf troubleshooting and fixed collection flow
-
-The full runner now validates that the remote `perf` process stays alive during
-startup, prints the remote error log immediately on failure, waits for the
-measurement to finish, downloads the semicolon-separated counters, and enriches
-the per-case JSON automatically.
-
-Quick Raspberry Pi check:
-
-```bash
-ssh pi@192.168.1.199 'command -v perf && sudo -n perf stat -a -- sleep 1'
-```
-
-Small validation run before the full matrix:
-
-```bash
-RPI_HOST=192.168.1.199 \
-RPI_SSH=pi@192.168.1.199 \
-RPI_BENCHMARK_DIR=/home/pi/benchmark \
-CLIENTS_LIST="1" PAYLOADS="64" PIPELINES="1" DURATION=5 \
-IRQ_METRICS=1 PERF_METRICS=1 \
-./run-all-full.sh
-```
-
-If `perf` works without sudo, use:
-
-```bash
-REMOTE_PERF_PREFIX="" ./run-all-full.sh
-```
-
-## STCP timeout protection
-
-AF_STCP remains a blocking socket because Python `settimeout()` would enable
-`O_NONBLOCK`. The benchmark client now uses `select()` around STCP send/receive
-operations and applies `--timeout` as an operation deadline. `run-all.sh` also
-wraps every test case in a hard process deadline, so a broken STCP exchange can
-no longer stop the full matrix indefinitely.
-
-Configuration:
-
-```bash
-STCP_OPERATION_TIMEOUT=30 CASE_GRACE_SECONDS=20 ./run-all-full.sh
-```
-
-A timed-out worker is recorded in the result's `error_details`. A process-level
-timeout is printed as `[TIMEOUT]` and the matrix proceeds when the caller uses
-its normal continue-on-error policy.
-
-
-## Native UDP baseline
-
-When `STCP_TRANSPORT=udp`, the matrix now compares native UDP, TLS/TCP, and STCP/UDP.
-The native UDP client uses application-level fragmentation with 60,000-byte datagrams, so payloads up to the existing 64 MiB benchmark limit remain supported. The UDP echo server is stateless and listens on port 19003 by default.

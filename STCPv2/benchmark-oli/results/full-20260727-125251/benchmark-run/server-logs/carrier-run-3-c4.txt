@@ -1,0 +1,2 @@
+[   69.442706] stcp-debug-v8: RX thread enter carrier=ffffff8042ae1600 kind=2 socket=ffffff8089fec9c0 rust_ctx=ffffff808321b800 owner=ffffff8090f90440
+Connection to 192.168.1.199 closed.

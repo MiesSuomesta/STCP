@@ -1,0 +1,14 @@
+=== local ===
+2026-07-26T03:57:28+03:00
+Linux devaus 7.2.0-rc1-next-20260703-rust-stcp-debug #1 SMP PREEMPT_DYNAMIC Sat Jul  4 16:51:09 EEST 2026 x86_64 GNU/Linux
+
+?? STCP-PERF-STEP1-ACK-WAKEUP-v20.md
+?? STCP-PERF-STEP1-v20.patch
+?? packages/
+?? perf.data
+?? ../kernel.zip
+?? ../../tatus
+
+df28fda96 * UDP changes:
+
+udp_sendmsg_frames=8

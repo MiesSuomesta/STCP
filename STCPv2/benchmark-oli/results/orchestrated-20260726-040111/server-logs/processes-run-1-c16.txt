@@ -1,0 +1,72 @@
++ ssh -p 22 -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 pi@192.168.1.199 '
+        set +e
+        cd '\''/home/pi/stcp-benchmark'\'' || exit 1
+        mkdir -p logs
+
+        # Start the project'\''s normal server set first so TCP/TLS/raw UDP
+        # retain their existing certificate and command-line handling.
+        if [[ -x ./start-servers.sh ]]; then
+            ./start-servers.sh >logs/start-servers-run-1-c16.log 2>&1
+        else
+            echo '\''ERROR: start-servers.sh is missing or not executable'\'' >&2
+            exit 1
+        fi
+
+        sleep 1
+
+        # The ba2c943-era helper may start port 19002 with --transport tcp.
+        # Stop only STCP benchmark_server.py instances and restart exactly one
+        # STCP/UDP server. Do not use broad pkill patterns that can kill SSH.
+        stcp_pids=$(pgrep -f '\''^python3 .*benchmark_server\.py .*--mode stcp( |$)'\'' || true)
+        if [[ -n "$stcp_pids" ]]; then
+            kill $stcp_pids 2>/dev/null || true
+            sleep 1
+        fi
+
+        nohup python3 ./benchmark_server.py             --mode stcp             --transport udp             --host 0.0.0.0             --port '\''19002'\''             >logs/stcp-udp-run-1-c16.log 2>&1 &
+
+        echo $! >logs/stcp-udp-run-1-c16.pid
+        sleep 2
+
+        echo '\''=== benchmark processes ==='\''
+        pgrep -af '\''^python3 .*benchmark_server\.py'\'' || true
+
+        echo
+        echo '\''=== port 19002 ==='\''
+        ss -lunp 2>/dev/null | grep '\'':19002 '\'' || true
+
+        # Hard validation: refuse to benchmark if port 19002 is not served by
+        # an explicitly UDP-configured STCP process.
+        if ! pgrep -af '\''^python3 .*benchmark_server\.py .*--mode stcp .*--transport udp .*--port 19002( |$)'\'' >/dev/null; then
+            echo '\''ERROR: STCP server on port 19002 is not using UDP transport'\'' >&2
+            echo '\''start-server output:'\'' >&2
+            tail -200 logs/start-servers-run-1-c16.log >&2 || true
+            echo '\''STCP/UDP output:'\'' >&2
+            tail -200 logs/stcp-udp-run-1-c16.log >&2 || true
+            exit 1
+        fi
+
+        exit 0
+    '
+++ log Interrupted
++++ date '+%F %T'
+++ printf '[%s] %s\n' '2026-07-26 04:02:43' Interrupted
+[2026-07-26 04:02:43] Interrupted
+++ exit 130
++ cleanup_on_exit
++ local rc=130
++ [[ 0 != \1 ]]
++ log 'Stopping Raspberry benchmark servers'
+++ date '+%F %T'
++ printf '[%s] %s\n' '2026-07-26 04:02:43' 'Stopping Raspberry benchmark servers'
+[2026-07-26 04:02:43] Stopping Raspberry benchmark servers
++ remote '
+            set +e
+            if [[ -x '\''/home/pi/stcp-benchmark/stop-servers.sh'\'' ]]; then
+                cd '\''/home/pi/stcp-benchmark'\''
+                ./stop-servers.sh
+            else
+                pkill -f '\''[b]enchmark_server.py'\''
+            fi
+            exit 0
+        '

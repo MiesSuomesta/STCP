@@ -1,0 +1,33 @@
+ERROR: start-servers.sh failed with status 1
+tcp server started on port 19000 (PID 1767)
+tls server started on port 19001 (PID 1768)
+stcp-tcp server started on port 19002 (PID 1769)
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-1-c16.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+Traceback (most recent call last):
+  File "/home/pi/stcp-benchmark/./benchmark_server.py", line 159, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/pi/stcp-benchmark/./benchmark_server.py", line 113, in main
+    bind_listener(listener, args.mode, args.host, args.port)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pi/stcp-benchmark/./benchmark_server.py", line 55, in bind_listener
+    native_error("STCP bind")
+    ~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/home/pi/stcp-benchmark/./benchmark_server.py", line 36, in native_error
+    raise OSError(err, f"{operation}: {os.strerror(err)}")
+OSError: [Errno 98] STCP bind: Address already in use
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+=== benchmark processes ===
+1767 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tcp --transport tcp --port 19000
+1768 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tls --transport tcp --port 19001 --cert /home/pi/stcp-benchmark/certs/server.crt --key /home/pi/stcp-benchmark/certs/server.key
+1778 python3 ./benchmark_server.py --mode stcp --transport udp --host 0.0.0.0 --port 19002
+
+=== listening sockets ===
+tcp   LISTEN 0      256          0.0.0.0:19001      0.0.0.0:*    users:(("python3",pid=1768,fd=3))
+tcp   LISTEN 0      256          0.0.0.0:19000      0.0.0.0:*    users:(("python3",pid=1767,fd=3))

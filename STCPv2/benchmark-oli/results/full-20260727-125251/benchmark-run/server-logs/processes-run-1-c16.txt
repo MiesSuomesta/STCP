@@ -1,0 +1,109 @@
+ERROR: start-servers.sh failed with status 1
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-2-c8.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+tcp server started on port 19000 (PID 2314)
+tls server started on port 19001 (PID 2315)
+stcp-tcp server started on port 19002 (PID 2316)
+tcp server started on port 19000 (PID 2009)
+tls server started on port 19001 (PID 2010)
+stcp-tcp server started on port 19002 (PID 2011)
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-1-c16.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+tcp server started on port 19000 (PID 2164)
+tls server started on port 19001 (PID 2165)
+stcp-tcp server started on port 19002 (PID 2166)
+tcp server started on port 19000 (PID 2009)
+tls server started on port 19001 (PID 2010)
+stcp-tcp server started on port 19002 (PID 2011)
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-1-c16.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-2-c8.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-3-c4.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-4-c2.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-5-c1.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+cat: /home/pi/stcp-benchmark/logs/start-helper-run-5-c1.log: input file is output file
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+benchmark server: mode=stcp/tcp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=stcp/udp listen=0.0.0.0:19002
+benchmark server: mode=tcp listen=0.0.0.0:19000
+benchmark server: mode=tls listen=0.0.0.0:19001
+=== benchmark processes ===
+1601 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tcp --transport tcp --port 19000
+1602 python3 /home/pi/stcp-benchmark/benchmark_server.py --mode tls --transport tcp --port 19001 --cert /home/pi/stcp-benchmark/certs/server.crt --key /home/pi/stcp-benchmark/certs/server.key
+1612 python3 ./benchmark_server.py --mode stcp --transport udp --host 0.0.0.0 --port 19002
+
+=== listening sockets ===
+tcp   LISTEN 0      256          0.0.0.0:19001      0.0.0.0:*    users:(("python3",pid=1602,fd=3))
+tcp   LISTEN 0      256          0.0.0.0:19000      0.0.0.0:*    users:(("python3",pid=1601,fd=3))

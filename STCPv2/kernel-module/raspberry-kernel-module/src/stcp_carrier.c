@@ -24,6 +24,7 @@
 #include <linux/tcp.h>
 
 #include "stcp_carrier.h"
+#include "stcp_log.h"
 #include "stcp_test.h"
 
 /* Public adapter prototype; duplicated locally to remain visible even when an
@@ -37,14 +38,18 @@ bool stcp_carrier_is_udp(const struct stcp_carrier *carrier);
 #define STCP_UDP_RX_QUEUE_MAX 32768
 #define STCP_UDP_RX_SESSION_BUDGET 8
 
-static bool carrier_debug = false;
+#ifdef STCP_RELEASE
+static const bool carrier_debug;
+#else
+static bool carrier_debug;
 module_param(carrier_debug, bool, 0644);
 MODULE_PARM_DESC(carrier_debug, "Enable verbose STCP carrier diagnostics");
+#endif
 
 #define stcp_carrier_dbg(fmt, ...) \
 	do { \
 		if (READ_ONCE(carrier_debug)) \
-			pr_info("stcp: carrier: " fmt, ##__VA_ARGS__); \
+			STCP_TRACE("carrier: " fmt, ##__VA_ARGS__); \
 	} while (0)
 
 struct stcp_udp_rx_item {
@@ -151,12 +156,12 @@ static void stcp_carrier_dump_socket(
 		return;
 
 	if (!carrier) {
-		pr_info("stcp: carrier: %s carrier=NULL\n", where);
+		STCP_TRACE("stcp: carrier: %s carrier=NULL\n", where);
 		return;
 	}
 
 	if (!carrier->socket || !carrier->socket->sk) {
-		pr_info("stcp: carrier: %s carrier=%px kind=%s socket=%px sk=NULL "
+		STCP_TRACE("stcp: carrier: %s carrier=%px kind=%s socket=%px sk=NULL "
 			"connected=%u listening=%u stopping=%u stopped=%u\n",
 			where, carrier, stcp_carrier_kind_name(carrier->kind),
 			carrier->socket, carrier->connected, carrier->listening,
@@ -166,7 +171,7 @@ static void stcp_carrier_dump_socket(
 
 	sk = carrier->socket->sk;
 	inet = inet_sk(sk);
-	pr_info("stcp: carrier: %s carrier=%px kind=%s socket=%px sk=%px "
+	STCP_TRACE("stcp: carrier: %s carrier=%px kind=%s socket=%px sk=%px "
 		"state=%u family=%u type=%u protocol=%u "
 		"local=%pI4:%u remote=%pI4:%u "
 		"connected=%u listening=%u has_peer=%u stopping=%u stopped=%u "
@@ -394,7 +399,7 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 
 	/* No receiver callback can run after kthread_stop() returns. */
 	if (carrier->kind == STCP_CARRIER_UDP)
-		pr_info("stcp: UDP carrier final stats tx=%lld tx_bytes=%lld "
+		STCP_TRACE("stcp: UDP carrier final stats tx=%lld tx_bytes=%lld "
 			"tx_errors=%lld rx=%lld rx_bytes=%lld dispatch_errors=%lld queue_drops=%lld drops=%d\n",
 			atomic64_read(&carrier->tx_datagrams),
 			atomic64_read(&carrier->tx_bytes),
@@ -640,7 +645,7 @@ static int stcp_udp_dispatch_thread(void *argument)
 static int stcp_receiver_thread(void *argument)
 {
 	struct stcp_carrier *carrier = argument;
-	pr_info("stcp-debug-v8: RX thread enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px\n",
+	STCP_TRACE("stcp-debug-v8: RX thread enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px\n",
 		carrier, carrier ? carrier->kind : -1,
 		carrier ? carrier->socket : NULL,
 		carrier ? carrier->rust_ctx : NULL,
@@ -729,7 +734,7 @@ static int stcp_receiver_thread(void *argument)
 			atomic64_add(received_len, &carrier->rx_bytes);
 		}
 		if (unlikely(READ_ONCE(carrier_debug)))
-			pr_info_ratelimited("stcp-debug-v8: RX bytes carrier=%px kind=%d len=%zd rust_ctx=%px owner=%px\n",
+			STCP_TRACE_RATELIMITED("stcp-debug-v8: RX bytes carrier=%px kind=%d len=%zd rust_ctx=%px owner=%px\n",
 				carrier, carrier->kind, received_len, carrier->rust_ctx, carrier->owner);
 
 		if (peer.ss_family == AF_INET) {
@@ -977,7 +982,7 @@ void stcp_carrier_set_rust_ctx(
 	WRITE_ONCE(carrier->rust_ctx, rust_ctx);
 	/* Publish the context before the receiver kthread can observe it. */
 	smp_wmb();
-	pr_info("stcp-debug-v8: carrier rust_ctx wired carrier=%px ctx=%px owner=%px receiver=%px\n",
+	STCP_TRACE("stcp-debug-v8: carrier rust_ctx wired carrier=%px ctx=%px owner=%px receiver=%px\n",
 		carrier, rust_ctx, READ_ONCE(carrier->owner), READ_ONCE(carrier->receiver));
 }
 
@@ -1221,7 +1226,7 @@ int stcp_carrier_start_receiver_thread(struct stcp_carrier *carrier)
 	}
 
 	smp_rmb();
-	pr_info("stcp-debug-v8: RX start validated carrier=%px ctx=%px owner=%px\n",
+	STCP_TRACE("stcp-debug-v8: RX start validated carrier=%px ctx=%px owner=%px\n",
 		carrier, rust_ctx, READ_ONCE(carrier->owner));
 	return stcp_carrier_start_receiver(carrier);
 }
@@ -1238,7 +1243,7 @@ ssize_t stcp_carrier_send(
 	size_t position = 0;
 
 	if (unlikely(READ_ONCE(carrier_debug)))
-		pr_info_ratelimited("stcp-debug-v8: carrier_send enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px connected=%d len=%zu flags=0x%x\n",
+		STCP_TRACE_RATELIMITED("stcp-debug-v8: carrier_send enter carrier=%px kind=%d socket=%px rust_ctx=%px owner=%px connected=%d len=%zu flags=0x%x\n",
 			carrier, carrier ? carrier->kind : -1,
 			carrier ? carrier->socket : NULL,
 			carrier ? carrier->rust_ctx : NULL,
@@ -1329,7 +1334,7 @@ ssize_t stcp_carrier_send(
 		int ret;
 		vector.iov_base = (void *)(data + position);
 		vector.iov_len = len - position;
-		pr_info_ratelimited("stcp-debug-v8: TCP TX begin carrier=%px socket=%px position=%zu remaining=%zu\n",
+		STCP_TRACE_RATELIMITED("stcp-debug-v8: TCP TX begin carrier=%px socket=%px position=%zu remaining=%zu\n",
 			carrier, carrier->socket, position, len - position);
 		ret = kernel_sendmsg(
 			carrier->socket,
@@ -1338,7 +1343,7 @@ ssize_t stcp_carrier_send(
 			1,
 			len - position
 		);
-		pr_info_ratelimited("stcp-debug-v8: TCP TX result carrier=%px ret=%d requested=%zu\n",
+		STCP_TRACE_RATELIMITED("stcp-debug-v8: TCP TX result carrier=%px ret=%d requested=%zu\n",
 			carrier, ret, len - position);
 		if (ret < 0)
 			return ret;

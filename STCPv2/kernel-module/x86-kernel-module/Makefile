@@ -3,6 +3,7 @@ PWD  := $(shell pwd)
 
 LLVM ?= 1
 V    ?= 1
+STCP_RELEASE ?= y
 
 RUST_DIR       ?= $(abspath $(PWD)/../common-rust)
 RUST_TARGET    := x86_64-unknown-none
@@ -20,7 +21,7 @@ RUSTFLAGS_KERNEL := \
 	-C relocation-model=static \
 	-C code-model=kernel \
 	-C panic=abort \
-	-C force-frame-pointers=yes \
+	-C force-frame-pointers=no \
 	-C no-redzone=yes \
 	-Z plt=yes
 
@@ -33,7 +34,7 @@ zip: clean test-clean
 all: module
 
 module: rust-core
-	$(MAKE) -C "$(KDIR)" M="$(PWD)" LLVM="$(LLVM)" V="$(V)" modules
+	$(MAKE) -C "$(KDIR)" M="$(PWD)" LLVM="$(LLVM)" V="$(V)" STCP_RELEASE="$(STCP_RELEASE)" modules
 
 rust: check-tools
 	cd "$(RUST_DIR)" && \

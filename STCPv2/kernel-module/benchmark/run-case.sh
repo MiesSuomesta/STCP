@@ -236,6 +236,7 @@ restart_servers() {
         "$RESULT_DIR" "$HOST" "$DURATION" "$TIMEOUT"
 } >>"$CASE_LOG"
 
+restart_servers
 for ((attempt=1; attempt<=ATTEMPTS; attempt++)); do
     if (( attempt > 1 )); then
         restart_servers

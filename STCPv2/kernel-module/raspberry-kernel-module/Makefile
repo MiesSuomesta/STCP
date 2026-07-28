@@ -9,6 +9,7 @@ ARCH          := arm64
 CROSS_COMPILE ?= aarch64-linux-gnu-
 JOBS          ?= $(shell nproc)
 V             ?= 0
+STCP_RELEASE  ?= y
 
 CC      := $(CROSS_COMPILE)gcc
 LD      := $(CROSS_COMPILE)ld
@@ -32,7 +33,7 @@ RUSTFLAGS_KERNEL := \
 	-C relocation-model=static \
 	-C code-model=small \
 	-C panic=abort \
-	-C force-frame-pointers=yes \
+	-C force-frame-pointers=no \
 	-C target-feature=-neon
 
 .PHONY: all module rust rust-core check check-rust check-module clean help
@@ -45,7 +46,7 @@ module: check rust-core
 		CROSS_COMPILE="$(CROSS_COMPILE)" \
 		CC="$(CC)" LD="$(LD)" AR="$(AR)" NM="$(NM)" \
 		OBJCOPY="$(OBJCOPY)" OBJDUMP="$(OBJDUMP)" STRIP="$(STRIP)" \
-		V="$(V)" -j"$(JOBS)" modules
+		V="$(V)" STCP_RELEASE="$(STCP_RELEASE)" -j"$(JOBS)" modules
 	@$(MAKE) --no-print-directory check-module
 
 rust: check-rust
@@ -112,3 +113,4 @@ clean:
 help:
 	@echo "make KDIR=/path/to/raspberry-kernel-sources"
 	@echo "make clean KDIR=/path/to/raspberry-kernel-sources"
+	@echo "make STCP_RELEASE=n ...   # enable verbose debug tracing"

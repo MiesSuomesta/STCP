@@ -1,4 +1,5 @@
 #include "stcp_socket.h"
+#include "stcp_log.h"
 
 #include <linux/gfp.h>
 #include <linux/printk.h>
@@ -43,7 +44,6 @@ void stcp_kernel_debug_event(u32 event, unsigned long ctx,
 	if (event < 300)
 		return;
 
-	pr_info_ratelimited(
-		"stcp-debug: event=%u ctx=%px arg0=%lu arg1=%lu\n",
+	STCP_TRACE_RATELIMITED("event=%u ctx=%px arg0=%lu arg1=%lu\n",
 		event, (void *)ctx, arg0, arg1);
 }

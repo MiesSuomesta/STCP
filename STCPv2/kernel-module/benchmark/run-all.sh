@@ -114,9 +114,9 @@ print_case_result() {
 }
 
 case "$MODE" in
-    tcp)  KINDS=(tcp tls stcp-tcp) ;;
-    udp)  KINDS=(udp stcp-udp) ;;
-    both) KINDS=(tcp tls stcp-tcp udp stcp-udp) ;;
+    tcp)  KINDS=(stcp-tcp tcp tls) ;;
+    udp)  KINDS=(stcp-udp udp) ;;
+    both) KINDS=(stcp-tcp tls tcp stcp-udp udp) ;;
     *) die "Unknown mode: $MODE" ;;
 esac
 
@@ -148,10 +148,10 @@ emit_cases() {
         return
     fi
 
-    for kind in "${KINDS[@]}"; do
-        for clients in $CLIENTS_LIST; do
-            for payload in $PAYLOADS_LIST; do
-                for pipeline in $PIPELINES_LIST; do
+    for clients in $CLIENTS_LIST; do
+        for payload in $PAYLOADS_LIST; do
+            for pipeline in $PIPELINES_LIST; do
+                for kind in "${KINDS[@]}"; do
                     printf '%s\t%s\t%s\t%s\t%s\n' \
                         "$kind" "$clients" "$payload" "$pipeline" "$DURATION"
                 done

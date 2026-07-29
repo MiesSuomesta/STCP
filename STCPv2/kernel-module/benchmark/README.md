@@ -84,3 +84,28 @@ SKIP_DEPLOY=1 KEEP_GENERATED=1 \
 bash benchmark/orchestrate-benchmarks.sh \
   both /var/www/stcp.fi
 ```
+
+## Benchmark dashboard generation
+
+`generate-benchmark-site.py` builds the benchmark dashboard directly from the
+selected result directory. The generated site includes:
+
+- interactive protocol charts
+- comparisons by payload size, client count and pipeline depth
+- throughput, operations, latency, CPU and connection metrics
+- exact-value comparison table
+- run summary and configured duration per benchmark case in the header
+- raw JSON, CSV, summary and SHA-256 manifest files
+
+Example:
+
+```bash
+python3 benchmark/generate-benchmark-site.py \
+  --mode both \
+  --result-dir benchmark/results/full-YYYYMMDD-HHMMSS \
+  --output-dir /tmp/stcp-benchmark-site
+```
+
+## Dynamic benchmark dashboard
+
+`generate-benchmark-site.py` now restores the automatically updating grouped bar charts. The fixed client, payload, pipeline and protocol selectors refresh all chart families at once. The generated site includes throughput, operations, latency, connection, CPU and reliability charts across payload, client-count and pipeline dimensions, plus a throughput heatmap, client-scaling efficiency, best-result cards and the configured case runtime in the header.

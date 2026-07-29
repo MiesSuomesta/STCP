@@ -63,8 +63,14 @@ esac
 [[ -f "$SUMMARY_INJECTOR" ]] ||
     die "Missing summary injector: $SUMMARY_INJECTOR"
 
-[[ -d "$STATIC_SITE_DIR" ]] ||
-    die "Current static web directory missing: $STATIC_SITE_DIR"
+if [[ ! -d "$STATIC_SITE_DIR" ]]; then
+    if [[ -f "$SCRIPT_DIR/generate-benchmark-site.py" ]]; then
+        warn "Static web directory missing; standalone benchmark generator will build the site"
+        STATIC_SITE_DIR=""
+    else
+        die "Current static web directory missing: $STATIC_SITE_DIR"
+    fi
+fi
 
 rm -rf -- "$OUTPUT_DIR"
 mkdir -p -- "$OUTPUT_DIR"
@@ -72,7 +78,7 @@ OUTPUT_DIR="$(cd -- "$OUTPUT_DIR" && pwd -P)"
 
 log "Mode:       $MODE"
 log "Result set: $RESULT_DIR"
-log "Web source: $STATIC_SITE_DIR"
+log "Web source: ${STATIC_SITE_DIR:-standalone generator}"
 log "Output:     $OUTPUT_DIR"
 
 # Always refresh the summary from the actual selected result directory.
@@ -81,8 +87,10 @@ python3 "$SUMMARY_GENERATOR" \
     "$RESULT_DIR" \
     --mode "$MODE"
 
-log "Copying current static website"
-cp -a -- "$STATIC_SITE_DIR/." "$OUTPUT_DIR/"
+if [[ -n "$STATIC_SITE_DIR" ]]; then
+    log "Copying current static website"
+    cp -a -- "$STATIC_SITE_DIR/." "$OUTPUT_DIR/"
+fi
 
 # Optional current-project generator. It is used only when explicitly supplied
 # or when one of the safe generator filenames exists inside the current tree.

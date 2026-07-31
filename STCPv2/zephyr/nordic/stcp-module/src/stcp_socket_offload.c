@@ -56,7 +56,11 @@ static int stcp_accept(void *obj, struct sockaddr *addr, socklen_t *addrlen)
     if (!child) { zsock_close(cfd); errno = ENOMEM; return -1; }
     int fd = zvfs_reserve_fd();
     if (fd < 0) { zsock_close(cfd); stcp_ctx_free(child); return -1; }
-    child->fd = fd; child->carrier_fd = cfd; child->protocol = listener->protocol; child->state = STCP_CONNECTED;
+    child->fd = fd;
+    child->carrier_fd = cfd;
+    child->socket_type = listener->socket_type;
+    child->protocol = listener->protocol;
+    child->state = STCP_CONNECTED;
     extern const struct socket_op_vtable stcp_vtable;
     zvfs_finalize_typed_fd(fd, child, (const struct fd_op_vtable *)&stcp_vtable, ZVFS_MODE_IFSOCK);
     return fd;
@@ -83,20 +87,58 @@ const struct socket_op_vtable stcp_vtable = {
     .getpeername = stcp_getpeername, .getsockname = stcp_getsockname,
 };
 static bool stcp_supported(int family, int type, int protocol)
-{ return family == AF_STCP && type == SOCK_STREAM && (protocol == 0 || protocol == STCP_PROTO_TCP || protocol == STCP_PROTO_UDP); }
+{
+    if (family != AF_STCP) {
+        return false;
+    }
+
+    if (type != SOCK_STREAM && type != SOCK_DGRAM) {
+        return false;
+    }
+
+    return protocol == 0 || protocol == IPPROTO_STCP;
+}
+
 static int stcp_socket(int family, int type, int protocol)
 {
-    ARG_UNUSED(family); ARG_UNUSED(type);
-    if (protocol == 0) protocol = STCP_PROTO_TCP;
-    struct stcp_ctx *ctx = stcp_ctx_alloc();
-    if (!ctx) { errno = ENOMEM; return -1; }
-    ctx->carrier_fd = stcp_carrier_open(protocol);
-    if (ctx->carrier_fd < 0) { stcp_ctx_free(ctx); return -1; }
-    int fd = zvfs_reserve_fd();
-    if (fd < 0) { zsock_close(ctx->carrier_fd); stcp_ctx_free(ctx); return -1; }
-    ctx->fd = fd; ctx->protocol = protocol;
-    zvfs_finalize_typed_fd(fd, ctx, (const struct fd_op_vtable *)&stcp_vtable, ZVFS_MODE_IFSOCK);
-    LOG_INF("STCP fd=%d protocol=%d carrier_fd=%d", fd, protocol, ctx->carrier_fd);
+    struct stcp_ctx *ctx;
+    int fd;
+
+    ARG_UNUSED(family);
+
+    if (protocol == 0) {
+        protocol = IPPROTO_STCP;
+    }
+
+    ctx = stcp_ctx_alloc();
+    if (ctx == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    ctx->carrier_fd = stcp_carrier_open(type);
+    if (ctx->carrier_fd < 0) {
+        stcp_ctx_free(ctx);
+        return -1;
+    }
+
+    fd = zvfs_reserve_fd();
+    if (fd < 0) {
+        zsock_close(ctx->carrier_fd);
+        stcp_ctx_free(ctx);
+        return -1;
+    }
+
+    ctx->fd = fd;
+    ctx->socket_type = type;
+    ctx->protocol = protocol;
+
+    zvfs_finalize_typed_fd(fd, ctx,
+                           (const struct fd_op_vtable *)&stcp_vtable,
+                           ZVFS_MODE_IFSOCK);
+
+    LOG_INF("STCP fd=%d type=%d protocol=%d carrier_fd=%d",
+            fd, type, protocol, ctx->carrier_fd);
     return fd;
 }
 NET_SOCKET_OFFLOAD_REGISTER(stcp, CONFIG_STCP_SOCKET_PRIORITY, AF_STCP, stcp_supported, stcp_socket);

@@ -1,8 +1,0 @@
-=== raspberry ===
-2026-07-24T16:57:19+03:00
-Linux raspi 6.18.38-2026.07.26_03-41-29-stcp-2026.07.26_03-41-29-stcp #44 SMP PREEMPT Sun Jul 26 03:42:11 EEST 2026 aarch64 GNU/Linux
-
-stcp                  679936  3
-
-
-udp_sendmsg_frames=8

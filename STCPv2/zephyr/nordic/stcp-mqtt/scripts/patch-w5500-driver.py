@@ -4,7 +4,7 @@
 The shield's W5500 INT signal is not reaching the Zephyr GPIO callback on the
 current nRF9151 DK mapping. Hardware TX/RX still works and Socket 0 IR contains
 SENDOK/RECV. This patch keeps the normal callback path but polls S0_IR every
-1 ms, so missing GPIO edges do not add hundreds of milliseconds per packet.
+100 us, so missing GPIO edges do not add hundreds of milliseconds per packet.
 
 The patch is idempotent and repairs earlier STCP W5500 debug revisions.
 """
@@ -16,9 +16,9 @@ import re
 import shutil
 import sys
 
-MARKER = "STCP_W5500_FAST_IRQ_POLL_FALLBACK"
+MARKER = "STCP_W5500_STEP1_MAX_THROUGHPUT"
 
-TX_REPLACEMENT = '''\t/* STCP_W5500_FAST_IRQ_POLL_FALLBACK:
+TX_REPLACEMENT = '''\t/* STCP_W5500_STEP1_MAX_THROUGHPUT:
 \t * Keep the normal interrupt/semaphore path, but poll Socket 0 IR every
 \t * millisecond. The current shield mapping reports SENDOK/RECV in S0_IR
 \t * even though the GPIO callback does not fire.
@@ -30,12 +30,12 @@ TX_REPLACEMENT = '''\t/* STCP_W5500_FAST_IRQ_POLL_FALLBACK:
 \t\treturn ret;
 \t}
 
-\tfor (int poll = 0; poll < 50; poll++) {
+\tfor (int poll = 0; poll < 100; poll++) {
 \t\tuint8_t sn_ir = 0;
 \t\tint sn_ir_rc;
 
 \t\t/* Preserve the ordinary GPIO interrupt path when it happens. */
-\t\tif (k_sem_take(&ctx->tx_sem, K_MSEC(1)) == 0) {
+\t\tif (k_sem_take(&ctx->tx_sem, K_USEC(100)) == 0) {
 \t\t\tLOG_DBG("TX SENDOK via GPIO: len=%u poll=%d", len, poll);
 \t\t\treturn 0;
 \t\t}
@@ -75,7 +75,7 @@ TX_REPLACEMENT = '''\t/* STCP_W5500_FAST_IRQ_POLL_FALLBACK:
 \t\tint sn_sr_rc = w5500_spi_read(dev, W5500_S0_SR, &sn_sr, 1);
 \t\tint int_level = gpio_pin_get_dt(&config->interrupt);
 
-\t\tLOG_ERR("TX timeout after 50 ms: len=%u IR=0x%02x(rc=%d) "
+\t\tLOG_ERR("TX timeout after 10 ms: len=%u IR=0x%02x(rc=%d) "
 \t\t\t"S0_IR=0x%02x(rc=%d) S0_SR=0x%02x(rc=%d) INT=%d",
 \t\t\tlen, ir, ir_rc, sn_ir, sn_ir_rc, sn_sr, sn_sr_rc,
 \t\t\tint_level);
@@ -97,16 +97,16 @@ THREAD_REPLACEMENT = '''static void w5500_thread(void *p1, void *p2, void *p3)
 \tuint32_t tx_events = 0;
 
 \twhile (true) {
-\t\t/* STCP_W5500_FAST_IRQ_POLL_FALLBACK:
+\t\t/* STCP_W5500_STEP1_MAX_THROUGHPUT:
 \t\t * Wake immediately on a real GPIO callback, otherwise poll S0_IR
-\t\t * every millisecond. This removes the monitor-period latency from
+\t\t * every 100 microseconds. This removes the monitor-period latency from
 \t\t * ARP, TCP ACK and payload reception.
 \t\t */
-\t\tif (k_sem_take(&ctx->int_sem, K_MSEC(1)) == 0) {
+\t\tif (k_sem_take(&ctx->int_sem, K_USEC(100)) == 0) {
 \t\t\tirq_events++;
 \t\t}
 
-\t\tif (ctx->state.is_up != true || (poll_count % 1000U) == 0U) {
+\t\tif (ctx->state.is_up != true || (poll_count % 10000U) == 0U) {
 \t\t\tw5500_update_link_status(dev);
 \t\t}
 
@@ -137,6 +137,18 @@ THREAD_REPLACEMENT = '''static void w5500_thread(void *p1, void *p2, void *p3)
 \t}
 }
 '''
+
+
+
+def ensure_forward_declaration(text: str) -> tuple[str, bool]:
+    declaration = "static void w5500_rx(const struct device *dev);\n\n"
+    if declaration in text:
+        return text, False
+    marker = "static int w5500_tx("
+    index = text.find(marker)
+    if index < 0:
+        return text, False
+    return text[:index] + declaration + text[index:], True
 
 
 def replace_tx_block(text: str) -> tuple[str, bool]:
@@ -188,7 +200,7 @@ def main() -> int:
 
     # Earlier patcher revisions accidentally wrote literal backslash-t sequences
     # into the C source. Recover automatically from the pristine backup.
-    broken_patch = "\\t" in text
+    broken_patch = "\\t" in text or ("STCP_W5500_" in text and MARKER not in text)
     if broken_patch:
         if not backup.is_file():
             print("[FAIL] Broken W5500 patch detected, but pristine backup is missing.",
@@ -199,12 +211,14 @@ def main() -> int:
         print(f"[INFO] Restored pristine W5500 driver after broken patch: {backup}")
 
     if MARKER in text and "IRQ polling stats:" in text:
-        print(f"[INFO] W5500 fast IRQ polling fallback already present: {path}")
+        print(f"[INFO] W5500 step-1 throughput patch already present: {path}")
         return 0
 
     if not backup.exists():
         shutil.copy2(path, backup)
         print(f"[INFO] Saved original driver: {backup}")
+
+    text, _ = ensure_forward_declaration(text)
 
     text, tx_replaced = replace_tx_block(text)
     if not tx_replaced:
@@ -217,7 +231,7 @@ def main() -> int:
         return 4
 
     path.write_text(text, encoding="utf-8")
-    print(f"[OK] Patched W5500 low-latency TX/RX polling fallback: {path}")
+    print(f"[OK] Patched W5500 step-1 maximum-throughput polling: {path}")
     return 0
 
 

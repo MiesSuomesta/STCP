@@ -12,8 +12,7 @@ BOARD="nrf9151dk/nrf9151/ns"
 
 unset PYTHONHOME PYTHONPATH
 
-"$PYTHON" "$APP_DIR/scripts/patch-w5500-driver.py" \
-    "$NCS_DIR/zephyr/drivers/ethernet/eth_w5500.c"
+echo "[INFO] Using existing W5500 driver unchanged"
 
 rm -rf "$BUILD_DIR"
 

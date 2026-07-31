@@ -7,7 +7,12 @@
 #include <zephyr/sys/util.h>
 
 #include "echo_benchmark.h"
+#if defined(CONFIG_ETH_W5500)
+#include "ethernet_status.h"
+#endif
+#if defined(CONFIG_NRF_MODEM_LIB)
 #include "modem_status.h"
+#endif
 
 static struct bench_config shell_cfg;
 static bool shell_cfg_ready;
@@ -166,6 +171,20 @@ SHELL_STATIC_SUBCMD_SET_CREATE(config_cmds,
     SHELL_SUBCMD_SET_END
 );
 
+#if defined(CONFIG_ETH_W5500)
+static int cmd_net_status(const struct shell *sh, size_t argc, char **argv)
+{
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+    return ethernet_status_show(sh);
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(net_cmds,
+    SHELL_CMD(status, NULL, "Show Ethernet interface, MAC, IPv4 and gateway", cmd_net_status),
+    SHELL_SUBCMD_SET_END
+);
+#endif
+
 SHELL_STATIC_SUBCMD_SET_CREATE(bench_cmds,
     SHELL_CMD(upload, NULL, "Run continuous upload benchmark", cmd_bench_upload),
     SHELL_CMD(download, NULL, "Run continuous download benchmark", cmd_bench_download),
@@ -175,6 +194,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(bench_cmds,
 );
 
 
+#if defined(CONFIG_NRF_MODEM_LIB)
 static int cmd_modem_system(const struct shell *sh, size_t argc, char **argv)
 { ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_system(sh); }
 static int cmd_modem_health(const struct shell *sh, size_t argc, char **argv)
@@ -195,6 +215,8 @@ static int cmd_modem_contexts(const struct shell *sh, size_t argc, char **argv)
 { ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_contexts(sh); }
 static int cmd_modem_all(const struct shell *sh, size_t argc, char **argv)
 { ARG_UNUSED(argc); ARG_UNUSED(argv); return modem_status_all(sh); }
+static int cmd_modem_at(const struct shell *sh, size_t argc, char **argv)
+{ return modem_status_at(sh, argc, argv); }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(modem_cmds,
     SHELL_CMD(system, NULL, "Show configured and currently attached radio system", cmd_modem_system),
@@ -207,6 +229,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(modem_cmds,
     SHELL_CMD(apn, NULL, "Show configured and active PDP/APN contexts", cmd_modem_apn),
     SHELL_CMD(contexts, NULL, "Show PDP contexts and benchmark CID/PDN binding", cmd_modem_contexts),
     SHELL_CMD(all, NULL, "Show all available modem status information", cmd_modem_all),
+    SHELL_CMD_ARG(at, NULL, "Run AT command: stcp modem at <AT command>", cmd_modem_at, 2, 15),
     SHELL_SUBCMD_SET_END
 );
 
@@ -216,5 +239,16 @@ SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(modem, &modem_cmds, "nRF modem status and radio diagnostics", NULL),
     SHELL_SUBCMD_SET_END
 );
+
+#else
+SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
+    SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
+    SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
+#if defined(CONFIG_ETH_W5500)
+    SHELL_CMD(net, &net_cmds, "Ethernet status and diagnostics", NULL),
+#endif
+    SHELL_SUBCMD_SET_END
+);
+#endif
 
 SHELL_CMD_REGISTER(stcp, &stcp_cmds, "STCP transport test bench", NULL);

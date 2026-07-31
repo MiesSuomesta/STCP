@@ -1,0 +1,7 @@
+/* W5500 on the Seeed shield. Keep SPI conservative during TX bring-up
+ * and provide a valid locally-administered MAC address.
+ */
+&eth_w5500 {
+    spi-max-frequency = <4000000>;
+    local-mac-address = [02 00 00 00 91 51];
+};

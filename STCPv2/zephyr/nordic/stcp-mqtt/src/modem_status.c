@@ -71,6 +71,59 @@ static int run_at(const struct shell *sh, const char *label, const char *command
     return rc;
 }
 
+int modem_status_at(const struct shell *sh, size_t argc, char **argv)
+{
+    char command[256];
+    size_t used = 0;
+    int rc;
+
+    if (!sh || !argv || argc < 2 || !argv[1] || argv[1][0] == '\0') {
+        return -EINVAL;
+    }
+
+    command[0] = '\0';
+
+    for (size_t i = 1; i < argc; i++) {
+        size_t arg_len = strlen(argv[i]);
+        size_t separator = (i > 1) ? 1U : 0U;
+
+        if (used + separator + arg_len >= sizeof(command)) {
+            shell_error(sh, "AT command is too long (max %u characters)",
+                        (unsigned int)(sizeof(command) - 1U));
+            return -E2BIG;
+        }
+
+        if (separator) {
+            command[used++] = ' ';
+        }
+        memcpy(&command[used], argv[i], arg_len);
+        used += arg_len;
+        command[used] = '\0';
+    }
+
+    if (strncmp(command, "AT", 2) != 0) {
+        shell_error(sh, "Command must begin with AT");
+        return -EINVAL;
+    }
+
+    shell_print(sh, "=== AT COMMAND ===");
+    shell_print(sh, "%s", command);
+
+    rc = query_at(at_response, sizeof(at_response), command);
+    if (at_response[0] != '\0') {
+        print_response_lines(sh, at_response);
+    }
+
+    if (rc == 0) {
+        shell_print(sh, "=== AT COMMAND COMPLETE ===");
+        return 0;
+    }
+
+    shell_error(sh, "AT command failed: %d", rc);
+    shell_print(sh, "=== AT COMMAND FAILED ===");
+    return rc;
+}
+
 static const char *find_payload(const char *response, const char *prefix)
 {
     const char *p = strstr(response, prefix);

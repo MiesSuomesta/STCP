@@ -10,8 +10,10 @@
 
 #include <stcp/stcp.h>
 #include "echo_benchmark.h"
+#if defined(CONFIG_NRF_MODEM_LIB)
 #include "stcp_lte_transport.h"
 #include "modem_status.h"
+#endif
 
 LOG_MODULE_REGISTER(echo_benchmark, LOG_LEVEL_INF);
 
@@ -127,7 +129,7 @@ static int connect_server(const struct bench_config *cfg)
     rc = zsock_getaddrinfo(cfg->host, cfg->port, &hints, &res);
     if (rc || !res) return -EHOSTUNREACH;
 if (cfg->transport == BENCH_TRANSPORT_STCP) {
-        fd = zsock_socket(AF_STCP, SOCK_STREAM, STCP_PROTO_TCP);
+        fd = zsock_socket(AF_STCP, SOCK_STREAM, IPPROTO_STCP);
     } else if (cfg->transport == BENCH_TRANSPORT_TCP) {
         fd = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     } else {
@@ -136,10 +138,13 @@ if (cfg->transport == BENCH_TRANSPORT_STCP) {
     }
     if (fd < 0) { rc = -errno; zsock_freeaddrinfo(res); return rc; }
 
-    if (cfg->transport == BENCH_TRANSPORT_TCP) {
+#if defined(CONFIG_NRF_MODEM_LIB)
+    if (cfg->transport == BENCH_TRANSPORT_TCP ||
+        cfg->transport == BENCH_TRANSPORT_STCP) {
         rc = stcp_lte_transport_bind_socket(fd);
         if (rc < 0) goto fail;
     }
+#endif
 
     rc = set_nonblocking(fd);
     if (rc < 0) goto fail;
@@ -219,23 +224,29 @@ static void log_rate_line(const char *name, const struct bench_result *r)
 
 void bench_print_last_summary(const struct bench_config *cfg)
 {
-    struct modem_status_snapshot modem;
-    bool modem_ok = modem_status_get_snapshot(&modem) == 0;
-
     LOG_INF("================ BENCHMARK SUMMARY ================");
     LOG_INF("Transport=%s server=%s:%s chunk=%u total=%u bytes",
             bench_transport_name(cfg->transport), cfg->host, cfg->port,
             cfg->chunk_size, cfg->total_bytes);
-    if (modem_ok) {
-        LOG_INF("Modem operator=%s RAT=%s band=%d RSRP=%d dBm RSRQ=%d.%d dB SNR_raw=%d APN=%s",
-                modem.monitor_valid ? modem.operator_name : "unknown",
-                rat_name(modem.current_act), modem.band,
-                modem.rsrp_dbm, modem.rsrq_tenths_db / 10,
-                abs(modem.rsrq_tenths_db % 10), modem.snr_raw,
-                modem.pdp_valid ? modem.apn : "unknown");
-    } else {
-        LOG_WRN("Modem status snapshot unavailable");
+#if defined(CONFIG_NRF_MODEM_LIB)
+    {
+        struct modem_status_snapshot modem;
+        bool modem_ok = modem_status_get_snapshot(&modem) == 0;
+
+        if (modem_ok) {
+            LOG_INF("Modem operator=%s RAT=%s band=%d RSRP=%d dBm RSRQ=%d.%d dB SNR_raw=%d APN=%s",
+                    modem.monitor_valid ? modem.operator_name : "unknown",
+                    rat_name(modem.current_act), modem.band,
+                    modem.rsrp_dbm, modem.rsrq_tenths_db / 10,
+                    abs(modem.rsrq_tenths_db % 10), modem.snr_raw,
+                    modem.pdp_valid ? modem.apn : "unknown");
+        } else {
+            LOG_WRN("Modem status snapshot unavailable");
+        }
     }
+#else
+    LOG_INF("Network backend=Ethernet/native Zephyr stack");
+#endif
     log_rate_line("UPLOAD", &last_summary.upload);
     log_rate_line("DOWNLOAD", &last_summary.download);
     log_rate_line("FULL", &last_summary.full);

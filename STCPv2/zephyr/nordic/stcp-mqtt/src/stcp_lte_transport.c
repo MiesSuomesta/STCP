@@ -230,6 +230,50 @@ static void lte_event_handler(const struct lte_lc_evt *evt)
 }
 
 
+
+static void log_modem_diagnostics(void)
+{
+    static const char *const commands[] = {
+        "AT%XSYSTEMMODE?",
+        "AT+CEREG?",
+        "AT+COPS?",
+        "AT+CESQ",
+        "AT+CGDCONT?",
+    };
+    char response[256];
+
+    for (size_t i = 0; i < ARRAY_SIZE(commands); ++i) {
+        memset(response, 0, sizeof(response));
+        int ret = nrf_modem_at_cmd(response, sizeof(response), "%s", commands[i]);
+        if (ret == 0) {
+            LOG_INF("Modem diagnostic %s: %s", commands[i], response);
+        } else {
+            LOG_WRN("Modem diagnostic %s failed: %d", commands[i], ret);
+        }
+    }
+}
+
+static int configure_lte_system_mode(void)
+{
+    int ret;
+
+    /* Match the reliable STCPv1 setup: LTE-M only, automatic preference. */
+    ret = lte_lc_offline();
+    if (ret < 0) {
+        LOG_WRN("lte_lc_offline before system mode setup failed: %d", ret);
+    }
+
+    ret = lte_lc_system_mode_set(LTE_LC_SYSTEM_MODE_LTEM,
+                                 LTE_LC_SYSTEM_MODE_PREFER_AUTO);
+    if (ret < 0) {
+        LOG_ERR("LTE-M system mode configuration failed: %d", ret);
+        return ret;
+    }
+
+    LOG_INF("LTE system mode configured: LTE-M only");
+    return 0;
+}
+
 static int configure_default_apn(void)
 {
 #if defined(CONFIG_STCP_LTE_FORCE_DEFAULT_APN)
@@ -353,6 +397,12 @@ int stcp_lte_transport_init(void)
     }
     LOG_INF("nRF modem library initialized");
 
+    ret = configure_lte_system_mode();
+    if (ret < 0) {
+        atomic_clear(&initialized);
+        return ret;
+    }
+
     ret = configure_default_apn();
     if (ret < 0) {
         atomic_clear(&initialized);
@@ -374,6 +424,7 @@ int stcp_lte_transport_init(void)
     ret = lte_lc_connect();
     if (ret < 0) {
         LOG_ERR("lte_lc_connect failed: %d", ret);
+        log_modem_diagnostics();
         atomic_clear(&initialized);
         return ret;
     }

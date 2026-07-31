@@ -43,6 +43,23 @@ struct bench_reply {
 static const struct bench_config *active_cfg;
 static struct bench_summary last_summary;
 
+const struct bench_summary *bench_get_last_summary(void)
+{
+    return &last_summary;
+}
+
+static int bench_fail_result(struct bench_result *result, int status)
+{
+    result->status = status;
+    result->bytes_tx = 0U;
+    result->bytes_rx = 0U;
+    result->elapsed_ms = 0;
+    result->tx_bps = 0U;
+    result->rx_bps = 0U;
+    result->aggregate_bps = 0U;
+    return status;
+}
+
 static int validate_config(const struct bench_config *cfg);
 
 static int wait_socket_ready(int fd, short events, int64_t deadline_ms)
@@ -346,16 +363,19 @@ int bench_run_upload(const struct bench_config *cfg)
     memset(&last_summary.upload, 0, sizeof(last_summary.upload));
     last_summary.upload.status = -ECANCELED;
     int valid = validate_config(cfg);
-    if (valid < 0) return valid;
+    if (valid < 0) return bench_fail_result(&last_summary.upload, valid);
     struct bench_reply reply;
     active_cfg = cfg;
     uint8_t *tx_buf = k_malloc(cfg->chunk_size);
     if (!tx_buf) {
         LOG_ERR("UPLOAD buffer allocation failed: %u bytes", cfg->chunk_size);
-        return -ENOMEM;
+        return bench_fail_result(&last_summary.upload, -ENOMEM);
     }
     int fd = connect_server(cfg);
-    if (fd < 0) { k_free(tx_buf); return fd; }
+    if (fd < 0) {
+        k_free(tx_buf);
+        return bench_fail_result(&last_summary.upload, fd);
+    }
     int rc = send_request(fd, BENCH_MODE_UPLOAD, cfg);
     int64_t start = k_uptime_get();
     if (!rc) rc = stream_send(fd, tx_buf, cfg->total_bytes, cfg->chunk_size, 0x17, "UPLOAD TX");
@@ -378,16 +398,19 @@ int bench_run_download(const struct bench_config *cfg)
     memset(&last_summary.download, 0, sizeof(last_summary.download));
     last_summary.download.status = -ECANCELED;
     int valid = validate_config(cfg);
-    if (valid < 0) return valid;
+    if (valid < 0) return bench_fail_result(&last_summary.download, valid);
     struct bench_reply reply;
     active_cfg = cfg;
     uint8_t *rx_buf = k_malloc(cfg->chunk_size);
     if (!rx_buf) {
         LOG_ERR("DOWNLOAD buffer allocation failed: %u bytes", cfg->chunk_size);
-        return -ENOMEM;
+        return bench_fail_result(&last_summary.download, -ENOMEM);
     }
     int fd = connect_server(cfg);
-    if (fd < 0) { k_free(rx_buf); return fd; }
+    if (fd < 0) {
+        k_free(rx_buf);
+        return bench_fail_result(&last_summary.download, fd);
+    }
     int rc = send_request(fd, BENCH_MODE_DOWNLOAD, cfg);
     int64_t start = k_uptime_get();
     if (!rc) rc = stream_recv(fd, rx_buf, cfg->total_bytes, cfg->chunk_size, 0x53, "DOWNLOAD RX");
@@ -427,7 +450,7 @@ int bench_run_full(const struct bench_config *cfg)
     memset(&last_summary.full, 0, sizeof(last_summary.full));
     last_summary.full.status = -ECANCELED;
     int valid = validate_config(cfg);
-    if (valid < 0) return valid;
+    if (valid < 0) return bench_fail_result(&last_summary.full, valid);
     struct bench_reply reply;
     struct sender_ctx ctx;
     active_cfg = cfg;
@@ -439,12 +462,21 @@ int bench_run_full(const struct bench_config *cfg)
                 cfg->chunk_size, rx_chunk);
         k_free(tx_buf);
         k_free(rx_buf);
-        return -ENOMEM;
+        return bench_fail_result(&last_summary.full, -ENOMEM);
     }
     int fd = connect_server(cfg);
-    if (fd < 0) { k_free(tx_buf); k_free(rx_buf); return fd; }
+    if (fd < 0) {
+        k_free(tx_buf);
+        k_free(rx_buf);
+        return bench_fail_result(&last_summary.full, fd);
+    }
     int rc = send_request(fd, BENCH_MODE_FULL, cfg);
-    if (rc < 0) { zsock_close(fd); k_free(tx_buf); k_free(rx_buf); return rc; }
+    if (rc < 0) {
+        zsock_close(fd);
+        k_free(tx_buf);
+        k_free(rx_buf);
+        return bench_fail_result(&last_summary.full, rc);
+    }
     ctx.fd = fd; ctx.rc = 0; ctx.tx_buf = tx_buf; ctx.total = cfg->total_bytes; ctx.chunk = cfg->chunk_size; k_sem_init(&ctx.done, 0, 1);
     int64_t start = k_uptime_get();
     k_thread_create(&sender_thread, sender_stack, K_THREAD_STACK_SIZEOF(sender_stack), sender_entry,

@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -133,6 +134,125 @@ static int cmd_config_transport(const struct shell *sh, size_t argc, char **argv
     return 0;
 }
 
+
+static const char *bench_carrier_name(void)
+{
+#if defined(CONFIG_ETH_W5500)
+    return "ethernet";
+#elif defined(CONFIG_NRF_MODEM_LIB)
+    return "lte";
+#else
+    return "unknown";
+#endif
+}
+
+static const struct bench_result *result_for_name(const char *name)
+{
+    const struct bench_summary *summary = bench_get_last_summary();
+
+    if (!strcmp(name, "upload")) return &summary->upload;
+    if (!strcmp(name, "download")) return &summary->download;
+    if (!strcmp(name, "full")) return &summary->full;
+    return NULL;
+}
+
+static uint64_t rate_mib_micro(uint32_t bytes, int64_t elapsed_ms)
+{
+    if (bytes == 0U || elapsed_ms <= 0) return 0U;
+    return ((uint64_t)bytes * 1000ULL * 1000000ULL) /
+           ((uint64_t)elapsed_ms * 1048576ULL);
+}
+
+static uint64_t ops_per_second_micro(uint32_t operations, int64_t elapsed_ms)
+{
+    if (operations == 0U || elapsed_ms <= 0) return 0U;
+    return ((uint64_t)operations * 1000ULL * 1000000ULL) /
+           (uint64_t)elapsed_ms;
+}
+
+static void emit_machine_result(const struct shell *sh, const char *direction)
+{
+    static char json[1152];
+    const struct bench_result *r = result_for_name(direction);
+    uint32_t operations;
+    uint64_t tx_mib;
+    uint64_t rx_mib;
+    uint64_t combined_mib;
+    uint64_t ops_s;
+    int written;
+
+    if (!r) return;
+
+    operations = (shell_cfg.total_bytes + shell_cfg.chunk_size - 1U) /
+                 shell_cfg.chunk_size;
+    tx_mib = rate_mib_micro(r->bytes_tx, r->elapsed_ms);
+    rx_mib = rate_mib_micro(r->bytes_rx, r->elapsed_ms);
+    combined_mib = tx_mib + rx_mib;
+    ops_s = ops_per_second_micro(operations, r->elapsed_ms);
+
+    written = snprintk(
+        json, sizeof(json),
+        "{"
+        "\"schema_version\":2,"
+        "\"platform\":\"zephyr-nrf9151\","
+        "\"carrier\":\"%s\","
+        "\"mode\":\"%s\","
+        "\"transport\":\"%s\","
+        "\"direction\":\"%s\","
+        "\"clients\":1,"
+        "\"payload_bytes\":%u,"
+        "\"pipeline\":1,"
+        "\"total_bytes\":%u,"
+        "\"elapsed_s\":%lld.%03lld,"
+        "\"elapsed_ms\":%lld,"
+        "\"operations\":%u,"
+        "\"errors\":%u,"
+        "\"status\":%d,"
+        "\"bytes_tx\":%u,"
+        "\"bytes_rx\":%u,"
+        "\"tx_mib_s\":%llu.%06llu,"
+        "\"rx_mib_s\":%llu.%06llu,"
+        "\"combined_mib_s\":%llu.%06llu,"
+        "\"operations_s\":%llu.%06llu,"
+        "\"connect_mean_ms\":null,"
+        "\"rtt_p50_ms\":null,"
+        "\"rtt_p95_ms\":null,"
+        "\"rtt_p99_ms\":null,"
+        "\"client_cpu_percent\":null"
+        "}",
+        bench_carrier_name(), bench_transport_name(shell_cfg.transport),
+        bench_transport_name(shell_cfg.transport), direction,
+        shell_cfg.chunk_size, shell_cfg.total_bytes,
+        r->elapsed_ms / 1000, llabs(r->elapsed_ms % 1000), r->elapsed_ms,
+        operations, r->status < 0 ? 1U : 0U, r->status,
+        r->bytes_tx, r->bytes_rx,
+        tx_mib / 1000000ULL, tx_mib % 1000000ULL,
+        rx_mib / 1000000ULL, rx_mib % 1000000ULL,
+        combined_mib / 1000000ULL, combined_mib % 1000000ULL,
+        ops_s / 1000000ULL, ops_s % 1000000ULL);
+
+    if (written < 0 || written >= (int)sizeof(json)) {
+        shell_error(sh, "Machine result JSON buffer too small: required=%d available=%u",
+                    written, (unsigned int)sizeof(json));
+        return;
+    }
+
+    /*
+     * Zephyr shell has a deliberately small printf buffer.  A complete infra
+     * JSON object is longer than one shell line, so emit it as short numbered
+     * transport records.  The host runner reassembles the parts before
+     * calling json.loads().  Keep each line comfortably below 128 bytes.
+     */
+    shell_print(sh, "STCP_BENCH_JSON_BEGIN %d", written);
+    for (size_t offset = 0U; offset < (size_t)written; offset += 80U) {
+        size_t remaining = (size_t)written - offset;
+        int part_len = (int)(remaining > 80U ? 80U : remaining);
+
+        shell_print(sh, "STCP_BENCH_JSON_PART %.*s", part_len, &json[offset]);
+    }
+    shell_print(sh, "STCP_BENCH_JSON_END");
+}
+
 static int run_and_report(const struct shell *sh, const char *name,
                           int (*fn)(const struct bench_config *))
 {
@@ -142,6 +262,13 @@ static int run_and_report(const struct shell *sh, const char *name,
                 bench_transport_name(shell_cfg.transport), shell_cfg.host,
                 shell_cfg.port, shell_cfg.total_bytes, shell_cfg.chunk_size);
     rc = fn(&shell_cfg);
+    if (!strcmp(name, "all")) {
+        emit_machine_result(sh, "upload");
+        emit_machine_result(sh, "download");
+        emit_machine_result(sh, "full");
+    } else {
+        emit_machine_result(sh, name);
+    }
     if (rc < 0) {
         shell_error(sh, "%s failed: %d", name, rc);
         return rc;

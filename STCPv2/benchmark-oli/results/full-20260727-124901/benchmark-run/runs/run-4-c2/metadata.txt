@@ -1,8 +1,0 @@
-run_number=4
-clients=2
-host=192.168.1.199
-port=19002
-test_script=benchmark/test-stcp-udp-direct-tx-burst-v13.sh
-started_at=2026-07-27T12:52:13+03:00
-exit_status=1
-finished_at=2026-07-27T12:52:16+03:00

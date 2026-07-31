@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """TCP/TLS/STCP throughput server with periodic progress reporting."""
 from __future__ import annotations
-import argparse, ipaddress, logging, signal, socket, ssl, struct, threading, time
+import argparse, ctypes, ipaddress, logging, os, select, signal, socket, ssl, struct, threading, time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Sequence
@@ -11,6 +11,85 @@ UPLOAD=1; DOWNLOAD=2; FULL=3
 REQUEST=struct.Struct("!IIIII"); REPLY=struct.Struct("!IIIII")
 MAX_TOTAL=64*1024*1024; MAX_CHUNK=64*1024
 REPORT_EVERY=5.0
+
+
+
+class SockaddrIn(ctypes.Structure):
+    """Linux sockaddr_in used for AF_STCP bind through libc."""
+
+    _fields_ = [
+        ("sin_family", ctypes.c_ushort),
+        ("sin_port", ctypes.c_ushort),
+        ("sin_addr", ctypes.c_ubyte * 4),
+        ("sin_zero", ctypes.c_ubyte * 8),
+    ]
+
+
+_LIBC = ctypes.CDLL(None, use_errno=True)
+_LIBC.bind.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint]
+_LIBC.bind.restype = ctypes.c_int
+_LIBC.accept.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint)]
+_LIBC.accept.restype = ctypes.c_int
+
+
+def bind_listener_socket(sock: socket.socket, cfg: "ListenerConfig") -> None:
+    """Bind normal sockets with Python and AF_STCP with libc.
+
+    Python's socket module does not know how to convert an address tuple for
+    custom address family AF_STCP. The STCP kernel API still expects an IPv4
+    sockaddr_in for bind(), so pass that structure directly to libc.
+    """
+    if cfg.family != AF_STCP:
+        sock.bind((cfg.host, cfg.port))
+        return
+
+    try:
+        packed_ip = socket.inet_aton(cfg.host)
+    except OSError as exc:
+        raise OSError(f"STCP listener requires an IPv4 host address: {cfg.host}") from exc
+
+    address = SockaddrIn()
+    address.sin_family = socket.AF_INET
+    address.sin_port = socket.htons(cfg.port)
+    address.sin_addr[:] = packed_ip
+
+    rc = _LIBC.bind(
+        sock.fileno(),
+        ctypes.byref(address),
+        ctypes.sizeof(address),
+    )
+    if rc != 0:
+        err = ctypes.get_errno()
+        raise OSError(err, f"STCP bind {cfg.host}:{cfg.port} failed: {os.strerror(err)}")
+
+
+def accept_client_socket(sock: socket.socket, cfg: "ListenerConfig"):
+    """Accept a client without asking Python to decode AF_STCP addresses."""
+    if cfg.family != AF_STCP:
+        return sock.accept()
+
+    readable, _, _ = select.select([sock], [], [], 1.0)
+    if not readable:
+        raise socket.timeout
+
+    peer = SockaddrIn()
+    peer_len = ctypes.c_uint(ctypes.sizeof(peer))
+    client_fd = _LIBC.accept(sock.fileno(), ctypes.byref(peer), ctypes.byref(peer_len))
+    if client_fd < 0:
+        err = ctypes.get_errno()
+        if err in (11, 35):
+            raise socket.timeout
+        raise OSError(err, f"STCP accept failed: {os.strerror(err)}")
+
+    try:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM, fileno=client_fd)
+        client.setblocking(True)
+        host = socket.inet_ntoa(bytes(peer.sin_addr))
+        port = socket.ntohs(peer.sin_port)
+        return client, (host, port)
+    except Exception:
+        os.close(client_fd)
+        raise
 
 
 class IPWhitelist:
@@ -186,10 +265,12 @@ def listener_loop(cfg,stop,whitelist):
             s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 1024 * 1024)
         except OSError:
             pass
-        s.bind((cfg.host,cfg.port)); s.listen(64); s.settimeout(1)
+        bind_listener_socket(s, cfg)
+        s.listen(64)
+        s.settimeout(1)
         logging.info("%s listening on %s:%d",cfg.name,cfg.host,cfg.port)
         while not stop.is_set():
-            try: c,a=s.accept()
+            try: c,a=accept_client_socket(s, cfg)
             except socket.timeout: continue
             if not whitelist.allows(a):
                 logging.warning("%s rejected non-whitelisted client: %s", cfg.name, a)

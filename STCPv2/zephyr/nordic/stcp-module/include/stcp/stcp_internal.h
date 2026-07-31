@@ -8,6 +8,7 @@ enum stcp_state { STCP_FREE=0, STCP_CREATED, STCP_BOUND, STCP_LISTENING, STCP_CO
 struct stcp_ctx {
     bool used;
     int fd;
+    int socket_type;
     int protocol;
     int carrier_fd;
     int last_error;
@@ -18,6 +19,6 @@ struct stcp_ctx {
 };
 struct stcp_ctx *stcp_ctx_alloc(void);
 void stcp_ctx_free(struct stcp_ctx *ctx);
-int stcp_carrier_open(int protocol);
+int stcp_carrier_open(int socket_type);
 int stcp_carrier_wait_connected(int fd, int timeout_ms);
 #endif

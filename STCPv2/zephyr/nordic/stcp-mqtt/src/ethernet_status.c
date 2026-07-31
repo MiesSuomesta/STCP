@@ -59,7 +59,7 @@ int ethernet_status_show(const struct shell *shell)
     shell_print(shell, "Netmask   : %s", CONFIG_NET_CONFIG_MY_IPV4_NETMASK);
     shell_print(shell, "Gateway   : %s", CONFIG_NET_CONFIG_MY_IPV4_GW);
     shell_print(shell, "DHCP      : disabled");
-    shell_print(shell, "SPI limit : 4 MHz");
+    shell_print(shell, "SPI limit : 8 MHz");
     shell_print(shell, "=======================");
     return 0;
 }
@@ -80,7 +80,7 @@ void ethernet_status_log_startup(void)
             net_if_is_up(iface) ? "up" : "down",
             net_if_is_carrier_ok(iface) ? "up" : "down",
             format_mac(net_if_get_link_addr(iface), mac, sizeof(mac)));
-    LOG_INF("Ethernet IPv4=%s netmask=%s gateway=%s DHCP=off SPI=4MHz",
+    LOG_INF("Ethernet IPv4=%s netmask=%s gateway=%s DHCP=off SPI=8MHz",
             current_ipv4(iface, ipv4, sizeof(ipv4)),
             CONFIG_NET_CONFIG_MY_IPV4_NETMASK,
             CONFIG_NET_CONFIG_MY_IPV4_GW);

@@ -49,5 +49,6 @@ int modem_status_sleep(const struct shell *sh);
 int modem_status_apn(const struct shell *sh);
 int modem_status_contexts(const struct shell *sh);
 int modem_status_all(const struct shell *sh);
+int modem_status_at(const struct shell *sh, size_t argc, char **argv);
 
 #endif /* MODEM_STATUS_H_ */

@@ -2,43 +2,111 @@
 payload sizes: 64, 4096, 65536 bytes
 timeout:       5.0 s per case
 
-[1/3] 64 bytes on port 7777: PASS (31.30 ms)
-[2/3] 4096 bytes on port 7778: PASS (23.17 ms)
-[3/3] 65536 bytes on port 7779: PASS (22.73 ms)
+[1/3] 64 bytes on port 7777: PASS (1273.67 ms)
+[2/3] 4096 bytes on port 7778: PASS (1276.46 ms)
+[3/3] 65536 bytes on port 7779: PASS (1276.78 ms)
 
 STCP functional test: PASS
 
-=== STCP throughput: 8 clients / 300 s ===
+=== STCP throughput: 8 clients / 30 s ===
 === STCP Python stress test ===
+transport:        TCP
+protocol:         253
 mode:             throughput
 clients:          8
 payload:          1048576 bytes
-duration:         300.0 s
+duration:         30.0 s
 report interval:  5.0 s
 verify payload:   False
 pipeline depth:   8
 
-[    5.0s] TX  89.59 MiB/s  RX  84.79 MiB/s  ops     84.8/s  conn +8/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.26 p95= 117.93 p99= 126.51 ms  CPU= 189.6% RSS=   36.8 MiB  total=424.0 MiB
-[   10.0s] TX  92.68 MiB/s  RX  94.27 MiB/s  ops     94.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.98 p95= 116.84 p99= 127.74 ms  CPU= 184.8% RSS=   36.8 MiB  total=896.0 MiB
-[   15.0s] TX  92.54 MiB/s  RX  90.94 MiB/s  ops     90.9/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.37 p95= 103.29 p99= 115.83 ms  CPU= 185.7% RSS=   36.8 MiB  total=1352.0 MiB
-[   20.0s] TX  91.11 MiB/s  RX  94.31 MiB/s  ops     94.3/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.67 p95= 107.14 p99= 116.32 ms  CPU= 187.2% RSS=   36.8 MiB  total=1824.0 MiB
-[   25.0s] TX  92.67 MiB/s  RX  89.48 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.63 p95= 115.21 p99= 121.25 ms  CPU= 180.4% RSS=   36.8 MiB  total=2272.0 MiB
-[   30.0s] TX  91.19 MiB/s  RX  91.19 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.44 p95= 105.96 p99= 116.80 ms  CPU= 183.4% RSS=   36.8 MiB  total=2728.0 MiB
-[   35.0s] TX  89.58 MiB/s  RX  94.38 MiB/s  ops     94.4/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.26 p95= 113.28 p99= 119.29 ms  CPU= 180.6% RSS=   36.8 MiB  total=3200.0 MiB
-[   40.0s] TX  94.37 MiB/s  RX  84.78 MiB/s  ops     84.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.08 p95= 109.98 p99= 151.45 ms  CPU= 180.9% RSS=   36.8 MiB  total=3624.0 MiB
-[   45.0s] TX  83.13 MiB/s  RX  89.52 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  94.51 p95= 109.70 p99= 156.04 ms  CPU= 175.8% RSS=   36.8 MiB  total=4072.0 MiB
-[   50.0s] TX  92.78 MiB/s  RX  91.18 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.19 p95= 106.97 p99= 112.62 ms  CPU= 181.0% RSS=   36.8 MiB  total=4528.0 MiB
-[   55.0s] TX  91.19 MiB/s  RX  91.19 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  89.61 p95= 103.61 p99= 107.98 ms  CPU= 182.2% RSS=   36.8 MiB  total=4984.0 MiB
-[   60.0s] TX  87.97 MiB/s  RX  89.57 MiB/s  ops     89.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.96 p95= 107.07 p99= 111.31 ms  CPU= 182.5% RSS=   36.8 MiB  total=5432.0 MiB
-[   65.0s] TX  89.58 MiB/s  RX  91.18 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  85.72 p95= 109.92 p99= 115.50 ms  CPU= 181.2% RSS=   36.8 MiB  total=5888.0 MiB
-[   70.0s] TX  95.93 MiB/s  RX  89.54 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.52 p95= 106.39 p99= 111.90 ms  CPU= 182.1% RSS=   36.8 MiB  total=6336.0 MiB
-[   75.1s] TX  90.93 MiB/s  RX  95.71 MiB/s  ops     95.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.93 p95= 104.71 p99= 113.39 ms  CPU= 184.2% RSS=   36.8 MiB  total=6816.0 MiB
-[   80.1s] TX  92.75 MiB/s  RX  87.96 MiB/s  ops     88.0/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  89.18 p95= 102.47 p99= 115.76 ms  CPU= 180.1% RSS=   36.8 MiB  total=7256.0 MiB
-[   85.1s] TX  89.55 MiB/s  RX  95.95 MiB/s  ops     95.9/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.31 p95= 108.61 p99= 110.58 ms  CPU= 185.9% RSS=   36.8 MiB  total=7736.0 MiB
-[   90.1s] TX  94.30 MiB/s  RX  92.70 MiB/s  ops     92.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  83.69 p95= 108.22 p99= 115.85 ms  CPU= 186.0% RSS=   36.8 MiB  total=8200.0 MiB
-[   95.1s] TX  91.01 MiB/s  RX  92.61 MiB/s  ops     92.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  86.40 p95= 106.69 p99= 157.21 ms  CPU= 185.0% RSS=   36.8 MiB  total=8664.0 MiB
-[  100.1s] TX  94.24 MiB/s  RX  87.85 MiB/s  ops     87.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  87.85 p95= 106.16 p99= 134.01 ms  CPU= 181.1% RSS=   36.8 MiB  total=9104.0 MiB
-[  105.1s] TX  84.80 MiB/s  RX  84.80 MiB/s  ops     84.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  90.69 p95= 107.12 p99= 130.06 ms  CPU= 171.8% RSS=   36.8 MiB  total=9528.0 MiB
-[  110.1s] TX  86.39 MiB/s  RX  91.19 MiB/s  ops     91.2/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  92.88 p95= 112.85 p99= 128.79 ms  CPU= 173.6% RSS=   36.8 MiB  total=9984.0 MiB
-[  115.1s] TX  91.14 MiB/s  RX  89.54 MiB/s  ops     89.5/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  89.58 p95= 104.41 p99= 107.97 ms  CPU= 179.3% RSS=   36.8 MiB  total=10432.0 MiB
-[  120.1s] TX  89.59 MiB/s  RX  89.59 MiB/s  ops     89.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  88.62 p95= 114.44 p99= 137.08 ms  CPU= 179.0% RSS=   36.8 MiB  total=10880.0 MiB
+[    5.0s] TX 126.22 MiB/s  RX 119.83 MiB/s  ops    119.8/s  conn +8/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  61.97 p95=  78.52 p99=  83.88 ms  CPU= 176.4% RSS=   37.1 MiB  total=600.0 MiB
+[   10.0s] TX 130.82 MiB/s  RX 127.63 MiB/s  ops    127.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  63.53 p95=  80.32 p99=  86.55 ms  CPU= 170.1% RSS=   37.1 MiB  total=1240.0 MiB
+[   15.0s] TX 116.75 MiB/s  RX 121.55 MiB/s  ops    121.6/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  64.88 p95=  80.64 p99=  83.02 ms  CPU= 157.9% RSS=   37.1 MiB  total=1848.0 MiB
+[   20.0s] TX 126.00 MiB/s  RX 122.81 MiB/s  ops    122.8/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  66.26 p95=  88.94 p99=  91.03 ms  CPU= 164.3% RSS=   37.1 MiB  total=2464.0 MiB
+[   25.0s] TX 119.75 MiB/s  RX 122.94 MiB/s  ops    122.9/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  64.72 p95=  86.92 p99= 103.86 ms  CPU= 161.3% RSS=   37.1 MiB  total=3080.0 MiB
+[   30.0s] TX 128.97 MiB/s  RX 125.74 MiB/s  ops    125.7/s  conn +0/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  62.99 p95=  84.57 p99=  94.62 ms  CPU= 169.9% RSS=   37.2 MiB  total=3704.0 MiB
+
+=== Final result ===
+elapsed:             31.301 s
+connections ok:      8
+connections failed:  0
+sends ok/failed:     3744/0
+recvs ok/failed:     3704/0
+verify failures:     0
+server errors:       0
+bytes sent:          3925868544
+bytes received:      3883925504
+TX throughput:       119.61 MiB/s
+RX throughput:       118.34 MiB/s
+operations:          118.3/s
+RTT latency:         avg=64.24 p50=64.03 p95=80.85 p99=91.03 max=103.86 ms
+JSON result:         result-throughput-4.json
+
+=== STCP mixed: 16 clients / 30 s ===
+=== STCP Python stress test ===
+transport:        TCP
+protocol:         253
+mode:             mixed
+clients:          16
+payload:          262144 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+
+[    5.0s] TX 121.34 MiB/s  RX 120.89 MiB/s  ops    483.6/s  conn +32/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  22.24 p95=  44.47 p99=  53.91 ms  CPU= 152.1% RSS=   31.6 MiB  total=605.5 MiB
+[   10.0s] TX 124.49 MiB/s  RX 124.49 MiB/s  ops    498.0/s  conn +17/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  22.27 p95=  44.67 p99=  58.36 ms  CPU= 156.4% RSS=   32.3 MiB  total=1228.0 MiB
+[   15.0s] TX 130.32 MiB/s  RX 130.37 MiB/s  ops    521.5/s  conn +17/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  20.06 p95=  42.83 p99=  53.81 ms  CPU= 161.6% RSS=   32.7 MiB  total=1881.5 MiB
+[   20.0s] TX 136.52 MiB/s  RX 136.62 MiB/s  ops    546.5/s  conn +19/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  18.73 p95=  39.58 p99=  50.57 ms  CPU= 170.0% RSS=   33.1 MiB  total=2566.2 MiB
+[   25.0s] TX 136.08 MiB/s  RX 135.93 MiB/s  ops    543.7/s  conn +20/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  18.92 p95=  40.59 p99=  50.29 ms  CPU= 168.8% RSS=   33.7 MiB  total=3246.0 MiB
+[   30.0s] TX 136.80 MiB/s  RX 137.20 MiB/s  ops    548.8/s  conn +18/-0  errors s=0 r=0 v=0 srv=0  RTT p50=  16.10 p95=  37.58 p99=  49.61 ms  CPU= 169.6% RSS=   34.3 MiB  total=3927.2 MiB
+
+=== Final result ===
+elapsed:             31.266 s
+connections ok:      123
+connections failed:  0
+sends ok/failed:     15710/0
+recvs ok/failed:     15710/0
+verify failures:     0
+server errors:       0
+bytes sent:          4118282240
+bytes received:      4118282240
+TX throughput:       125.62 MiB/s
+RX throughput:       125.62 MiB/s
+operations:          502.5/s
+RTT latency:         avg=21.01 p50=19.62 p95=41.91 p99=53.09 max=85.09 ms
+JSON result:         result-mixed-8.json
+
+=== STCP churn: 16 clients / 30 s ===
+=== STCP Python stress test ===
+transport:        TCP
+protocol:         253
+mode:             churn
+clients:          16
+payload:          4096 bytes
+duration:         30.0 s
+report interval:  5.0 s
+verify payload:   False
+
+[    5.0s] TX   0.05 MiB/s  RX   0.05 MiB/s  ops     12.6/s  conn +63/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.60 p95=   4.47 p99=   9.02 ms  CPU=   2.6% RSS=   19.8 MiB  total=0.2 MiB
+[   10.0s] TX   0.05 MiB/s  RX   0.05 MiB/s  ops     12.8/s  conn +64/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.58 p95=   2.13 p99=   4.45 ms  CPU=   3.2% RSS=   20.0 MiB  total=0.5 MiB
+[   15.0s] TX   0.05 MiB/s  RX   0.05 MiB/s  ops     12.6/s  conn +63/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.67 p95=   1.44 p99=   1.59 ms  CPU=   3.6% RSS=   20.0 MiB  total=0.7 MiB
+[   20.0s] TX   0.05 MiB/s  RX   0.05 MiB/s  ops     13.2/s  conn +66/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.71 p95=   1.94 p99=   4.72 ms  CPU=   3.2% RSS=   20.0 MiB  total=1.0 MiB
+[   25.0s] TX   0.05 MiB/s  RX   0.05 MiB/s  ops     13.0/s  conn +65/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.70 p95=   2.36 p99=   5.15 ms  CPU=   3.2% RSS=   20.0 MiB  total=1.3 MiB
+[   30.0s] TX   0.05 MiB/s  RX   0.05 MiB/s  ops     12.6/s  conn +63/-0  errors s=0 r=0 v=0 srv=0  RTT p50=   0.65 p95=   2.54 p99=   3.42 ms  CPU=   3.2% RSS=   20.0 MiB  total=1.5 MiB
+
+=== Final result ===
+elapsed:             30.900 s
+connections ok:      384
+connections failed:  0
+sends ok/failed:     384/0
+recvs ok/failed:     384/0
+verify failures:     0
+server errors:       0
+bytes sent:          1572864
+bytes received:      1572864
+TX throughput:       0.05 MiB/s
+RX throughput:       0.05 MiB/s
+operations:          12.4/s
+RTT latency:         avg=0.87 p50=0.65 p95=2.20 p99=5.15 max=9.02 ms
+JSON result:         result-churn-16.json

@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <title>
+   Zephyr benchmark
+  </title>
+  <link href="../assets/report.css" rel="stylesheet">
+ </head>
+ <body>
+  <!-- Shared STCPv2 site navigation -->
+  <header class="global-header">
+   <div class="global-inner">
+    <a class="site-brand" href="/">
+     STCPv2
+    </a>
+    <nav class="site-nav">
+     <a class="" href="/">
+      Home
+     </a>
+     <a class="active" href="/benchmarks/">
+      Benchmarks
+     </a>
+     <a class="" href="https://github.com/Paxsudos-IT/STCP">
+      GitHub
+     </a>
+    </nav>
+   </div>
+  </header>
+  <!-- Benchmark report content -->
+  <main class="wrap">
+   <div class="benchmark-header">
+    <div class="brand">
+     STCPV2 BENCHMARKS
+    </div>
+    <nav class="benchmark-nav">
+     <a class="" href="../index.html">
+      Overview
+     </a>
+     <a class="" href="../raspberry-pi/tcp/index.html">
+      Raspberry Pi TCP
+     </a>
+     <a class="" href="../raspberry-pi/udp/index.html">
+      Raspberry Pi UDP
+     </a>
+     <a class="active" href="../zephyr/index.html">
+      Zephyr
+     </a>
+     <a class="" href="../compare/index.html">
+      Compare
+     </a>
+    </nav>
+   </div>
+   <h1>
+    Zephyr benchmark
+   </h1>
+   <p class="lead">
+    nRF9151 results rendered with the same complete multi-chart layout as Raspberry Pi.
+   </p>
+   <div class="badges">
+    <span class="badge">
+     Run: zephyr-20260801-075255
+    </span>
+    <span class="badge">
+     Traffic: TCP
+    </span>
+    <span class="badge">
+     Cases: 18
+    </span>
+   </div>
+   <div class="summary">
+    <div class="metric">
+     <small>
+      Cases
+     </small>
+     <strong>
+      18
+     </strong>
+    </div>
+    <div class="metric">
+     <small>
+      Passed
+     </small>
+     <strong>
+      18
+     </strong>
+    </div>
+    <div class="metric">
+     <small>
+      Failed
+     </small>
+     <strong>
+      0
+     </strong>
+    </div>
+    <div class="metric">
+     <small>
+      Best total
+     </small>
+     <strong>
+      1.84
+     </strong>
+     <small>
+      Mbit/s
+     </small>
+    </div>
+    <div class="metric">
+     <small>
+      Payloads
+     </small>
+     <strong>
+      6
+     </strong>
+    </div>
+    <div class="metric">
+     <small>
+      Pass rate
+     </small>
+     <strong>
+      100.0%
+     </strong>
+    </div>
+   </div>
+   <div class="control-panel">
+    <div class="filters">
+     <label>
+      Traffic
+      <select id="traffic">
+      </select>
+     </label>
+     <label>
+      Direction
+      <select id="direction">
+      </select>
+     </label>
+     <label>
+      Payload
+      <select id="payload">
+      </select>
+     </label>
+    </div>
+    <details class="advanced">
+     <summary>
+      Advanced filters
+     </summary>
+     <div class="filters">
+      <label>
+       Carrier
+       <select id="carrier">
+       </select>
+      </label>
+      <label>
+       Clients
+       <select id="clients">
+       </select>
+      </label>
+      <label>
+       Pipeline
+       <select id="pipeline">
+       </select>
+      </label>
+     </div>
+    </details>
+   </div>
+   <section class="section">
+    <div class="section-head">
+     <h2>
+      Core performance
+     </h2>
+     <p>
+      One value per category &mdash; use the filters to inspect one traffic type and direction at a time
+     </p>
+    </div>
+    <div class="chart-grid core">
+     <div class="chart">
+      <h3>
+       Throughput by payload
+      </h3>
+      <div class="desc">
+       Total for full, TX for upload, RX for download
+      </div>
+      <div class="bars" id="throughputPayload">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+     <div class="chart">
+      <h3>
+       Throughput by client count
+      </h3>
+      <div class="desc">
+       Median throughput for each client count
+      </div>
+      <div class="bars" id="throughputClients">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+     <div class="chart">
+      <h3>
+       Throughput by pipeline depth
+      </h3>
+      <div class="desc">
+       Median throughput for each pipeline depth
+      </div>
+      <div class="bars" id="throughputPipeline">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+     <div class="chart">
+      <h3>
+       Operations/s by payload
+      </h3>
+      <div class="desc">
+       Median application operation rate
+      </div>
+      <div class="bars" id="opsPayload">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+    </div>
+   </section>
+   <section class="section">
+    <div class="section-head">
+     <h2>
+      Timing and quality
+     </h2>
+     <p>
+      Only the most useful supporting metrics
+     </p>
+    </div>
+    <div class="chart-grid">
+     <div class="chart">
+      <h3>
+       RTT p95 by payload
+      </h3>
+      <div class="desc">
+       Tail latency
+      </div>
+      <div class="bars" id="rtt95Payload">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+     <div class="chart">
+      <h3>
+       Elapsed time by payload
+      </h3>
+      <div class="desc">
+       Median case duration
+      </div>
+      <div class="bars" id="elapsedPayload">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+     <div class="chart">
+      <h3>
+       Client CPU by payload
+      </h3>
+      <div class="desc">
+       Median client-side CPU load
+      </div>
+      <div class="bars" id="cpuPayload">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+     <div class="chart">
+      <h3>
+       Errors by payload
+      </h3>
+      <div class="desc">
+       Failed operations
+      </div>
+      <div class="bars" id="errorsPayload">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        Median for each x-axis group
+       </span>
+       <span class="legend-unit">
+        One bar per category; detailed variants remain in the table
+       </span>
+      </div>
+     </div>
+    </div>
+   </section>
+   <section class="section">
+    <div class="section-head">
+     <h2>
+      Protocol family comparison
+     </h2>
+     <p>
+      Select one or more payloads for side-by-side protocol comparison
+     </p>
+    </div>
+    <div class="control-panel">
+     <div class="payload-actions">
+      <button data-payload-action="all" type="button">
+       Select all
+      </button>
+      <button data-payload-action="clear" type="button">
+       Clear
+      </button>
+      <button data-payload-action="small" type="button">
+       Small payloads
+      </button>
+      <button data-payload-action="large" type="button">
+       Large payloads
+      </button>
+      <span class="badge">
+       Selected:
+       <strong id="comparisonPayloadLabel">
+        0 selected
+       </strong>
+      </span>
+     </div>
+     <div aria-label="Comparison payloads" class="payload-checks" id="comparisonPayloadChecks">
+     </div>
+    </div>
+    <div class="comparison-grid">
+     <div class="chart">
+      <h3>
+       TCP vs STCP/TCP vs TLS
+      </h3>
+      <div class="desc">
+       Grouped by selected payloads
+      </div>
+      <div class="bars" id="tcpCompare">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#38bdf8">
+        </i>
+        TCP
+       </span>
+       <span>
+        <i style="background:#a78bfa">
+        </i>
+        STCP/TCP
+       </span>
+       <span>
+        <i style="background:#fbbf24">
+        </i>
+        TLS
+       </span>
+      </div>
+     </div>
+     <div class="chart">
+      <h3>
+       UDP vs STCP/UDP vs TLS reference
+      </h3>
+      <div class="desc">
+       Grouped by selected payloads; missing reference values appear as N/A
+      </div>
+      <div class="bars" id="udpCompare">
+      </div>
+      <div aria-label="Chart legend" class="legend">
+       <span>
+        <i style="background:#22d3ee">
+        </i>
+        UDP
+       </span>
+       <span>
+        <i style="background:#4ade80">
+        </i>
+        STCP/UDP
+       </span>
+       <span>
+        <i style="background:#fbbf24">
+        </i>
+        TLS reference
+       </span>
+      </div>
+     </div>
+    </div>
+   </section>
+   <section class="section">
+    <div class="section-head">
+     <h2>
+      Detailed results
+     </h2>
+     <p>
+      All cases matching the current filters (
+      <span id="shown">
+       0
+      </span>
+      )
+     </p>
+    </div>
+    <div class="tablewrap">
+     <table>
+      <thead>
+       <tr>
+        <th>
+         Platform
+        </th>
+        <th>
+         Traffic
+        </th>
+        <th>
+         Direction
+        </th>
+        <th>
+         Payload
+        </th>
+        <th>
+         Clients
+        </th>
+        <th>
+         Pipeline
+        </th>
+        <th>
+         TX Mbit/s
+        </th>
+        <th>
+         RX Mbit/s
+        </th>
+        <th>
+         Total Mbit/s
+        </th>
+        <th>
+         Ops/s
+        </th>
+        <th>
+         RTT p95
+        </th>
+        <th>
+         Status
+        </th>
+       </tr>
+      </thead>
+      <tbody id="tbody">
+      </tbody>
+     </table>
+    </div>
+   </section>
+  </main>
+  <!-- Page-specific benchmark data. Safe to edit by hand. -->
+  <script>
+   window.PAGE_DATA = {
+  "generated_utc": "2026-08-01T10:17:08.781789+00:00",
+  "cases": [
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "full",
+      "clients": 1,
+      "payload_bytes": 4096,
+      "chunk_bytes": 4096,
+      "pipeline": 1,
+      "elapsed_s": 9.021,
+      "operations": 256,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.110852,
+      "rx_mib_s": 0.110852,
+      "combined_mib_s": 0.221705,
+      "operations_s": 28.378229,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p4096-q1-full.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "full",
+      "clients": 1,
+      "payload_bytes": 1024,
+      "chunk_bytes": 1024,
+      "pipeline": 1,
+      "elapsed_s": 9.945,
+      "operations": 1024,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.100553,
+      "rx_mib_s": 0.100553,
+      "combined_mib_s": 0.201106,
+      "operations_s": 102.966315,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p1024-q1-full.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "full",
+      "clients": 1,
+      "payload_bytes": 1048576,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 8.712,
+      "operations": 1,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.114784,
+      "rx_mib_s": 0.114784,
+      "combined_mib_s": 0.229568,
+      "operations_s": 0.114784,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p1048576-q1-full.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "upload",
+      "clients": 1,
+      "payload_bytes": 1048576,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 4.886,
+      "operations": 1,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.204666,
+      "rx_mib_s": 0.0,
+      "combined_mib_s": 0.204666,
+      "operations_s": 0.204666,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p1048576-q1-upload.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "download",
+      "clients": 1,
+      "payload_bytes": 64,
+      "chunk_bytes": 64,
+      "pipeline": 1,
+      "elapsed_s": 7.108,
+      "operations": 16384,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.0,
+      "rx_mib_s": 0.140687,
+      "combined_mib_s": 0.140687,
+      "operations_s": 2305.008441,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p64-q1-download.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "upload",
+      "clients": 1,
+      "payload_bytes": 1024,
+      "chunk_bytes": 1024,
+      "pipeline": 1,
+      "elapsed_s": 5.467,
+      "operations": 1024,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.182916,
+      "rx_mib_s": 0.0,
+      "combined_mib_s": 0.182916,
+      "operations_s": 187.305652,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p1024-q1-upload.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "full",
+      "clients": 1,
+      "payload_bytes": 64,
+      "chunk_bytes": 64,
+      "pipeline": 1,
+      "elapsed_s": 15.38,
+      "operations": 16384,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.06502,
+      "rx_mib_s": 0.06502,
+      "combined_mib_s": 0.130039,
+      "operations_s": 1065.279584,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p64-q1-full.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "upload",
+      "clients": 1,
+      "payload_bytes": 65536,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 4.909,
+      "operations": 16,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.203707,
+      "rx_mib_s": 0.0,
+      "combined_mib_s": 0.203707,
+      "operations_s": 3.25932,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p65536-q1-upload.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "full",
+      "clients": 1,
+      "payload_bytes": 262144,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 8.744,
+      "operations": 4,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.114364,
+      "rx_mib_s": 0.114364,
+      "combined_mib_s": 0.228728,
+      "operations_s": 0.457457,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p262144-q1-full.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "download",
+      "clients": 1,
+      "payload_bytes": 262144,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 4.945,
+      "operations": 4,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.0,
+      "rx_mib_s": 0.202224,
+      "combined_mib_s": 0.202224,
+      "operations_s": 0.808898,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p262144-q1-download.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "download",
+      "clients": 1,
+      "payload_bytes": 1048576,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 5.006,
+      "operations": 1,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.0,
+      "rx_mib_s": 0.19976,
+      "combined_mib_s": 0.19976,
+      "operations_s": 0.19976,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p1048576-q1-download.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "download",
+      "clients": 1,
+      "payload_bytes": 65536,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 5.105,
+      "operations": 16,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.0,
+      "rx_mib_s": 0.195886,
+      "combined_mib_s": 0.195886,
+      "operations_s": 3.134182,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p65536-q1-download.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "upload",
+      "clients": 1,
+      "payload_bytes": 64,
+      "chunk_bytes": 64,
+      "pipeline": 1,
+      "elapsed_s": 37.55,
+      "operations": 16384,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.026631,
+      "rx_mib_s": 0.0,
+      "combined_mib_s": 0.026631,
+      "operations_s": 436.3249,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p64-q1-upload.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "download",
+      "clients": 1,
+      "payload_bytes": 4096,
+      "chunk_bytes": 4096,
+      "pipeline": 1,
+      "elapsed_s": 5.094,
+      "operations": 256,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.0,
+      "rx_mib_s": 0.196309,
+      "combined_mib_s": 0.196309,
+      "operations_s": 50.255202,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p4096-q1-download.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "download",
+      "clients": 1,
+      "payload_bytes": 1024,
+      "chunk_bytes": 1024,
+      "pipeline": 1,
+      "elapsed_s": 5.82,
+      "operations": 1024,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.0,
+      "rx_mib_s": 0.171821,
+      "combined_mib_s": 0.171821,
+      "operations_s": 175.945017,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p1024-q1-download.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "full",
+      "clients": 1,
+      "payload_bytes": 65536,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 8.751,
+      "operations": 16,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.114273,
+      "rx_mib_s": 0.114273,
+      "combined_mib_s": 0.228545,
+      "operations_s": 1.828362,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p65536-q1-full.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "upload",
+      "clients": 1,
+      "payload_bytes": 4096,
+      "chunk_bytes": 4096,
+      "pipeline": 1,
+      "elapsed_s": 5.095,
+      "operations": 256,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.196271,
+      "rx_mib_s": 0.0,
+      "combined_mib_s": 0.196271,
+      "operations_s": 50.245339,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p4096-q1-upload.json",
+      "run_id": "zephyr-20260801-075255"
+    },
+    {
+      "platform": "zephyr-nrf9151",
+      "platform_label": "Zephyr nRF9151",
+      "board": "nrf9151dk/nrf9151/ns",
+      "carrier": "ethernet",
+      "transport": "tcp",
+      "mode": "tcp",
+      "traffic_type": "tcp",
+      "direction": "upload",
+      "clients": 1,
+      "payload_bytes": 262144,
+      "chunk_bytes": 65536,
+      "pipeline": 1,
+      "elapsed_s": 4.889,
+      "operations": 4,
+      "errors": 0,
+      "status": 0,
+      "tx_mib_s": 0.204541,
+      "rx_mib_s": 0.0,
+      "combined_mib_s": 0.204541,
+      "operations_s": 0.818163,
+      "connect_mean_ms": null,
+      "rtt_p50_ms": null,
+      "rtt_p95_ms": null,
+      "rtt_p99_ms": null,
+      "client_cpu_percent": null,
+      "max_rss_kib": null,
+      "udp_retransmit_percent": null,
+      "udp_timeouts": null,
+      "source_file": "zephyr/nordic/stcp-mqtt/benchmark/results/zephyr-20260801-075255/tcp/tcp-c1-p262144-q1-upload.json",
+      "run_id": "zephyr-20260801-075255"
+    }
+  ]
+};
+  </script>
+  <script defer src="../assets/report.js">
+  </script>
+ </body>
+</html>
+

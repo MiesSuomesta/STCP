@@ -1,0 +1,1093 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-24T09:12:22+00:00",
+  "platform": "Raspberry Pi 4 Model B Rev 1.4",
+  "tcp": {
+    "total_cases": 216,
+    "passed_cases": 214,
+    "failed_cases": 2,
+    "total_errors": 2,
+    "protocols": {
+      "tcp": {
+        "label": "TCP",
+        "cases": 72,
+        "passed": 72,
+        "failed": 0,
+        "errors": 0,
+        "pass_percent": 100.0,
+        "operations": 4109455,
+        "metrics": {
+          "operations_s": {
+            "median": 2039.4374650648288,
+            "mean": 3804.1988006277334,
+            "geomean": 1284.1521230981984,
+            "min": 45.759969572105994,
+            "max": 10895.989545248192
+          },
+          "combined_mib_s": {
+            "median": 61.08415695683642,
+            "mean": 73.09313283635166,
+            "geomean": 31.851006735832463,
+            "min": 0.5739052818887322,
+            "max": 180.2317212933879
+          },
+          "rtt_p50_ms": {
+            "median": 1.3383260084083304,
+            "mean": 10.462691264466331,
+            "geomean": 1.9364426277201392,
+            "min": 0.1329770020674914,
+            "max": 86.04982899851166
+          },
+          "rtt_p95_ms": {
+            "median": 2.4287874985020608,
+            "mean": 20.496270568805308,
+            "geomean": 3.4141935276739552,
+            "min": 0.18039901624433696,
+            "max": 246.1571159947198
+          },
+          "rtt_p99_ms": {
+            "median": 3.4055819996865466,
+            "mean": 23.10210096968351,
+            "geomean": 4.851594514120352,
+            "min": 0.3945309726987034,
+            "max": 268.1838749849703
+          },
+          "connect_mean_ms": {
+            "median": 0.6921101230545901,
+            "mean": 6.423684947852355,
+            "geomean": 1.606064010584087,
+            "min": 0.28184276015963405,
+            "max": 47.03225336561445
+          },
+          "client_cpu_percent": {
+            "median": 38.61722413331731,
+            "mean": 39.33121018569011,
+            "geomean": 36.268948045851765,
+            "min": 11.8418019267456,
+            "max": 85.68654425016753
+          },
+          "max_rss_kib": {
+            "median": 22996.0,
+            "mean": 26529.88888888889,
+            "geomean": 25279.366700155824,
+            "min": 20508.0,
+            "max": 69796.0
+          },
+          "server_cpu_busy_percent": {
+            "median": 32.836094330226054,
+            "mean": 32.19040131357472,
+            "geomean": 28.565640323807933,
+            "min": 10.195771339075959,
+            "max": 59.445071785771894
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": 12003.996141551073,
+            "mean": 165673.62548368756,
+            "geomean": 30163.983138552077,
+            "min": 4327.59879246777,
+            "max": 1308168.8500727802
+          },
+          "server_perf_cycles_per_op": {
+            "median": 536474.2609579728,
+            "mean": 3095118.167101799,
+            "geomean": 727143.0461120304,
+            "min": 93439.89447644366,
+            "max": 14535302.121428572
+          },
+          "server_perf_instructions_per_op": {
+            "median": 289371.61437134945,
+            "mean": 1691061.6342752145,
+            "geomean": 396341.3740694477,
+            "min": 49660.9536380643,
+            "max": 8341538.934971098
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": 7029.187242093993,
+            "mean": 16774.333848505936,
+            "geomean": 8040.236918053648,
+            "min": 2042.082658751574,
+            "max": 86897.39884393064
+          },
+          "server_perf_ipc": {
+            "median": 0.5287289740126799,
+            "mean": 0.5467105981328988,
+            "geomean": 0.5450665810374589,
+            "min": 0.4809097491247432,
+            "max": 0.6658638832315503
+          },
+          "server_perf_cache_miss_percent": {
+            "median": 3.536955622270894,
+            "mean": 3.665428803274388,
+            "geomean": 3.628572897197258,
+            "min": 2.7117429254195082,
+            "max": 4.52559726180146
+          }
+        }
+      },
+      "udp": {
+        "label": "UDP",
+        "cases": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "pass_percent": 0.0,
+        "operations": 0,
+        "metrics": {
+          "operations_s": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "combined_mib_s": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "rtt_p50_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "rtt_p95_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "rtt_p99_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "connect_mean_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "client_cpu_percent": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "max_rss_kib": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_cpu_busy_percent": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_cycles_per_op": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_instructions_per_op": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_ipc": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_cache_miss_percent": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          }
+        }
+      },
+      "stcp": {
+        "label": "STCP",
+        "cases": 72,
+        "passed": 70,
+        "failed": 2,
+        "errors": 2,
+        "pass_percent": 97.22222222222223,
+        "operations": 2937749,
+        "metrics": {
+          "operations_s": {
+            "median": 822.5287705579217,
+            "mean": 2627.732812537856,
+            "geomean": 683.2891921733797,
+            "min": 13.878051186515565,
+            "max": 8622.411252592243
+          },
+          "combined_mib_s": {
+            "median": 27.697729728590623,
+            "mean": 38.57301845670466,
+            "geomean": 18.58868097314654,
+            "min": 0.3971131086150805,
+            "max": 102.86478218514002
+          },
+          "rtt_p50_ms": {
+            "median": 4.33617748785764,
+            "mean": 22.932939527423255,
+            "geomean": 3.6824790408798607,
+            "min": 0.2253769780509174,
+            "max": 162.8963790135458
+          },
+          "rtt_p95_ms": {
+            "median": 5.802103507448919,
+            "mean": 33.01761842948118,
+            "geomean": 6.029454939479428,
+            "min": 0.3363539872225374,
+            "max": 264.9538129917346
+          },
+          "rtt_p99_ms": {
+            "median": 6.380701015586965,
+            "mean": 37.740299856107285,
+            "geomean": 8.807139734291363,
+            "min": 0.7181740074884146,
+            "max": 310.8304020133801
+          },
+          "connect_mean_ms": {
+            "median": 8.049936870520469,
+            "mean": 9.790726975812245,
+            "geomean": 7.9388816096355885,
+            "min": 2.9206070175860077,
+            "max": 33.19182574341539
+          },
+          "client_cpu_percent": {
+            "median": 37.74168233422317,
+            "mean": 39.86659094273351,
+            "geomean": 35.22923925572301,
+            "min": 12.883055841730224,
+            "max": 81.90383942678542
+          },
+          "max_rss_kib": {
+            "median": 22336.0,
+            "mean": 25331.885714285716,
+            "geomean": 24433.186187530282,
+            "min": 20472.0,
+            "max": 60864.0
+          },
+          "server_cpu_busy_percent": {
+            "median": 36.333182627921104,
+            "mean": 42.463910512654635,
+            "geomean": 35.80211766614291,
+            "min": 11.959015139929653,
+            "max": 81.47215639810426
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": 30306.121108890515,
+            "mean": 199401.01646291508,
+            "geomean": 38041.897090765146,
+            "min": 4628.308823529412,
+            "max": 1275821.4285714286
+          },
+          "server_perf_cycles_per_op": {
+            "median": 2312998.2044498054,
+            "mean": 9453443.81949404,
+            "geomean": 1583953.764818173,
+            "min": 145693.3930239855,
+            "max": 47727006.291666664
+          },
+          "server_perf_instructions_per_op": {
+            "median": 2159911.997677658,
+            "mean": 8262396.321543329,
+            "geomean": 1202113.790856712,
+            "min": 84806.59558114299,
+            "max": 39560406.45454545
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": 6368.427448189046,
+            "mean": 18446.108171075386,
+            "geomean": 10474.183622587547,
+            "min": 4090.0676335239154,
+            "max": 86383.33333333334
+          },
+          "server_perf_ipc": {
+            "median": 0.7753876316482129,
+            "mean": 0.775658661222405,
+            "geomean": 0.7589323738844783,
+            "min": 0.5274798485875761,
+            "max": 1.0705797605759135
+          },
+          "server_perf_cache_miss_percent": {
+            "median": 2.6567466354266007,
+            "mean": 3.123177667904581,
+            "geomean": 3.00755687694741,
+            "min": 2.133804281322311,
+            "max": 4.575529244802262
+          }
+        }
+      },
+      "tls": {
+        "label": "TLS",
+        "cases": 72,
+        "passed": 72,
+        "failed": 0,
+        "errors": 0,
+        "pass_percent": 100.0,
+        "operations": 2269735,
+        "metrics": {
+          "operations_s": {
+            "median": 626.0161400154008,
+            "mean": 2100.0305358803244,
+            "geomean": 473.95587696084914,
+            "min": 7.929271079473412,
+            "max": 6887.374027648969
+          },
+          "combined_mib_s": {
+            "median": 15.395378121195613,
+            "mean": 22.470501113556747,
+            "geomean": 11.755594651158786,
+            "min": 0.4044881341620493,
+            "max": 52.46098347358988
+          },
+          "rtt_p50_ms": {
+            "median": 5.349883998860605,
+            "mean": 36.29884561208504,
+            "geomean": 5.2797523459791105,
+            "min": 0.23613200755789876,
+            "max": 277.0957819884643
+          },
+          "rtt_p95_ms": {
+            "median": 7.736871499218978,
+            "mean": 52.336664626232555,
+            "geomean": 8.532724241073256,
+            "min": 0.3246209817007184,
+            "max": 432.02820300939493
+          },
+          "rtt_p99_ms": {
+            "median": 9.75426149670966,
+            "mean": 58.33707538921671,
+            "geomean": 11.689224119234456,
+            "min": 0.6169750122353435,
+            "max": 486.7042640107684
+          },
+          "connect_mean_ms": {
+            "median": 72.13954874896444,
+            "mean": 89.02496787070251,
+            "geomean": 77.56362700145695,
+            "min": 40.0064849818591,
+            "max": 227.735760880023
+          },
+          "client_cpu_percent": {
+            "median": 63.19850441771162,
+            "mean": 72.81046659907977,
+            "geomean": 64.57160722662405,
+            "min": 23.596978430229004,
+            "max": 150.91755490232623
+          },
+          "max_rss_kib": {
+            "median": 28802.0,
+            "mean": 31915.0,
+            "geomean": 30808.112185259113,
+            "min": 24436.0,
+            "max": 72328.0
+          },
+          "server_cpu_busy_percent": {
+            "median": 47.32077042470301,
+            "mean": 50.09155740428673,
+            "geomean": 43.19314160023843,
+            "min": 14.529402962741283,
+            "max": 86.31764188297404
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": 41791.745839843345,
+            "mean": 339677.3212278632,
+            "geomean": 50231.96023983279,
+            "min": 5176.104852686309,
+            "max": 1937350.0000000002
+          },
+          "server_perf_cycles_per_op": {
+            "median": 3098906.8051573974,
+            "mean": 19680462.910012614,
+            "geomean": 2678516.45392246,
+            "min": 163497.33029789382,
+            "max": 91920137.4
+          },
+          "server_perf_instructions_per_op": {
+            "median": 3920694.512230689,
+            "mean": 25734839.346215498,
+            "geomean": 2686445.672215857,
+            "min": 104366.32267022504,
+            "max": 121528855.4369748
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": 5942.802050526286,
+            "mean": 10193.899113852094,
+            "geomean": 6554.860094542071,
+            "min": 2059.145989613387,
+            "max": 54611.11111111111
+          },
+          "server_perf_ipc": {
+            "median": 1.1740105837985872,
+            "mean": 1.0502249488821505,
+            "geomean": 1.002960302253055,
+            "min": 0.5257368286643778,
+            "max": 1.3264137690745372
+          },
+          "server_perf_cache_miss_percent": {
+            "median": 1.5438538259548316,
+            "mean": 2.2940202026794636,
+            "geomean": 1.8308658159084408,
+            "min": 0.8744813156082413,
+            "max": 4.988531628363995
+          }
+        }
+      }
+    },
+    "comparisons": {
+      "stcp_vs_tls": {
+        "matched_pass_cases": 70,
+        "median_percent_change": {
+          "operations_s": 61.10737586735995,
+          "combined_mib_s": 61.10737586735995,
+          "rtt_p50_ms": -34.911041041737704,
+          "rtt_p95_ms": -34.15238429567547,
+          "rtt_p99_ms": -31.816930599690714,
+          "connect_mean_ms": -90.14885314946763,
+          "client_cpu_percent": -48.52502764644966,
+          "server_perf_cycles_per_op": -45.874100265311704,
+          "server_perf_instructions_per_op": -66.80214102800261
+        }
+      },
+      "stcp_vs_tcp": {
+        "matched_pass_cases": 70,
+        "median_percent_change": {
+          "operations_s": -41.52398999995497,
+          "combined_mib_s": -41.52398999995497,
+          "rtt_p50_ms": 77.60366943314591,
+          "rtt_p95_ms": 60.51842399443183,
+          "rtt_p99_ms": 69.88031268622217,
+          "connect_mean_ms": 608.631018648688,
+          "client_cpu_percent": -5.415048129417477,
+          "server_perf_cycles_per_op": 158.58454520444067,
+          "server_perf_instructions_per_op": 311.1972834158623
+        }
+      },
+      "stcp_vs_udp": {
+        "matched_pass_cases": 0,
+        "median_percent_change": {
+          "operations_s": null,
+          "combined_mib_s": null,
+          "rtt_p50_ms": null,
+          "rtt_p95_ms": null,
+          "rtt_p99_ms": null,
+          "connect_mean_ms": null,
+          "client_cpu_percent": null,
+          "server_perf_cycles_per_op": null,
+          "server_perf_instructions_per_op": null
+        }
+      }
+    },
+    "failure_types": [
+      {
+        "error": "TimeoutError('STCP receive timed out')",
+        "count": 2
+      }
+    ],
+    "failed_dimensions": [
+      {
+        "case": "c4/p64/q1",
+        "errors": 1
+      },
+      {
+        "case": "c4/p4096/q8",
+        "errors": 1
+      }
+    ]
+  },
+  "udp": {
+    "total_cases": 216,
+    "passed_cases": 208,
+    "failed_cases": 8,
+    "total_errors": 64,
+    "protocols": {
+      "tcp": {
+        "label": "TCP",
+        "cases": 72,
+        "passed": 72,
+        "failed": 0,
+        "errors": 0,
+        "pass_percent": 100.0,
+        "operations": 4069148,
+        "metrics": {
+          "operations_s": {
+            "median": 1986.7571487304438,
+            "mean": 3766.8667115288126,
+            "geomean": 1279.191481250447,
+            "min": 46.006449557811436,
+            "max": 11714.85452723939
+          },
+          "combined_mib_s": {
+            "median": 58.271028258004776,
+            "mean": 74.43661275157318,
+            "geomean": 31.727967234464323,
+            "min": 0.47390073796533194,
+            "max": 173.38715478434733
+          },
+          "rtt_p50_ms": {
+            "median": 1.4615264954045415,
+            "mean": 10.021801752575104,
+            "geomean": 1.978995989825674,
+            "min": 0.1388420059811324,
+            "max": 87.1929370041471
+          },
+          "rtt_p95_ms": {
+            "median": 2.2102560033090413,
+            "mean": 19.996395303880693,
+            "geomean": 3.3223572143737563,
+            "min": 0.2258620224893093,
+            "max": 247.9119939962402
+          },
+          "rtt_p99_ms": {
+            "median": 3.0389174935407937,
+            "mean": 23.120931483087286,
+            "geomean": 4.31848429975936,
+            "min": 0.3343969874549657,
+            "max": 281.1059339728672
+          },
+          "connect_mean_ms": {
+            "median": 0.6840744954388356,
+            "mean": 6.160319415357662,
+            "geomean": 1.5048622596878722,
+            "min": 0.3167935064993799,
+            "max": 48.05903299347847
+          },
+          "client_cpu_percent": {
+            "median": 40.18446382482378,
+            "mean": 51.339301497437006,
+            "geomean": 44.91185760946025,
+            "min": 16.272485682114304,
+            "max": 104.98256639809867
+          },
+          "max_rss_kib": {
+            "median": 22852.0,
+            "mean": 26513.38888888889,
+            "geomean": 25266.470535081917,
+            "min": 20472.0,
+            "max": 69348.0
+          },
+          "server_cpu_busy_percent": {
+            "median": 33.27881333781487,
+            "mean": 31.816736774498704,
+            "geomean": 28.01471927820754,
+            "min": 8.035996210925166,
+            "max": 59.262851600387975
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": 12011.189297096802,
+            "mean": 147714.95251944204,
+            "geomean": 29122.08710039147,
+            "min": 4156.538672791731,
+            "max": 1295653.7356321837
+          },
+          "server_perf_cycles_per_op": {
+            "median": 533376.9397705803,
+            "mean": 3035050.5454387325,
+            "geomean": 719153.0732174115,
+            "min": 93536.78630528305,
+            "max": 13906884.01774043
+          },
+          "server_perf_instructions_per_op": {
+            "median": 292718.1129568939,
+            "mean": 1659044.9430847866,
+            "geomean": 392731.66961249127,
+            "min": 49677.58614822571,
+            "max": 8425678.756874096
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": 6109.517858010728,
+            "mean": 15951.834588203696,
+            "geomean": 7872.9921398981705,
+            "min": 2055.948211158369,
+            "max": 84063.67583212735
+          },
+          "server_perf_ipc": {
+            "median": 0.5279310220053748,
+            "mean": 0.5478205193852871,
+            "geomean": 0.5461030262381456,
+            "min": 0.4856134745577369,
+            "max": 0.6759745156616507
+          },
+          "server_perf_cache_miss_percent": {
+            "median": 3.630332025482131,
+            "mean": 3.6824815299329408,
+            "geomean": 3.643788117270024,
+            "min": 2.7118809148807927,
+            "max": 4.602714529683194
+          }
+        }
+      },
+      "udp": {
+        "label": "UDP",
+        "cases": 0,
+        "passed": 0,
+        "failed": 0,
+        "errors": 0,
+        "pass_percent": 0.0,
+        "operations": 0,
+        "metrics": {
+          "operations_s": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "combined_mib_s": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "rtt_p50_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "rtt_p95_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "rtt_p99_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "connect_mean_ms": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "client_cpu_percent": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "max_rss_kib": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_cpu_busy_percent": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_cycles_per_op": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_instructions_per_op": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_ipc": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          },
+          "server_perf_cache_miss_percent": {
+            "median": null,
+            "mean": null,
+            "geomean": null,
+            "min": null,
+            "max": null
+          }
+        }
+      },
+      "stcp": {
+        "label": "STCP",
+        "cases": 72,
+        "passed": 64,
+        "failed": 8,
+        "errors": 64,
+        "pass_percent": 88.88888888888889,
+        "operations": 2585442,
+        "metrics": {
+          "operations_s": {
+            "median": 2245.737277730473,
+            "mean": 2677.3153418517595,
+            "geomean": 844.4103060182015,
+            "min": 20.053229859334117,
+            "max": 7681.116920113339
+          },
+          "combined_mib_s": {
+            "median": 22.40425016502683,
+            "mean": 30.89094861160256,
+            "geomean": 14.079755504685975,
+            "min": 0.31981538572503754,
+            "max": 73.58477479638998
+          },
+          "rtt_p50_ms": {
+            "median": 1.1833490134449676,
+            "mean": 14.26850290818038,
+            "geomean": 2.8375890114014566,
+            "min": 0.303594017168507,
+            "max": 112.18093600473367
+          },
+          "rtt_p95_ms": {
+            "median": 1.634347005165182,
+            "mean": 16.935602609919442,
+            "geomean": 3.6930043737763776,
+            "min": 0.4722400044556707,
+            "max": 132.0106589992065
+          },
+          "rtt_p99_ms": {
+            "median": 2.666119995410554,
+            "mean": 21.58117585668151,
+            "geomean": 5.059087960823968,
+            "min": 0.5754099984187633,
+            "max": 188.51863199961372
+          },
+          "connect_mean_ms": {
+            "median": 5.501927505974891,
+            "mean": 6.730136513169782,
+            "geomean": 5.840738408620471,
+            "min": 2.481110015651211,
+            "max": 16.21615375188412
+          },
+          "client_cpu_percent": {
+            "median": 39.941134604224416,
+            "mean": 47.25016159732008,
+            "geomean": 42.80598902819239,
+            "min": 18.021116265207215,
+            "max": 92.44361100062119
+          },
+          "max_rss_kib": {
+            "median": 22080.0,
+            "mean": 23387.0625,
+            "geomean": 23098.383229793842,
+            "min": 20500.0,
+            "max": 40108.0
+          },
+          "server_cpu_busy_percent": {
+            "median": 41.11230672969454,
+            "mean": 35.03061908037348,
+            "geomean": 32.404571822230025,
+            "min": 13.937490653506805,
+            "max": 55.81117418583806
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": 12701.947987315834,
+            "mean": 143611.78292765035,
+            "geomean": 34733.394550823556,
+            "min": 8306.934129242729,
+            "max": 1673187.5
+          },
+          "server_perf_cycles_per_op": {
+            "median": 326355.97455533186,
+            "mean": 6945537.701034315,
+            "geomean": 1158802.0491488525,
+            "min": 161746.88063961963,
+            "max": 38096598.947841726
+          },
+          "server_perf_instructions_per_op": {
+            "median": 256467.00912401555,
+            "mean": 7179530.885368197,
+            "geomean": 931334.601903838,
+            "min": 96433.63950554995,
+            "max": 39265955.7368421
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": 6033.1723233421835,
+            "mean": 9741.98199449297,
+            "geomean": 6642.951447840321,
+            "min": 2158.1377530446007,
+            "max": 44500.0
+          },
+          "server_perf_ipc": {
+            "median": 0.7869268162345306,
+            "mean": 0.8238724253861451,
+            "geomean": 0.8037046556725621,
+            "min": 0.5803051902540354,
+            "max": 1.119455306351685
+          },
+          "server_perf_cache_miss_percent": {
+            "median": 3.177965945627381,
+            "mean": 2.969639042192392,
+            "geomean": 2.919801444437422,
+            "min": 2.1696482474388112,
+            "max": 3.7385304594358266
+          }
+        }
+      },
+      "tls": {
+        "label": "TLS",
+        "cases": 72,
+        "passed": 72,
+        "failed": 0,
+        "errors": 0,
+        "pass_percent": 100.0,
+        "operations": 2201990,
+        "metrics": {
+          "operations_s": {
+            "median": 625.2464022069267,
+            "mean": 2037.204440367329,
+            "geomean": 461.3855972299524,
+            "min": 7.953091411853792,
+            "max": 6823.119721956957
+          },
+          "combined_mib_s": {
+            "median": 15.442485310177254,
+            "mean": 22.330735484304164,
+            "geomean": 11.44381222509066,
+            "min": 0.3231722330994629,
+            "max": 52.796373526522785
+          },
+          "rtt_p50_ms": {
+            "median": 5.421015986939892,
+            "mean": 36.26016440385784,
+            "geomean": 5.484381534371812,
+            "min": 0.27719399076886475,
+            "max": 272.84716701251455
+          },
+          "rtt_p95_ms": {
+            "median": 7.968601988977753,
+            "mean": 54.2528694156014,
+            "geomean": 8.598174103903869,
+            "min": 0.4160350072197616,
+            "max": 452.2192229924258
+          },
+          "rtt_p99_ms": {
+            "median": 8.822686519124545,
+            "mean": 58.59786697369095,
+            "geomean": 10.241808565379129,
+            "min": 0.5377659981604666,
+            "max": 500.6962550105527
+          },
+          "connect_mean_ms": {
+            "median": 75.50664562586462,
+            "mean": 84.56805981733042,
+            "geomean": 74.51620997318702,
+            "min": 39.96307999477722,
+            "max": 214.56746687545092
+          },
+          "client_cpu_percent": {
+            "median": 83.49510579926167,
+            "mean": 83.09752306159186,
+            "geomean": 75.66452204788192,
+            "min": 27.786816256004208,
+            "max": 142.62351127795478
+          },
+          "max_rss_kib": {
+            "median": 28756.0,
+            "mean": 31913.055555555555,
+            "geomean": 30802.908793469127,
+            "min": 24332.0,
+            "max": 72452.0
+          },
+          "server_cpu_busy_percent": {
+            "median": 54.72825560919239,
+            "mean": 50.22980044184514,
+            "geomean": 42.64616555077528,
+            "min": 13.324238290131879,
+            "max": 87.09441683718211
+          },
+          "server_kernel_network_events_per_1k_ops": {
+            "median": 41759.43872622036,
+            "mean": 345703.2177375258,
+            "geomean": 49850.439256154525,
+            "min": 5018.994882612602,
+            "max": 1947508.3333333335
+          },
+          "server_perf_cycles_per_op": {
+            "median": 3110028.7580125798,
+            "mean": 19710278.400134504,
+            "geomean": 2708401.555144338,
+            "min": 171417.53567521877,
+            "max": 92438900.9
+          },
+          "server_perf_instructions_per_op": {
+            "median": 3916528.1701548724,
+            "mean": 25767387.513380565,
+            "geomean": 2703519.9710673485,
+            "min": 103738.10900448158,
+            "max": 121546042.475
+          },
+          "server_perf_context_switches_per_1k_ops": {
+            "median": 5966.322988510639,
+            "mean": 10308.052043036412,
+            "geomean": 6629.112019242632,
+            "min": 2081.7855584113286,
+            "max": 56366.75461741425
+          },
+          "server_perf_ipc": {
+            "median": 1.1629072493993242,
+            "mean": 1.0460128721563864,
+            "geomean": 0.9981976143575498,
+            "min": 0.520028412279955,
+            "max": 1.3361746033729032
+          },
+          "server_perf_cache_miss_percent": {
+            "median": 1.652030665853645,
+            "mean": 2.2790748398564125,
+            "geomean": 1.8344836163908673,
+            "min": 0.9037937700749982,
+            "max": 4.998943702113551
+          }
+        }
+      }
+    },
+    "comparisons": {
+      "stcp_vs_tls": {
+        "matched_pass_cases": 64,
+        "median_percent_change": {
+          "operations_s": 39.924857365328876,
+          "combined_mib_s": 39.924857365328876,
+          "rtt_p50_ms": -22.851678553781912,
+          "rtt_p95_ms": -44.170891993737484,
+          "rtt_p99_ms": -34.73373695240021,
+          "connect_mean_ms": -91.48975635722003,
+          "client_cpu_percent": -37.84094996524733,
+          "server_perf_cycles_per_op": -47.67360910102529,
+          "server_perf_instructions_per_op": -55.44177557613368
+        }
+      },
+      "stcp_vs_tcp": {
+        "matched_pass_cases": 64,
+        "median_percent_change": {
+          "operations_s": -47.23429625337644,
+          "combined_mib_s": -47.23429625337644,
+          "rtt_p50_ms": 99.42614018152605,
+          "rtt_p95_ms": 66.74229197871676,
+          "rtt_p99_ms": 70.73153959246793,
+          "connect_mean_ms": 628.2438053467214,
+          "client_cpu_percent": -2.8623436216790195,
+          "server_perf_cycles_per_op": 122.04709482595226,
+          "server_perf_instructions_per_op": 174.4664458023007
+        }
+      },
+      "stcp_vs_udp": {
+        "matched_pass_cases": 0,
+        "median_percent_change": {
+          "operations_s": null,
+          "combined_mib_s": null,
+          "rtt_p50_ms": null,
+          "rtt_p95_ms": null,
+          "rtt_p99_ms": null,
+          "connect_mean_ms": null,
+          "client_cpu_percent": null,
+          "server_perf_cycles_per_op": null,
+          "server_perf_instructions_per_op": null
+        }
+      }
+    },
+    "failure_types": [
+      {
+        "error": "TimeoutError('STCP receive timed out')",
+        "count": 64
+      }
+    ],
+    "failed_dimensions": [
+      {
+        "case": "c8/p65536/q1",
+        "errors": 8
+      },
+      {
+        "case": "c8/p65536/q8",
+        "errors": 8
+      },
+      {
+        "case": "c8/p262144/q1",
+        "errors": 8
+      },
+      {
+        "case": "c8/p262144/q4",
+        "errors": 8
+      },
+      {
+        "case": "c8/p262144/q8",
+        "errors": 8
+      },
+      {
+        "case": "c8/p1048576/q1",
+        "errors": 8
+      },
+      {
+        "case": "c8/p1048576/q4",
+        "errors": 8
+      },
+      {
+        "case": "c8/p1048576/q8",
+        "errors": 8
+      }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")"
-exec python3 ./generate-report.py "$@"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+exec python3 "$ROOT/generate-unified-report.py" "$@"

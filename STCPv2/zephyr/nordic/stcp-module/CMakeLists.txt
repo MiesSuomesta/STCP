@@ -38,6 +38,8 @@ if(CONFIG_STCP_RUST_CORE)
             ${STCP_RUST_DIR}/src/session.rs
             ${STCP_RUST_DIR}/src/carrier.rs
             ${STCP_RUST_DIR}/src/crypto.rs
+            ${CMAKE_CURRENT_LIST_DIR}/include/stcp/stcp_x25519_soft.h
+            ${CMAKE_CURRENT_LIST_DIR}/src/stcp_x25519_soft.c
         WORKING_DIRECTORY ${STCP_RUST_DIR}
         COMMENT "Building shared Raspberry Pi Rust STCP core for ${STCP_RUST_TARGET}"
         VERBATIM

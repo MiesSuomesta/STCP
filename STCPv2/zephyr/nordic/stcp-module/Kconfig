@@ -57,5 +57,16 @@ config STCP_RUST_TRACE_EVENTS
 config STCP_RUST_TRACE_ALLOC
     bool "Trace Rust allocations"
     default n
+config STCP_RUST_TRACE_CRYPTO
+    bool "Trace Rust STCP crypto backend and PSA operations"
+    default y
+config STCP_RUST_X25519_SOFTWARE
+    bool "Use bundled software X25519 backend"
+    default y
+    help
+      Use the bundled constant-time RFC 7748 X25519 implementation. PSA is
+      used only as the cryptographic random-number generator. This is needed
+      on NCS 3.3.0 targets whose PSA/TF-M backend does not expose Montgomery
+      key generation, import, or ECDH.
 endif
 endif

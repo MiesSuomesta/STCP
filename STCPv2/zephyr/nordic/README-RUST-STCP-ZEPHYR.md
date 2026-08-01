@@ -87,3 +87,16 @@ archive was statically checked but could not be compiled here. The first local
 build may expose NCS-version-specific PSA or Zephyr fdtable API differences.
 Those should be small adapter-level fixes; the shared Rust protocol core and
 external-carrier state path are included.
+
+## NCS 3.3.0 X25519 backend
+
+The nRF9151 TF-M PSA configuration does not expose Montgomery/X25519 key
+operations. Enable the bundled RFC 7748 implementation:
+
+```ini
+CONFIG_STCP_RUST_X25519_SOFTWARE=y
+CONFIG_STCP_RUST_TRACE_CRYPTO=y
+```
+
+PSA remains responsible for secure random generation and ChaCha20-Poly1305.
+Private keys and shared secrets are never printed.

@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+import argparse, json, shutil
+from pathlib import Path
+from datetime import datetime, timezone
+
+HTML = r'''<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STCPv2 benchmark report</title>
+<style>
+:root{--bg:#09111f;--panel:#101b2d;--panel2:#15233a;--text:#e8eef8;--muted:#9eb0c8;--line:#263954;--accent:#59a8ff;--good:#52d273;--warn:#ffcc66;--bad:#ff6b6b}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#08101d,#0c1626);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1540px;margin:auto;padding:28px}.hero{display:flex;gap:20px;justify-content:space-between;align-items:flex-start;margin-bottom:20px}.hero h1{font-size:30px;margin:0 0 6px}.sub{color:var(--muted)}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.badge{border:1px solid var(--line);background:#0d1a2b;padding:6px 10px;border-radius:999px}.badge strong{color:#fff}.badge.carrier{border-color:#2f6498}.badge.platform{border-color:#42628b}.badge.link{border-color:#2d7650}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.card{background:rgba(16,27,45,.94);border:1px solid var(--line);border-radius:14px;padding:15px;box-shadow:0 10px 30px #0003}.card .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.card .v{font-size:23px;font-weight:700;margin-top:5px}.card .detail{color:var(--muted);font-size:12px;margin-top:2px}.good{color:var(--good)}.bad{color:var(--bad)}
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:18px 0}.control{display:flex;flex-direction:column;gap:5px;color:var(--muted)}select{background:#0e1a2b;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 30px 9px 10px}
+.chartgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.chartcard{min-height:390px}.chartcard h2{font-size:17px;margin:0 0 12px}.canvaswrap{height:320px;position:relative}canvas{width:100%;height:100%}
+.meta-panel{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.meta-item{background:#0d1829;border:1px solid var(--line);border-radius:11px;padding:11px}.meta-item .mk{color:var(--muted);font-size:11px;text-transform:uppercase}.meta-item .mv{margin-top:3px;font-weight:650}
+.tablewrap{overflow:auto;margin-top:16px}table{border-collapse:collapse;width:100%;min-width:1180px}th,td{padding:10px 11px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th{position:sticky;top:0;background:#101b2d;color:var(--muted);font-size:12px;text-transform:uppercase}th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}tr:hover td{background:#15233a}
+.note{margin-top:16px;color:var(--muted)}.footer{margin:22px 0 5px;color:var(--muted);font-size:12px}@media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}.meta-panel{grid-template-columns:repeat(2,1fr)}.chartgrid{grid-template-columns:1fr}.hero{display:block}}@media(max-width:620px){main{padding:16px}.grid,.meta-panel{grid-template-columns:1fr}.hero h1{font-size:25px}}
+</style></head><body><main>
+<section class="hero"><div><h1>STCPv2 benchmark</h1><div class="sub" id="subtitle"></div><div class="badges" id="badges"></div></div><div class="badge" id="stamp"></div></section>
+<section class="grid" id="cards"></section>
+<section class="meta-panel" id="metaPanel"></section>
+<section class="card controls">
+<label class="control">Platform<select id="platform"></select></label>
+<label class="control">Siirtotie<select id="carrier"></select></label>
+<label class="control">Transport<select id="transport"></select></label>
+<label class="control">Suunta<select id="direction"><option value="all">Kaikki</option><option value="upload">Upload</option><option value="download">Download</option><option value="full">Full duplex</option></select></label>
+<label class="control">Mittari<select id="metric"><option value="mbit">Mbit/s</option><option value="mib">MiB/s</option><option value="ops">Operations/s</option><option value="elapsed">Ajoaika (s)</option></select></label>
+</section>
+<section class="chartgrid"><article class="card chartcard"><h2>Läpivienti payloadin mukaan</h2><div class="canvaswrap"><canvas id="throughput"></canvas></div></article><article class="card chartcard"><h2>Upload / Download / Full</h2><div class="canvaswrap"><canvas id="directions"></canvas></div></article></section>
+<section class="card tablewrap"><table><thead><tr><th>Payload</th><th>Suunta</th><th>Platform</th><th>Carrier</th><th>Transport</th><th>Chunk</th><th>TX Mbit/s</th><th>RX Mbit/s</th><th>Yhteensä Mbit/s</th><th>Ops/s</th><th>Ajoaika</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></section>
+<div class="note">Huom: payload on looginen sovellustason payload. <code>chunk_bytes</code> näyttää laitteen fyysisen I/O-chunkin; yli 64 KiB payloadit voidaan ajaa 64 KiB chunkilla.</div>
+<div class="footer">Generoitu <span id="generated"></span>. Raakatulokset ovat mukana hakemistossa <code>raw/</code>.</div>
+</main><script src="data.js"></script><script>
+const D=window.BENCHMARK_DATA,cases=D.cases||[];
+const fmtBytes=n=>n>=1048576?(n/1048576)+' MiB':n>=1024?(n/1024)+' KiB':n+' B';
+const mbit=x=>(x||0)*8;const uniq=a=>[...new Set(a)];
+const platformLabel=p=>({'zephyr-nrf9151':'Zephyr nRF9151','raspberry-pi-4':'Raspberry Pi 4','x86_64':'x86_64 Linux'}[p]||p||'unknown');
+const carrierLabel=c=>({'ethernet':'Ethernet','lte-m':'LTE-M','nbiot':'NB-IoT','wifi':'Wi-Fi'}[c]||c||'unknown');
+function optionize(id,vals,label=x=>x){const e=document.getElementById(id);e.innerHTML=vals.map(v=>`<option value="${v}">${label(v)}</option>`).join('')}
+optionize('platform',uniq(cases.map(x=>x.platform||D.platform||'unknown')),platformLabel);
+optionize('carrier',uniq(cases.map(x=>x.carrier||D.carrier||'unknown')),carrierLabel);
+optionize('transport',uniq(cases.map(x=>x.transport||x.mode||'unknown')),x=>x.toUpperCase());
+document.getElementById('subtitle').textContent=`${platformLabel(D.platform)} · ${D.board||'board unknown'}`;
+document.getElementById('stamp').textContent=`Ajo ${D.started_utc||''}`;
+const chunkMax=Math.max(0,...cases.map(x=>x.chunk_bytes||x.device_payload_bytes||0));
+const carrierInfo=D.carrier_info||{};const inferredLink=D.carrier==='ethernet'?'100 Mb/s Full Duplex':(D.carrier==='lte-m'?'LTE-M mobile network':'—');
+const badgeData=[
+ ['Platform',platformLabel(D.platform),'platform'],['Board',D.board,'platform'],['Siirtotie',carrierLabel(D.carrier),'carrier'],['Transport',(D.transports||[]).map(x=>x.toUpperCase()).join(', ')],['Shield',D.shield],['Linkki',carrierInfo.link_speed||inferredLink,'link'],['Device chunk',fmtBytes(D.max_chunk_bytes||chunkMax)],['Kohde',`${D.host}:${D.port}`],['Pipeline',cases[0]?.pipeline??1],['Clientit',cases[0]?.clients??1]
+];
+document.getElementById('badges').innerHTML=badgeData.map(([k,v,c])=>`<span class="badge ${c||''}"><strong>${k}:</strong> ${v??'—'}</span>`).join('');
+const ok=cases.filter(x=>x.status===0),byDir=d=>ok.filter(x=>x.direction===d).sort((a,b)=>(b.combined_mib_s||0)-(a.combined_mib_s||0))[0];
+const bestUp=byDir('upload'),bestDown=byDir('download'),bestFull=byDir('full'),passPct=D.cases_total?100*(D.cases_passed||0)/D.cases_total:0;
+const cards=[
+ ['Tapauksia',D.cases_total,''],['Läpi',`${D.cases_passed} / ${D.cases_total}`,`${passPct.toFixed(1)} %`],['Epäonnistui',D.cases_failed,''],['Ajoaika',`${D.elapsed_s?.toFixed(1)} s`,'koko matriisi'],
+ ['Paras upload',bestUp?`${mbit(bestUp.combined_mib_s).toFixed(2)} Mbit/s`:'—',bestUp?fmtBytes(bestUp.payload_bytes):''],['Paras download',bestDown?`${mbit(bestDown.combined_mib_s).toFixed(2)} Mbit/s`:'—',bestDown?fmtBytes(bestDown.payload_bytes):''],['Paras full',bestFull?`${mbit(bestFull.combined_mib_s).toFixed(2)} Mbit/s`:'—',bestFull?fmtBytes(bestFull.payload_bytes):''],['Payloadit',(D.payloads||[]).length,`${fmtBytes(Math.min(...D.payloads))} – ${fmtBytes(Math.max(...D.payloads))}`]
+];
+document.getElementById('cards').innerHTML=cards.map(([k,v,d],i)=>`<article class="card"><div class="k">${k}</div><div class="v ${i===1?'good':i===2&&D.cases_failed?'bad':''}">${v}</div><div class="detail">${d||''}</div></article>`).join('');
+const meta=[['Platform',platformLabel(D.platform)],['Board / target',D.board||'—'],['Carrier',carrierLabel(D.carrier)],['Carrier details',D.carrier==='ethernet'?`${D.shield||'Ethernet'} · ${carrierInfo.link_speed||'100 Mb/s'} · ${carrierInfo.duplex||'full duplex'}`:[carrierInfo.operator,carrierInfo.rat,carrierInfo.band?`Band ${carrierInfo.band}`:''].filter(Boolean).join(' · ')||'—'],['Firmware / SDK',D.sdk||D.firmware||'nRF Connect SDK / Zephyr'],['Physical chunk max',fmtBytes(D.max_chunk_bytes||chunkMax)],['Test target',`${D.host}:${D.port}`],['Total per case',fmtBytes(D.total_bytes||0)]];
+document.getElementById('metaPanel').innerHTML=meta.map(([k,v])=>`<div class="meta-item"><div class="mk">${k}</div><div class="mv">${v}</div></div>`).join('');
+function filtered(){const p=document.getElementById('platform').value,c=document.getElementById('carrier').value,t=document.getElementById('transport').value,d=document.getElementById('direction').value;return cases.filter(x=>(x.platform||D.platform||'unknown')===p&&(x.carrier||D.carrier||'unknown')===c&&(x.transport||x.mode||'unknown')===t&&(d==='all'||x.direction===d))}
+function value(x){switch(document.getElementById('metric').value){case'mbit':return mbit(x.combined_mib_s);case'mib':return x.combined_mib_s||0;case'ops':return x.operations_s||0;case'elapsed':return x.elapsed_s||0}}
+function draw(canvas,labels,series){const ctx=canvas.getContext('2d'),w=canvas.clientWidth,h=canvas.clientHeight,dpr=devicePixelRatio||1;canvas.width=w*dpr;canvas.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);const pad={l:58,r:18,t:16,b:55},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;if(!labels.length){ctx.fillStyle='#9eb0c8';ctx.textAlign='center';ctx.fillText('Ei tuloksia valituilla suodattimilla',w/2,h/2);return}let max=Math.max(1,...series.flatMap(s=>s.values));max*=1.12;ctx.strokeStyle='#263954';ctx.fillStyle='#9eb0c8';ctx.font='12px system-ui';ctx.textAlign='right';for(let i=0;i<=5;i++){let y=pad.t+ch*i/5;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();let val=max*(1-i/5);ctx.fillText(val.toFixed(val<10?2:0),pad.l-8,y+4)}const group=cw/labels.length,bw=Math.max(3,Math.min(28,(group-10)/Math.max(1,series.length)));labels.forEach((lab,i)=>{ctx.fillStyle='#9eb0c8';ctx.textAlign='center';ctx.fillText(lab,pad.l+group*(i+.5),h-18)});series.forEach((s,si)=>{ctx.fillStyle=s.color;s.values.forEach((v,i)=>{let x=pad.l+group*i+(group-series.length*bw)/2+si*bw,y=pad.t+ch-(v/max)*ch;ctx.fillRect(x,y,bw-2,pad.t+ch-y)})});let lx=pad.l;series.forEach(s=>{ctx.fillStyle=s.color;ctx.fillRect(lx,2,12,12);ctx.fillStyle='#dce7f5';ctx.textAlign='left';ctx.fillText(s.name,lx+17,12);lx+=ctx.measureText(s.name).width+45})}
+function render(){const f=filtered(),payloads=uniq(f.map(x=>x.payload_bytes)).sort((a,b)=>a-b),colors={upload:'#59a8ff',download:'#52d273',full:'#ffcc66'},dirs=['upload','download','full'].filter(d=>f.some(x=>x.direction===d));const series=dirs.map(d=>({name:d,color:colors[d],values:payloads.map(p=>{const x=f.find(r=>r.payload_bytes===p&&r.direction===d);return x?value(x):0})}));draw(document.getElementById('throughput'),payloads.map(fmtBytes),series);draw(document.getElementById('directions'),payloads.map(fmtBytes),series);document.getElementById('rows').innerHTML=f.sort((a,b)=>a.payload_bytes-b.payload_bytes||a.direction.localeCompare(b.direction)).map(x=>`<tr><td>${fmtBytes(x.payload_bytes)}</td><td>${x.direction}</td><td>${platformLabel(x.platform||D.platform)}</td><td>${carrierLabel(x.carrier)}</td><td>${(x.transport||'').toUpperCase()}</td><td>${fmtBytes(x.chunk_bytes||x.device_payload_bytes||x.payload_bytes)}</td><td>${mbit(x.tx_mib_s).toFixed(3)}</td><td>${mbit(x.rx_mib_s).toFixed(3)}</td><td><strong>${mbit(x.combined_mib_s).toFixed(3)}</strong></td><td>${(x.operations_s||0).toFixed(3)}</td><td>${(x.elapsed_s||0).toFixed(3)} s</td><td class="${x.status===0?'good':'bad'}">${x.status===0?'PASS':'FAIL'}</td></tr>`).join('')}
+['platform','carrier','transport','direction','metric'].forEach(id=>document.getElementById(id).addEventListener('change',render));addEventListener('resize',render);document.getElementById('generated').textContent=D.generated_utc;render();
+</script></body></html>
+'''
+
+def main():
+    ap=argparse.ArgumentParser()
+    ap.add_argument('result_dir', nargs='?', help='Result directory; defaults to newest zephyr-*')
+    ap.add_argument('-o','--output')
+    args=ap.parse_args()
+    root=Path(__file__).resolve().parent
+    if args.result_dir:
+        rdir=Path(args.result_dir).resolve()
+    else:
+        dirs=sorted((root/'results').glob('zephyr-*'), key=lambda p:p.stat().st_mtime, reverse=True)
+        if not dirs: raise SystemExit('No benchmark/results/zephyr-* directories found')
+        rdir=dirs[0]
+    summary_path=rdir/'pipeline-summary.json'
+    data=json.loads(summary_path.read_text())
+    data['generated_utc']=datetime.now(timezone.utc).isoformat()
+    out=Path(args.output).resolve() if args.output else root/'site'/rdir.name
+    if out.exists(): shutil.rmtree(out)
+    out.mkdir(parents=True)
+    (out/'index.html').write_text(HTML)
+    (out/'data.js').write_text('window.BENCHMARK_DATA = '+json.dumps(data,ensure_ascii=False,separators=(',',':'))+';\n')
+    shutil.copytree(rdir,out/'raw')
+    latest=root/'site'/'latest'
+    if latest.exists() or latest.is_symlink():
+        if latest.is_symlink() or latest.is_file(): latest.unlink()
+        else: shutil.rmtree(latest)
+    shutil.copytree(out,latest)
+    print(out)
+
+if __name__=='__main__': main()

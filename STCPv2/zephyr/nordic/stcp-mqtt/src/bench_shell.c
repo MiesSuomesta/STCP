@@ -5,15 +5,21 @@
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/sys/util.h>
-#include <zephyr/sys/printk.h>
 
 #include "echo_benchmark.h"
+#include "stcp_ping.h"
 #if defined(CONFIG_ETH_W5500)
 #include "ethernet_status.h"
 #endif
 #if defined(CONFIG_NRF_MODEM_LIB)
 #include "modem_status.h"
 #endif
+
+
+static int cmd_stcp_ping(const struct shell *sh, size_t argc, char **argv)
+{
+    return stcp_ping_run(sh, argc, argv);
+}
 
 static struct bench_config shell_cfg;
 static bool shell_cfg_ready;
@@ -134,96 +140,214 @@ static int cmd_config_transport(const struct shell *sh, size_t argc, char **argv
     return 0;
 }
 
-static uint64_t mib_per_second_micro(uint32_t bytes, int64_t elapsed_ms)
+
+static uint64_t mib_micro(uint64_t bps)
 {
-    if (bytes == 0U || elapsed_ms <= 0) {
-        return 0U;
+    return (bps * 1000000ULL) / (8ULL * 1048576ULL);
+}
+
+static void emit_json_parts(const struct shell *sh, const char *json, int length)
+{
+    enum { PART = 88 };
+    shell_print(sh, "STCP_BENCH_JSON_BEGIN %d", length);
+    for (int off = 0; off < length; off += PART) {
+        int n = MIN(PART, length - off);
+        shell_print(sh, "STCP_BENCH_JSON_PART %.*s", n, json + off);
     }
-    return ((uint64_t)bytes * 1000ULL * 1000000ULL) /
-           ((uint64_t)elapsed_ms * 1048576ULL);
+    shell_print(sh, "STCP_BENCH_JSON_END");
 }
 
-static uint64_t operations_per_second_micro(uint32_t operations, int64_t elapsed_ms)
+static void emit_machine_result(const struct shell *sh,
+                                const struct bench_config *cfg,
+                                const char *direction, int rc)
 {
-    if (operations == 0U || elapsed_ms <= 0) {
-        return 0U;
-    }
-    return ((uint64_t)operations * 1000ULL * 1000000ULL) /
-           (uint64_t)elapsed_ms;
-}
-
-static const char *bench_carrier_name(void)
-{
-#if defined(CONFIG_ETH_W5500)
-    return "ethernet";
-#elif defined(CONFIG_NRF_MODEM_LIB)
-    return "lte";
-#else
-    return "unknown";
-#endif
-}
-
-static void emit_machine_result(const struct shell *sh, const char *direction, int command_rc)
-{
-    const struct bench_result *r = bench_last_result(direction);
+    static char json[1024];
+    const struct bench_result *r = bench_get_last_result(direction);
     uint32_t operations;
-    int status;
-    unsigned int repeat;
+    uint64_t tx_mib, rx_mib, combined_mib, ops_micro;
+    int written;
 
-    ARG_UNUSED(sh);
+    if (!r || !cfg) return;
+    operations = (cfg->total_bytes + cfg->chunk_size - 1U) / cfg->chunk_size;
+    tx_mib = mib_micro(r->tx_bps);
+    rx_mib = mib_micro(r->rx_bps);
+    combined_mib = tx_mib + rx_mib;
+    ops_micro = r->elapsed_ms > 0 ? ((uint64_t)operations * 1000ULL * 1000000ULL) / (uint64_t)r->elapsed_ms : 0;
 
-    if (r == NULL) {
+    written = snprintk(json, sizeof(json),
+        "{\"schema_version\":2,\"platform\":\"zephyr-nrf9151\"," 
+        "\"carrier\":\"ethernet\",\"mode\":\"%s\",\"transport\":\"%s\"," 
+        "\"direction\":\"%s\",\"clients\":1,\"payload_bytes\":%u," 
+        "\"pipeline\":1,\"total_bytes\":%u,\"elapsed_ms\":%lld," 
+        "\"operations\":%u,\"errors\":%u,\"status\":%d," 
+        "\"bytes_tx\":%u,\"bytes_rx\":%u," 
+        "\"tx_mib_s\":%llu.%06llu,\"rx_mib_s\":%llu.%06llu," 
+        "\"combined_mib_s\":%llu.%06llu,\"operations_s\":%llu.%06llu," 
+        "\"connect_mean_ms\":null,\"rtt_p50_ms\":null,\"rtt_p95_ms\":null," 
+        "\"rtt_p99_ms\":null,\"client_cpu_percent\":null}",
+        bench_transport_name(cfg->transport), bench_transport_name(cfg->transport),
+        direction, cfg->chunk_size, cfg->total_bytes, r->elapsed_ms, operations,
+        rc < 0 ? 1U : 0U, rc, r->bytes_tx, r->bytes_rx,
+        tx_mib / 1000000ULL, tx_mib % 1000000ULL,
+        rx_mib / 1000000ULL, rx_mib % 1000000ULL,
+        combined_mib / 1000000ULL, combined_mib % 1000000ULL,
+        ops_micro / 1000000ULL, ops_micro % 1000000ULL);
+
+    if (written < 0 || written >= (int)sizeof(json)) {
+        shell_error(sh, "Benchmark JSON formatting failed/truncated: %d", written);
         return;
     }
+    emit_json_parts(sh, json, written);
+}
 
-    operations = (shell_cfg.total_bytes + shell_cfg.chunk_size - 1U) /
-                 shell_cfg.chunk_size;
-    status = command_rc < 0 ? command_rc : r->status;
+enum bench_job_kind {
+    BENCH_JOB_UPLOAD,
+    BENCH_JOB_DOWNLOAD,
+    BENCH_JOB_FULL,
+    BENCH_JOB_ALL,
+};
 
-    /*
-     * Keep the machine-readable UART result deliberately short.  Long JSON
-     * frames competed with deferred W5500 logs and lost individual lines.
-     * The host runner expands this compact record into the infra JSON schema.
-     * Repeat it so one dropped UART line does not lose the benchmark result.
-     */
-    for (repeat = 0U; repeat < 5U; repeat++) {
-        printk("STCP_RESULT dir=%s transport=%s payload=%u total=%u "
-               "elapsed_ms=%lld operations=%u status=%d errors=%u "
-               "tx=%u rx=%u\n",
-               direction, bench_transport_name(shell_cfg.transport),
-               shell_cfg.chunk_size, shell_cfg.total_bytes,
-               (long long)r->elapsed_ms, operations, status,
-               status < 0 ? 1U : 0U, r->bytes_tx, r->bytes_rx);
-        k_sleep(K_MSEC(20));
+struct bench_job {
+    const struct shell *sh;
+    struct bench_config cfg;
+    enum bench_job_kind kind;
+};
+
+K_THREAD_STACK_DEFINE(bench_worker_stack, CONFIG_BENCH_WORKER_STACK_SIZE);
+static struct k_thread bench_worker_thread;
+static struct k_sem bench_job_sem;
+static struct k_mutex bench_job_lock;
+static struct bench_job pending_job;
+static atomic_t bench_worker_started;
+static atomic_t bench_job_pending;
+
+static const char *bench_job_name(enum bench_job_kind kind)
+{
+    switch (kind) {
+    case BENCH_JOB_UPLOAD: return "upload";
+    case BENCH_JOB_DOWNLOAD: return "download";
+    case BENCH_JOB_FULL: return "full";
+    case BENCH_JOB_ALL: return "all";
+    default: return "unknown";
     }
 }
 
-static int run_and_report(const struct shell *sh, const char *name,
-                          int (*fn)(const struct bench_config *))
+static int run_job(const struct bench_job *job)
 {
-    int rc;
-    ensure_config();
-    shell_print(sh, "%s: %s://%s:%s, total=%u, chunk=%u", name,
-                bench_transport_name(shell_cfg.transport), shell_cfg.host,
-                shell_cfg.port, shell_cfg.total_bytes, shell_cfg.chunk_size);
-    rc = fn(&shell_cfg);
-    emit_machine_result(sh, name, rc);
-    if (rc < 0) {
-        shell_error(sh, "%s failed: %d", name, rc);
-        return rc;
+    switch (job->kind) {
+    case BENCH_JOB_UPLOAD: return bench_run_upload(&job->cfg);
+    case BENCH_JOB_DOWNLOAD: return bench_run_download(&job->cfg);
+    case BENCH_JOB_FULL: return bench_run_full(&job->cfg);
+    case BENCH_JOB_ALL: return bench_run_all(&job->cfg);
+    default: return -EINVAL;
     }
-    shell_print(sh, "%s completed successfully", name);
+}
+
+static void bench_worker_main(void *arg1, void *arg2, void *arg3)
+{
+    ARG_UNUSED(arg1);
+    ARG_UNUSED(arg2);
+    ARG_UNUSED(arg3);
+
+    for (;;) {
+        struct bench_job job;
+        const char *name;
+        int rc;
+
+        k_sem_take(&bench_job_sem, K_FOREVER);
+
+        k_mutex_lock(&bench_job_lock, K_FOREVER);
+        job = pending_job;
+        k_mutex_unlock(&bench_job_lock);
+
+        name = bench_job_name(job.kind);
+        shell_print(job.sh,
+                    "%s: %s://%s:%s, total=%u, chunk=%u",
+                    name, bench_transport_name(job.cfg.transport),
+                    job.cfg.host, job.cfg.port,
+                    job.cfg.total_bytes, job.cfg.chunk_size);
+        shell_print(job.sh,
+                    "Benchmark worker: thread=stcp_bench stack=%u bytes",
+                    (unsigned int)CONFIG_BENCH_WORKER_STACK_SIZE);
+
+        rc = run_job(&job);
+        if (job.kind != BENCH_JOB_ALL) {
+            emit_machine_result(job.sh, &job.cfg, name, rc);
+        }
+
+#if defined(CONFIG_THREAD_STACK_INFO)
+        {
+            size_t unused = 0U;
+            if (k_thread_stack_space_get(&bench_worker_thread, &unused) == 0) {
+                shell_print(job.sh,
+                            "Benchmark worker stack: used=%u unused=%u bytes",
+                            (unsigned int)(CONFIG_BENCH_WORKER_STACK_SIZE - unused),
+                            (unsigned int)unused);
+            }
+        }
+#endif
+
+        if (rc < 0) {
+            shell_error(job.sh, "%s failed: %d", name, rc);
+        } else {
+            shell_print(job.sh, "%s completed successfully", name);
+        }
+
+        atomic_clear(&bench_job_pending);
+    }
+}
+
+static void ensure_bench_worker(void)
+{
+    if (atomic_cas(&bench_worker_started, 0, 1)) {
+        k_sem_init(&bench_job_sem, 0, 1);
+        k_mutex_init(&bench_job_lock);
+        k_thread_create(&bench_worker_thread,
+                        bench_worker_stack,
+                        K_THREAD_STACK_SIZEOF(bench_worker_stack),
+                        bench_worker_main,
+                        NULL, NULL, NULL,
+                        CONFIG_BENCH_WORKER_PRIORITY,
+                        0, K_NO_WAIT);
+        k_thread_name_set(&bench_worker_thread, "stcp_bench");
+    }
+}
+
+static int queue_benchmark(const struct shell *sh, enum bench_job_kind kind)
+{
+    const char *name = bench_job_name(kind);
+
+    ensure_config();
+    ensure_bench_worker();
+
+    if (!atomic_cas(&bench_job_pending, 0, 1)) {
+        shell_error(sh, "Benchmark already running");
+        return -EBUSY;
+    }
+
+    k_mutex_lock(&bench_job_lock, K_FOREVER);
+    pending_job.sh = sh;
+    pending_job.cfg = shell_cfg;
+    pending_job.kind = kind;
+    k_mutex_unlock(&bench_job_lock);
+
+    shell_print(sh,
+                "%s benchmark queued: %s://%s:%s, total=%u, chunk=%u",
+                name, bench_transport_name(shell_cfg.transport),
+                shell_cfg.host, shell_cfg.port,
+                shell_cfg.total_bytes, shell_cfg.chunk_size);
+    k_sem_give(&bench_job_sem);
     return 0;
 }
 
 static int cmd_bench_upload(const struct shell *sh, size_t argc, char **argv)
-{ ARG_UNUSED(argc); ARG_UNUSED(argv); return run_and_report(sh, "upload", bench_run_upload); }
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return queue_benchmark(sh, BENCH_JOB_UPLOAD); }
 static int cmd_bench_download(const struct shell *sh, size_t argc, char **argv)
-{ ARG_UNUSED(argc); ARG_UNUSED(argv); return run_and_report(sh, "download", bench_run_download); }
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return queue_benchmark(sh, BENCH_JOB_DOWNLOAD); }
 static int cmd_bench_full(const struct shell *sh, size_t argc, char **argv)
-{ ARG_UNUSED(argc); ARG_UNUSED(argv); return run_and_report(sh, "full", bench_run_full); }
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return queue_benchmark(sh, BENCH_JOB_FULL); }
 static int cmd_bench_all(const struct shell *sh, size_t argc, char **argv)
-{ ARG_UNUSED(argc); ARG_UNUSED(argv); return run_and_report(sh, "all", bench_run_all); }
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return queue_benchmark(sh, BENCH_JOB_ALL); }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(config_cmds,
     SHELL_CMD(show, NULL, "Show runtime benchmark configuration", cmd_config_show),
@@ -302,6 +426,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(modem_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
     SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
+    SHELL_CMD_ARG(ping, NULL, "Ping IPv4 host: stcp ping <ip|name> [count] [timeout_ms]",
+                  cmd_stcp_ping, 2, 2),
     SHELL_CMD(modem, &modem_cmds, "nRF modem status and radio diagnostics", NULL),
     SHELL_SUBCMD_SET_END
 );
@@ -310,6 +436,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
     SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
+    SHELL_CMD_ARG(ping, NULL, "Ping IPv4 host: stcp ping <ip|name> [count] [timeout_ms]",
+                  cmd_stcp_ping, 2, 2),
 #if defined(CONFIG_ETH_W5500)
     SHELL_CMD(net, &net_cmds, "Ethernet status and diagnostics", NULL),
 #endif

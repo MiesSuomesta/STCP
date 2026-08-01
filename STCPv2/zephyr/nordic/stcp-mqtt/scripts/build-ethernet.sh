@@ -2,6 +2,14 @@
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# NCS 3.3.0: PSA_CRYPTO_CLIENT is a hidden generated symbol and must not
+# be assigned from application configuration files.
+if grep -Rqs '^CONFIG_PSA_CRYPTO_CLIENT=' "$APP_DIR"/*.conf 2>/dev/null; then
+    echo "[FAIL] CONFIG_PSA_CRYPTO_CLIENT is a hidden NCS symbol; remove the direct assignment." >&2
+    exit 1
+fi
+
 NORDIC_DIR="$(cd "$APP_DIR/.." && pwd)"
 NCS_DIR="$NORDIC_DIR/ncs-3.3.0"
 STCP_MODULE_DIR="$NORDIC_DIR/stcp-module"
@@ -12,7 +20,12 @@ BOARD="nrf9151dk/nrf9151/ns"
 
 unset PYTHONHOME PYTHONPATH
 
-echo "[INFO] Using existing W5500 driver unchanged"
+if grep -q '^CONFIG_STCP_RUST_CORE=y' "$APP_DIR/ethernet.conf"; then
+    "$STCP_MODULE_DIR/scripts/check-rust-integration.sh"
+fi
+
+"$PYTHON" "$APP_DIR/scripts/patch-w5500-driver.py" \
+    "$NCS_DIR/zephyr/drivers/ethernet/eth_w5500.c"
 
 rm -rf "$BUILD_DIR"
 

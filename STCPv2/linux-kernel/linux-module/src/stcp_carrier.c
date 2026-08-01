@@ -27,6 +27,12 @@
 #define STCP_TCP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
 #define STCP_UDP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
 
+static atomic64_t stcp_tcp_close_started = ATOMIC64_INIT(0);
+static atomic64_t stcp_tcp_close_drained = ATOMIC64_INIT(0);
+static atomic64_t stcp_tcp_close_drain_timeouts = ATOMIC64_INIT(0);
+static atomic64_t stcp_tcp_close_fin_acked = ATOMIC64_INIT(0);
+static atomic64_t stcp_tcp_close_fin_timeouts = ATOMIC64_INIT(0);
+
 struct stcp_carrier {
 	enum stcp_carrier_kind kind;
 	struct socket *socket;
@@ -592,6 +598,13 @@ void stcp_carrier_destroy(struct stcp_carrier *carrier)
 	stcp_carrier_put_root(carrier);
 }
 
+enum stcp_carrier_kind stcp_carrier_get_kind(
+	const struct stcp_carrier *carrier
+)
+{
+	return carrier ? carrier->kind : 0;
+}
+
 bool stcp_carrier_needs_reliability(const struct stcp_carrier *carrier)
 {
 	return carrier && carrier->kind == STCP_CARRIER_UDP;
@@ -664,6 +677,61 @@ int stcp_carrier_connect(
 	return 0;
 }
 
+
+int stcp_carrier_accept_unattached(
+	struct stcp_carrier *listener,
+	struct stcp_carrier **out_child,
+	int flags
+)
+{
+	struct stcp_carrier *child;
+	struct socket *accepted = NULL;
+	int ret;
+
+	if (!listener || !out_child)
+		return -EINVAL;
+	*out_child = NULL;
+	if (listener->kind != STCP_CARRIER_TCP)
+		return -EOPNOTSUPP;
+
+	ret = kernel_accept(listener->socket, &accepted, flags);
+	if (ret)
+		return ret;
+
+	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	if (!child) {
+		sock_release(accepted);
+		return -ENOMEM;
+	}
+
+	child->kind = STCP_CARRIER_TCP;
+	child->socket = accepted;
+	child->connected = true;
+	stcp_tune_tcp_socket(child->socket);
+	refcount_set(&child->refs, 1);
+	mutex_init(&child->lifecycle_lock);
+	init_completion(&child->stop_done);
+	atomic_set(&child->active_sends, 0);
+	init_waitqueue_head(&child->send_wait);
+	mutex_init(&child->test_lock);
+
+	*out_child = child;
+	return 0;
+}
+
+void stcp_carrier_attach(
+	struct stcp_carrier *carrier,
+	void *rust_ctx,
+	void *owner
+)
+{
+	if (!carrier)
+		return;
+	WRITE_ONCE(carrier->rust_ctx, rust_ctx);
+	WRITE_ONCE(carrier->owner, owner);
+}
+
+
 int stcp_carrier_accept(
 	struct stcp_carrier *listener,
 	void *child_rust_ctx,
@@ -673,7 +741,6 @@ int stcp_carrier_accept(
 )
 {
 	struct stcp_carrier *child;
-	struct socket *accepted = NULL;
 	int ret;
 
 	if (!listener || !out_child)
@@ -708,29 +775,11 @@ int stcp_carrier_accept(
 		}
 	}
 
-	ret = kernel_accept(listener->socket, &accepted, flags);
+	ret = stcp_carrier_accept_unattached(listener, &child, flags);
 	if (ret)
 		return ret;
 
-	child = kzalloc(sizeof(*child), GFP_KERNEL);
-	if (!child) {
-		sock_release(accepted);
-		return -ENOMEM;
-	}
-
-	child->kind = STCP_CARRIER_TCP;
-	child->socket = accepted;
-	child->rust_ctx = child_rust_ctx;
-	child->owner = child_owner;
-	child->connected = true;
-	stcp_tune_tcp_socket(child->socket);
-	refcount_set(&child->refs, 1);
-	mutex_init(&child->lifecycle_lock);
-	init_completion(&child->stop_done);
-	atomic_set(&child->active_sends, 0);
-	init_waitqueue_head(&child->send_wait);
-	mutex_init(&child->test_lock);
-
+	stcp_carrier_attach(child, child_rust_ctx, child_owner);
 	*out_child = child;
 	return 0;
 }
@@ -754,6 +803,7 @@ ssize_t stcp_carrier_send(
 	struct msghdr message = { .msg_flags = flags | MSG_NOSIGNAL };
 	struct kvec vector;
 	size_t position = 0;
+	ssize_t send_result = 0;
 
 	if (!carrier)
 		return -EINVAL;
@@ -831,8 +881,17 @@ ssize_t stcp_carrier_send(
 		return ret;
 	}
 
-	if (!carrier->socket)
+	/*
+	 * Protect the TCP socket against concurrent close.  release() waits for
+	 * active_sends to reach zero before beginning the FIN sequence.
+	 */
+	mutex_lock(&carrier->lifecycle_lock);
+	if (carrier->stopping || !carrier->socket) {
+		mutex_unlock(&carrier->lifecycle_lock);
 		return -ESHUTDOWN;
+	}
+	atomic_inc(&carrier->active_sends);
+	mutex_unlock(&carrier->lifecycle_lock);
 
 	while (position < len) {
 		int ret;
@@ -845,13 +904,137 @@ ssize_t stcp_carrier_send(
 			1,
 			len - position
 		);
-		if (ret < 0)
-			return ret;
-		if (ret == 0)
-			return -EPIPE;
+		if (ret < 0) {
+			send_result = ret;
+			break;
+		}
+		if (ret == 0) {
+			send_result = -EPIPE;
+			break;
+		}
 		position += (size_t)ret;
 	}
+
+	if (atomic_dec_and_test(&carrier->active_sends))
+		wake_up_all(&carrier->send_wait);
+
+	if (send_result < 0)
+		return send_result;
 	return (ssize_t)position;
+}
+
+static bool stcp_tcp_tx_drained(struct sock *sk)
+{
+	if (!sk)
+		return true;
+
+	/* sk_wmem_alloc includes one reference owned by the socket itself. */
+	return sk_wmem_alloc_get(sk) <= 1;
+}
+
+static bool stcp_tcp_fin_acknowledged(struct sock *sk)
+{
+	u8 state;
+
+	if (!sk)
+		return true;
+
+	state = READ_ONCE(sk->sk_state);
+	return state != TCP_FIN_WAIT1 &&
+	       state != TCP_CLOSING &&
+	       state != TCP_LAST_ACK;
+}
+
+int stcp_carrier_graceful_close(
+	struct stcp_carrier *carrier,
+	unsigned int drain_timeout_ms,
+	unsigned int fin_timeout_ms
+)
+{
+	struct socket *socket;
+	struct sock *sk;
+	long sends_idle;
+	long drained;
+	long fin_acked;
+	int shutdown_ret;
+
+	if (!carrier || carrier->parent || carrier->kind != STCP_CARRIER_TCP)
+		return 0;
+
+	mutex_lock(&carrier->lifecycle_lock);
+	if (carrier->stopping || carrier->stopped || !carrier->socket ||
+	    carrier->listening || !carrier->connected) {
+		mutex_unlock(&carrier->lifecycle_lock);
+		return 0;
+	}
+	socket = carrier->socket;
+	sk = socket->sk;
+	mutex_unlock(&carrier->lifecycle_lock);
+
+	atomic64_inc(&stcp_tcp_close_started);
+
+	/* First wait for all STCP kernel_sendmsg() callers to return. */
+	sends_idle = wait_event_timeout(
+		carrier->send_wait,
+		atomic_read(&carrier->active_sends) == 0,
+		msecs_to_jiffies(max_t(unsigned int, drain_timeout_ms, 1))
+	);
+	if (!sends_idle)
+		pr_warn_ratelimited(
+			"stcp: TCP close active-send timeout active_sends=%d\n",
+			atomic_read(&carrier->active_sends)
+		);
+
+	/* Then wait for the TCP write queue to be acknowledged before FIN. */
+	drained = wait_event_timeout(
+		*sk_sleep(sk),
+		stcp_tcp_tx_drained(sk),
+		msecs_to_jiffies(max_t(unsigned int, drain_timeout_ms, 1))
+	);
+	if (drained) {
+		atomic64_inc(&stcp_tcp_close_drained);
+	} else {
+		atomic64_inc(&stcp_tcp_close_drain_timeouts);
+		pr_warn_ratelimited(
+			"stcp: TCP close drain timeout state=%u wmem=%d active_sends=%d\n",
+			READ_ONCE(sk->sk_state),
+			sk_wmem_alloc_get(sk),
+			atomic_read(&carrier->active_sends)
+		);
+	}
+
+	shutdown_ret = kernel_sock_shutdown(socket, SHUT_WR);
+	if (shutdown_ret && shutdown_ret != -ENOTCONN)
+		pr_debug("stcp: TCP SHUT_WR returned %d\n", shutdown_ret);
+
+	/* Wait only for FIN acknowledgement. FIN-WAIT-2 is acceptable here. */
+	fin_acked = wait_event_timeout(
+		*sk_sleep(sk),
+		stcp_tcp_fin_acknowledged(sk),
+		msecs_to_jiffies(max_t(unsigned int, fin_timeout_ms, 1))
+	);
+	if (fin_acked) {
+		atomic64_inc(&stcp_tcp_close_fin_acked);
+	} else {
+		atomic64_inc(&stcp_tcp_close_fin_timeouts);
+		pr_warn_ratelimited(
+			"stcp: TCP FIN acknowledgement timeout state=%u wmem=%d; forcing shutdown\n",
+			READ_ONCE(sk->sk_state),
+			sk_wmem_alloc_get(sk)
+		);
+		kernel_sock_shutdown(socket, SHUT_RDWR);
+	}
+
+	pr_debug(
+		"stcp: TCP close stats started=%lld drained=%lld drain_to=%lld fin_ack=%lld fin_to=%lld\n",
+		(long long)atomic64_read(&stcp_tcp_close_started),
+		(long long)atomic64_read(&stcp_tcp_close_drained),
+		(long long)atomic64_read(&stcp_tcp_close_drain_timeouts),
+		(long long)atomic64_read(&stcp_tcp_close_fin_acked),
+		(long long)atomic64_read(&stcp_tcp_close_fin_timeouts)
+	);
+
+	return shutdown_ret;
 }
 
 void stcp_carrier_shutdown(struct stcp_carrier *carrier, int how)

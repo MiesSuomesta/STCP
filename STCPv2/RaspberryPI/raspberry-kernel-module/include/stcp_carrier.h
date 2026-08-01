@@ -31,6 +31,19 @@ void stcp_carrier_set_owner(
 	void *owner
 );
 
+void stcp_carrier_set_rust_ctx(
+	struct stcp_carrier *carrier,
+	void *rust_ctx
+);
+
+int stcp_carrier_get_endpoints(
+	struct stcp_carrier *carrier,
+	u32 *local_addr,
+	u16 *local_port,
+	u32 *peer_addr,
+	u16 *peer_port
+);
+
 bool stcp_carrier_needs_reliability(
 	const struct stcp_carrier *carrier
 );

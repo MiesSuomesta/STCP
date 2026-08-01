@@ -9,6 +9,7 @@ use core::ffi::{c_int, c_void};
 
 use crate::{
     byte_queue::ByteQueue,
+    crypto::Role,
     error::StcpError,
     frame::{Header, PacketType, STCP_HEADER_LEN},
     spinlock::SpinLock,
@@ -146,6 +147,37 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         return error.errno();
     }
 
+    /* External TCP server children are created before the first wire frame is
+     * consumed.  Adopt the client's non-zero connection id from the initial
+     * PublicKey frame after bytes have been appended, so split TCP headers are
+     * handled correctly.  The mature Raspberry Pi in-kernel paired path keeps
+     * connection_id == 0 and is otherwise unchanged. */
+    let mut adopted_connection_id = false;
+    {
+        let mut inner = ctx.inner.lock();
+        if inner.role == Role::Server && inner.connection_id == 0 {
+            let mut header_bytes = [0u8; STCP_HEADER_LEN];
+            let copied = incoming_queue(&shared, side)
+                .lock()
+                .peek_prefix(&mut header_bytes);
+
+            if copied == STCP_HEADER_LEN {
+                match Header::decode(&header_bytes) {
+                    Ok(header) if header.packet_type == PacketType::PublicKey &&
+                                  header.connection_id != 0 => {
+                        inner.connection_id = header.connection_id;
+                        adopted_connection_id = true;
+                    }
+                    Ok(header) if header.connection_id == 0 => {
+                        /* Existing local Linux/Raspberry paired TCP path. */
+                    }
+                    Ok(_) => return -71,
+                    Err(error) => return error.errno(),
+                }
+            }
+        }
+    }
+
     /* Snapshot only. Do not call is_connected() here: it advances the
      * handshake and can perform the Ready transition before the baseline is
      * captured, losing the only connect wakeup. */
@@ -156,14 +188,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
             let became_connected =
                 !was_connected && crate::session::is_ready_snapshot(ctx);
 
-            /*
-             * Wake after complete DATA/EOF publication and exactly once when
-             * the handshake transitions to Ready. connect() sleeps on the same
-             * wait queue, so suppressing the Ready wake leaves it blocked until
-             * its timeout even though the Rust session is already connected.
-             * Partial TCP frames still do not generate wakeups.
-             */
-            if readable || became_connected {
+            if readable || became_connected || adopted_connection_id {
                 wake_recv(owner);
             }
         }

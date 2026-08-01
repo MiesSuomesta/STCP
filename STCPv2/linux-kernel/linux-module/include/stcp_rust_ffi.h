@@ -37,6 +37,15 @@ int stcp_rust_listen(void *ctx, int backlog);
 int stcp_rust_connect(void *ctx, u32 addr, u16 port, int flags);
 int stcp_rust_start_handshake(void *ctx);
 int stcp_rust_accept(void *ctx, void **out_ctx, int flags);
+int stcp_rust_create_external_tcp_child(
+	void *listener_ctx,
+	u32 local_addr,
+	u16 local_port,
+	u32 peer_addr,
+	u16 peer_port,
+	void **out_ctx
+);
+u64 stcp_rust_connection_id(void *ctx);
 int stcp_rust_has_accept(void *ctx);
 
 ssize_t stcp_rust_send(void *ctx, const u8 *data, size_t len, int flags);

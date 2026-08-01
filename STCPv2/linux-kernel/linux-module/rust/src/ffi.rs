@@ -207,6 +207,46 @@ pub extern "C" fn stcp_rust_accept(
     }
 }
 
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_create_external_tcp_child(
+    listener_raw: *mut c_void,
+    local_addr: u32,
+    local_port: u16,
+    peer_addr: u32,
+    peer_port: u16,
+    out_ctx: *mut *mut c_void,
+) -> c_int {
+    if out_ctx.is_null() {
+        return EINVAL;
+    }
+
+    match with_ctx(listener_raw, |listener| {
+        session::create_external_tcp_child(
+            listener,
+            local_addr,
+            local_port,
+            peer_addr,
+            peer_port,
+        )
+    }) {
+        Ok(Ok(child)) => {
+            unsafe { ptr::write(out_ctx, Box::into_raw(child).cast()); }
+            0
+        }
+        Ok(Err(error)) => error.errno(),
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_connection_id(raw: *mut c_void) -> u64 {
+    match with_ctx(raw, session::connection_id_value) {
+        Ok(id) => id,
+        Err(_) => 0,
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_send(
     raw: *mut c_void,

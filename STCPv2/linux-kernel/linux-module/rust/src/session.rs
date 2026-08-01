@@ -487,6 +487,41 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     Ok(())
 }
 
+
+pub fn create_external_tcp_child(
+    listener: &StcpContext,
+    local_addr: u32,
+    local_port: u16,
+    peer_addr: u32,
+    peer_port: u16,
+) -> Result<Box<StcpContext>, StcpError> {
+    let (backlog, queued) = {
+        let inner = listener.inner.lock();
+        if inner.state != SocketState::Listening || listener.proto == 254 {
+            return Err(StcpError::InvalidState);
+        }
+        (inner.backlog, inner.accept_queue.len())
+    };
+
+    if queued >= backlog {
+        return Err(StcpError::Again);
+    }
+
+    let shared = Arc::new(Connection::new());
+    let child = StcpContext::connected_child(
+        listener.proto,
+        Address { addr: local_addr, port: local_port },
+        Address { addr: peer_addr, port: peer_port },
+        shared,
+    )?;
+
+    Ok(Box::new(child))
+}
+
+pub fn connection_id_value(ctx: &StcpContext) -> u64 {
+    ctx.inner.lock().connection_id
+}
+
 pub fn accept(
     ctx: &StcpContext,
 ) -> Result<Box<StcpContext>, StcpError> {

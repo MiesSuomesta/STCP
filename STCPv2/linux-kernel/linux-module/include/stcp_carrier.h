@@ -31,6 +31,10 @@ void stcp_carrier_set_owner(
 	void *owner
 );
 
+enum stcp_carrier_kind stcp_carrier_get_kind(
+	const struct stcp_carrier *carrier
+);
+
 bool stcp_carrier_needs_reliability(
 	const struct stcp_carrier *carrier
 );
@@ -53,6 +57,18 @@ int stcp_carrier_connect(
 	int flags
 );
 
+int stcp_carrier_accept_unattached(
+	struct stcp_carrier *listener,
+	struct stcp_carrier **out_child,
+	int flags
+);
+
+void stcp_carrier_attach(
+	struct stcp_carrier *carrier,
+	void *rust_ctx,
+	void *owner
+);
+
 int stcp_carrier_accept(
 	struct stcp_carrier *listener,
 	void *child_rust_ctx,
@@ -70,6 +86,12 @@ ssize_t stcp_carrier_send(
 	const u8 *data,
 	size_t len,
 	int flags
+);
+
+int stcp_carrier_graceful_close(
+	struct stcp_carrier *carrier,
+	unsigned int drain_timeout_ms,
+	unsigned int fin_timeout_ms
 );
 
 void stcp_carrier_shutdown(

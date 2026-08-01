@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "stcp_x25519_soft.h"
+#include <stcp/stcp_x25519_soft.h>
 
 typedef int64_t gf[16];
 

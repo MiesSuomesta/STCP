@@ -1,0 +1,15 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/_sysbuild/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/_sysbuild/sysbuild/images/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/_sysbuild/sysbuild/images/bootloader/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/_sysbuild/sysbuild/images/firmware_loader/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/modules/nrf/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/modules/mcuboot/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/_sysbuild/sysbuild/images/boards/cmake_install.cmake",
+		"/home/pomo/git/STCP/STCPv2/zephyr/nordic/stcp-mqtt/build-ethernet/_sysbuild/sysbuild/images/soc/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

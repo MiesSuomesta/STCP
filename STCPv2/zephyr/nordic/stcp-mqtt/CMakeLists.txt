@@ -7,7 +7,6 @@ target_sources(app PRIVATE
     src/echo_benchmark.c
     src/mqtt_codec.c
     src/mqtt_proxy.c
-    src/stcp_ping.c
 )
 
 target_sources_ifdef(CONFIG_STCP_BENCH_SHELL app PRIVATE

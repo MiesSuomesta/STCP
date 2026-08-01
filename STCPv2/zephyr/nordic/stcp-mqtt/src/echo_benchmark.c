@@ -222,6 +222,23 @@ static void log_rate_line(const char *name, const struct bench_result *r)
             r->tx_bps, r->rx_bps, r->aggregate_bps);
 }
 
+const struct bench_result *bench_last_result(const char *direction)
+{
+    if (direction == NULL) {
+        return NULL;
+    }
+    if (strcmp(direction, "upload") == 0) {
+        return &last_summary.upload;
+    }
+    if (strcmp(direction, "download") == 0) {
+        return &last_summary.download;
+    }
+    if (strcmp(direction, "full") == 0) {
+        return &last_summary.full;
+    }
+    return NULL;
+}
+
 void bench_print_last_summary(const struct bench_config *cfg)
 {
     LOG_INF("================ BENCHMARK SUMMARY ================");

@@ -42,6 +42,7 @@ int bench_run_download(const struct bench_config *cfg);
 int bench_run_full(const struct bench_config *cfg);
 int bench_run_all(const struct bench_config *cfg);
 void bench_print_last_summary(const struct bench_config *cfg);
+const struct bench_result *bench_last_result(const char *direction);
 int echo_benchmark_run(void);
 
 #endif

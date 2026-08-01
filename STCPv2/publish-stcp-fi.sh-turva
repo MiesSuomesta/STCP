@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="${STCP_PUBLISH_ENV:-$ROOT/.stcp-publish.env}"
+[[ -f "$ENV_FILE" ]] && source "$ENV_FILE"
+: "${STCP_PUBLISH_HOST:?Set STCP_PUBLISH_HOST}"
+: "${STCP_PUBLISH_USER:?Set STCP_PUBLISH_USER}"
+: "${STCP_PUBLISH_PORT:=22}"
+: "${STCP_PUBLISH_SITE_ROOT:=/var/www/html/public/stcp.fi/benchmarks}"
+: "${STCP_PUBLISH_REMOTE_DIR:=$STCP_PUBLISH_SITE_ROOT/benchmarks}"
+
+"$ROOT/generate-site.sh"
+SITE="$ROOT/stcp.fi"
+BENCH="$SITE/benchmarks"
+
+for f in \
+  index.html \
+  technology/index.html \
+  downloads/index.html \
+  documentation/index.html \
+  contact/index.html \
+  benchmarks/index.html \
+  benchmarks/raspberry-pi/index.html \
+  benchmarks/raspberry-pi/tcp/index.html \
+  benchmarks/raspberry-pi/udp/index.html \
+  benchmarks/zephyr/index.html \
+  benchmarks/compare/index.html \
+  benchmarks/releases/index.html \
+  benchmarks/raw/index.html \
+  benchmarks/manifest.json; do
+  [[ -s "$SITE/$f" ]] || { echo "[FAIL] Missing $f"; exit 1; }
+done
+
+# Refuse to publish if the homepage menu points Benchmarks anywhere except /benchmarks/.
+grep -q 'href="/benchmarks/">Benchmarks</a>' "$SITE/index.html" || {
+  echo '[FAIL] Homepage Benchmarks link is not /benchmarks/' >&2
+  exit 1
+}
+if grep -qE 'href="[^"]*raspberry-pi[^"]*">Benchmarks</a>' "$SITE/index.html"; then
+  echo '[FAIL] Homepage Benchmarks link incorrectly targets Raspberry Pi' >&2
+  exit 1
+fi
+
+REMOTE="$STCP_PUBLISH_USER@$STCP_PUBLISH_HOST"
+SSH=(ssh -p "$STCP_PUBLISH_PORT")
+RSYNC_SSH="ssh -p $STCP_PUBLISH_PORT"
+
+# Publish the shared top-level menu pages without deleting unrelated website assets.
+"${SSH[@]}" "$REMOTE" "mkdir -p '$STCP_PUBLISH_SITE_ROOT' '$STCP_PUBLISH_SITE_ROOT/technology' '$STCP_PUBLISH_SITE_ROOT/downloads' '$STCP_PUBLISH_SITE_ROOT/documentation' '$STCP_PUBLISH_SITE_ROOT/contact'"
+rsync -a -e "$RSYNC_SSH" "$SITE/index.html" "$REMOTE:$STCP_PUBLISH_SITE_ROOT/index.html"
+for section in technology downloads documentation contact; do
+  rsync -a -e "$RSYNC_SSH" "$SITE/$section/index.html" "$REMOTE:$STCP_PUBLISH_SITE_ROOT/$section/index.html"
+done
+
+# Publish benchmark pages atomically.
+STAMP="$(date -u +%Y%m%d-%H%M%S)"
+TMP="$STCP_PUBLISH_REMOTE_DIR/.upload-$STAMP"
+RELEASE="$STCP_PUBLISH_REMOTE_DIR/releases/$STAMP"
+"${SSH[@]}" "$REMOTE" "mkdir -p '$TMP' '$STCP_PUBLISH_REMOTE_DIR/releases'"
+rsync -a --delete -e "$RSYNC_SSH" "$BENCH/" "$REMOTE:$TMP/"
+"${SSH[@]}" "$REMOTE" "set -e
+  mv '$TMP' '$RELEASE'
+  rm -f '$STCP_PUBLISH_REMOTE_DIR/latest'
+  ln -s 'releases/$STAMP' '$STCP_PUBLISH_REMOTE_DIR/latest'
+  rm -rf '$STCP_PUBLISH_REMOTE_DIR/raspberry-pi' '$STCP_PUBLISH_REMOTE_DIR/zephyr' '$STCP_PUBLISH_REMOTE_DIR/compare' '$STCP_PUBLISH_REMOTE_DIR/releases-page' '$STCP_PUBLISH_REMOTE_DIR/raw'
+  cp -a '$RELEASE/raspberry-pi' '$RELEASE/zephyr' '$RELEASE/compare' '$RELEASE/raw' '$STCP_PUBLISH_REMOTE_DIR/'
+  mkdir -p '$STCP_PUBLISH_REMOTE_DIR/releases-page'
+  cp '$RELEASE/releases/index.html' '$STCP_PUBLISH_REMOTE_DIR/releases-page/index.html'
+  cp '$RELEASE/index.html' '$RELEASE/manifest.json' '$STCP_PUBLISH_REMOTE_DIR/'"
+
+echo '[OK] Published shared menu to https://stcp.fi/'
+echo '[OK] Published benchmarks to https://stcp.fi/benchmarks/'

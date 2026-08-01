@@ -11502,16 +11502,16 @@
     "CONFIG_ETHERNET_LOG_LEVEL_WRN",
     "y",
     "bool",
-    null,
-    "unset",
+    "y",
+    "assign",
     null
   ],
   [
     "CONFIG_ETHERNET_LOG_LEVEL_INF",
     "y",
     "bool",
-    "y",
-    "assign",
+    null,
+    "unset",
     null
   ],
   [
@@ -11534,11 +11534,11 @@
     "CONFIG_ETHERNET_LOG_LEVEL",
     "n",
     "int",
-    "3",
+    "2",
     "default",
     [
       "/home/pomo/git/STCP/STCPv2/zephyr/nordic/ncs-3.3.0/zephyr/subsys/net/Kconfig.template.log_config.net",
-      53
+      52
     ]
   ],
   [

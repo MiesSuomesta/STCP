@@ -5,9 +5,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/sys/printk.h>
 
 #include "echo_benchmark.h"
-#include "stcp_ping.h"
 #if defined(CONFIG_ETH_W5500)
 #include "ethernet_status.h"
 #endif
@@ -134,6 +134,70 @@ static int cmd_config_transport(const struct shell *sh, size_t argc, char **argv
     return 0;
 }
 
+static uint64_t mib_per_second_micro(uint32_t bytes, int64_t elapsed_ms)
+{
+    if (bytes == 0U || elapsed_ms <= 0) {
+        return 0U;
+    }
+    return ((uint64_t)bytes * 1000ULL * 1000000ULL) /
+           ((uint64_t)elapsed_ms * 1048576ULL);
+}
+
+static uint64_t operations_per_second_micro(uint32_t operations, int64_t elapsed_ms)
+{
+    if (operations == 0U || elapsed_ms <= 0) {
+        return 0U;
+    }
+    return ((uint64_t)operations * 1000ULL * 1000000ULL) /
+           (uint64_t)elapsed_ms;
+}
+
+static const char *bench_carrier_name(void)
+{
+#if defined(CONFIG_ETH_W5500)
+    return "ethernet";
+#elif defined(CONFIG_NRF_MODEM_LIB)
+    return "lte";
+#else
+    return "unknown";
+#endif
+}
+
+static void emit_machine_result(const struct shell *sh, const char *direction, int command_rc)
+{
+    const struct bench_result *r = bench_last_result(direction);
+    uint32_t operations;
+    int status;
+    unsigned int repeat;
+
+    ARG_UNUSED(sh);
+
+    if (r == NULL) {
+        return;
+    }
+
+    operations = (shell_cfg.total_bytes + shell_cfg.chunk_size - 1U) /
+                 shell_cfg.chunk_size;
+    status = command_rc < 0 ? command_rc : r->status;
+
+    /*
+     * Keep the machine-readable UART result deliberately short.  Long JSON
+     * frames competed with deferred W5500 logs and lost individual lines.
+     * The host runner expands this compact record into the infra JSON schema.
+     * Repeat it so one dropped UART line does not lose the benchmark result.
+     */
+    for (repeat = 0U; repeat < 5U; repeat++) {
+        printk("STCP_RESULT dir=%s transport=%s payload=%u total=%u "
+               "elapsed_ms=%lld operations=%u status=%d errors=%u "
+               "tx=%u rx=%u\n",
+               direction, bench_transport_name(shell_cfg.transport),
+               shell_cfg.chunk_size, shell_cfg.total_bytes,
+               (long long)r->elapsed_ms, operations, status,
+               status < 0 ? 1U : 0U, r->bytes_tx, r->bytes_rx);
+        k_sleep(K_MSEC(20));
+    }
+}
+
 static int run_and_report(const struct shell *sh, const char *name,
                           int (*fn)(const struct bench_config *))
 {
@@ -143,17 +207,13 @@ static int run_and_report(const struct shell *sh, const char *name,
                 bench_transport_name(shell_cfg.transport), shell_cfg.host,
                 shell_cfg.port, shell_cfg.total_bytes, shell_cfg.chunk_size);
     rc = fn(&shell_cfg);
+    emit_machine_result(sh, name, rc);
     if (rc < 0) {
         shell_error(sh, "%s failed: %d", name, rc);
         return rc;
     }
     shell_print(sh, "%s completed successfully", name);
     return 0;
-}
-
-static int cmd_ping(const struct shell *sh, size_t argc, char **argv)
-{
-    return stcp_ping_run(sh, argc, argv);
 }
 
 static int cmd_bench_upload(const struct shell *sh, size_t argc, char **argv)
@@ -242,7 +302,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(modem_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
     SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
-    SHELL_CMD_ARG(ping, NULL, "Ping IPv4 host: stcp ping <ip|name> [count] [timeout_ms]", cmd_ping, 2, 2),
     SHELL_CMD(modem, &modem_cmds, "nRF modem status and radio diagnostics", NULL),
     SHELL_SUBCMD_SET_END
 );
@@ -251,7 +310,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
     SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
-    SHELL_CMD_ARG(ping, NULL, "Ping IPv4 host: stcp ping <ip|name> [count] [timeout_ms]", cmd_ping, 2, 2),
 #if defined(CONFIG_ETH_W5500)
     SHELL_CMD(net, &net_cmds, "Ethernet status and diagnostics", NULL),
 #endif

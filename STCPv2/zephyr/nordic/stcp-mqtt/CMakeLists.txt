@@ -11,6 +11,7 @@ target_sources(app PRIVATE
 
 target_sources_ifdef(CONFIG_STCP_BENCH_SHELL app PRIVATE
     src/bench_shell.c
+    src/stcp_ping.c
 )
 
 target_sources_ifdef(CONFIG_NRF_MODEM_LIB app PRIVATE

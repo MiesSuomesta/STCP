@@ -1,0 +1,6 @@
+[target.thumbv8m.main-none-eabi]
+rustflags = [
+  "-C", "panic=abort",
+  "-C", "force-unwind-tables=no",
+  "-C", "link-arg=-Wl,--gc-sections",
+]

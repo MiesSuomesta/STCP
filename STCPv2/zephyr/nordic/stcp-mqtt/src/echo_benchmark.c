@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <zephyr/kernel.h>
@@ -120,23 +121,122 @@ static int set_blocking(int fd)
     return zsock_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0 ? -errno : 0;
 }
 
+static int configure_socket_timeouts(int fd, uint32_t timeout_ms)
+{
+    struct zsock_timeval tv = {
+        .tv_sec = (long)(timeout_ms / 1000U),
+        .tv_usec = (long)((timeout_ms % 1000U) * 1000U),
+    };
+    int rc_send;
+    int rc_recv;
+    int send_errno = 0;
+    int recv_errno = 0;
+
+    errno = 0;
+    rc_send = zsock_setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO,
+                               &tv, sizeof(tv));
+    if (rc_send < 0) {
+        send_errno = errno;
+    }
+
+    errno = 0;
+    rc_recv = zsock_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+                               &tv, sizeof(tv));
+    if (rc_recv < 0) {
+        recv_errno = errno;
+    }
+
+    LOG_ERR("APP SOCKET TIMEOUTS fd=%d timeout_ms=%u "
+            "snd_rc=%d snd_errno=%d rcv_rc=%d rcv_errno=%d",
+            fd, timeout_ms, rc_send, send_errno, rc_recv, recv_errno);
+
+    /* Timeouts are best effort because some socket offloads reject one or
+     * both options. The benchmark still has its own operation deadlines.
+     */
+    return 0;
+}
+
 static int connect_server(const struct bench_config *cfg)
 {
     struct zsock_addrinfo hints = {.ai_family = AF_INET, .ai_socktype = SOCK_STREAM};
     struct zsock_addrinfo *res = NULL;
+    struct sockaddr_in literal_peer = {0};
+    const struct sockaddr *connect_addr = NULL;
+    socklen_t connect_addrlen = 0;
+    bool resolved_with_dns = false;
+    unsigned long port_value;
+    char *port_end = NULL;
     int fd, rc;
 
-    rc = zsock_getaddrinfo(cfg->host, cfg->port, &hints, &res);
-    if (rc || !res) return -EHOSTUNREACH;
-if (cfg->transport == BENCH_TRANSPORT_STCP) {
+    LOG_ERR("APP CONNECT START transport=%s host=%s port=%s",
+            bench_transport_name(cfg->transport), cfg->host, cfg->port);
+
+    /* Avoid DNS entirely when the configured host is already an IPv4
+     * literal. This is the normal Ethernet benchmark path and keeps STCP
+     * testing independent of DNS configuration.
+     */
+    port_value = strtoul(cfg->port, &port_end, 10);
+    if (port_end == cfg->port || *port_end != '\0' ||
+        port_value == 0UL || port_value > 65535UL) {
+        LOG_ERR("APP CONNECT EXIT A: invalid port string=%s", cfg->port);
+        return -EINVAL;
+    }
+
+    literal_peer.sin_family = AF_INET;
+    literal_peer.sin_port = htons((uint16_t)port_value);
+    rc = zsock_inet_pton(AF_INET, cfg->host, &literal_peer.sin_addr);
+    if (rc == 1) {
+        connect_addr = (const struct sockaddr *)&literal_peer;
+        connect_addrlen = sizeof(literal_peer);
+        LOG_ERR("APP RESOLVE IPV4 FAST PATH host=%s port=%lu family=%d addrlen=%u",
+                cfg->host, port_value, literal_peer.sin_family,
+                (unsigned int)connect_addrlen);
+    } else {
+        LOG_ERR("APP DNS LOOKUP START host=%s port=%s", cfg->host, cfg->port);
+        rc = zsock_getaddrinfo(cfg->host, cfg->port, &hints, &res);
+        LOG_ERR("APP DNS LOOKUP RETURN rc=%d result=%p", rc, res);
+        if (rc || !res) {
+            LOG_ERR("APP CONNECT EXIT B: DNS failed host=%s port=%s rc=%d; "
+                    "use 'stcp config host <IPv4>' to bypass DNS",
+                    cfg->host, cfg->port, rc);
+            return -EHOSTUNREACH;
+        }
+        resolved_with_dns = true;
+        connect_addr = res->ai_addr;
+        connect_addrlen = res->ai_addrlen;
+        LOG_ERR("APP DNS RESULT family=%d socktype=%d protocol=%d addrlen=%u",
+                res->ai_family, res->ai_socktype, res->ai_protocol,
+                (unsigned int)connect_addrlen);
+    }
+
+    errno = 0;
+    if (cfg->transport == BENCH_TRANSPORT_STCP) {
+        LOG_ERR("APP SOCKET CALL family=AF_STCP type=SOCK_STREAM protocol=%d",
+                IPPROTO_STCP);
         fd = zsock_socket(AF_STCP, SOCK_STREAM, IPPROTO_STCP);
     } else if (cfg->transport == BENCH_TRANSPORT_TCP) {
+        LOG_ERR("APP SOCKET CALL family=AF_INET type=SOCK_STREAM protocol=TCP");
         fd = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     } else {
-        zsock_freeaddrinfo(res);
+        LOG_ERR("APP CONNECT EXIT B: unsupported transport=%d",
+                cfg->transport);
+        if (resolved_with_dns) {
+            zsock_freeaddrinfo(res);
+        }
         return -ENOTSUP;
     }
-    if (fd < 0) { rc = -errno; zsock_freeaddrinfo(res); return rc; }
+    if (fd < 0) {
+        LOG_ERR("APP SOCKET RETURN fd=%d errno=%d", fd, errno);
+        rc = -errno;
+        LOG_ERR("APP CONNECT EXIT C: socket failed rc=%d", rc);
+        if (resolved_with_dns) {
+            zsock_freeaddrinfo(res);
+        }
+        return rc;
+    }
+    LOG_ERR("APP SOCKET RETURN fd=%d success", fd);
+
+    (void)configure_socket_timeouts(fd, active_cfg->timeout_ms);
 
 #if defined(CONFIG_NRF_MODEM_LIB)
     if (cfg->transport == BENCH_TRANSPORT_TCP ||
@@ -146,22 +246,73 @@ if (cfg->transport == BENCH_TRANSPORT_STCP) {
     }
 #endif
 
-    rc = set_nonblocking(fd);
-    if (rc < 0) goto fail;
-    if (zsock_connect(fd, res->ai_addr, res->ai_addrlen) < 0) {
-        if (errno != EINPROGRESS && errno != EAGAIN && errno != EWOULDBLOCK) { rc = -errno; goto fail; }
-        rc = wait_socket_ready(fd, ZSOCK_POLLOUT, k_uptime_get() + active_cfg->timeout_ms);
+#if defined(CONFIG_BENCH_STCP_BLOCKING_CONNECT)
+    if (cfg->transport == BENCH_TRANSPORT_STCP) {
+        LOG_ERR("APP SOCKET FLAGS transport=stcp mode=blocking "
+                "nonblock_setup=skipped feature=BENCH_STCP_BLOCKING_CONNECT");
+        errno = 0;
+        LOG_ERR("APP ZSOCK_CONNECT CALL fd=%d addrlen=%u mode=blocking",
+                fd, (unsigned int)connect_addrlen);
+        rc = zsock_connect(fd, connect_addr, connect_addrlen);
+        if (rc < 0) {
+            int saved_errno = errno;
+            rc = -saved_errno;
+            LOG_ERR("APP ZSOCK_CONNECT RETURN fd=%d rc=-1 errno=%d "
+                    "mapped_rc=%d mode=blocking",
+                    fd, saved_errno, rc);
+            goto fail;
+        }
+        LOG_ERR("APP ZSOCK_CONNECT RETURN fd=%d rc=0 mode=blocking", fd);
+    } else
+#endif
+    {
+        rc = set_nonblocking(fd);
+        LOG_ERR("APP NONBLOCK RETURN fd=%d rc=%d errno=%d", fd, rc, errno);
         if (rc < 0) goto fail;
-        int err = 0; socklen_t sl = sizeof(err);
-        if (zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &sl) < 0) { rc = -errno; goto fail; }
-        if (err) { rc = -err; goto fail; }
+
+        errno = 0;
+        LOG_ERR("APP ZSOCK_CONNECT CALL fd=%d addrlen=%u mode=nonblocking",
+                fd, (unsigned int)connect_addrlen);
+        rc = zsock_connect(fd, connect_addr, connect_addrlen);
+        LOG_ERR("APP ZSOCK_CONNECT RETURN fd=%d rc=%d errno=%d mode=nonblocking",
+                fd, rc, errno);
+        if (rc < 0) {
+            if (errno != EINPROGRESS && errno != EAGAIN &&
+                errno != EWOULDBLOCK && errno != EALREADY) {
+                rc = -errno;
+                LOG_ERR("APP CONNECT EXIT D: immediate failure rc=%d", rc);
+                goto fail;
+            }
+            LOG_ERR("APP POLL CONNECT fd=%d timeout_ms=%u",
+                    fd, active_cfg->timeout_ms);
+            rc = wait_socket_ready(fd, ZSOCK_POLLOUT,
+                                   k_uptime_get() + active_cfg->timeout_ms);
+            LOG_ERR("APP POLL CONNECT RETURN fd=%d rc=%d", fd, rc);
+            if (rc < 0) goto fail;
+            int err = 0; socklen_t sl = sizeof(err);
+            if (zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &sl) < 0) {
+                rc = -errno;
+                LOG_ERR("APP SO_ERROR READ FAILED fd=%d rc=%d", fd, rc);
+                goto fail;
+            }
+            LOG_ERR("APP SO_ERROR fd=%d error=%d", fd, err);
+            if (err) { rc = -err; goto fail; }
+        }
+        rc = set_blocking(fd);
+        LOG_ERR("APP BLOCKING RETURN fd=%d rc=%d errno=%d", fd, rc, errno);
+        if (rc < 0) goto fail;
     }
-    rc = set_blocking(fd);
-    if (rc < 0) goto fail;
-    zsock_freeaddrinfo(res);
+    if (resolved_with_dns) {
+        zsock_freeaddrinfo(res);
+    }
     return fd;
 fail:
-    zsock_close(fd); zsock_freeaddrinfo(res); return rc;
+    LOG_ERR("APP CONNECT FAIL fd=%d rc=%d errno=%d", fd, rc, errno);
+    zsock_close(fd);
+    if (resolved_with_dns) {
+        zsock_freeaddrinfo(res);
+    }
+    return rc;
 }
 
 static void fill_pattern(uint8_t *buf, size_t len, uint32_t offset, uint8_t salt)
@@ -220,23 +371,6 @@ static void log_rate_line(const char *name, const struct bench_result *r)
     LOG_INF("%-10s status=%s(%d) elapsed=%lld ms TX=%llu bit/s RX=%llu bit/s aggregate=%llu bit/s",
             name, result_status(r->status), r->status, r->elapsed_ms,
             r->tx_bps, r->rx_bps, r->aggregate_bps);
-}
-
-const struct bench_result *bench_last_result(const char *direction)
-{
-    if (direction == NULL) {
-        return NULL;
-    }
-    if (strcmp(direction, "upload") == 0) {
-        return &last_summary.upload;
-    }
-    if (strcmp(direction, "download") == 0) {
-        return &last_summary.download;
-    }
-    if (strcmp(direction, "full") == 0) {
-        return &last_summary.full;
-    }
-    return NULL;
 }
 
 void bench_print_last_summary(const struct bench_config *cfg)
@@ -363,16 +497,17 @@ int bench_run_upload(const struct bench_config *cfg)
     memset(&last_summary.upload, 0, sizeof(last_summary.upload));
     last_summary.upload.status = -ECANCELED;
     int valid = validate_config(cfg);
-    if (valid < 0) return valid;
+    if (valid < 0) { last_summary.upload.status = valid; return valid; }
     struct bench_reply reply;
     active_cfg = cfg;
     uint8_t *tx_buf = k_malloc(cfg->chunk_size);
     if (!tx_buf) {
         LOG_ERR("UPLOAD buffer allocation failed: %u bytes", cfg->chunk_size);
+        last_summary.upload.status = -ENOMEM;
         return -ENOMEM;
     }
     int fd = connect_server(cfg);
-    if (fd < 0) { k_free(tx_buf); return fd; }
+    if (fd < 0) { last_summary.upload.status = fd; k_free(tx_buf); return fd; }
     int rc = send_request(fd, BENCH_MODE_UPLOAD, cfg);
     int64_t start = k_uptime_get();
     if (!rc) rc = stream_send(fd, tx_buf, cfg->total_bytes, cfg->chunk_size, 0x17, "UPLOAD TX");
@@ -395,16 +530,17 @@ int bench_run_download(const struct bench_config *cfg)
     memset(&last_summary.download, 0, sizeof(last_summary.download));
     last_summary.download.status = -ECANCELED;
     int valid = validate_config(cfg);
-    if (valid < 0) return valid;
+    if (valid < 0) { last_summary.download.status = valid; return valid; }
     struct bench_reply reply;
     active_cfg = cfg;
     uint8_t *rx_buf = k_malloc(cfg->chunk_size);
     if (!rx_buf) {
         LOG_ERR("DOWNLOAD buffer allocation failed: %u bytes", cfg->chunk_size);
+        last_summary.download.status = -ENOMEM;
         return -ENOMEM;
     }
     int fd = connect_server(cfg);
-    if (fd < 0) { k_free(rx_buf); return fd; }
+    if (fd < 0) { last_summary.download.status = fd; k_free(rx_buf); return fd; }
     int rc = send_request(fd, BENCH_MODE_DOWNLOAD, cfg);
     int64_t start = k_uptime_get();
     if (!rc) rc = stream_recv(fd, rx_buf, cfg->total_bytes, cfg->chunk_size, 0x53, "DOWNLOAD RX");
@@ -444,7 +580,7 @@ int bench_run_full(const struct bench_config *cfg)
     memset(&last_summary.full, 0, sizeof(last_summary.full));
     last_summary.full.status = -ECANCELED;
     int valid = validate_config(cfg);
-    if (valid < 0) return valid;
+    if (valid < 0) { last_summary.full.status = valid; return valid; }
     struct bench_reply reply;
     struct sender_ctx ctx;
     active_cfg = cfg;
@@ -456,12 +592,13 @@ int bench_run_full(const struct bench_config *cfg)
                 cfg->chunk_size, rx_chunk);
         k_free(tx_buf);
         k_free(rx_buf);
+        last_summary.full.status = -ENOMEM;
         return -ENOMEM;
     }
     int fd = connect_server(cfg);
-    if (fd < 0) { k_free(tx_buf); k_free(rx_buf); return fd; }
+    if (fd < 0) { last_summary.full.status = fd; k_free(tx_buf); k_free(rx_buf); return fd; }
     int rc = send_request(fd, BENCH_MODE_FULL, cfg);
-    if (rc < 0) { zsock_close(fd); k_free(tx_buf); k_free(rx_buf); return rc; }
+    if (rc < 0) { last_summary.full.status = rc; zsock_close(fd); k_free(tx_buf); k_free(rx_buf); return rc; }
     ctx.fd = fd; ctx.rc = 0; ctx.tx_buf = tx_buf; ctx.total = cfg->total_bytes; ctx.chunk = cfg->chunk_size; k_sem_init(&ctx.done, 0, 1);
     int64_t start = k_uptime_get();
     k_thread_create(&sender_thread, sender_stack, K_THREAD_STACK_SIZEOF(sender_stack), sender_entry,
@@ -497,6 +634,15 @@ int bench_run_full(const struct bench_config *cfg)
             last_summary.full.tx_bps, last_summary.full.rx_bps,
             last_summary.full.aggregate_bps);
     return 0;
+}
+
+const struct bench_result *bench_get_last_result(const char *direction)
+{
+    if (!direction) return NULL;
+    if (!strcmp(direction, "upload")) return &last_summary.upload;
+    if (!strcmp(direction, "download")) return &last_summary.download;
+    if (!strcmp(direction, "full")) return &last_summary.full;
+    return NULL;
 }
 
 void bench_config_defaults(struct bench_config *cfg)

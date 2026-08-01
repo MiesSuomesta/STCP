@@ -10,14 +10,52 @@ config STCP_SOCKET_PRIORITY
     default 20
 config STCP_MAX_SOCKETS
     int "Maximum STCP sockets"
-    default 16
-    range 2 64
+    default 8
+    range 2 16
 config STCP_CONNECT_TIMEOUT_MS
-    int "Carrier connect timeout"
+    int "Carrier and Rust handshake connect timeout"
     default 60000
     range 1000 300000
 config STCP_LOG_LEVEL
     int "STCP log level"
     default 3
     range 0 4
+
+menuconfig STCP_RUST_CORE
+    bool "Use shared Raspberry Pi Rust STCP protocol core"
+    default y
+    select MBEDTLS_PSA_CRYPTO_C
+    help
+      Builds the no_std Rust STCP core as a static library and links it into
+      Zephyr. C remains only the BSD socket and native carrier adapter.
+
+if STCP_RUST_CORE
+config STCP_RUST_TOOLCHAIN
+    string "Rustup toolchain used by Cargo"
+    default "nightly"
+config STCP_RUST_RX_STACK_SIZE
+    int "Per-socket Rust carrier RX thread stack"
+    default 4096
+    range 2048 8192
+config STCP_RUST_RX_PRIORITY
+    int "Rust carrier RX thread priority"
+    default 7
+config STCP_RUST_RX_BUFFER_SIZE
+    int "Rust carrier RX buffer"
+    default 2048
+    range 512 8192
+config STCP_RUST_HEXDUMP_BYTES
+    int "Maximum bytes in Rust wire hexdumps"
+    default 96
+    range 16 512
+config STCP_RUST_TRACE_WIRE
+    bool "Trace Rust STCP wire frames"
+    default y
+config STCP_RUST_TRACE_EVENTS
+    bool "Trace numeric Rust core events"
+    default n
+config STCP_RUST_TRACE_ALLOC
+    bool "Trace Rust allocations"
+    default n
+endif
 endif

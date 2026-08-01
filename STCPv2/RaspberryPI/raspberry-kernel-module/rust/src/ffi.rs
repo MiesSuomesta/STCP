@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 
 use core::{
     ffi::{c_int, c_void},
@@ -8,7 +8,7 @@ use core::{
 
 use crate::{
     error::StcpError,
-    state::StcpContext,
+    state::{Address, Connection, StcpContext},
     session,
 };
 
@@ -107,6 +107,38 @@ pub unsafe extern "C" fn stcp_rust_release(
             raw.cast::<StcpContext>(),
         ));
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_create_external_tcp_child(
+    proto: u8,
+    local_addr: u32,
+    local_port: u16,
+    peer_addr: u32,
+    peer_port: u16,
+    out_ctx: *mut *mut c_void,
+) -> c_int {
+    if out_ctx.is_null() {
+        return EINVAL;
+    }
+
+    unsafe { ptr::write(out_ctx, ptr::null_mut()); }
+
+    /* Additive external-peer path. Existing local LISTENERS behavior is unchanged. */
+    let shared = Arc::new(Connection::new());
+    let child = match StcpContext::connected_child(
+        proto,
+        Address { addr: local_addr, port: local_port },
+        Address { addr: peer_addr, port: peer_port },
+        shared,
+    ) {
+        Ok(ctx) => ctx,
+        Err(error) => return error.errno(),
+    };
+
+    let raw = Box::into_raw(Box::new(child)).cast();
+    unsafe { ptr::write(out_ctx, raw); }
+    0
 }
 
 #[unsafe(no_mangle)]

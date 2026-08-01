@@ -361,135 +361,146 @@ static int stcp_accept(
 	struct stcp_sock *child;
 	struct sock *newsk;
 	void *accepted_ctx = NULL;
+	struct stcp_carrier *accepted_carrier = NULL;
+	u32 local_addr = 0, peer_addr = 0;
+	u16 local_port = 0, peer_port = 0;
 	int flags = arg ? arg->flags : 0;
 	int ret;
+	bool external_tcp = false;
 
 	if (!sock || !sock->sk || !newsock)
 		return -EINVAL;
-
 	listener = stcp_sk(sock->sk);
-	if (!listener->rust_ctx)
+	if (!listener->rust_ctx || !listener->carrier)
 		return -EINVAL;
 
-	for (;;) {
-		ret = stcp_rust_accept(
-			listener->rust_ctx,
-			&accepted_ctx,
-			flags
-		);
-
-
-		if (ret != -EAGAIN)
-			break;
-
-		if (flags & O_NONBLOCK)
-			return -EAGAIN;
-
-		ret = wait_event_interruptible(
-			listener->accept_wq,
-			stcp_rust_has_accept(listener->rust_ctx) > 0
-		);
-
+	if (sock->sk->sk_protocol == 254) {
+		for (;;) {
+			ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, flags);
+			if (ret != -EAGAIN)
+				break;
+			if (flags & O_NONBLOCK)
+				return -EAGAIN;
+			ret = wait_event_interruptible(listener->accept_wq,
+				stcp_rust_has_accept(listener->rust_ctx) > 0);
+			if (ret)
+				return ret;
+		}
 		if (ret)
 			return ret;
+	} else {
+		/* Accept TCP first so an external peer's queued PublicKey can be read. */
+		ret = stcp_carrier_accept(listener->carrier, NULL, NULL,
+			&accepted_carrier, flags);
+		if (ret)
+			return ret;
+
+		/* Preserve the existing local Linux pair when it already queued a child. */
+		ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, O_NONBLOCK);
+		if (ret == -EAGAIN && !(flags & O_NONBLOCK)) {
+			/* kernel_connect() can complete a few scheduler ticks before the
+			 * local Rust client enqueues its paired child.  Give that existing
+			 * path a short grace period before classifying the peer external. */
+			wait_event_timeout(listener->accept_wq,
+				stcp_rust_has_accept(listener->rust_ctx) > 0,
+				msecs_to_jiffies(100));
+			ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, O_NONBLOCK);
+		}
+		if (ret == -EAGAIN) {
+			ret = stcp_carrier_get_endpoints(accepted_carrier,
+				&local_addr, &local_port, &peer_addr, &peer_port);
+			if (ret)
+				goto fail_carrier;
+			ret = stcp_rust_create_external_tcp_child(
+				(u8)sock->sk->sk_protocol,
+				local_addr, local_port, peer_addr, peer_port,
+				&accepted_ctx);
+			if (ret)
+				goto fail_carrier;
+			external_tcp = true;
+			pr_info("stcp: external TCP child ctx=%px peer=%pI4:%u\n",
+				accepted_ctx, &peer_addr,
+				ntohs((__force __be16)peer_port));
+		} else if (ret) {
+			goto fail_carrier;
+		}
 	}
 
-	if (ret)
-		return ret;
+	if (!accepted_ctx) {
+		ret = -EIO;
+		goto fail_carrier;
+	}
 
-	if (!accepted_ctx)
-		return -EIO;
-
-	newsk = stcp_alloc_child_sock(
-		sock_net(sock->sk),
-		newsock
-	);
-
+	newsk = stcp_alloc_child_sock(sock_net(sock->sk), newsock);
 	if (IS_ERR(newsk)) {
+		ret = PTR_ERR(newsk);
 		stcp_rust_release(accepted_ctx);
-		return PTR_ERR(newsk);
+		goto fail_carrier;
 	}
-
 	child = stcp_sk(newsk);
 	child->rust_ctx = accepted_ctx;
-	pr_info("stcp: accept rust child listener_ctx=%px child=%px child_ctx=%px\n",
-		listener->rust_ctx, child, child->rust_ctx);
 
-	/*
-	 * accepted_ctx has already been removed from the Rust listener queue.
-	 * Therefore the matching TCP child must be consumed atomically here.
-	 * Passing the outer listener's O_NONBLOCK flag can return -EAGAIN after
-	 * the Rust child was popped, permanently desynchronising the two queues
-	 * and leaving all clients stuck before handshake completion.
-	 *
-	 * kernel_connect() succeeded before the Rust child was queued, so the
-	 * corresponding TCP child is guaranteed to arrive. Use a blocking inner
-	 * accept even when the public STCP listener itself is nonblocking.
-	 */
-	ret = stcp_carrier_accept(
-		listener->carrier,
-		child->rust_ctx,
-		child,
-		&child->carrier,
-		0
-	);
-
-	if (ret) {
-		stcp_rust_set_owner(child->rust_ctx, NULL);
-		stcp_rust_set_carrier(child->rust_ctx, NULL);
-		stcp_rust_release(child->rust_ctx);
-		child->rust_ctx = NULL;
-		newsock->sk = NULL;
-		sk_free(newsk);
-		return ret;
+	if (accepted_carrier) {
+		child->carrier = accepted_carrier;
+		accepted_carrier = NULL;
+		stcp_carrier_set_rust_ctx(child->carrier, child->rust_ctx);
+		stcp_carrier_set_owner(child->carrier, child);
+	} else {
+		ret = stcp_carrier_accept(listener->carrier, child->rust_ctx,
+			child, &child->carrier, 0);
+		if (ret)
+			goto fail_child;
 	}
 
-	stcp_rust_set_carrier(
-		child->rust_ctx,
-		child->carrier
-	);
-
+	stcp_rust_set_carrier(child->rust_ctx, child->carrier);
 	stcp_rust_set_owner(child->rust_ctx, child);
 
-	/*
-	 * Start carrier RX before starting the accepted-side handshake. The peer
-	 * can already have handshake and DATA bytes queued in TCP by the time the
-	 * outer accept completes. Starting handshake first can therefore leave the
-	 * child waiting forever with no RX worker to consume those bytes.
-	 */
 	ret = stcp_carrier_start_receiver_thread(child->carrier);
-	if (ret) {
-		stcp_rust_set_owner(child->rust_ctx, NULL);
-		stcp_rust_set_carrier(child->rust_ctx, NULL);
-		stcp_carrier_destroy(child->carrier);
-		child->carrier = NULL;
-		stcp_rust_release(child->rust_ctx);
-		child->rust_ctx = NULL;
-		newsock->sk = NULL;
-		sk_free(newsk);
-		return ret;
-	}
-
+	if (ret)
+		goto fail_child_carrier;
 	ret = stcp_rust_start_handshake(child->rust_ctx);
-	if (ret) {
-		stcp_rust_set_owner(child->rust_ctx, NULL);
-		stcp_rust_set_carrier(child->rust_ctx, NULL);
-		stcp_carrier_destroy(child->carrier);
-		child->carrier = NULL;
-		stcp_rust_release(child->rust_ctx);
-		child->rust_ctx = NULL;
-		newsock->sk = NULL;
-		sk_free(newsk);
-		return ret;
+	if (ret)
+		goto fail_child_carrier;
+	stcp_start_retransmit_work(child);
+
+	if (external_tcp) {
+		ret = wait_event_interruptible_timeout(child->recv_wq,
+			stcp_rust_is_connected(child->rust_ctx) > 0,
+			msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS));
+		if (ret < 0)
+			goto fail_child_carrier;
+		if (ret == 0) {
+			ret = -ETIMEDOUT;
+			goto fail_child_carrier;
+		}
 	}
 
-	stcp_start_retransmit_work(child);
 	stcp_user_register(child);
-
 	newsock->state = SS_CONNECTED;
-	pr_info("stcp: accept complete child=%px ctx=%px carrier=%px owner=%px\n",
-		child, child->rust_ctx, child->carrier, child);
+	pr_info("stcp: accept complete child=%px ctx=%px external=%d\n",
+		child, child->rust_ctx, external_tcp);
 	return 0;
+
+fail_child_carrier:
+	stcp_rust_set_owner(child->rust_ctx, NULL);
+	stcp_rust_set_carrier(child->rust_ctx, NULL);
+	if (child->carrier) {
+		stcp_carrier_destroy(child->carrier);
+		child->carrier = NULL;
+	}
+fail_child:
+	if (child->rust_ctx) {
+		stcp_rust_release(child->rust_ctx);
+		child->rust_ctx = NULL;
+	}
+	newsock->sk = NULL;
+	sk_free(newsk);
+	return ret;
+
+fail_carrier:
+	if (accepted_carrier)
+		stcp_carrier_destroy(accepted_carrier);
+	return ret;
 }
 
 static int stcp_sendmsg(

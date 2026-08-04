@@ -149,15 +149,18 @@ static int stcp_create(
 	if (!sock)
 		return -EINVAL;
 
-	if (sock->type != SOCK_STREAM)
-		return -ESOCKTNOSUPPORT;
-
 	ret = stcp_protocol_to_carrier(
 		protocol,
 		&carrier_kind
 	);
 	if (ret)
 		return ret;
+
+	/* Keep socket semantics aligned with the selected STCP carrier. */
+	if (carrier_kind == STCP_CARRIER_TCP && sock->type != SOCK_STREAM)
+		return -EPROTOTYPE;
+	if (carrier_kind == STCP_CARRIER_UDP && sock->type != SOCK_DGRAM)
+		return -EPROTOTYPE;
 
 	sk = sk_alloc(
 		net,

@@ -157,9 +157,8 @@ static int stcp_create(
 		return ret;
 
 	/* Keep socket semantics aligned with the selected STCP carrier. */
-	if (carrier_kind == STCP_CARRIER_TCP && sock->type != SOCK_STREAM)
-		return -EPROTOTYPE;
-	if (carrier_kind == STCP_CARRIER_UDP && sock->type != SOCK_DGRAM)
+	/* The public AF_STCP ABI is stream-shaped for both carriers. */
+	if (sock->type != SOCK_STREAM)
 		return -EPROTOTYPE;
 
 	sk = sk_alloc(
@@ -173,6 +172,8 @@ static int stcp_create(
 		return -ENOMEM;
 
 	sock_init_data(sock, sk);
+	/* Preserve the selected STCP wire protocol for accept/connect paths. */
+	sk->sk_protocol = protocol;
 	sock->ops = &stcp_proto_ops;
 	sock->state = SS_UNCONNECTED;
 

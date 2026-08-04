@@ -1,0 +1,25 @@
+--- /mnt/data/rasp_mod_orig/src/stcp_proto.c	2026-08-04 06:50:04.000000000 +0000
++++ /mnt/data/rasp_mod_work/src/stcp_proto.c	2026-08-04 09:15:15.759325130 +0000
+@@ -149,9 +149,6 @@
+ 	if (!sock)
+ 		return -EINVAL;
+ 
+-	if (sock->type != SOCK_STREAM)
+-		return -ESOCKTNOSUPPORT;
+-
+ 	ret = stcp_protocol_to_carrier(
+ 		protocol,
+ 		&carrier_kind
+@@ -159,6 +156,12 @@
+ 	if (ret)
+ 		return ret;
+ 
++	/* Keep socket semantics aligned with the selected STCP carrier. */
++	if (carrier_kind == STCP_CARRIER_TCP && sock->type != SOCK_STREAM)
++		return -EPROTOTYPE;
++	if (carrier_kind == STCP_CARRIER_UDP && sock->type != SOCK_DGRAM)
++		return -EPROTOTYPE;
++
+ 	sk = sk_alloc(
+ 		net,
+ 		PF_STCP,

@@ -10,7 +10,13 @@ CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 ARCH=arm64
 JOBS="${JOBS:-$(nproc)}"
 CLEAN="${CLEAN:-0}"
+
+TS=$(date +"%Y%m%d-%H%M%S")
+GIT=$(git rev-parse --short HEAD 2>/dev/null || echo nogit)
+
 LOCALVERSION="${LOCALVERSION:--stcp}"
+LOCALVERSION="${LOCALVERSION}-${TS}-${GIT}"
+
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"
 
 case "$TARGET" in
@@ -119,3 +125,10 @@ PACKAGE="$OUT_DIR/${PKG_NAME}.tar.gz"
 rm -f "$PACKAGE"
 tar -C "$WORK" -czf "$PACKAGE" "$PKG_NAME"
 echo "Package ready: $PACKAGE"
+
+# Install
+scp "$PACKAGE" pi@192.168.1.199:~/"${PKG_NAME}.tar.gz"
+echo "Package copied to Rapsberry..."
+ssh pi@192.168.1.199 "tar zxvf ${PKG_NAME}.tar.gz"
+ssh pi@192.168.1.199 "cd ${PKG_NAME} && sudo bash install.sh"
+echo "Package installed to Rapsberry..."

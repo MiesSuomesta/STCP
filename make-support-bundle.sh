@@ -99,6 +99,10 @@ bundle() {
         }
     fi
 
+    log "Doing snapshot of $rel"
+    git -C "$repo_root" add -u
+    git -C "$repo_root" commit -m 'Snapshot commit for support package creation.'
+
     log "Archiving $rel -> $out_name"
     git -C "$repo_root" archive \
         --format=zip \

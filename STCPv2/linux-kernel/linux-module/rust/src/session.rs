@@ -312,21 +312,60 @@ pub fn connect(
     }
 
     /*
-     * The existing in-kernel paired transport path is retained for the
-     * non-UDP test/backend implementation.
+     * Prefer the existing in-kernel paired fast path when the destination
+     * listener is local.  A remote Linux/Raspberry peer is not present in
+     * this process-local registry, so absence here must not be reported as
+     * ECONNREFUSED after the TCP carrier has already connected successfully.
      */
     let listener_ptr = {
         let listeners = LISTENERS.lock();
 
         listeners
             .iter()
-            .find(|entry| entry.address == target)
+            .find(|entry| {
+                entry.address.port == target.port &&
+                (entry.address.addr == target.addr || entry.address.addr == 0)
+            })
             .map(|entry| entry.ctx)
-            .ok_or(StcpError::ConnectionRefused)?
     };
 
+    if listener_ptr.is_none() {
+        let mut inner = ctx.inner.lock();
+
+        inner.peer = Some(target);
+
+        if inner.connection_id == 0 {
+            inner.connection_id =
+                NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+
+            if inner.connection_id == 0 {
+                inner.connection_id =
+                    NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+
+        inner.state = SocketState::Handshake;
+        inner.connection = Some(EndpointConnection {
+            shared: shared.clone(),
+            side: Side::A,
+        });
+
+        inner.tx_nonce = 0;
+        inner.expected_rx_nonce = 0;
+        inner.tx_sequence = 0;
+        inner.expected_rx_sequence = 0;
+        inner.highest_acked_sequence = None;
+        reset_reliability(&mut inner);
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
+        inner.last_rx_sequence = None;
+
+        shared.set_owner(Side::A, inner.owner);
+        return Ok(());
+    }
+
     let listener = unsafe {
-        &*(listener_ptr as *const StcpContext)
+        &*(listener_ptr.unwrap() as *const StcpContext)
     };
 
     let client_local = {

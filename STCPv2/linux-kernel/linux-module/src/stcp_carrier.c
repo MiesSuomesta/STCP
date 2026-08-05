@@ -672,7 +672,9 @@ int stcp_carrier_connect(
 
 	carrier->peer = socket_address;
 	carrier->has_peer = true;
-	stcp_tune_tcp_socket(carrier->socket);
+	/* The socket was already tuned immediately after creation. Repeating
+	 * tcp_sock_set_nodelay() here races teardown after failed/aborted connects
+	 * and was observed by KASAN as a slab-use-after-free. */
 	carrier->connected = true;
 	return 0;
 }

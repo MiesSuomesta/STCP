@@ -1,3 +1,84 @@
+# Kernel build output
+*.o
+*.o.d
+*.o.cmd
+*.a
+*.a.cmd
+*.ko
+*.ko.cmd
+*.mod
+*.mod.c
+*.mod.cmd
+*.symtypes
+*.order
+*.symvers
+Module.symvers
+modules.order
+*dtb*tmp
+.tmp_* 
+*.so
+*.so.dbg
+*.ko.cmd
+System.map
+vmlinux*
+
+# Dependency / command files
+*.cmd
+.*.cmd
+
+# Generated sources
+*.i
+*.ii
+*.s
+*.ll
+*.zip.sha256
+
+# Build directories
+build/
+build-*/
+output/
+out/
+
+# Rust
+target/
+
+# Debian packages
+*.deb
+*.changes
+*.build
+*.buildinfo
+*.dsc
+
+# Kernel package output
+linux-image-*/
+linux-headers-*/
+linux-libc-dev-*/
+linux-upstream-*/
+
+# Packaging
+debian/files
+debian/linux-image*/
+debian/linux-headers*/
+debian/tmp/
+debian/.debhelper/
+debian/debhelper-build-stamp
+
+# Generated config
+.config
+.config.old
+include/config/
+include/generated/
+
+# Tags
+tags
+TAGS
+cscope.*
+compile_commands.json
+
+# Editors
+*~
+*.swp
+
 # See https://www.dartlang.org/guides/libraries/private-files
 
 # Files and directories created by pub
@@ -6,6 +87,9 @@
 build/
 build*/
 target/**
+
+*.patch
+
 # If you're building an application, you may want to check-in your pubspec.lock
 pubspec.lock
 
@@ -28,12 +112,11 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 
-STCPv2/kernel-module/benchmark/results/*
-
+# Logit + paketit
 *.log
+*.zip
+*.gz
+*.tar.gz
+*.tgz
+*.xz
 
-/STCPv2/kernel-module/raspberry-kernel-sources/
-/STCPv2/zephyr/nordic/ncs-*/
-/STCPv2/zephyr/nordic-*/
-/**/target/
-/**/build/

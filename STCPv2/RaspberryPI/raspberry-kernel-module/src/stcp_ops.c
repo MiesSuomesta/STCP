@@ -458,6 +458,21 @@ static int stcp_accept(
 	ret = stcp_carrier_start_receiver_thread(child->carrier);
 	if (ret)
 		goto fail_child_carrier;
+
+	if (external_tcp) {
+		ret = wait_event_interruptible_timeout(child->recv_wq,
+			stcp_rust_connection_id(child->rust_ctx) != 0,
+			msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS));
+		if (ret < 0)
+			goto fail_child_carrier;
+		if (ret == 0) {
+			pr_info("stcp: external TCP connection-id wait timeout ctx=%px\n",
+				child->rust_ctx);
+			ret = -ETIMEDOUT;
+			goto fail_child_carrier;
+		}
+	}
+
 	ret = stcp_rust_start_handshake(child->rust_ctx);
 	if (ret)
 		goto fail_child_carrier;

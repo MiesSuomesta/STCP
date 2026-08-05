@@ -104,9 +104,7 @@ test: module test-build
 	cleanup() { SUDO="$(SUDO)" "$(PWD)/scripts/graceful-unload.sh" 2>/dev/null || true; }; \
 	trap cleanup EXIT INT TERM; \
 	if grep -q '^stcp ' /proc/modules; then SUDO="$(SUDO)" "$(PWD)/scripts/graceful-unload.sh"; fi; \
-	$(SUDO) modprobe libcurve25519; \
-	$(SUDO) modprobe libchacha20poly1305; \
-	$(SUDO) insmod "$(PWD)/stcp.ko" drop_first_data=1; \
+	$(SUDO) modprobe "$(PWD)/stcp.ko" drop_first_data=1; \
 	echo "=== Basic STCP handshake test ==="; \
 	timeout "$(TEST_TIMEOUT)"s "$(TEST_BASIC_BIN)" server & server_pid=$$!; \
 	sleep 1; \
@@ -154,7 +152,7 @@ module-stop module-shutdown module-remove:
 
 module-install: module module-install-support
 	echo "Installing module..."
-	$(SUDO) insmod "$(PWD)/stcp.ko" || true
+	$(SUDO) modprobe "$(PWD)/stcp.ko" || true
 
 module-reload: module-remove module-install
 	echo "Reload done"

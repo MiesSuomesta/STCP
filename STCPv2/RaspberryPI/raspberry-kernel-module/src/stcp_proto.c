@@ -156,8 +156,12 @@ static int stcp_create(
 	if (ret)
 		return ret;
 
-	/* Keep socket semantics aligned with the selected STCP carrier. */
-	/* The public AF_STCP ABI is stream-shaped for both carriers. */
+	/*
+	 * AF_STCP exposes stream-style sockets for both carrier selections.
+	 * Protocol 253 selects the TCP carrier and protocol 254 selects the UDP
+	 * carrier internally; the user-visible socket type remains SOCK_STREAM.
+	 * This matches the Linux implementation and the SDK syscall contract.
+	 */
 	if (sock->type != SOCK_STREAM)
 		return -EPROTOTYPE;
 
@@ -172,8 +176,6 @@ static int stcp_create(
 		return -ENOMEM;
 
 	sock_init_data(sock, sk);
-	/* Preserve the selected STCP wire protocol for accept/connect paths. */
-	sk->sk_protocol = protocol;
 	sock->ops = &stcp_proto_ops;
 	sock->state = SS_UNCONNECTED;
 

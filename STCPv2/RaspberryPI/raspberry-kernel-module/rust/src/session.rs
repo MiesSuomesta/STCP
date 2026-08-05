@@ -322,10 +322,7 @@ pub fn connect(
 
         listeners
             .iter()
-            .find(|entry| {
-                entry.address.port == target.port &&
-                (entry.address.addr == target.addr || entry.address.addr == 0)
-            })
+            .find(|entry| entry.address == target)
             .map(|entry| entry.ctx)
     };
 

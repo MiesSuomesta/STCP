@@ -176,6 +176,8 @@ static int stcp_create(
 		return -ENOMEM;
 
 	sock_init_data(sock, sk);
+	/* Preserve the selected STCP wire protocol for accept/connect paths. */
+	sk->sk_protocol = protocol;
 	sock->ops = &stcp_proto_ops;
 	sock->state = SS_UNCONNECTED;
 

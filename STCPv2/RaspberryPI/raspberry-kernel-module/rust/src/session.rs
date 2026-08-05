@@ -523,6 +523,10 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     Ok(())
 }
 
+pub fn connection_id_value(ctx: &StcpContext) -> u64 {
+    ctx.inner.lock().connection_id
+}
+
 pub fn accept(
     ctx: &StcpContext,
 ) -> Result<Box<StcpContext>, StcpError> {

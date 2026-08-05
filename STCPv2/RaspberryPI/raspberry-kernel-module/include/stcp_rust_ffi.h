@@ -44,6 +44,7 @@ int stcp_rust_bind(void *ctx, u32 addr, u16 port);
 int stcp_rust_listen(void *ctx, int backlog);
 int stcp_rust_connect(void *ctx, u32 addr, u16 port, int flags);
 int stcp_rust_start_handshake(void *ctx);
+u64 stcp_rust_connection_id(void *ctx);
 int stcp_rust_accept(void *ctx, void **out_ctx, int flags);
 int stcp_rust_has_accept(void *ctx);
 

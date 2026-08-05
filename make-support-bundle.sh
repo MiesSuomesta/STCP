@@ -148,22 +148,51 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
     echo "sdk_head=$(git -C "$SDK_ROOT" rev-parse HEAD 2>/dev/null || true)"
 } > "$TMPD/MANIFEST.txt"
 
+
 (
+    cd "$SDK_ROOT" || exit 1
+
     ROBOT_LOGS="robot-results/latest.zip"
-    cd "$SDK_ROOT" && bash scripts/run-robot-tests.sh && log "Robot testing status: OK" || log "Robot testing status: Failed.."
 
-    log "Copying robot logs ....."
+    log "Running Robot Framework tests..."
 
-    cp -av $ROBOT_LOGS "$TMPD/robot-test-results.zip"
-    if scripts/run-robot-tests.sh; then
+    if bash scripts/run-robot-tests.sh; then
         TEST_STATUS="PASS"
         TEST_EXIT=0
     else
         TEST_EXIT=$?
         TEST_STATUS="FAIL"
     fi
+
+    [[ -f "$ROBOT_LOGS" ]] || fail "Missing Robot log archive: $ROBOT_LOGS"
+
+    log "Copying Robot logs..."
+    cp -av "$ROBOT_LOGS" "$TMPD/robot-test-results.zip"
+
     echo "robot_test_status=$TEST_STATUS" >> "$TMPD/MANIFEST.txt"
     echo "robot_test_exit=$TEST_EXIT" >> "$TMPD/MANIFEST.txt"
+
+    SUMMARY="$(unzip -p "$ROBOT_LOGS" summary.txt 2>/dev/null || true)"
+
+    if [[ -n "$SUMMARY" ]]; then
+
+        echo >> "$TMPD/MANIFEST.txt"
+        echo "robot_summary:" >> "$TMPD/MANIFEST.txt"
+
+        echo "$SUMMARY" |
+            sed 's/^/  /' >> "$TMPD/MANIFEST.txt"
+
+        PASS=$(echo "$SUMMARY" | sed -n 's/.*PASS=\([0-9]\+\).*/\1/p')
+        FAIL=$(echo "$SUMMARY" | sed -n 's/.*FAIL=\([0-9]\+\).*/\1/p')
+        TOTAL=$(echo "$SUMMARY" | sed -n 's/.*TOTAL=\([0-9]\+\).*/\1/p')
+
+        if [[ -n "$PASS" && -n "$TOTAL" ]]; then
+            echo "robot_result=${PASS}/${TOTAL}" >> "$TMPD/MANIFEST.txt"
+        fi
+
+        SHA=$(sha256sum "$ROBOT_LOGS" | awk '{print $1}')
+        echo "robot_logs_sha256=$SHA" >> "$TMPD/MANIFEST.txt"
+    fi
 )
 
 # Add lightweight provenance metadata.

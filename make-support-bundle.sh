@@ -137,14 +137,6 @@ bundle "STCPv2/zephyr/nordic/stcp-module" \
 bundle "STCPv2/zephyr/nordic/stcp-application" \
        "zephyr-nordic-nRF9151-stcp-application.zip"
 
-(
-    ROBOT_LOGS="robot-results/latest.zip"
-    cd "$SDK_ROOT" && bash scripts/run-robot-tests.sh && log "Robot testing status: OK" || log "Robot testing status: Failed.."
-
-    log "Copying robot logs ....."
-    cp -av $ROBOT_LOGS "$TMPD/robot-test-results.zip"
-)
-
 # Add lightweight provenance metadata.
 {
     echo "created_at=$(date --iso-8601=seconds)"
@@ -154,10 +146,32 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
     echo "outer_describe=$(git -C "$GIT_ROOT" describe --always --dirty --tags 2>/dev/null || true)"
     echo
     echo "sdk_head=$(git -C "$SDK_ROOT" rev-parse HEAD 2>/dev/null || true)"
+} > "$TMPD/MANIFEST.txt"
+
+(
+    ROBOT_LOGS="robot-results/latest.zip"
+    cd "$SDK_ROOT" && bash scripts/run-robot-tests.sh && log "Robot testing status: OK" || log "Robot testing status: Failed.."
+
+    log "Copying robot logs ....."
+
+    cp -av $ROBOT_LOGS "$TMPD/robot-test-results.zip"
+    if scripts/run-robot-tests.sh; then
+        TEST_STATUS="PASS"
+        TEST_EXIT=0
+    else
+        TEST_EXIT=$?
+        TEST_STATUS="FAIL"
+    fi
+    echo "robot_test_status=$TEST_STATUS" >> "$TMPD/MANIFEST.txt"
+    echo "robot_test_exit=$TEST_EXIT" >> "$TMPD/MANIFEST.txt"
+)
+
+# Add lightweight provenance metadata.
+{
     echo
     echo "archives:"
     find "$TMPD" -maxdepth 1 -type f -name '*.zip' -printf '%f\n' | sort
-} > "$TMPD/MANIFEST.txt"
+} >> "$TMPD/MANIFEST.txt"
 
 rm -f "$OUTPUT" "$OUTPUT.sha256"
 (

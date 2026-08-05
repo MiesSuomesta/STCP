@@ -8,7 +8,7 @@
 #   ./make-support-bundle.sh --ref HEAD
 #
 
-set -Eeuo pipefail
+set -uo pipefail
 
 usage() {
     cat <<USAGE

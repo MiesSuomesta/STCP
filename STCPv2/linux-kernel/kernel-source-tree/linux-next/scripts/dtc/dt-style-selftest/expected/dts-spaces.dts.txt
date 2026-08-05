@@ -1,2 +1,0 @@
-# mode=relaxed
-bad/dts-spaces.dts:9: [indent-unit-dts] indent unit must be 1 tab in DTS, got '    '

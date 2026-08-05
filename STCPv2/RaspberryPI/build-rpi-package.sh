@@ -33,12 +33,17 @@ for c in make tar git rustup strings "${CROSS_COMPILE}gcc" "${CROSS_COMPILE}ld" 
 [[ -f "$KERNEL_SRC/Makefile" ]] || die "Kernel source tree not found: $KERNEL_SRC"
 [[ -f "$STCP_SRC/Makefile" ]] || die "STCP source tree not found: $STCP_SRC"
 rustup toolchain list | grep -q "^${RUST_TOOLCHAIN}" || die "Install nightly: rustup toolchain install $RUST_TOOLCHAIN --component rust-src"
+
+
 mkdir -p "$OUT_DIR"
 [[ -w "$OUT_DIR" ]] || die "Output directory is not writable: $OUT_DIR"
 
 cd "$KERNEL_SRC"
 if [[ "$CLEAN" == 1 ]]; then make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" mrproper; fi
-if [[ ! -f .config ]]; then make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" "$DEFCONFIG"; fi
+if [[ ! -f .config ]]; then 
+	cp ../rpi-working.config .config
+	yes "" | make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" "$DEFCONFIG";
+fi
 if [[ -x scripts/config ]]; then
   scripts/config --set-str LOCALVERSION "$LOCALVERSION"
   scripts/config --disable LOCALVERSION_AUTO

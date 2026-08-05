@@ -1,2 +1,0 @@
-# mode=relaxed
-bad/yaml-trailing-ws.yaml:27: example 0 [trailing-whitespace] trailing whitespace

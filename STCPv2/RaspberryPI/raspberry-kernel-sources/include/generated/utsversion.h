@@ -1,0 +1,1 @@
+#define UTS_VERSION "#8 SMP PREEMPT Tue Aug  4 18:04:51 EEST 2026"

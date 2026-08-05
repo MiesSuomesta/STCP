@@ -26,7 +26,8 @@ USAGE
 }
 
 TS=$(date +"%d.%m.%Y_%H%M%S")
-OUTPUT="${PWD}/support-bundle-${TS}.zip"
+OUTPUT_BUP_DIR="${PWD}/support-bundles"
+OUTPUT="${OUTPUT_BUP_DIR}/support-bundle-${TS}.zip"
 REF="HEAD"
 RECOMPILE=0
 RECOMPILE_RET="not-run"
@@ -259,14 +260,10 @@ rm -f "$OUTPUT" "$OUTPUT.sha256"
 sha256sum "$OUTPUT" > "$OUTPUT.sha256"
 
 OUTDN="$(dirname "$OUTPUT")"
-mkdir -p "$OUTDN/support-bundles"
+mkdir -p "$OUTDN"
 cp -v "$OUTPUT" "$OUTDN/support-bundles/"
 cp -v "$OUTPUT.sha256" "$OUTDN/support-bundles/"
-
-(
-	cd "$OUTDN"
-	ln -s "$OUTPUT" latest.zip
-)
+ln -fs "$OUTPUT" latest-support-package.zip
 
 log "Created: $OUTPUT"
 log "SHA256: $(awk '{print $1}' "$OUTPUT.sha256")"

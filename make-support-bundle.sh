@@ -278,4 +278,7 @@ unzip -Z1 "$OUTPUT" | sed 's/^/  /'
 if [[ "$TEST_EXIT" =~ ^[0-9]+$ ]]; then
     exit "$TEST_EXIT"
 fi
+
+pncnote -a "STCPv2 support module" "Support package done" "$(basename "$OUTPUT")"
+
 exit 0

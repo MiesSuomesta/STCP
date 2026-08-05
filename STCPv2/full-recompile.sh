@@ -129,13 +129,13 @@ cd "$GIT_ROOT"
 
 if ! run_timed RPI_BUILD_STATUS RPI_BUILD_SECS \
     "Building and installing Raspberry kernel and modules..." \
-    bash "$GIT_ROOT/RaspberryPI/build-rpi-package.sh"
+    bash "$GIT_ROOT/STCPv2/RaspberryPI/build-rpi-package.sh"
 then
     warn "Raspberry build/install failed; skipping remaining stages."
 else
     if ! run_timed HOST_BUILD_STATUS HOST_BUILD_SECS \
         "Building and installing host STCP module..." \
-        make -C "$GIT_ROOT/linux-kernel/linux-module" clean module-install
+        make -C "$GIT_ROOT/STCPv2/linux-kernel/linux-module" clean module-install
     then
         warn "Host module build/install failed; bundle will still be attempted."
     fi

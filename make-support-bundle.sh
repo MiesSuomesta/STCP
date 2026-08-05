@@ -6,11 +6,12 @@
 #   ./make-support-bundle.sh
 #   ./make-support-bundle.sh --output /tmp/support-bundle.zip
 #   ./make-support-bundle.sh --ref HEAD
+#   ./make-support-bundle.sh --recompile
 #
 
 set -uo pipefail
 
-SDK_ROOT="$HOME/SDK/v2"
+SDK_ROOT="${SDK_ROOT:-$HOME/SDK/v2}"
 
 usage() {
     cat <<USAGE
@@ -19,12 +20,19 @@ Usage: $(basename "$0") [OPTIONS]
 Options:
   --output FILE   Output zip path (default: ./support-bundle.zip)
   --ref REF       Git revision to archive (default: HEAD)
+  --recompile     Do full recompile; reuse the Robot results it produces
   -h, --help      Show this help
 USAGE
 }
 
-OUTPUT="${PWD}/support-bundle.zip"
+TS=$(date +"%d.%m.%Y_%H%M%S")
+OUTPUT_BUP_DIR="${PWD}/support-bundles"
+OUTPUT="${OUTPUT_BUP_DIR}/support-bundle-${TS}.zip"
 REF="HEAD"
+RECOMPILE=0
+RECOMPILE_RET="not-run"
+TEST_STATUS="NOT_RUN"
+TEST_EXIT="not-run"
 
 while (( $# > 0 )); do
     case "$1" in
@@ -37,6 +45,10 @@ while (( $# > 0 )); do
             (( $# >= 2 )) || { echo "[FAIL] --ref requires a revision" >&2; exit 2; }
             REF="$2"
             shift 2
+            ;;
+        --recompile)
+            RECOMPILE=1
+            shift
             ;;
         -h|--help)
             usage
@@ -53,10 +65,15 @@ done
 command -v git >/dev/null 2>&1 || { echo "[FAIL] git not found" >&2; exit 1; }
 command -v zip >/dev/null 2>&1 || { echo "[FAIL] zip not found" >&2; exit 1; }
 command -v unzip >/dev/null 2>&1 || { echo "[FAIL] unzip not found" >&2; exit 1; }
+command -v sha256sum >/dev/null 2>&1 || { echo "[FAIL] sha256sum not found" >&2; exit 1; }
 
-# Resolve the repository root from wherever the script is launched.
 GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
     echo "[FAIL] Not inside an STCP Git repository." >&2
+    exit 1
+}
+
+[[ -d "$SDK_ROOT" ]] || {
+    echo "[FAIL] SDK root not found: $SDK_ROOT" >&2
     exit 1
 }
 
@@ -73,8 +90,6 @@ log()  { printf '[INFO] %s\n' "$*"; }
 warn() { printf '[WARN] %s\n' "$*" >&2; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 
-# Archive one directory, regardless of whether it is part of the outer repo
-# or itself a nested Git repository.
 bundle() {
     local rel="$1"
     local out_name="$2"
@@ -91,6 +106,15 @@ bundle() {
     git -C "$repo_root" rev-parse --verify "${REF}^{commit}" >/dev/null 2>&1 ||
         fail "Revision '$REF' not found for: $rel"
 
+    log "Doing snapshot of $rel"
+    git -C "$repo_root" add -u
+    if ! git -C "$repo_root" diff --cached --quiet; then
+        git -C "$repo_root" commit -m 'Snapshot commit for support package creation.' ||
+            fail "Snapshot commit failed for: $rel"
+    else
+        log "Nothing new to commit for $rel"
+    fi
+
     if [[ "$repo_rel" == "." ]]; then
         treeish="$REF"
     else
@@ -101,23 +125,34 @@ bundle() {
         }
     fi
 
-    log "Doing snapshot of $rel"
-    git -C "$repo_root" add -u
-    git -C "$repo_root" commit -m 'Snapshot commit for support package creation.'
-
     log "Archiving $rel -> $out_name"
     git -C "$repo_root" archive \
         --format=zip \
         --output="$TMPD/$out_name" \
         "$treeish"
 
-    # Reject empty or structurally useless archives.
     if ! unzip -Z1 "$TMPD/$out_name" | grep -q .; then
         rm -f "$TMPD/$out_name"
         warn "Archive was empty and was omitted: $out_name"
-        return 0
     fi
 }
+
+if (( RECOMPILE )); then
+    log "Doing full recompile..."
+
+    if SUMMARY_FILE="$TMPD/full-recompile-summary.txt" \
+        bash "$GIT_ROOT/STCPv2/full-recompile.sh"; then
+        RECOMPILE_RET=0
+        TEST_STATUS="PASS"
+        TEST_EXIT=0
+        log "Full recompile DONE."
+    else
+        RECOMPILE_RET=$?
+        TEST_STATUS="FAIL"
+        TEST_EXIT=$RECOMPILE_RET
+        warn "Full recompile returned: $RECOMPILE_RET"
+    fi
+fi
 
 bundle "STCPv2/linux-kernel/linux-module" \
        "linux-kernel-module.zip"
@@ -137,34 +172,38 @@ bundle "STCPv2/zephyr/nordic/stcp-module" \
 bundle "STCPv2/zephyr/nordic/stcp-application" \
        "zephyr-nordic-nRF9151-stcp-application.zip"
 
-# Add lightweight provenance metadata.
 {
     echo "created_at=$(date --iso-8601=seconds)"
     echo "git_root=$GIT_ROOT"
     echo "requested_ref=$REF"
+    echo "recompile_requested=$RECOMPILE"
+    echo "recompile_exit=$RECOMPILE_RET"
     echo "outer_head=$(git -C "$GIT_ROOT" rev-parse HEAD 2>/dev/null || true)"
     echo "outer_describe=$(git -C "$GIT_ROOT" describe --always --dirty --tags 2>/dev/null || true)"
     echo
     echo "sdk_head=$(git -C "$SDK_ROOT" rev-parse HEAD 2>/dev/null || true)"
 } > "$TMPD/MANIFEST.txt"
 
-
 (
     cd "$SDK_ROOT" || exit 1
 
     ROBOT_LOGS="robot-results/latest.zip"
 
-    log "Running Robot Framework tests..."
-
-    if bash scripts/run-robot-tests.sh; then
-        TEST_STATUS="PASS"
-        TEST_EXIT=0
+    if (( RECOMPILE )); then
+        log "Using Robot results produced by full recompile..."
     else
-        TEST_EXIT=$?
-        TEST_STATUS="FAIL"
+        log "Running Robot Framework tests..."
+
+        if bash scripts/run-robot-tests.sh; then
+            TEST_STATUS="PASS"
+            TEST_EXIT=0
+        else
+            TEST_EXIT=$?
+            TEST_STATUS="FAIL"
+        fi
     fi
 
-    [[ -f "$ROBOT_LOGS" ]] || fail "Missing Robot log archive: $ROBOT_LOGS"
+    [[ -f "$ROBOT_LOGS" ]] || fail "Missing Robot log archive: $SDK_ROOT/$ROBOT_LOGS"
 
     log "Copying Robot logs..."
     cp -av "$ROBOT_LOGS" "$TMPD/robot-test-results.zip"
@@ -175,27 +214,32 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
     SUMMARY="$(unzip -p "$ROBOT_LOGS" summary.txt 2>/dev/null || true)"
 
     if [[ -n "$SUMMARY" ]]; then
-
         echo >> "$TMPD/MANIFEST.txt"
         echo "robot_summary:" >> "$TMPD/MANIFEST.txt"
+        printf '%s\n' "$SUMMARY" | sed 's/^/  /' >> "$TMPD/MANIFEST.txt"
 
-        echo "$SUMMARY" |
-            sed 's/^/  /' >> "$TMPD/MANIFEST.txt"
+        PASS="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*PASS=\([0-9]\+\).*/\1/p' | head -n1)"
+        FAIL_COUNT="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*FAIL=\([0-9]\+\).*/\1/p' | head -n1)"
+        TOTAL="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*TOTAL=\([0-9]\+\).*/\1/p' | head -n1)"
+        REGRESSIONS="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*REGRESSIONS=\([0-9]\+\).*/\1/p' | head -n1)"
+        FIXED="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*FIXED=\([0-9]\+\).*/\1/p' | head -n1)"
+        STILL_FAILING="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*STILL_FAILING=\([0-9]\+\).*/\1/p' | head -n1)"
 
-        PASS=$(echo "$SUMMARY" | sed -n 's/.*PASS=\([0-9]\+\).*/\1/p')
-        FAIL=$(echo "$SUMMARY" | sed -n 's/.*FAIL=\([0-9]\+\).*/\1/p')
-        TOTAL=$(echo "$SUMMARY" | sed -n 's/.*TOTAL=\([0-9]\+\).*/\1/p')
-
-        if [[ -n "$PASS" && -n "$TOTAL" ]]; then
-            echo "robot_result=${PASS}/${TOTAL}" >> "$TMPD/MANIFEST.txt"
-        fi
-
-        SHA=$(sha256sum "$ROBOT_LOGS" | awk '{print $1}')
-        echo "robot_logs_sha256=$SHA" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$PASS" && -n "$TOTAL" ]] && echo "robot_result=${PASS}/${TOTAL}" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$PASS" ]] && echo "robot_pass=$PASS" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$FAIL_COUNT" ]] && echo "robot_fail=$FAIL_COUNT" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$TOTAL" ]] && echo "robot_total=$TOTAL" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$REGRESSIONS" ]] && echo "robot_regressions=$REGRESSIONS" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$FIXED" ]] && echo "robot_fixed=$FIXED" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$STILL_FAILING" ]] && echo "robot_still_failing=$STILL_FAILING" >> "$TMPD/MANIFEST.txt"
+    else
+        warn "summary.txt was not found inside $ROBOT_LOGS"
     fi
+
+    SHA="$(sha256sum "$ROBOT_LOGS" | awk '{print $1}')"
+    echo "robot_logs_sha256=$SHA" >> "$TMPD/MANIFEST.txt"
 )
 
-# Add lightweight provenance metadata.
 {
     echo
     echo "archives:"
@@ -204,21 +248,34 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
 
 rm -f "$OUTPUT" "$OUTPUT.sha256"
 (
-    cd "$TMPD"
-    zip -q "$OUTPUT" ./*.zip MANIFEST.txt
+    cd "$TMPD" || exit 1
+
+    files=(./*.zip MANIFEST.txt)
+    [[ -f full-recompile-summary.txt ]] && files+=(full-recompile-summary.txt)
+
+    zip -q "$OUTPUT" "${files[@]}"
 )
 
 [[ -s "$OUTPUT" ]] || fail "Output archive was not created"
 sha256sum "$OUTPUT" > "$OUTPUT.sha256"
 
-OUTBN=$(basename "$OUTPUT")
-OUTDN=$(dirname "$OUTPUT")
-
-mkdir "${OUTDN}/support-bundles" || true
-cp -v "$OUTPUT" "${OUTDN}/support-bundles" || true
-
+OUTDN="$(dirname "$OUTPUT")"
+mkdir -p "$OUTDN"
+cp -v "$OUTPUT" "$OUTDN/support-bundles/"
+cp -v "$OUTPUT.sha256" "$OUTDN/support-bundles/"
+ln -fs "$OUTPUT" latest-support-package.zip
 
 log "Created: $OUTPUT"
 log "SHA256: $(awk '{print $1}' "$OUTPUT.sha256")"
 log "Contents:"
 unzip -Z1 "$OUTPUT" | sed 's/^/  /'
+
+# Preserve the test/recompile result as the command's exit code after the
+# support bundle has always been created.
+if [[ "$TEST_EXIT" =~ ^[0-9]+$ ]]; then
+    exit "$TEST_EXIT"
+fi
+
+pncnote -a "STCPv2 support module" "Support package done" "$(basename "$OUTPUT")"
+
+exit 0

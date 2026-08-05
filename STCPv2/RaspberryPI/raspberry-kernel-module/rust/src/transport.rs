@@ -149,7 +149,11 @@ pub fn connect(
 
         listeners
             .iter()
-            .find(|entry| entry.address == target)
+             .find(|entry| {
+                entry.address.port == target.port
+                    && (entry.address.addr == target.addr
+                        || entry.address.addr == 0)
+            })
             .map(|entry| entry.ctx)
             .ok_or(StcpError::ConnectionRefused)?
     };

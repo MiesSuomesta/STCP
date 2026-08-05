@@ -150,20 +150,22 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
 
 (
     ROBOT_LOGS="robot-results/latest.zip"
-    cd "$SDK_ROOT" && bash scripts/run-robot-tests.sh && log "Robot testing status: OK" || log "Robot testing status: Failed.."
+    ( 
+	cd "$SDK_ROOT" && bash scripts/run-robot-tests.sh 
+        if [ $? -eq 0 ]
+        then
+             TEST_STATUS="PASS"
+             TEST_EXIT=0
+        else
+             TEST_EXIT=$?
+             TEST_STATUS="FAIL"
+       fi
+       echo "robot_test_status=$TEST_STATUS" >> "$TMPD/MANIFEST.txt"
+       echo "robot_test_exit=$TEST_EXIT" >> "$TMPD/MANIFEST.txt"
+    )
 
     log "Copying robot logs ....."
-
     cp -av $ROBOT_LOGS "$TMPD/robot-test-results.zip"
-    if scripts/run-robot-tests.sh; then
-        TEST_STATUS="PASS"
-        TEST_EXIT=0
-    else
-        TEST_EXIT=$?
-        TEST_STATUS="FAIL"
-    fi
-    echo "robot_test_status=$TEST_STATUS" >> "$TMPD/MANIFEST.txt"
-    echo "robot_test_exit=$TEST_EXIT" >> "$TMPD/MANIFEST.txt"
 )
 
 # Add lightweight provenance metadata.

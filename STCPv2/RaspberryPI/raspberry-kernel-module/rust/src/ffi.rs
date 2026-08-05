@@ -240,6 +240,14 @@ pub extern "C" fn stcp_rust_accept(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_connection_id(raw: *mut c_void) -> u64 {
+    match with_ctx(raw, session::connection_id_value) {
+        Ok(id) => id,
+        Err(_) => 0,
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_send(
     raw: *mut c_void,
     buffer: *const u8,

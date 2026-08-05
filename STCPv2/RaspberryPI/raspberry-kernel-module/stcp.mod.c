@@ -109,4 +109,4 @@ __used __section("__versions") = {
 MODULE_INFO(depends, "libchacha20poly1305,libcurve25519");
 
 
-MODULE_INFO(srcversion, "054F4A49FFEF7253AA37277");
+MODULE_INFO(srcversion, "FF5EDC8136AD1DED1B0C865");

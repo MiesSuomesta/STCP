@@ -10,6 +10,8 @@
 
 set -uo pipefail
 
+SDK_ROOT="$HOME/SDK/v2"
+
 usage() {
     cat <<USAGE
 Usage: $(basename "$0") [OPTIONS]
@@ -135,6 +137,13 @@ bundle "STCPv2/zephyr/nordic/stcp-module" \
 bundle "STCPv2/zephyr/nordic/stcp-application" \
        "zephyr-nordic-nRF9151-stcp-application.zip"
 
+(
+    ROBOT_LOGS="robot-results/latest.zip"
+    cd "$SDK_ROOT" && bash scripts/run-robot-tests.sh && (
+		cp -av $ROBOT_LOGS "$TMPD/robot-test-results.zip"
+	)
+)
+
 # Add lightweight provenance metadata.
 {
     echo "created_at=$(date --iso-8601=seconds)"
@@ -142,6 +151,8 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
     echo "requested_ref=$REF"
     echo "outer_head=$(git -C "$GIT_ROOT" rev-parse HEAD 2>/dev/null || true)"
     echo "outer_describe=$(git -C "$GIT_ROOT" describe --always --dirty --tags 2>/dev/null || true)"
+    echo
+    echo "sdk_head=$(git -C "$SDK_ROOT" rev-parse HEAD 2>/dev/null || true)"
     echo
     echo "archives:"
     find "$TMPD" -maxdepth 1 -type f -name '*.zip' -printf '%f\n' | sort

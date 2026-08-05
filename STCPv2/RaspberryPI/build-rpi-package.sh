@@ -130,5 +130,6 @@ echo "Package ready: $PACKAGE"
 scp "$PACKAGE" pi@192.168.1.199:~/"${PKG_NAME}.tar.gz"
 echo "Package copied to Rapsberry..."
 ssh pi@192.168.1.199 "tar zxvf ${PKG_NAME}.tar.gz"
-ssh pi@192.168.1.199 "cd ${PKG_NAME} && sudo bash install.sh"
-echo "Package installed to Rapsberry..."
+ssh pi@192.168.1.199 "cd ${PKG_NAME} && sudo bash install.sh && sudo reboot"
+echo "Package installed to Rapsberry.. Rebooting in process..."
+

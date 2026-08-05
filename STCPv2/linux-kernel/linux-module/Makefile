@@ -32,7 +32,16 @@ zip: clean test-clean
 
 all: module
 
-module: rust-core
+completed-compilation:
+	@pncnote -a "STCPv2 compile-process" "Linux kernel module" "Compile done"
+
+completed-mod-compile:
+	@pncnote -a "STCPv2 compile-process" "Linux kernel module" "Module compiled"
+
+completed-mod-install:
+	@pncnote -a "STCPv2 compile-process" "Linux kernel module" "Module installed"
+
+module: rust-core completed-mod-compile
 	$(MAKE) -C "$(KDIR)" M="$(PWD)" LLVM="$(LLVM)" V="$(V)" modules
 
 rust: check-tools
@@ -150,7 +159,7 @@ module-install-support:
 module-stop module-shutdown module-remove:
 	@SUDO="$(SUDO)" MODULE=stcp "$(PWD)/scripts/graceful-unload.sh"
 
-module-install: module module-install-support
+module-install: module module-install-support completed-mod-install
 	echo "Installing module..."
 	$(SUDO) modprobe "$(PWD)/stcp.ko" || true
 

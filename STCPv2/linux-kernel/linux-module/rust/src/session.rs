@@ -434,9 +434,13 @@ pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
         if inner.carrier == 0 {
             return Err(StcpError::Kernel(-107));
         }
+
+        crate::carrier::debug_event(300, ctx, inner.role as usize, inner.connection_id as usize);
     }
 
-    send_public_key(ctx)
+    let result = send_public_key(ctx);
+    crate::carrier::debug_event(301, ctx, result.is_ok() as usize, connection_id(ctx) as usize);
+    result
 }
 
 pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
@@ -484,11 +488,11 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
-        PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} received_done=true; }
+        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} crate::carrier::debug_event(302,ctx,frame.header.connection_id as usize,frame.payload.len()); let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
+        PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} crate::carrier::debug_event(304,ctx,frame.header.connection_id as usize,0); received_done=true; }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
-    if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }
+    if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; let done_result=send_frame(ctx,&shared,side,&done,0); crate::carrier::debug_event(303,ctx,done_result.is_ok() as usize,connection_id(ctx) as usize); done_result?; }
     {
         let mut inner = ctx.inner.lock();
 
@@ -512,6 +516,7 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         if inner.crypto.ready() && inner.peer_handshake_done {
             if inner.state != SocketState::Ready {
                 inner.state = SocketState::Ready;
+                crate::carrier::debug_event(305, ctx, inner.role as usize, inner.connection_id as usize);
                 crate::carrier::debug_event(252, ctx, 1, 0);
             }
         } else {

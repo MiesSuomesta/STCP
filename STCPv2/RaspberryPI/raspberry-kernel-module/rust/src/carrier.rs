@@ -49,8 +49,14 @@ static UDP_SESSIONS: SpinLock<Vec<UdpSessionEntry>> = SpinLock::new(Vec::new());
 
 
 #[inline(always)]
-pub(crate) fn debug_event(_event: u32, _ctx: &StcpContext, _arg0: usize, _arg1: usize) {
-    // High-frequency numeric event tracing is disabled in performance builds.
+pub(crate) fn debug_event(event: u32, ctx: &StcpContext, arg0: usize, arg1: usize) {
+    /* Keep normal datapath tracing disabled. Events 300..399 are reserved for
+     * the temporary, low-volume STCP handshake trace used by RFA debugging. */
+    if (300..400).contains(&event) {
+        unsafe {
+            stcp_kernel_debug_event(event, ctx as *const StcpContext as usize, arg0, arg1);
+        }
+    }
 }
 
 pub(crate) fn wake_accept(owner: usize) {
@@ -167,6 +173,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
                     {
                         inner.connection_id = header.connection_id;
                         adopted_connection_id = true;
+                        debug_event(306, ctx, header.connection_id as usize, bytes.len());
                     }
                     Ok(_) => {}
                     Err(error) => return error.errno(),

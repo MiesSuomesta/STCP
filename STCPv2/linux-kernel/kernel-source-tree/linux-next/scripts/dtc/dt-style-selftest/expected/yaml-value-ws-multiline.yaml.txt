@@ -1,2 +1,0 @@
-# mode=strict
-bad/yaml-value-ws-multiline.yaml:25: example 0 [value-whitespace] extra whitespace inside <...>

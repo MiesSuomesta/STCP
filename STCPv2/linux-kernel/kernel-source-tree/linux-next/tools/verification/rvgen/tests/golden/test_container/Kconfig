@@ -1,5 +1,0 @@
-config RV_MON_TEST_CONTAINER
-	depends on RV
-	bool "test_container monitor"
-	help
-	  Test container for grouping monitors

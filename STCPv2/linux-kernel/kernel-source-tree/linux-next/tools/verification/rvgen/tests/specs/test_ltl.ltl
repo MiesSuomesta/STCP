@@ -1,1 +1,0 @@
-RULE = always (EVENT_A imply eventually EVENT_B)

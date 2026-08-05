@@ -1,3 +1,0 @@
-core_setmaster@master-drop-set-user,Fail
-panfrost/panfrost_prime@gem-prime-import,Fail
-panfrost/panfrost_submit@pan-submit-error-bad-requirements,Fail

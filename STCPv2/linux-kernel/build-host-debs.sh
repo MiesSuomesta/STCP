@@ -64,7 +64,7 @@ if [[ -x scripts/config ]]; then
 fi
 
 pncnote -a "STCPv2/Host compile" "New kernel" "Doing kernel configuration...."
-yes "" | make LLVM=1 olddefconfig || true
+yes "" | make LLVM=1 olddefconfig
 
 pncwrap -t "STCPv2/Host compile kernel" -- make LLVM=1 -j"$JOBS" bindeb-pkg
 

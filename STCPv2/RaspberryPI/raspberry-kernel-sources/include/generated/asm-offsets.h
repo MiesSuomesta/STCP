@@ -10,13 +10,13 @@
 #define TSK_TI_FLAGS 0 /* offsetof(struct task_struct, thread_info.flags) */
 #define TSK_TI_PREEMPT 8 /* offsetof(struct task_struct, thread_info.preempt_count) */
 #define TSK_STACK 32 /* offsetof(struct task_struct, stack) */
-#define TSK_STACK_CANARY 1504 /* offsetof(struct task_struct, stack_canary) */
+#define TSK_STACK_CANARY 1240 /* offsetof(struct task_struct, stack_canary) */
 
-#define THREAD_CPU_CONTEXT 6848 /* offsetof(struct task_struct, thread.cpu_context) */
-#define THREAD_SCTLR_USER 8496 /* offsetof(struct task_struct, thread.sctlr_user) */
-#define THREAD_KEYS_USER 8392 /* offsetof(struct task_struct, thread.keys_user) */
-#define THREAD_KEYS_KERNEL 8472 /* offsetof(struct task_struct, thread.keys_kernel) */
-#define THREAD_MTE_CTRL 8488 /* offsetof(struct task_struct, thread.mte_ctrl) */
+#define THREAD_CPU_CONTEXT 2752 /* offsetof(struct task_struct, thread.cpu_context) */
+#define THREAD_SCTLR_USER 4400 /* offsetof(struct task_struct, thread.sctlr_user) */
+#define THREAD_KEYS_USER 4296 /* offsetof(struct task_struct, thread.keys_user) */
+#define THREAD_KEYS_KERNEL 4376 /* offsetof(struct task_struct, thread.keys_kernel) */
+#define THREAD_MTE_CTRL 4392 /* offsetof(struct task_struct, thread.mte_ctrl) */
 
 #define S_X0 0 /* offsetof(struct pt_regs, regs[0]) */
 #define S_X2 16 /* offsetof(struct pt_regs, regs[2]) */
@@ -44,18 +44,6 @@
 #define S_STACKFRAME 296 /* offsetof(struct pt_regs, stackframe) */
 #define S_STACKFRAME_TYPE 312 /* offsetof(struct pt_regs, stackframe.type) */
 #define PT_REGS_SIZE 320 /* sizeof(struct pt_regs) */
-
-#define FREGS_X0 0 /* offsetof(struct __arch_ftrace_regs, regs[0]) */
-#define FREGS_X2 16 /* offsetof(struct __arch_ftrace_regs, regs[2]) */
-#define FREGS_X4 32 /* offsetof(struct __arch_ftrace_regs, regs[4]) */
-#define FREGS_X6 48 /* offsetof(struct __arch_ftrace_regs, regs[6]) */
-#define FREGS_X8 64 /* offsetof(struct __arch_ftrace_regs, regs[8]) */
-#define FREGS_FP 80 /* offsetof(struct __arch_ftrace_regs, fp) */
-#define FREGS_LR 88 /* offsetof(struct __arch_ftrace_regs, lr) */
-#define FREGS_SP 96 /* offsetof(struct __arch_ftrace_regs, sp) */
-#define FREGS_PC 104 /* offsetof(struct __arch_ftrace_regs, pc) */
-#define FREGS_DIRECT_TRAMP 72 /* offsetof(struct __arch_ftrace_regs, direct_tramp) */
-#define FREGS_SIZE 112 /* sizeof(struct __arch_ftrace_regs) */
 
 #define CPU_BOOT_TASK 0 /* offsetof(struct secondary_data, task) */
 
@@ -109,13 +97,21 @@
 #define HIBERN_PBE_NEXT 16 /* offsetof(struct pbe, next) */
 #define ARM64_FTR_SYSVAL 24 /* offsetof(struct arm64_ftr_reg, sys_val) */
 
-#define TRAMP_VALIAS -10539008 /* TRAMP_VALIAS */
+#define TRAMP_VALIAS -12636160 /* TRAMP_VALIAS */
+#define SDEI_EVENT_INTREGS 0 /* offsetof(struct sdei_registered_event, interrupted_regs) */
+#define SDEI_EVENT_PRIORITY 340 /* offsetof(struct sdei_registered_event, priority) */
 #define PTRAUTH_USER_KEY_APIA 0 /* offsetof(struct ptrauth_keys_user, apia) */
 #define PTRAUTH_KERNEL_KEY_APIA 0 /* offsetof(struct ptrauth_keys_kernel, apia) */
 
-#define FTRACE_OPS_FUNC 0 /* offsetof(struct ftrace_ops, func) */
+#define KIMAGE_ARCH_DTB_MEM 776 /* offsetof(struct kimage, arch.dtb_mem) */
+#define KIMAGE_ARCH_EL2_VECTORS 792 /* offsetof(struct kimage, arch.el2_vectors) */
+#define KIMAGE_ARCH_ZERO_PAGE 816 /* offsetof(struct kimage, arch.zero_page) */
+#define KIMAGE_ARCH_PHYS_OFFSET 824 /* offsetof(struct kimage, arch.phys_offset) */
+#define KIMAGE_ARCH_TTBR1 808 /* offsetof(struct kimage, arch.ttbr1) */
+#define KIMAGE_HEAD 0 /* offsetof(struct kimage, head) */
+#define KIMAGE_START 24 /* offsetof(struct kimage, start) */
 
-#define FTRACE_OPS_DIRECT_CALL 208 /* offsetof(struct ftrace_ops, direct_call) */
+
 #define PIE_E0_ASM 5769270003974144000 /* PIE_E0 */
 #define PIE_E1_ASM -3708698853797527552 /* PIE_E1 */
 

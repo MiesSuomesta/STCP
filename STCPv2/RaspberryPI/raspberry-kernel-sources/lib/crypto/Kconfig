@@ -190,6 +190,14 @@ config CRYPTO_LIB_SHA512_ARCH
 config CRYPTO_LIB_SM3
 	tristate
 
+config STCP_CRYPTO_SUPPORT
+	bool "STCP crypto library support"
+	select CRYPTO_LIB_CURVE25519
+	select CRYPTO_LIB_CHACHA20POLY1305
+	help
+	  Enable the Curve25519 and ChaCha20-Poly1305 library APIs
+	  required by the external STCP kernel module.
+
 source "lib/crypto/tests/Kconfig"
 
 endmenu

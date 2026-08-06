@@ -66,9 +66,9 @@ fi
 pncnote -a "STCPv2/Host compile" "New kernel" "Doing kernel configuration...."
 yes "" | make LLVM=1 olddefconfig
 
-pncwrap -t "STCPv2/Host compile kernel" -- make LLVM=1 -j"$JOBS" bindeb-pkg
+pncwrap -t "STCPv2/Host kernel" -- make LLVM=1 -j"$JOBS" bindeb-pkg
 
-pncwrap -t "STCPv2/Host compile modules" -- sudo make LLVM=1 -j"$JOBS" modules_install
+sudo -E pncwrap -t "STCPv2/Host modules" -- make LLVM=1 -j"$JOBS" modules_install
 
 KREL="$(make -s LLVM=1 kernelrelease)"
 [[ -f Module.symvers ]] || die "Module.symvers missing"
@@ -80,11 +80,11 @@ echo "== Rebuilding STCP against $KREL =="
 
 		mkdir -p "$OUT_DIR"
 
-		make LLVM=1 -j$(nproc) \
+		make LLVM=1 -j"$JOBS" \
 		    KDIR="$KERNEL_SRC" \
 		    clean
 
-		make LLVM=1 -j$(nproc) \
+		make LLVM=1 -j"$JOBS" \
 		    KDIR="$KERNEL_SRC" \
 		    module
 
@@ -95,7 +95,7 @@ echo "== Rebuilding STCP against $KREL =="
 			pncnote -a "STCPv2/Host compile" "New STCP module for $KREL" "Compiled STCP module..FAILED"
 		fi
 
-		sudo make LLVM=1 \
+		sudo make LLVM=1 -j"$JOBS" \
 		    KDIR="$KERNEL_SRC" \
 		    module-install
 

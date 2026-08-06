@@ -15,7 +15,8 @@ TS=$(date +"%Y%m%d-%H%M%S")
 GIT=$(git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
 LOCALVERSION="${LOCALVERSION:--stcp}"
-LOCALVERSION="${LOCALVERSION}-${TS}-${GIT}"
+#LOCALVERSION="${LOCALVERSION}-${TS}-${GIT}"
+LOCALVERSION="${LOCALVERSION}-${GIT}"
 
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"
 
@@ -29,6 +30,41 @@ die(){ echo "[FAIL] $*" >&2; exit 1; }
 find_cmd(){ command -v "$1" 2>/dev/null || { [[ -x /usr/sbin/$1 ]] && echo /usr/sbin/$1; }; }
 need_cmd(){ find_cmd "$1" >/dev/null || die "Missing command: $1"; }
 
+check_kernel() {
+	
+	(
+		cd "$1"
+		make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig || (
+			KERNEL_SRC="$KERNEL_SRC" \
+			KEEP_GIT_DIR="1" \
+			CONFIG_BACKUP="$SCRIPT_DIR/rpi-working.config" \
+				pncwrap -t "STCPv2/Raspberry Pi build"  bash ensure-rpi-kernel-tree.sh
+		)
+	)
+}
+
+ensure_crypto_config() {
+    echo "[INFO] Ensuring STCP crypto kernel options..."
+    (
+       cd "$1"
+
+       scripts/config --enable CONFIG_CRYPTO
+       scripts/config --enable CONFIG_CRYPTO_SUPPORT
+
+       make ARCH=arm64 \
+           CROSS_COMPILE=aarch64-linux-gnu- \
+           olddefconfig
+    )
+}
+
+check_crypto_config() {
+    local ok=1
+
+	# NOP now
+
+    (( ok )) || exit 1
+}
+
 for c in make tar git rustup strings "${CROSS_COMPILE}gcc" "${CROSS_COMPILE}ld" "${CROSS_COMPILE}ar" "${CROSS_COMPILE}readelf"; do need_cmd "$c"; done
 [[ -f "$KERNEL_SRC/Makefile" ]] || die "Kernel source tree not found: $KERNEL_SRC"
 [[ -f "$STCP_SRC/Makefile" ]] || die "STCP source tree not found: $STCP_SRC"
@@ -38,29 +74,42 @@ rustup toolchain list | grep -q "^${RUST_TOOLCHAIN}" || die "Install nightly: ru
 mkdir -p "$OUT_DIR"
 [[ -w "$OUT_DIR" ]] || die "Output directory is not writable: $OUT_DIR"
 
+check_kernel "$KERNEL_SRC"
+
 cd "$KERNEL_SRC"
 if [[ "$CLEAN" == 1 ]]; then make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" mrproper; fi
 if [[ ! -f .config ]]; then 
+
 	cp ../rpi-working.config .config
+
+	ensure_crypto_config "$KERNEL_SRC";
+
 	yes "" | make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" "$DEFCONFIG";
 fi
+
+check_crypto_config;
+
 if [[ -x scripts/config ]]; then
   scripts/config --set-str LOCALVERSION "$LOCALVERSION"
   scripts/config --disable LOCALVERSION_AUTO
 fi
+
 make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
 grep -q '^CONFIG_ARM64=y' .config || die "Kernel config is not ARM64"
 grep -q '^CONFIG_MODULES=y' .config || die "Kernel modules are disabled"
-make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" -j"$JOBS" Image modules
+pncwrap -t "STCPv2/Raspberry Pi build"  make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" -j"$JOBS" Image modules
 KREL="$(make -s ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" kernelrelease)"
 [[ -f Module.symvers ]] || die "Module.symvers missing"
 [[ -f arch/arm64/boot/Image ]] || die "Kernel Image missing"
 
 echo "== Rebuilding STCP against $KREL =="
-make -C "$KERNEL_SRC" M="$STCP_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" clean || true
+pncwrap -t "STCPv2/Raspberry Pi STCP clean build" make -C "$KERNEL_SRC" M="$STCP_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" clean || true
+
 rm -rf "$STCP_SRC/rust/target"
 rm -f "$STCP_SRC/src/rust_core.o" "$STCP_SRC/src/.rust_core.o.cmd" "$STCP_SRC/stcp.ko" "$STCP_SRC/stcp.o"
-make -C "$STCP_SRC" KDIR="$KERNEL_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" RUST_TOOLCHAIN="$RUST_TOOLCHAIN" -j"$JOBS"
+
+pncwrap -t "STCPv2/Raspberry Pi STCP build" make -C "$STCP_SRC" KDIR="$KERNEL_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" RUST_TOOLCHAIN="$RUST_TOOLCHAIN" -j"$JOBS" module
+
 STCP_KO="$STCP_SRC/stcp.ko"
 [[ -f "$STCP_KO" ]] || die "stcp.ko missing"
 MACHINE="$("${CROSS_COMPILE}readelf" -h "$STCP_KO" | awk -F: '/Machine:/{gsub(/^[ \t]+/,"",$2);print $2}')"
@@ -136,5 +185,6 @@ scp "$PACKAGE" pi@192.168.1.199:~/"${PKG_NAME}.tar.gz"
 echo "Package copied to Rapsberry..."
 ssh pi@192.168.1.199 "tar zxvf ${PKG_NAME}.tar.gz"
 ssh pi@192.168.1.199 "cd ${PKG_NAME} && sudo bash install.sh && sudo reboot"
-echo "Package installed to Rapsberry.. Rebooting in process..."
+pncnote -a "STCPv2/Raspberry Pi" -t "Raspberry Pi @ 192.168.1.199" "Raspberry shutdown!" "$(echo -e "Raspberry kernel update completed\nRebooting....")"
+echo "Package installed to Rapsberry.." "Rebooting in process..."
 

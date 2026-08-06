@@ -12,7 +12,7 @@ TS=$(date +"%Y%m%d-%H%M%S")
 GIT=$(git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
 LOCALVERSION="${LOCALVERSION:--stcp}"
-LOCALVERSION="${LOCALVERSION}-${TS}-${GIT}"
+LOCALVERSION="${LOCALVERSION}-$GIT"
 
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"
 
@@ -64,7 +64,7 @@ if [[ -x scripts/config ]]; then
 fi
 
 pncnote -a "STCPv2/Host compile" "New kernel" "Doing kernel configuration...."
-yes "" | make LLVM=1 olddefconfig
+yes "" | make LLVM=1 olddefconfig || true
 
 pncwrap -t "STCPv2/Host kernel" -- make LLVM=1 -j"$JOBS" bindeb-pkg
 
@@ -106,7 +106,7 @@ echo "== Rebuilding STCP against $KREL =="
 			pncnote -a "STCPv2/Host compile" "New STCP module for $KREL" "STCP Install FAILED for $KREL.."
 		fi
 
-		MODULE_VERMAGIC="$(modinfo -F vermagic "$STCP_SRC/stcp.ko" | awk '{print $1}')"
+		MODULE_VERMAGIC="$(sudo modinfo -F vermagic "$STCP_SRC/stcp.ko" | awk '{print $1}')"
 		pncnote -a "STCPv2/Host compile" "STCPv2 Build check" "$(echo -en "STCP vermagic:\nmodule=$MODULE_VERMAGIC\nkernel=$KREL")"
 
 		if [[ "$MODULE_VERMAGIC" != "$KREL" ]]; then

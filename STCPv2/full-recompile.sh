@@ -135,7 +135,7 @@ then
 else
     if ! run_timed HOST_BUILD_STATUS HOST_BUILD_SECS \
         "Building and installing host STCP module..." \
-        make -C "$GIT_ROOT/STCPv2/linux-kernel/linux-module" clean module-install
+        bash "$GIT_ROOT/STCPv2/linux-kernel/build-host-debs.sh"
     then
         warn "Host module build/install failed; bundle will still be attempted."
     fi

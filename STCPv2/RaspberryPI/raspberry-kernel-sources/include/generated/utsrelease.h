@@ -1,1 +1,1 @@
-#define UTS_RELEASE "6.18.42-stcp-e2f61b857"
+#define UTS_RELEASE "6.18.42-stcp-f3abab8fa"

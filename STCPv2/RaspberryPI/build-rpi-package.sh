@@ -3,8 +3,11 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="${1:-pi4}"
+IP="${IP:-192.168.1.199}"
+RUSER="${RUSER:-pi}"
 KERNEL_SRC="${KERNEL_SRC:-$SCRIPT_DIR/raspberry-kernel-sources}"
-STCP_SRC="${STCP_SRC:-$SCRIPT_DIR/raspberry-kernel-module}"
+STCP_ROOT="${STCP_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+STCP_SRC="${STCP_SRC:-${STCP_LINUX_MODULE_ROOT:-${LINUX_MODULE_ROOT:-$STCP_ROOT/linux-kernel/linux-module}}}"
 OUT_DIR="${OUT_DIR:-$SCRIPT_DIR/packages}"
 CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 ARCH=arm64
@@ -51,8 +54,8 @@ ensure_crypto_config() {
        scripts/config --enable CONFIG_CRYPTO
        scripts/config --enable CONFIG_CRYPTO_SUPPORT
 
-       make ARCH=arm64 \
-           CROSS_COMPILE=aarch64-linux-gnu- \
+       make ARCH="$ARCH" \
+           CROSS_COMPILE="$CROSS_COMPILE" \
            olddefconfig
     )
 }
@@ -68,6 +71,19 @@ check_crypto_config() {
 for c in make tar git rustup strings "${CROSS_COMPILE}gcc" "${CROSS_COMPILE}ld" "${CROSS_COMPILE}ar" "${CROSS_COMPILE}readelf"; do need_cmd "$c"; done
 [[ -f "$KERNEL_SRC/Makefile" ]] || die "Kernel source tree not found: $KERNEL_SRC"
 [[ -f "$STCP_SRC/Makefile" ]] || die "STCP source tree not found: $STCP_SRC"
+[[ -d "$STCP_SRC/src" ]] || die "STCP C source tree missing: $STCP_SRC/src"
+[[ -d "$STCP_SRC/rust/src" ]] || die "STCP Rust source tree missing: $STCP_SRC/rust/src"
+
+OLD_RPI_SRC="$SCRIPT_DIR/raspberry-kernel-module"
+if [[ -d "$OLD_RPI_SRC/src" || -d "$OLD_RPI_SRC/rust/src" ]]; then
+    die "Legacy Raspberry STCP source fork still exists at $OLD_RPI_SRC. Raspberry must build from $STCP_SRC"
+fi
+
+echo "[INFO] Raspberry kernel source : $KERNEL_SRC"
+echo "[INFO] Unified STCP source     : $STCP_SRC"
+echo "[INFO] Target                  : $TARGET ($ARCH)"
+echo "[INFO] Cross compiler          : $CROSS_COMPILE"
+
 rustup toolchain list | grep -q "^${RUST_TOOLCHAIN}" || die "Install nightly: rustup toolchain install $RUST_TOOLCHAIN --component rust-src"
 
 
@@ -108,7 +124,14 @@ pncwrap -t "STCPv2/Raspberry Pi STCP clean build" make -C "$KERNEL_SRC" M="$STCP
 rm -rf "$STCP_SRC/rust/target"
 rm -f "$STCP_SRC/src/rust_core.o" "$STCP_SRC/src/.rust_core.o.cmd" "$STCP_SRC/stcp.ko" "$STCP_SRC/stcp.o"
 
-pncwrap -t "STCPv2/Raspberry Pi STCP build" make -C "$STCP_SRC" KDIR="$KERNEL_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" RUST_TOOLCHAIN="$RUST_TOOLCHAIN" -j"$JOBS" module
+pncwrap -t "STCPv2/Raspberry Pi STCP build" \
+    make -C "$STCP_SRC" \
+        PLATFORM=rpi \
+        KDIR="$KERNEL_SRC" \
+        ARCH="$ARCH" \
+        CROSS_COMPILE="$CROSS_COMPILE" \
+        RUST_TOOLCHAIN="$RUST_TOOLCHAIN" \
+        -j"$JOBS" module
 
 STCP_KO="$STCP_SRC/stcp.ko"
 [[ -f "$STCP_KO" ]] || die "stcp.ko missing"
@@ -180,15 +203,39 @@ rm -f "$PACKAGE"
 tar -C "$WORK" -czf "$PACKAGE" "$PKG_NAME"
 echo "Package ready: $PACKAGE"
 
-# Install
-scp "$PACKAGE" pi@192.168.1.199:~/"${PKG_NAME}.tar.gz"
-echo "Package copied to Rapsberry..."
-ssh pi@192.168.1.199 "tar zxvf ${PKG_NAME}.tar.gz"
-echo "Package cleaning from Rapsberry..."
-ssh pi@192.168.1.199 "cd /boot/firmware && sudo rm -rfv kernel-stcp*"
-ssh pi@192.168.1.199 "cd ${PKG_NAME} && sudo bash install.sh && cd && sudo rm -rfv ${PKG_NAME}*"
-echo "Package install done..."
-ssh pi@192.168.1.199 "cd ${PKG_NAME} && sudo bash install.sh && sudo reboot"
-pncnote -a "STCPv2/Raspberry Pi" -t "Raspberry Pi @ 192.168.1.199" "Raspberry shutdown!" "$(echo -e "Raspberry kernel update completed\nRebooting....")"
-echo "Package installed to Rapsberry.." "Rebooting in process..."
+# Install and reboot Raspberry exactly once.
+REMOTE_PACKAGE="${PKG_NAME}.tar.gz"
 
+echo "[INFO] Copying package to ${RUSER}@${IP}:~/${REMOTE_PACKAGE}"
+scp "$PACKAGE" "${RUSER}@${IP}:~/${REMOTE_PACKAGE}"
+
+echo "[INFO] Installing package on Raspberry..."
+ssh "${RUSER}@${IP}" bash -s -- "$REMOTE_PACKAGE" "$PKG_NAME" <<'REMOTE'
+set -Eeuo pipefail
+
+REMOTE_PACKAGE="$1"
+PKG_NAME="$2"
+
+rm -rf "$PKG_NAME"
+tar xzf "$REMOTE_PACKAGE"
+
+# Remove only previous STCP kernel images; install.sh installs the new one.
+sudo rm -f /boot/firmware/kernel-stcp-*.img 2>/dev/null || true
+sudo rm -f /boot/kernel-stcp-*.img 2>/dev/null || true
+
+cd "$PKG_NAME"
+sudo bash install.sh
+cd ..
+
+rm -rf "$PKG_NAME" "$REMOTE_PACKAGE"
+
+echo "[INFO] Package installed; rebooting Raspberry..."
+sudo reboot
+REMOTE
+
+pncnote -a "STCPv2/Raspberry Pi" \
+    -t "Raspberry Pi @ $IP" \
+    "Raspberry rebooting!" \
+    "$(printf 'Raspberry kernel + unified STCP module update completed\nRebooting....')"
+
+echo "[INFO] Package installed to Raspberry; reboot in progress."

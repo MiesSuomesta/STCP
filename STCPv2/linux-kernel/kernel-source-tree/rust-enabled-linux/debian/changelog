@@ -1,5 +1,5 @@
-linux-upstream (7.2.0~rc6-11) trixie; urgency=low
+linux-upstream (7.2.0~rc6-13) trixie; urgency=low
 
   * Custom built Linux kernel.
 
- -- pomo <pomo@devaus.sokeavartija.org>  Fri, 07 Aug 2026 08:25:55 +0300
+ -- pomo <pomo@devaus.sokeavartija.org>  Sat, 08 Aug 2026 18:30:37 +0300

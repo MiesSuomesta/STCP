@@ -11,11 +11,11 @@ Build-Depends-Arch: bc, bison, flex,
  python3:native, rsync
 Homepage: https://www.kernel.org/
 
-Package: linux-image-7.2.0-rc6-next-20260804-stcp-a0bd231e3
+Package: linux-image-7.2.0-rc6-next-20260804-stcp-142d02ea9
 Architecture: amd64
-Description: Linux kernel, version 7.2.0-rc6-next-20260804-stcp-a0bd231e3
+Description: Linux kernel, version 7.2.0-rc6-next-20260804-stcp-142d02ea9
  This package contains the Linux kernel, modules and corresponding other
- files, version: 7.2.0-rc6-next-20260804-stcp-a0bd231e3.
+ files, version: 7.2.0-rc6-next-20260804-stcp-142d02ea9.
 
 Package: linux-libc-dev
 Section: devel
@@ -26,18 +26,18 @@ Description: Linux support headers for userspace development
  are used by the installed headers for GNU glibc and other system libraries.
 Multi-Arch: same
 
-Package: linux-headers-7.2.0-rc6-next-20260804-stcp-a0bd231e3
+Package: linux-headers-7.2.0-rc6-next-20260804-stcp-142d02ea9
 Architecture: amd64
 Build-Profiles: <!pkg.linux-upstream.nokernelheaders>
-Description: Linux kernel headers for 7.2.0-rc6-next-20260804-stcp-a0bd231e3 on amd64
- This package provides kernel header files for 7.2.0-rc6-next-20260804-stcp-a0bd231e3 on amd64
+Description: Linux kernel headers for 7.2.0-rc6-next-20260804-stcp-142d02ea9 on amd64
+ This package provides kernel header files for 7.2.0-rc6-next-20260804-stcp-142d02ea9 on amd64
  .
  This is useful for people who need to build external modules
 
-Package: linux-image-7.2.0-rc6-next-20260804-stcp-a0bd231e3-dbg
+Package: linux-image-7.2.0-rc6-next-20260804-stcp-142d02ea9-dbg
 Section: debug
 Architecture: amd64
 Build-Profiles: <!pkg.linux-upstream.nokerneldbg>
-Description: Linux kernel debugging symbols for 7.2.0-rc6-next-20260804-stcp-a0bd231e3
+Description: Linux kernel debugging symbols for 7.2.0-rc6-next-20260804-stcp-142d02ea9
  This package will come in handy if you need to debug the kernel. It provides
  all the necessary debug symbols for the kernel and its modules.

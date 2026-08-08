@@ -16,6 +16,8 @@ RUSTUP_TOOLCHAIN ?= nightly
 LLVM_AR          ?= llvm-ar
 LD_LLD           ?= ld.lld
 
+KERNEL_RELEASE := $(shell uname -r)
+
 RUSTFLAGS_KERNEL := \
 	-C relocation-model=static \
 	-C code-model=kernel \
@@ -153,6 +155,9 @@ module-stop module-shutdown module-remove:
 module-install: module module-install-support
 	echo "Installing module..."
 	$(SUDO) modprobe "$(PWD)/stcp.ko" || true
+	$(SUDO) mkdir -p /lib/modules/$(KERNEL_RELEASE)/extra
+	$(SUDO) cp stcp.ko /lib/modules/$(KERNEL_RELEASE)/extra/
+	$(SUDO) depmod -a $(KERNEL_RELEASE)
 
 module-reload: module-remove module-install
 	echo "Reload done"

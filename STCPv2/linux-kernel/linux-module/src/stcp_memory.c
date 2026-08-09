@@ -35,25 +35,12 @@ void stcp_kernel_wake_recv(void *owner)
 		wake_up_interruptible(&ssk->recv_wq);
 }
 
-/* Numeric Rust datapath tracing remains disabled except for the temporary
- * low-volume handshake events in the 300..399 range. */
+/* Numeric Rust datapath tracing is disabled in performance builds. */
 void stcp_kernel_debug_event(u32 event, unsigned long ctx,
                              unsigned long arg0, unsigned long arg1)
 {
-	const char *name;
-
-	switch (event) {
-	case 300: name = "HS_START"; break;
-	case 301: name = "PUBLIC_KEY_TX"; break;
-	case 302: name = "PUBLIC_KEY_RX"; break;
-	case 303: name = "HANDSHAKE_DONE_TX"; break;
-	case 304: name = "HANDSHAKE_DONE_RX"; break;
-	case 305: name = "READY"; break;
-	case 306: name = "CONNECTION_ID_ADOPT"; break;
-	default:
-		return;
-	}
-
-	pr_info("stcp-trace: event=%u name=%s ctx=%px arg0=%lu arg1=%lu\n",
-		event, name, (void *)ctx, arg0, arg1);
+	(void)event;
+	(void)ctx;
+	(void)arg0;
+	(void)arg1;
 }

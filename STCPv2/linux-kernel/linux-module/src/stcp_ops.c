@@ -15,6 +15,7 @@
 #include <net/sock.h>
 
 #include "stcp.h"
+#include "stcp_kernel_compat.h"
 #include "stcp_carrier.h"
 #include "stcp_proto.h"
 #include "stcp_rust_ffi.h"
@@ -186,7 +187,7 @@ static int stcp_release(struct socket *sock)
 
 static int stcp_bind(
 	struct socket *sock,
-	struct sockaddr_unsized *addr,
+	stcp_sockaddr_t *addr,
 	int addr_len
 )
 {
@@ -252,7 +253,7 @@ static int stcp_listen(struct socket *sock, int backlog)
 
 static int stcp_connect(
 	struct socket *sock,
-	struct sockaddr_unsized *addr,
+	stcp_sockaddr_t *addr,
 	int addr_len,
 	int flags
 )
@@ -398,6 +399,8 @@ static int stcp_accept(
 	struct sock *newsk = NULL;
 	struct stcp_carrier *accepted_carrier = NULL;
 	void *accepted_ctx = NULL;
+	u32 local_addr = 0, peer_addr = 0;
+	u16 local_port = 0, peer_port = 0;
 	bool external_tcp = false;
 	int flags = arg ? arg->flags : 0;
 	int ret;
@@ -453,9 +456,19 @@ static int stcp_accept(
 
 		ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, O_NONBLOCK);
 		if (ret == -EAGAIN) {
+			ret = stcp_carrier_get_endpoints(
+				accepted_carrier,
+				&local_addr, &local_port,
+				&peer_addr, &peer_port
+			);
+			if (ret) {
+				stcp_carrier_destroy(accepted_carrier);
+				return ret;
+			}
+
 			ret = stcp_rust_create_external_tcp_child(
 				listener->rust_ctx,
-				0, 0, 0, 0,
+				local_addr, local_port, peer_addr, peer_port,
 				&accepted_ctx
 			);
 			if (ret) {

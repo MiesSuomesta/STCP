@@ -20,6 +20,7 @@
 #include <linux/tcp.h>
 
 #include "stcp_carrier.h"
+#include "stcp_kernel_compat.h"
 #include "stcp_test.h"
 
 #define STCP_CARRIER_TCP_RX_BUFFER_SIZE (8 * 1024 * 1024)
@@ -572,6 +573,40 @@ void stcp_carrier_set_owner(
 		carrier->owner = owner;
 }
 
+int stcp_carrier_get_endpoints(
+	struct stcp_carrier *carrier,
+	u32 *local_addr,
+	u16 *local_port,
+	u32 *peer_addr,
+	u16 *peer_port
+)
+{
+	struct sockaddr_storage local = { 0 };
+	struct sockaddr_storage peer = { 0 };
+	struct sockaddr_in *local4 = (struct sockaddr_in *)&local;
+	struct sockaddr_in *peer4 = (struct sockaddr_in *)&peer;
+	int ret;
+
+	if (!carrier || !carrier->socket || !local_addr || !local_port ||
+	    !peer_addr || !peer_port)
+		return -EINVAL;
+
+	ret = kernel_getsockname(carrier->socket, (struct sockaddr *)&local);
+	if (ret)
+		return ret;
+	ret = kernel_getpeername(carrier->socket, (struct sockaddr *)&peer);
+	if (ret)
+		return ret;
+	if (local4->sin_family != AF_INET || peer4->sin_family != AF_INET)
+		return -EAFNOSUPPORT;
+
+	*local_addr = (__force u32)local4->sin_addr.s_addr;
+	*local_port = (__force u16)local4->sin_port;
+	*peer_addr = (__force u32)peer4->sin_addr.s_addr;
+	*peer_port = (__force u16)peer4->sin_port;
+	return 0;
+}
+
 void stcp_carrier_destroy(struct stcp_carrier *carrier)
 {
 	if (!carrier)
@@ -624,7 +659,7 @@ int stcp_carrier_bind(struct stcp_carrier *carrier, u32 address, u16 port)
 		return ret;
 	return kernel_bind(
 		carrier->socket,
-		(struct sockaddr_unsized *)&socket_address,
+		STCP_KERNEL_SOCKADDR(&socket_address),
 		sizeof(struct sockaddr_in)
 	);
 }
@@ -663,7 +698,7 @@ int stcp_carrier_connect(
 
 	ret = kernel_connect(
 		carrier->socket,
-		(struct sockaddr_unsized *)&socket_address,
+		STCP_KERNEL_SOCKADDR(&socket_address),
 		sizeof(struct sockaddr_in),
 		flags
 	);

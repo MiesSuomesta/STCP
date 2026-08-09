@@ -3,8 +3,11 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="${1:-pi4}"
+IP="${IP:-192.168.1.199}"
+RUSER="${RUSER:-pi}"
 KERNEL_SRC="${KERNEL_SRC:-$SCRIPT_DIR/raspberry-kernel-sources}"
-STCP_SRC="${STCP_SRC:-$SCRIPT_DIR/raspberry-kernel-module}"
+STCP_ROOT="${STCP_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+STCP_SRC="${STCP_SRC:-${STCP_LINUX_MODULE_ROOT:-${LINUX_MODULE_ROOT:-$STCP_ROOT/linux-kernel/linux-module}}}"
 OUT_DIR="${OUT_DIR:-$SCRIPT_DIR/packages}"
 CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 ARCH=arm64
@@ -15,7 +18,8 @@ TS=$(date +"%Y%m%d-%H%M%S")
 GIT=$(git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
 LOCALVERSION="${LOCALVERSION:--stcp}"
-LOCALVERSION="${LOCALVERSION}-${TS}-${GIT}"
+#LOCALVERSION="${LOCALVERSION}-${TS}-${GIT}"
+LOCALVERSION="${LOCALVERSION}-${GIT}"
 
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"
 
@@ -29,33 +33,106 @@ die(){ echo "[FAIL] $*" >&2; exit 1; }
 find_cmd(){ command -v "$1" 2>/dev/null || { [[ -x /usr/sbin/$1 ]] && echo /usr/sbin/$1; }; }
 need_cmd(){ find_cmd "$1" >/dev/null || die "Missing command: $1"; }
 
+check_kernel() {
+	
+	(
+		cd "$1"
+		make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig || (
+			KERNEL_SRC="$KERNEL_SRC" \
+			KEEP_GIT_DIR="1" \
+			CONFIG_BACKUP="$SCRIPT_DIR/rpi-working.config" \
+				pncwrap -t "STCPv2/Raspberry Pi build"  bash ensure-rpi-kernel-tree.sh
+		)
+	)
+}
+
+ensure_crypto_config() {
+    echo "[INFO] Ensuring STCP crypto kernel options..."
+    (
+       cd "$1"
+
+       scripts/config --enable CONFIG_CRYPTO
+       scripts/config --enable CONFIG_CRYPTO_SUPPORT
+
+       make ARCH="$ARCH" \
+           CROSS_COMPILE="$CROSS_COMPILE" \
+           olddefconfig
+    )
+}
+
+check_crypto_config() {
+    local ok=1
+
+	# NOP now
+
+    (( ok )) || exit 1
+}
+
 for c in make tar git rustup strings "${CROSS_COMPILE}gcc" "${CROSS_COMPILE}ld" "${CROSS_COMPILE}ar" "${CROSS_COMPILE}readelf"; do need_cmd "$c"; done
 [[ -f "$KERNEL_SRC/Makefile" ]] || die "Kernel source tree not found: $KERNEL_SRC"
 [[ -f "$STCP_SRC/Makefile" ]] || die "STCP source tree not found: $STCP_SRC"
+[[ -d "$STCP_SRC/src" ]] || die "STCP C source tree missing: $STCP_SRC/src"
+[[ -d "$STCP_SRC/rust/src" ]] || die "STCP Rust source tree missing: $STCP_SRC/rust/src"
+
+OLD_RPI_SRC="$SCRIPT_DIR/raspberry-kernel-module"
+if [[ -d "$OLD_RPI_SRC/src" || -d "$OLD_RPI_SRC/rust/src" ]]; then
+    die "Legacy Raspberry STCP source fork still exists at $OLD_RPI_SRC. Raspberry must build from $STCP_SRC"
+fi
+
+echo "[INFO] Raspberry kernel source : $KERNEL_SRC"
+echo "[INFO] Unified STCP source     : $STCP_SRC"
+echo "[INFO] Target                  : $TARGET ($ARCH)"
+echo "[INFO] Cross compiler          : $CROSS_COMPILE"
+
 rustup toolchain list | grep -q "^${RUST_TOOLCHAIN}" || die "Install nightly: rustup toolchain install $RUST_TOOLCHAIN --component rust-src"
+
+
 mkdir -p "$OUT_DIR"
 [[ -w "$OUT_DIR" ]] || die "Output directory is not writable: $OUT_DIR"
 
+check_kernel "$KERNEL_SRC"
+
 cd "$KERNEL_SRC"
 if [[ "$CLEAN" == 1 ]]; then make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" mrproper; fi
-if [[ ! -f .config ]]; then make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" "$DEFCONFIG"; fi
+if [[ ! -f .config ]]; then 
+
+	cp ../rpi-working.config .config
+
+	ensure_crypto_config "$KERNEL_SRC";
+
+	yes "" | make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" "$DEFCONFIG";
+fi
+
+check_crypto_config;
+
 if [[ -x scripts/config ]]; then
   scripts/config --set-str LOCALVERSION "$LOCALVERSION"
   scripts/config --disable LOCALVERSION_AUTO
 fi
+
 make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
 grep -q '^CONFIG_ARM64=y' .config || die "Kernel config is not ARM64"
 grep -q '^CONFIG_MODULES=y' .config || die "Kernel modules are disabled"
-make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" -j"$JOBS" Image modules
+pncwrap -t "STCPv2/Raspberry Pi build"  make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" -j"$JOBS" Image modules
 KREL="$(make -s ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" kernelrelease)"
 [[ -f Module.symvers ]] || die "Module.symvers missing"
 [[ -f arch/arm64/boot/Image ]] || die "Kernel Image missing"
 
 echo "== Rebuilding STCP against $KREL =="
-make -C "$KERNEL_SRC" M="$STCP_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" clean || true
+pncwrap -t "STCPv2/Raspberry Pi STCP clean build" make -C "$KERNEL_SRC" M="$STCP_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" clean || true
+
 rm -rf "$STCP_SRC/rust/target"
 rm -f "$STCP_SRC/src/rust_core.o" "$STCP_SRC/src/.rust_core.o.cmd" "$STCP_SRC/stcp.ko" "$STCP_SRC/stcp.o"
-make -C "$STCP_SRC" KDIR="$KERNEL_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" RUST_TOOLCHAIN="$RUST_TOOLCHAIN" -j"$JOBS"
+
+pncwrap -t "STCPv2/Raspberry Pi STCP build" \
+    make -C "$STCP_SRC" \
+        PLATFORM=rpi \
+        KDIR="$KERNEL_SRC" \
+        ARCH="$ARCH" \
+        CROSS_COMPILE="$CROSS_COMPILE" \
+        RUST_TOOLCHAIN="$RUST_TOOLCHAIN" \
+        -j"$JOBS" module
+
 STCP_KO="$STCP_SRC/stcp.ko"
 [[ -f "$STCP_KO" ]] || die "stcp.ko missing"
 MACHINE="$("${CROSS_COMPILE}readelf" -h "$STCP_KO" | awk -F: '/Machine:/{gsub(/^[ \t]+/,"",$2);print $2}')"
@@ -126,10 +203,39 @@ rm -f "$PACKAGE"
 tar -C "$WORK" -czf "$PACKAGE" "$PKG_NAME"
 echo "Package ready: $PACKAGE"
 
-# Install
-scp "$PACKAGE" pi@192.168.1.199:~/"${PKG_NAME}.tar.gz"
-echo "Package copied to Rapsberry..."
-ssh pi@192.168.1.199 "tar zxvf ${PKG_NAME}.tar.gz"
-ssh pi@192.168.1.199 "cd ${PKG_NAME} && sudo bash install.sh && sudo reboot"
-echo "Package installed to Rapsberry.. Rebooting in process..."
+# Install and reboot Raspberry exactly once.
+REMOTE_PACKAGE="${PKG_NAME}.tar.gz"
 
+echo "[INFO] Copying package to ${RUSER}@${IP}:~/${REMOTE_PACKAGE}"
+scp "$PACKAGE" "${RUSER}@${IP}:~/${REMOTE_PACKAGE}"
+
+echo "[INFO] Installing package on Raspberry..."
+ssh "${RUSER}@${IP}" bash -s -- "$REMOTE_PACKAGE" "$PKG_NAME" <<'REMOTE'
+set -Eeuo pipefail
+
+REMOTE_PACKAGE="$1"
+PKG_NAME="$2"
+
+rm -rf "$PKG_NAME"
+tar xzf "$REMOTE_PACKAGE"
+
+# Remove only previous STCP kernel images; install.sh installs the new one.
+sudo rm -f /boot/firmware/kernel-stcp-*.img 2>/dev/null || true
+sudo rm -f /boot/kernel-stcp-*.img 2>/dev/null || true
+
+cd "$PKG_NAME"
+sudo bash install.sh
+cd ..
+
+rm -rf "$PKG_NAME" "$REMOTE_PACKAGE"
+
+echo "[INFO] Package installed; rebooting Raspberry..."
+sudo reboot
+REMOTE
+
+pncnote -a "STCPv2/Raspberry Pi" \
+    -t "Raspberry Pi @ $IP" \
+    "Raspberry rebooting!" \
+    "$(printf 'Raspberry kernel + unified STCP module update completed\nRebooting....')"
+
+echo "[INFO] Package installed to Raspberry; reboot in progress."

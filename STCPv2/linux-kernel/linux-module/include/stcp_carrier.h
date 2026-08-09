@@ -35,6 +35,14 @@ enum stcp_carrier_kind stcp_carrier_get_kind(
 	const struct stcp_carrier *carrier
 );
 
+int stcp_carrier_get_endpoints(
+	struct stcp_carrier *carrier,
+	u32 *local_addr,
+	u16 *local_port,
+	u32 *peer_addr,
+	u16 *peer_port
+);
+
 bool stcp_carrier_needs_reliability(
 	const struct stcp_carrier *carrier
 );

@@ -141,7 +141,7 @@ if (( RECOMPILE )); then
     log "Doing full recompile..."
 
     if SUMMARY_FILE="$TMPD/full-recompile-summary.txt" \
-        bash "$GIT_ROOT/STCPv2/full-recompile.sh"; then
+        bash "$GIT_ROOT/STCPv2/full-recompile.sh" |& tee "$TMPD/full-recompile.log"; then
         RECOMPILE_RET=0
         TEST_STATUS="PASS"
         TEST_EXIT=0
@@ -154,11 +154,14 @@ if (( RECOMPILE )); then
     fi
 fi
 
-bundle "STCPv2/linux-kernel/linux-module" \
+bundle "STCPv2/linux-kernel" \
+       "linux-kernel.zip"
+
+bundle "STCPv2/linux-kernel-module" \
        "linux-kernel-module.zip"
 
-bundle "STCPv2/RaspberryPI/raspberry-kernel-module" \
-       "raspberry-kernel-module.zip"
+bundle "STCPv2/RaspberryPI/raspberry-kernel-sources" \
+       "raspberry-kernel-sources.zip"
 
 bundle "STCPv2/RaspberryPI/benchmark" \
        "raspberry-benchmark.zip"
@@ -182,6 +185,7 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
     echo "outer_describe=$(git -C "$GIT_ROOT" describe --always --dirty --tags 2>/dev/null || true)"
     echo
     echo "sdk_head=$(git -C "$SDK_ROOT" rev-parse HEAD 2>/dev/null || true)"
+    echo "full_recompile_log=full-recompile.log"
 } > "$TMPD/MANIFEST.txt"
 
 (
@@ -252,6 +256,7 @@ rm -f "$OUTPUT" "$OUTPUT.sha256"
 
     files=(./*.zip MANIFEST.txt)
     [[ -f full-recompile-summary.txt ]] && files+=(full-recompile-summary.txt)
+    [[ -f full-recompile.log ]] && files+=(full-recompile.log)
 
     zip -q "$OUTPUT" "${files[@]}"
 )

@@ -2,6 +2,7 @@
 *.o
 *.o.d
 *.o.cmd
+*.o.tmp
 *.a
 *.a.cmd
 *.ko

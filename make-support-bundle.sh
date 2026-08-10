@@ -158,6 +158,8 @@ if (( RECOMPILE )); then
     fi
 fi
 
+set -x
+
 bundle "STCPv2/kernel-module" \
        "kernel-module.zip"
 
@@ -195,18 +197,18 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
     echo "full_recompile_log=full-recompile.log"
 } > "$TMPD/MANIFEST.txt"
 
-if (( RUN_ROBOT_TESTS )); then
 
-	(
-	    cd "$SDK_ROOT" || exit 1
+(
+    cd "$SDK_ROOT" || exit 1
 
-	    ROBOT_LOGS="robot-results/latest.zip"
+    ROBOT_LOGS="robot-results/latest.zip"
 
-	    if (( RECOMPILE )); then
-	        log "Using Robot results produced by full recompile..."
-	    else
+    if (( RECOMPILE )); then
+        log "Using Robot results produced by full recompile..."
+    else
+
+	if (( RUN_ROBOT_TESTS )); then
 	        log "Running Robot Framework tests..."
-
 	        if bash scripts/run-robot-tests.sh; then
 	            TEST_STATUS="PASS"
 	            TEST_EXIT=0
@@ -214,47 +216,46 @@ if (( RUN_ROBOT_TESTS )); then
 	            TEST_EXIT=$?
 	            TEST_STATUS="FAIL"
 	        fi
-	    fi
+	else
+		warn "SKIPPED: Robot tests..."
+	fi
 
-	    [[ -f "$ROBOT_LOGS" ]] || fail "Missing Robot log archive: $SDK_ROOT/$ROBOT_LOGS"
+    [[ -f "$ROBOT_LOGS" ]] || fail "Missing Robot log archive: $SDK_ROOT/$ROBOT_LOGS"
 
-	    log "Copying Robot logs..."
-	    cp -av "$ROBOT_LOGS" "$TMPD/robot-test-results.zip"
+    log "Copying Robot logs..."
+    cp -av "$ROBOT_LOGS" "$TMPD/robot-test-results.zip"
 
-	    echo "robot_test_status=$TEST_STATUS" >> "$TMPD/MANIFEST.txt"
-	    echo "robot_test_exit=$TEST_EXIT" >> "$TMPD/MANIFEST.txt"
+    echo "robot_test_status=$TEST_STATUS" >> "$TMPD/MANIFEST.txt"
+    echo "robot_test_exit=$TEST_EXIT" >> "$TMPD/MANIFEST.txt"
 
-	    SUMMARY="$(unzip -p "$ROBOT_LOGS" summary.txt 2>/dev/null || true)"
+    SUMMARY="$(unzip -p "$ROBOT_LOGS" summary.txt 2>/dev/null || true)"
 
-	    if [[ -n "$SUMMARY" ]]; then
-	        echo >> "$TMPD/MANIFEST.txt"
-	        echo "robot_summary:" >> "$TMPD/MANIFEST.txt"
-	        printf '%s\n' "$SUMMARY" | sed 's/^/  /' >> "$TMPD/MANIFEST.txt"
+    if [[ -n "$SUMMARY" ]]; then
+        echo >> "$TMPD/MANIFEST.txt"
+        echo "robot_summary:" >> "$TMPD/MANIFEST.txt"
+        printf '%s\n' "$SUMMARY" | sed 's/^/  /' >> "$TMPD/MANIFEST.txt"
 
-	        PASS="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*PASS=\([0-9]\+\).*/\1/p' | head -n1)"
-	        FAIL_COUNT="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*FAIL=\([0-9]\+\).*/\1/p' | head -n1)"
-	        TOTAL="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*TOTAL=\([0-9]\+\).*/\1/p' | head -n1)"
-	        REGRESSIONS="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*REGRESSIONS=\([0-9]\+\).*/\1/p' | head -n1)"
-	        FIXED="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*FIXED=\([0-9]\+\).*/\1/p' | head -n1)"
-	        STILL_FAILING="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*STILL_FAILING=\([0-9]\+\).*/\1/p' | head -n1)"
+        PASS="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*PASS=\([0-9]\+\).*/\1/p' | head -n1)"
+        FAIL_COUNT="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*FAIL=\([0-9]\+\).*/\1/p' | head -n1)"
+        TOTAL="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*TOTAL=\([0-9]\+\).*/\1/p' | head -n1)"
+        REGRESSIONS="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*REGRESSIONS=\([0-9]\+\).*/\1/p' | head -n1)"
+        FIXED="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*FIXED=\([0-9]\+\).*/\1/p' | head -n1)"
+        STILL_FAILING="$(printf '%s\n' "$SUMMARY" | sed -n 's/.*STILL_FAILING=\([0-9]\+\).*/\1/p' | head -n1)"
 
-	        [[ -n "$PASS" && -n "$TOTAL" ]] && echo "robot_result=${PASS}/${TOTAL}" >> "$TMPD/MANIFEST.txt"
-	        [[ -n "$PASS" ]] && echo "robot_pass=$PASS" >> "$TMPD/MANIFEST.txt"
-	        [[ -n "$FAIL_COUNT" ]] && echo "robot_fail=$FAIL_COUNT" >> "$TMPD/MANIFEST.txt"
-	        [[ -n "$TOTAL" ]] && echo "robot_total=$TOTAL" >> "$TMPD/MANIFEST.txt"
-	        [[ -n "$REGRESSIONS" ]] && echo "robot_regressions=$REGRESSIONS" >> "$TMPD/MANIFEST.txt"
-	        [[ -n "$FIXED" ]] && echo "robot_fixed=$FIXED" >> "$TMPD/MANIFEST.txt"
-	        [[ -n "$STILL_FAILING" ]] && echo "robot_still_failing=$STILL_FAILING" >> "$TMPD/MANIFEST.txt"
-	    else
-	        warn "summary.txt was not found inside $ROBOT_LOGS"
-	    fi
+        [[ -n "$PASS" && -n "$TOTAL" ]] && echo "robot_result=${PASS}/${TOTAL}" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$PASS" ]] && echo "robot_pass=$PASS" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$FAIL_COUNT" ]] && echo "robot_fail=$FAIL_COUNT" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$TOTAL" ]] && echo "robot_total=$TOTAL" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$REGRESSIONS" ]] && echo "robot_regressions=$REGRESSIONS" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$FIXED" ]] && echo "robot_fixed=$FIXED" >> "$TMPD/MANIFEST.txt"
+        [[ -n "$STILL_FAILING" ]] && echo "robot_still_failing=$STILL_FAILING" >> "$TMPD/MANIFEST.txt"
+    else
+        warn "summary.txt was not found inside $ROBOT_LOGS"
+    fi
 
-	    SHA="$(sha256sum "$ROBOT_LOGS" | awk '{print $1}')"
-	    echo "robot_logs_sha256=$SHA" >> "$TMPD/MANIFEST.txt"
-	)
-else
-	warn "Robot tests skipped!"
-fi
+    SHA="$(sha256sum "$ROBOT_LOGS" | awk '{print $1}')"
+    echo "robot_logs_sha256=$SHA" >> "$TMPD/MANIFEST.txt"
+)
 
 {
     echo

@@ -9,7 +9,7 @@
 #   ./make-support-bundle.sh --recompile
 #
 
-set -uo pipefail
+set -Eeuo pipefail
 
 SDK_ROOT="${SDK_ROOT:-$HOME/SDK/v2}"
 
@@ -21,6 +21,7 @@ Options:
   --output FILE   Output zip path (default: ./support-bundle.zip)
   --ref REF       Git revision to archive (default: HEAD)
   --recompile     Do full recompile; reuse the Robot results it produces
+  --no-robot      Do not run Robot; reuse latest results if available
   -h, --help      Show this help
 USAGE
 }
@@ -193,40 +194,46 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
 } > "$TMPD/MANIFEST.txt"
 
 
-{
-    cd "$SDK_ROOT" || exit 1
+pushd "$SDK_ROOT" >/dev/null
 
-    ROBOT_LOGS="robot-results/latest.zip"
+ROBOT_LOGS="robot-results/latest.zip"
 
-    if (( RECOMPILE )); then
-        log "Using Robot results produced by full recompile..."
+if (( RECOMPILE )); then
+    log "Using Robot results produced by full recompile..."
+else
+    if (( RUN_ROBOT_TESTS )); then
+        log "Running Robot Framework tests..."
+        if bash scripts/run-robot-tests.sh; then
+            TEST_STATUS="PASS"
+            TEST_EXIT=0
+        else
+            TEST_EXIT=$?
+            TEST_STATUS="FAIL"
+        fi
     else
-
-	if (( RUN_ROBOT_TESTS )); then
-	        log "Running Robot Framework tests..."
-	        if bash scripts/run-robot-tests.sh; then
-	            TEST_STATUS="PASS"
-	            TEST_EXIT=0
-	        else
-	            TEST_EXIT=$?
-	            TEST_STATUS="FAIL"
-	        fi
-	else
-                TEST_STATUS="SKIPPED"
-                TEST_EXIT=0
-		warn "SKIPPED: Robot tests..."
-	fi
+        warn "SKIPPED: Robot tests; reusing latest results if available."
+        TEST_STATUS="SKIPPED"
+        TEST_EXIT="not-run"
     fi
+fi
 
-    [[ -f "$ROBOT_LOGS" ]] || fail "Missing Robot log archive: $SDK_ROOT/$ROBOT_LOGS"
-
+if [[ -f "$ROBOT_LOGS" ]]; then
     log "Copying Robot logs..."
     cp -av "$ROBOT_LOGS" "$TMPD/robot-test-results.zip"
 
     echo "robot_test_status=$TEST_STATUS" >> "$TMPD/MANIFEST.txt"
     echo "robot_test_exit=$TEST_EXIT" >> "$TMPD/MANIFEST.txt"
 
-    SUMMARY="$(unzip -p "$ROBOT_LOGS" summary.txt 2>/dev/null || true)"
+    # summary.txt may be at ZIP root or under the run-directory prefix.
+    SUMMARY_ENTRY="$(
+        unzip -Z1 "$ROBOT_LOGS" 2>/dev/null \
+            | awk '(^|/)summary\.txt$ { print; exit }'
+    )"
+
+    SUMMARY=""
+    if [[ -n "$SUMMARY_ENTRY" ]]; then
+        SUMMARY="$(unzip -p "$ROBOT_LOGS" "$SUMMARY_ENTRY" 2>/dev/null || true)"
+    fi
 
     if [[ -n "$SUMMARY" ]]; then
         echo >> "$TMPD/MANIFEST.txt"
@@ -253,7 +260,18 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
 
     SHA="$(sha256sum "$ROBOT_LOGS" | awk '{print $1}')"
     echo "robot_logs_sha256=$SHA" >> "$TMPD/MANIFEST.txt"
-}
+else
+    if (( RUN_ROBOT_TESTS || RECOMPILE )); then
+        fail "Missing Robot log archive after requested test/recompile: $SDK_ROOT/$ROBOT_LOGS"
+    fi
+
+    warn "No Robot log archive available; continuing because --no-robot was used."
+    echo "robot_test_status=SKIPPED" >> "$TMPD/MANIFEST.txt"
+    echo "robot_test_exit=not-run" >> "$TMPD/MANIFEST.txt"
+fi
+
+popd >/dev/null
+
 
 {
     echo
@@ -275,11 +293,14 @@ rm -f "$OUTPUT" "$OUTPUT.sha256"
 [[ -s "$OUTPUT" ]] || fail "Output archive was not created"
 sha256sum "$OUTPUT" > "$OUTPUT.sha256"
 
-OUTDN="$(dirname "$OUTPUT")"
-mkdir -p "$OUTDN"
-cp -v "$OUTPUT" "$OUTDN/support-bundles/"
-cp -v "$OUTPUT.sha256" "$OUTDN/support-bundles/"
-ln -fs "$OUTPUT" latest-support-package.zip
+# OUTPUT already points at its final destination. Do not copy it into a
+# second "support-bundles/" directory below itself.
+OUTPUT_DIR="$(dirname "$OUTPUT")"
+mkdir -p "$OUTPUT_DIR"
+
+# Keep a stable symlink beside the generated archive.
+ln -sfn "$(basename "$OUTPUT")" "$OUTPUT_DIR/latest-support-package.zip"
+ln -sfn "$(basename "$OUTPUT.sha256")" "$OUTPUT_DIR/latest-support-package.zip.sha256"
 
 log "Created: $OUTPUT"
 log "SHA256: $(awk '{print $1}' "$OUTPUT.sha256")"

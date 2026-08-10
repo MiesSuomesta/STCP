@@ -86,6 +86,12 @@ static int stcp_release(struct socket *sock)
 
 	ssk = stcp_sk(sk);
 
+	pr_info(
+		"stcp: release enter sock=%px sk=%px ssk=%px ctx=%px carrier=%px state=%d\n",
+		sock, sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
+		sock->state
+	);
+
 	/* Remove it from /proc/stcp/users before freeing the socket. */
 	stcp_user_unregister(ssk);
 
@@ -678,6 +684,12 @@ static int stcp_recvmsg(
 	ssk = stcp_sk(sock->sk);
 	if (!ssk->rust_ctx)
 		return -EINVAL;
+
+	pr_info_ratelimited(
+		"stcp: recvmsg enter sock=%px sk=%px ssk=%px ctx=%px carrier=%px state=%d len=%zu flags=0x%x\n",
+		sock, sock->sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
+		sock->state, len, flags
+	);
 
 	mutex_lock(&ssk->rx_lock);
 	ret = stcp_ensure_io_buffer(

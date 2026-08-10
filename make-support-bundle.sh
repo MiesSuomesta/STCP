@@ -158,6 +158,9 @@ if (( RECOMPILE )); then
     fi
 fi
 
+bundle "STCPv2/kernel-module" \
+       "kernel-module.zip"
+
 bundle "STCPv2/linux-kernel" \
        "linux-kernel.zip"
 

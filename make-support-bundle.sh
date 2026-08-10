@@ -158,9 +158,6 @@ if (( RECOMPILE )); then
     fi
 fi
 
-bundle "STCPv2/kernel-module" \
-       "kernel-module.zip"
-
 bundle "STCPv2/linux-kernel" \
        "linux-kernel.zip"
 
@@ -196,7 +193,7 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
 } > "$TMPD/MANIFEST.txt"
 
 
-(
+{
     cd "$SDK_ROOT" || exit 1
 
     ROBOT_LOGS="robot-results/latest.zip"
@@ -215,8 +212,11 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
 	            TEST_STATUS="FAIL"
 	        fi
 	else
+                TEST_STATUS="SKIPPED"
+                TEST_EXIT=0
 		warn "SKIPPED: Robot tests..."
 	fi
+    fi
 
     [[ -f "$ROBOT_LOGS" ]] || fail "Missing Robot log archive: $SDK_ROOT/$ROBOT_LOGS"
 
@@ -253,7 +253,7 @@ bundle "STCPv2/zephyr/nordic/stcp-application" \
 
     SHA="$(sha256sum "$ROBOT_LOGS" | awk '{print $1}')"
     echo "robot_logs_sha256=$SHA" >> "$TMPD/MANIFEST.txt"
-)
+}
 
 {
     echo

@@ -227,7 +227,7 @@ if [[ -f "$ROBOT_LOGS" ]]; then
     # summary.txt may be at ZIP root or under the run-directory prefix.
     SUMMARY_ENTRY="$(
         unzip -Z1 "$ROBOT_LOGS" 2>/dev/null \
-            | awk '(^|/)summary\.txt$ { print; exit }'
+            | awk '/(^|\/)summary\.txt$/ { print; exit }'
     )"
 
     SUMMARY=""

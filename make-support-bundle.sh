@@ -137,10 +137,23 @@ bundle() {
         --output="$TMPD/$out_name" \
         "$treeish"
 
-    if ! unzip -Z1 "$TMPD/$out_name" | grep -q .; then
+    # Do not use `unzip -Z1 ... | grep -q .` here with `set -o pipefail`:
+    # grep exits after the first match, unzip receives SIGPIPE, and pipefail
+    # makes a perfectly valid non-empty archive look like a failure.
+    local zip_list="$TMPD/.${out_name}.list"
+    if ! unzip -Z1 "$TMPD/$out_name" >"$zip_list" 2>/dev/null; then
+        rm -f "$TMPD/$out_name" "$zip_list"
+        fail "Could not inspect generated archive: $out_name"
+    fi
+
+    if [[ ! -s "$zip_list" ]]; then
         rm -f "$TMPD/$out_name"
         warn "Archive was empty and was omitted: $out_name"
+    else
+        log "Archive contains $(wc -l <"$zip_list") tracked entries: $out_name"
     fi
+
+    rm -f "$zip_list"
 }
 if (( RECOMPILE )); then
     log "Doing full recompile..."

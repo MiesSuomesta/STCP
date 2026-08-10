@@ -161,8 +161,8 @@ fi
 bundle "STCPv2/linux-kernel" \
        "linux-kernel.zip"
 
-bundle "STCPv2/linux-kernel-module" \
-       "linux-kernel-module.zip"
+bundle "STCPv2/linux-kernel/linux-module" \
+       "linux-kernel/linux-module.zip"
 
 bundle "STCPv2/RaspberryPI/raspberry-kernel-sources" \
        "raspberry-kernel-sources.zip"

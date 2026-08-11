@@ -28,6 +28,56 @@
 #define STCP_CLOSE_DRAIN_TIMEOUT_MS 750
 #define STCP_CLOSE_FIN_TIMEOUT_MS 1250
 
+/*
+ * Crash-debug instrumentation for the socket lifetime / LSM recvmsg race.
+ *
+ * security_socket_recvmsg() is called before ->recvmsg(), so a crash inside
+ * AppArmor can happen before stcp_recvmsg() gets control.  The release trace
+ * is therefore intentionally detailed: it records exactly when sock->sk is
+ * detached and what STCP state still exists at that moment.
+ */
+static void stcp_debug_socket_state(const char *where, struct socket *sock)
+{
+    struct sock *sk;
+    struct stcp_sock *ssk;
+    void *security = NULL;
+
+    if (!sock) {
+        pr_err("stcp-debug: %s sock=NULL pid=%d comm=%s\n",
+               where, current->pid, current->comm);
+        return;
+    }
+
+    sk = READ_ONCE(sock->sk);
+    if (!sk) {
+        pr_err("stcp-debug: %s sock=%px sk=NULL sock_state=%d pid=%d comm=%s\n",
+               where, sock, READ_ONCE(sock->state), current->pid, current->comm);
+        return;
+    }
+
+    ssk = stcp_sk(sk);
+#ifdef CONFIG_SECURITY
+    security = READ_ONCE(sk->sk_security);
+#endif
+
+    pr_err("stcp-debug: %s sock=%px sk=%px ssk=%px sk_security=%px "
+           "sock_state=%d sk_state=%u ctx=%px carrier=%px "
+           "txbuf=%px rxbuf=%px pid=%d comm=%s\n",
+           where,
+           sock,
+           sk,
+           ssk,
+           security,
+           READ_ONCE(sock->state),
+           READ_ONCE(sk->sk_state),
+           READ_ONCE(ssk->rust_ctx),
+           READ_ONCE(ssk->carrier),
+           READ_ONCE(ssk->tx_buffer),
+           READ_ONCE(ssk->rx_buffer),
+           current->pid,
+           current->comm);
+}
+
 
 /*
  * Multi-megabyte kmalloc() allocations require physically contiguous pages
@@ -77,27 +127,31 @@ static int stcp_release(struct socket *sock)
 	size_t tx_buffer_size;
 	size_t rx_buffer_size;
 
+	stcp_debug_socket_state("release-enter", sock);
+
 	if (!sock)
 		return -EINVAL;
 
-	sk = sock->sk;
-	if (!sk)
+	sk = READ_ONCE(sock->sk);
+	if (!sk) {
+		pr_err("stcp-debug: release-no-sk sock=%px pid=%d comm=%s\n",
+		       sock, current->pid, current->comm);
 		return 0;
+	}
 
 	ssk = stcp_sk(sk);
-
-	pr_info(
-		"stcp: release enter sock=%px sk=%px ssk=%px ctx=%px carrier=%px state=%d\n",
-		sock, sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
-		sock->state
-	);
+	stcp_debug_socket_state("release-before-unregister", sock);
 
 	/* Remove it from /proc/stcp/users before freeing the socket. */
 	stcp_user_unregister(ssk);
 
 	/* Prevent new operations from finding this socket during teardown. */
-	sock->sk = NULL;
+	stcp_debug_socket_state("release-before-sk-null", sock);
+	WRITE_ONCE(sock->sk, NULL);
+	stcp_debug_socket_state("release-after-sk-null", sock);
 
+	pr_err("stcp-debug: release-stop-retransmit sk=%px ssk=%px ctx=%px carrier=%px\n",
+	       sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier));
 	stcp_stop_retransmit_work(ssk);
 
 	/*
@@ -130,8 +184,14 @@ static int stcp_release(struct socket *sock)
 		);
 
 	/* Detach pointers exactly once, including concurrent error teardown. */
+	pr_err("stcp-debug: release-before-xchg sk=%px ssk=%px ctx=%px carrier=%px\n",
+	       sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier));
 	rust_ctx = xchg(&ssk->rust_ctx, NULL);
 	carrier = xchg(&ssk->carrier, NULL);
+	pr_err("stcp-debug: release-after-xchg sk=%px ssk=%px old_ctx=%px old_carrier=%px "
+	       "ctx_now=%px carrier_now=%px\n",
+	       sk, ssk, rust_ctx, carrier,
+	       READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier));
 
 	if (rust_ctx &&
 	    stcp_rust_get_reliability_stats(rust_ctx, &stats) == 0 &&
@@ -185,8 +245,14 @@ static int stcp_release(struct socket *sock)
 	wake_up_interruptible_all(&ssk->accept_wq);
 	wake_up_interruptible_all(&ssk->recv_wq);
 
+	pr_err("stcp-debug: release-before-sock-orphan sock=%px sk=%px ssk=%px pid=%d comm=%s\n",
+	       sock, sk, ssk, current->pid, current->comm);
 	sock_orphan(sk);
+	pr_err("stcp-debug: release-before-sk-common-release sock=%px sk=%px ssk=%px\n",
+	       sock, sk, ssk);
 	sk_common_release(sk);
+	pr_err("stcp-debug: release-exit sock=%px old_sk=%px pid=%d comm=%s\n",
+	       sock, sk, current->pid, current->comm);
 
 	return 0;
 }
@@ -664,12 +730,23 @@ static int stcp_recvmsg(
 )
 {
 	struct stcp_sock *ssk;
+	struct sock *sk;
 	u8 *buffer;
 	ssize_t ret;
 	int wait_ret;
 
-	if (!sock || !sock->sk || !msg)
+	stcp_debug_socket_state("recvmsg-enter", sock);
+
+	if (!sock || !msg)
 		return -EINVAL;
+
+	sk = READ_ONCE(sock->sk);
+	if (!sk) {
+		pr_err("stcp-debug: recvmsg-no-sk sock=%px msg=%px len=%zu flags=0x%x "
+		       "pid=%d comm=%s\n",
+		       sock, msg, len, flags, current->pid, current->comm);
+		return -EINVAL;
+	}
 
 	if (!len)
 		return 0;
@@ -681,15 +758,12 @@ static int stcp_recvmsg(
 	 */
 	len = min_t(size_t, len, STCP_IO_BUFFER_MAX);
 
-	ssk = stcp_sk(sock->sk);
-	if (!ssk->rust_ctx)
+	ssk = stcp_sk(sk);
+	if (!READ_ONCE(ssk->rust_ctx)) {
+		pr_err("stcp-debug: recvmsg-no-ctx sock=%px sk=%px ssk=%px carrier=%px\n",
+		       sock, sk, ssk, READ_ONCE(ssk->carrier));
 		return -EINVAL;
-
-	pr_info_ratelimited(
-		"stcp: recvmsg enter sock=%px sk=%px ssk=%px ctx=%px carrier=%px state=%d len=%zu flags=0x%x\n",
-		sock, sock->sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
-		sock->state, len, flags
-	);
+	}
 
 	mutex_lock(&ssk->rx_lock);
 	ret = stcp_ensure_io_buffer(
@@ -735,6 +809,10 @@ static int stcp_recvmsg(
 		ret = -EFAULT;
 
 	mutex_unlock(&ssk->rx_lock);
+	pr_err("stcp-debug: recvmsg-exit sock=%px sk=%px ssk=%px ctx=%px carrier=%px "
+	       "ret=%zd len=%zu flags=0x%x pid=%d comm=%s\n",
+	       sock, sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
+	       ret, len, flags, current->pid, current->comm);
 	return ret;
 }
 

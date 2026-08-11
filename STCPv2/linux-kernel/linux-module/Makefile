@@ -67,6 +67,7 @@ STCP_HAVE_SOCKADDR_UNSIZED := $(shell \
 KBUILD_STCP_ARGS := STCP_HAVE_SOCKADDR_UNSIZED=$(STCP_HAVE_SOCKADDR_UNSIZED)
 
 KERNEL_RELEASE := $(shell $(MAKE) -sC "$(KDIR)" kernelrelease 2>/dev/null || uname -r)
+KERNEL_RUNNING_RELEASE := $(shell uname -r)
 SUDO ?= sudo
 
 .PHONY: all module rust rust-core check-tools check-relocations clean distclean zip \
@@ -202,7 +203,43 @@ test-clean:
 #
 # Moduuli funkkarit
 #
-.PHONY: module-stop module-shutdown module-remove module-install module-reload module-install-support
+.PHONY: module-stop module-shutdown module-remove module-install module-reinstall module-reload module-install-support
+.PHONY: stcp-module-check
+
+stcp-module-check:
+	@set -e; \
+	BUILD_MODULE="$(PWD)/stcp.ko"; \
+	INSTALLED_MODULE="/lib/modules/$(KERNEL_RUNNING_RELEASE)/extra/stcp.ko"; \
+	echo "STCP module check"; \
+	echo "================="; \
+	echo; \
+	if [ -f "$$BUILD_MODULE" ]; then \
+		echo "Build:     $$BUILD_MODULE"; \
+		echo "SHA256:    $$(sha256sum "$$BUILD_MODULE" | awk '{print $$1}')"; \
+	else \
+		echo "Build:     NOT FOUND: $$BUILD_MODULE"; \
+	fi; \
+	echo; \
+	if [ -f "$$INSTALLED_MODULE" ]; then \
+		echo "Installed: $$INSTALLED_MODULE"; \
+		echo "SHA256:    $$(sha256sum "$$INSTALLED_MODULE" | awk '{print $$1}')"; \
+	else \
+		echo "Installed: NOT FOUND: $$INSTALLED_MODULE"; \
+	fi; \
+	echo; \
+	if [ -f "$$BUILD_MODULE" ] && [ -f "$$INSTALLED_MODULE" ]; then \
+		BUILD_SHA=$$(sha256sum "$$BUILD_MODULE" | awk '{print $$1}'); \
+		INSTALLED_SHA=$$(sha256sum "$$INSTALLED_MODULE" | awk '{print $$1}'); \
+		if [ "$$BUILD_SHA" = "$$INSTALLED_SHA" ]; then \
+			echo "[OK] Build and installed stcp.ko are identical"; \
+		else \
+			echo "[FAIL] Build and installed stcp.ko DIFFER"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "[FAIL] Cannot compare modules"; \
+		exit 1; \
+	fi
 
 module-install-support:
 	echo "Installing support modules..."
@@ -217,8 +254,20 @@ module-install: module module-install-support
 	@if [ "$(PLATFORM)" != "host" ] && [ "$(shell uname -m)" != "aarch64" ]; then \
 		echo "Refusing local install of cross-built Raspberry module"; exit 1; \
 	fi
-	$(SUDO) install -D -m 0644 stcp.ko /lib/modules/$(KERNEL_RELEASE)/extra/stcp.ko
-	$(SUDO) depmod -a $(KERNEL_RELEASE)
+	echo "Installing module, for real..."
+	$(SUDO) install -D -m 0644 stcp.ko /lib/modules/$(KERNEL_RUNNING_RELEASE)/extra/stcp.ko
+	$(SUDO) depmod -a $(KERNEL_RUNNING_RELEASE)
+	$(SUDO) modprobe stcp
+	$(MAKE) stcp-module-check
+
+module-reinstall: clean module-install
+	echo "Re-Installing module..."
+	@if [ "$(PLATFORM)" != "host" ] && [ "$(shell uname -m)" != "aarch64" ]; then \
+		echo "Refusing local install of cross-built Raspberry module"; exit 1; \
+	fi
+	echo "Re-Installing module, for real..."
+	$(SUDO) install -D -m 0644 stcp.ko /lib/modules/$(KERNEL_RUNNING_RELEASE)/extra/stcp.ko
+	$(SUDO) depmod -a $(KERNEL_RUNNING_RELEASE)
 	$(SUDO) modprobe stcp
 
 module-reload: module-remove module-install

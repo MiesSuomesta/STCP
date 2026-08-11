@@ -262,9 +262,17 @@ struct sock *stcp_alloc_child_sock(
 
 	ssk = stcp_sk(newsk);
 	ssk->rust_ctx = NULL;
-	/* Child sockets must start with no carrier.  Several accept error paths
-	 * call the common cleanup helper before a carrier has been attached. */
 	ssk->carrier = NULL;
+	pr_err("stcp-debug: child-alloc newsock=%px newsk=%px ssk=%px "
+	       "sk_security=%px sock_state=%d sk_state=%u pid=%d comm=%s\n",
+	       newsock, newsk, ssk,
+#ifdef CONFIG_SECURITY
+	       READ_ONCE(newsk->sk_security),
+#else
+	       NULL,
+#endif
+	       READ_ONCE(newsock->state), READ_ONCE(newsk->sk_state),
+	       current->pid, current->comm);
 	init_waitqueue_head(&ssk->accept_wq);
 	init_waitqueue_head(&ssk->recv_wq);
 	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);

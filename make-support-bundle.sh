@@ -172,14 +172,8 @@ if (( RECOMPILE )); then
     fi
 fi
 
-bundle "STCPv2/linux-kernel" \
-       "linux-kernel.zip"
-
 bundle "STCPv2/linux-kernel/linux-module" \
        "linux-kernel-linux-module.zip"
-
-bundle "STCPv2/RaspberryPI/raspberry-kernel-sources" \
-       "raspberry-kernel-sources.zip"
 
 bundle "STCPv2/RaspberryPI/benchmark" \
        "raspberry-benchmark.zip"

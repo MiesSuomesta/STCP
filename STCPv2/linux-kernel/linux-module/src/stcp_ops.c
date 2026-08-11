@@ -145,10 +145,14 @@ static int stcp_release(struct socket *sock)
 	/* Remove it from /proc/stcp/users before freeing the socket. */
 	stcp_user_unregister(ssk);
 
-	/* Prevent new operations from finding this socket during teardown. */
-	stcp_debug_socket_state("release-before-sk-null", sock);
-	WRITE_ONCE(sock->sk, NULL);
-	stcp_debug_socket_state("release-after-sk-null", sock);
+	/*
+	 * Keep sock->sk attached while STCP teardown is still in progress.
+	 * Generic socket/LSM hooks may still observe this socket concurrently, so
+	 * detaching it here creates a long NULL window during graceful close.
+	 * The final detach is done below, after sk_common_release(), matching the
+	 * ordering used by the normal INET release path.
+	 */
+	stcp_debug_socket_state("release-sk-kept-attached", sock);
 
 	pr_err("stcp-debug: release-stop-retransmit sk=%px ssk=%px ctx=%px carrier=%px\n",
 	       sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier));
@@ -251,6 +255,18 @@ static int stcp_release(struct socket *sock)
 	pr_err("stcp-debug: release-before-sk-common-release sock=%px sk=%px ssk=%px\n",
 	       sock, sk, ssk);
 	sk_common_release(sk);
+
+	/*
+	 * STCP teardown is now complete.  Only at this point detach the VFS socket
+	 * from the protocol sock.  __sock_release() also clears this field after
+	 * ->release() returns, so this assignment is intentionally idempotent.
+	 */
+	pr_err("stcp-debug: release-before-final-sk-null sock=%px old_sk=%px pid=%d comm=%s\n",
+	       sock, sk, current->pid, current->comm);
+	WRITE_ONCE(sock->sk, NULL);
+	pr_err("stcp-debug: release-after-final-sk-null sock=%px old_sk=%px pid=%d comm=%s\n",
+	       sock, sk, current->pid, current->comm);
+
 	pr_err("stcp-debug: release-exit sock=%px old_sk=%px pid=%d comm=%s\n",
 	       sock, sk, current->pid, current->comm);
 

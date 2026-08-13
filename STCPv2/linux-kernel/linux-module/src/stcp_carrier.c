@@ -36,6 +36,9 @@ static atomic64_t stcp_tcp_close_fin_timeouts = ATOMIC64_INIT(0);
 
 struct stcp_carrier {
 	enum stcp_carrier_kind kind;
+	u64 debug_id;
+	atomic_t rx_callbacks;
+	bool destroy_started;
 	struct socket *socket;
 	struct task_struct *receiver;
 	struct stcp_carrier *parent;
@@ -70,6 +73,8 @@ struct stcp_carrier {
 	u8 *held_frame;
 	size_t held_frame_len;
 };
+
+static atomic64_t stcp_carrier_debug_seq = ATOMIC64_INIT(0);
 
 extern int stcp_rust_carrier_receive_from(
 	void *rust_ctx,
@@ -223,6 +228,12 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 	if (!carrier || carrier->parent)
 		return false;
 
+	pr_err("stcp-lifetime: CARRIER-STOP-ENTER cid=%llu carrier=%px ctx=%px owner=%px receiver=%px rx_active=%d stopping=%d stopped=%d pid=%d comm=%s\n",
+	       READ_ONCE(carrier->debug_id), carrier, READ_ONCE(carrier->rust_ctx),
+	       READ_ONCE(carrier->owner), READ_ONCE(carrier->receiver),
+	       atomic_read(&carrier->rx_callbacks), READ_ONCE(carrier->stopping),
+	       READ_ONCE(carrier->stopped), current->pid, current->comm);
+
 	/*
 	 * Exactly one caller performs shutdown.  Concurrent destroy/free paths
 	 * wait for stop_done before they are allowed to release the root memory.
@@ -284,6 +295,11 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 	mutex_unlock(&carrier->lifecycle_lock);
 
 	complete_all(&carrier->stop_done);
+	pr_err("stcp-lifetime: CARRIER-STOP-EXIT cid=%llu carrier=%px ctx=%px owner=%px rx_active=%d stopped=%d pid=%d comm=%s\n",
+	       READ_ONCE(carrier->debug_id), carrier, READ_ONCE(carrier->rust_ctx),
+	       READ_ONCE(carrier->owner), atomic_read(&carrier->rx_callbacks),
+	       READ_ONCE(carrier->stopped), current->pid, current->comm);
+	WARN_ON_ONCE(atomic_read(&carrier->rx_callbacks) != 0);
 	return true;
 }
 
@@ -406,14 +422,36 @@ static int stcp_receiver_thread(void *argument)
 		}
 
 
-		ret = stcp_rust_carrier_receive_from(
-			carrier->rust_ctx,
-			buffer,
-			(size_t)received_len,
-			peer_addr,
-			peer_port
-		);
+		{
+			void *callback_ctx = READ_ONCE(carrier->rust_ctx);
+			void *callback_owner = READ_ONCE(carrier->owner);
+			int active = atomic_inc_return(&carrier->rx_callbacks);
 
+			pr_err("stcp-lifetime: RX-CB-ENTER cid=%llu carrier=%px ctx=%px owner=%px stopped=%d stopping=%d destroy=%d active=%d len=%zd pid=%d comm=%s\n",
+			       READ_ONCE(carrier->debug_id), carrier, callback_ctx,
+			       callback_owner, READ_ONCE(carrier->stopped),
+			       READ_ONCE(carrier->stopping), READ_ONCE(carrier->destroy_started),
+			       active, received_len, current->pid, current->comm);
+
+			if (unlikely(READ_ONCE(carrier->destroy_started) || !callback_ctx))
+				pr_err("STCP-LIFETIME-BUG: RX callback after detach/teardown cid=%llu carrier=%px ctx=%px owner=%px destroy=%d stopping=%d\n",
+				       READ_ONCE(carrier->debug_id), carrier, callback_ctx,
+				       callback_owner, READ_ONCE(carrier->destroy_started),
+				       READ_ONCE(carrier->stopping));
+
+			if (callback_ctx)
+				ret = stcp_rust_carrier_receive_from(
+					callback_ctx, buffer, (size_t)received_len,
+					peer_addr, peer_port);
+			else
+				ret = -ESHUTDOWN;
+
+			active = atomic_dec_return(&carrier->rx_callbacks);
+			pr_err("stcp-lifetime: RX-CB-EXIT cid=%llu carrier=%px ctx_now=%px owner_now=%px active=%d ret=%d pid=%d comm=%s\n",
+			       READ_ONCE(carrier->debug_id), carrier,
+			       READ_ONCE(carrier->rust_ctx), READ_ONCE(carrier->owner),
+			       active, ret, current->pid, current->comm);
+		}
 
 		cond_resched();
 		if (ret)
@@ -482,6 +520,9 @@ struct stcp_carrier *stcp_carrier_create(
 		return ERR_PTR(-ENOMEM);
 
 	carrier->kind = kind;
+	carrier->debug_id = (u64)atomic64_inc_return(&stcp_carrier_debug_seq);
+	atomic_set(&carrier->rx_callbacks, 0);
+	carrier->destroy_started = false;
 	carrier->rust_ctx = rust_ctx;
 	carrier->owner = owner;
 	refcount_set(&carrier->refs, 1);
@@ -552,6 +593,9 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	init_waitqueue_head(&child->send_wait);
 	mutex_init(&child->test_lock);
 	child->kind = STCP_CARRIER_UDP;
+	child->debug_id = (u64)atomic64_inc_return(&stcp_carrier_debug_seq);
+	atomic_set(&child->rx_callbacks, 0);
+	child->destroy_started = false;
 	/* UDP children borrow the root socket through parent; never copy it. */
 	child->socket = NULL;
 	child->parent = listener;
@@ -611,6 +655,13 @@ void stcp_carrier_destroy(struct stcp_carrier *carrier)
 {
 	if (!carrier)
 		return;
+
+	WRITE_ONCE(carrier->destroy_started, true);
+	pr_err("stcp-lifetime: CARRIER-DESTROY cid=%llu carrier=%px parent=%px ctx=%px owner=%px receiver=%px rx_active=%d pid=%d comm=%s\n",
+	       READ_ONCE(carrier->debug_id), carrier, READ_ONCE(carrier->parent),
+	       READ_ONCE(carrier->rust_ctx), READ_ONCE(carrier->owner),
+	       READ_ONCE(carrier->receiver), atomic_read(&carrier->rx_callbacks),
+	       current->pid, current->comm);
 
 	if (carrier->parent) {
 		struct stcp_carrier *parent = carrier->parent;
@@ -742,6 +793,9 @@ int stcp_carrier_accept_unattached(
 	}
 
 	child->kind = STCP_CARRIER_TCP;
+	child->debug_id = (u64)atomic64_inc_return(&stcp_carrier_debug_seq);
+	atomic_set(&child->rx_callbacks, 0);
+	child->destroy_started = false;
 	child->socket = accepted;
 	child->connected = true;
 	stcp_tune_tcp_socket(child->socket);

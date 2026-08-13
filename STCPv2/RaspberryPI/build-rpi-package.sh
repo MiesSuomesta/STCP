@@ -6,6 +6,8 @@ TARGET="${1:-pi4}"
 IP="${IP:-192.168.1.199}"
 RUSER="${RUSER:-pi}"
 KERNEL_SRC="${KERNEL_SRC:-$SCRIPT_DIR/raspberry-kernel-sources}"
+KERNEL_GIT_URL="${KERNEL_GIT_URL:-https://github.com/raspberrypi/linux.git}"
+KERNEL_GIT_BRANCH="${KERNEL_GIT_BRANCH:-rpi-6.18.y}"
 STCP_ROOT="${STCP_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 STCP_SRC="${STCP_SRC:-${STCP_LINUX_MODULE_ROOT:-${LINUX_MODULE_ROOT:-$STCP_ROOT/linux-kernel/linux-module}}}"
 OUT_DIR="${OUT_DIR:-$SCRIPT_DIR/packages}"
@@ -37,12 +39,7 @@ check_kernel() {
 	
 	(
 		cd "$1"
-		make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig || (
-			KERNEL_SRC="$KERNEL_SRC" \
-			KEEP_GIT_DIR="1" \
-			CONFIG_BACKUP="$SCRIPT_DIR/rpi-working.config" \
-				pncwrap -t "STCPv2/Raspberry Pi build"  bash ensure-rpi-kernel-tree.sh
-		)
+		make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
 	)
 }
 
@@ -69,7 +66,37 @@ check_crypto_config() {
 }
 
 for c in make tar git rustup strings "${CROSS_COMPILE}gcc" "${CROSS_COMPILE}ld" "${CROSS_COMPILE}ar" "${CROSS_COMPILE}readelf"; do need_cmd "$c"; done
-[[ -f "$KERNEL_SRC/Makefile" ]] || die "Kernel source tree not found: $KERNEL_SRC"
+
+ensure_kernel_source() {
+    if [[ -f "$KERNEL_SRC/Makefile" ]]; then
+        return 0
+    fi
+
+    if [[ -e "$KERNEL_SRC" ]]; then
+        die "Kernel source path exists but is not a valid kernel tree: $KERNEL_SRC"
+    fi
+
+    echo "[INFO] Raspberry kernel source tree missing."
+    echo "[INFO] Cloning: $KERNEL_GIT_URL"
+    echo "[INFO] Branch : $KERNEL_GIT_BRANCH"
+    echo "[INFO] Target : $KERNEL_SRC"
+
+    mkdir -p "$(dirname "$KERNEL_SRC")"
+
+    git clone         --branch "$KERNEL_GIT_BRANCH"         --single-branch         "$KERNEL_GIT_URL"         "$KERNEL_SRC"
+
+    [[ -f "$KERNEL_SRC/Makefile" ]] ||
+        die "Clone completed but kernel Makefile is missing: $KERNEL_SRC"
+
+    [[ -f "$KERNEL_SRC/drivers/nvme/target/Kconfig" ]] ||
+        die "Clone is incomplete: drivers/nvme/target/Kconfig is missing"
+
+    echo "[INFO] Raspberry kernel clone ready."
+    git -C "$KERNEL_SRC" log -1 --oneline
+}
+
+ensure_kernel_source
+
 [[ -f "$STCP_SRC/Makefile" ]] || die "STCP source tree not found: $STCP_SRC"
 [[ -d "$STCP_SRC/src" ]] || die "STCP C source tree missing: $STCP_SRC/src"
 [[ -d "$STCP_SRC/rust/src" ]] || die "STCP Rust source tree missing: $STCP_SRC/rust/src"

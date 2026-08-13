@@ -56,10 +56,14 @@ static void stcp_proto_destroy(struct sock *sk)
 
 #define STCP_RETRANSMIT_INTERVAL_MS 20
 
+static atomic64_t stcp_lifetime_seq = ATOMIC64_INIT(0);
+
 static void stcp_retransmit_workfn(struct work_struct *work)
 {
 	struct stcp_sock *ssk;
 	void *rust_ctx;
+	int active;
+	bool requeued = false;
 
 	ssk = container_of(
 		to_delayed_work(work),
@@ -67,31 +71,54 @@ static void stcp_retransmit_workfn(struct work_struct *work)
 		retransmit_work
 	);
 
-	/*
-	 * release() clears retransmit_work_started before cancelling the work.
-	 * Check the flag before touching Rust and again before requeueing so an
-	 * in-flight callback cannot resurrect itself during socket teardown.
-	 */
+	active = atomic_inc_return(&ssk->retransmit_callbacks);
+	pr_err("stcp-lifetime: RETX-ENTER id=%llu ssk=%px sk=%px ctx=%px carrier=%px "
+	       "started=%d teardown=%d active=%d pid=%d comm=%s\n",
+	       READ_ONCE(ssk->lifetime_id), ssk, &ssk->sk,
+	       READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
+	       READ_ONCE(ssk->retransmit_work_started),
+	       READ_ONCE(ssk->teardown_started), active,
+	       current->pid, current->comm);
+
+	if (unlikely(READ_ONCE(ssk->teardown_started)))
+		pr_err("STCP-LIFETIME-BUG: retransmit callback entered after teardown "
+		       "id=%llu ssk=%px ctx=%px carrier=%px active=%d\n",
+		       READ_ONCE(ssk->lifetime_id), ssk,
+		       READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier), active);
+
+	/* release() clears the run flag before cancel_delayed_work_sync(). */
 	if (!READ_ONCE(ssk->retransmit_work_started))
-		return;
+		goto out;
 
 	rust_ctx = READ_ONCE(ssk->rust_ctx);
 	if (!rust_ctx) {
 		WRITE_ONCE(ssk->retransmit_work_started, false);
-		return;
+		goto out;
 	}
 
 	if (stcp_rust_tick(rust_ctx) > 0 &&
 	    READ_ONCE(ssk->retransmit_work_started) &&
+	    !READ_ONCE(ssk->teardown_started) &&
 	    READ_ONCE(ssk->rust_ctx) == rust_ctx) {
 		mod_delayed_work(
 			system_dfl_wq,
 			&ssk->retransmit_work,
 			msecs_to_jiffies(STCP_RETRANSMIT_INTERVAL_MS)
 		);
+		requeued = true;
 	} else {
 		WRITE_ONCE(ssk->retransmit_work_started, false);
 	}
+
+out:
+	active = atomic_dec_return(&ssk->retransmit_callbacks);
+	pr_err("stcp-lifetime: RETX-EXIT id=%llu ssk=%px ctx=%px carrier=%px "
+	       "started=%d teardown=%d active=%d requeued=%d pid=%d comm=%s\n",
+	       READ_ONCE(ssk->lifetime_id), ssk,
+	       READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
+	       READ_ONCE(ssk->retransmit_work_started),
+	       READ_ONCE(ssk->teardown_started), active, requeued,
+	       current->pid, current->comm);
 }
 
 void stcp_start_retransmit_work(struct stcp_sock *ssk)
@@ -120,8 +147,19 @@ void stcp_stop_retransmit_work(struct stcp_sock *ssk)
 	 * will then return without requeueing itself.  Always cancel synchronously:
 	 * the flag may already be false while delayed_work is still pending.
 	 */
+	pr_err("stcp-lifetime: RETX-STOP-ENTER id=%llu ssk=%px active=%d pending=%d teardown=%d\n",
+	       READ_ONCE(ssk->lifetime_id), ssk,
+	       atomic_read(&ssk->retransmit_callbacks),
+	       delayed_work_pending(&ssk->retransmit_work),
+	       READ_ONCE(ssk->teardown_started));
 	WRITE_ONCE(ssk->retransmit_work_started, false);
 	cancel_delayed_work_sync(&ssk->retransmit_work);
+	pr_err("stcp-lifetime: RETX-STOP-EXIT id=%llu ssk=%px active=%d pending=%d teardown=%d\n",
+	       READ_ONCE(ssk->lifetime_id), ssk,
+	       atomic_read(&ssk->retransmit_callbacks),
+	       delayed_work_pending(&ssk->retransmit_work),
+	       READ_ONCE(ssk->teardown_started));
+	WARN_ON_ONCE(atomic_read(&ssk->retransmit_callbacks) != 0);
 }
 
 struct proto stcp_proto = {
@@ -182,6 +220,11 @@ static int stcp_create(
 	init_waitqueue_head(&ssk->recv_wq);
 	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);
 	ssk->retransmit_work_started = false;
+	ssk->lifetime_id = (u64)atomic64_inc_return(&stcp_lifetime_seq);
+	ssk->teardown_started = false;
+	atomic_set(&ssk->retransmit_callbacks, 0);
+	pr_err("stcp-lifetime: SOCK-CREATE id=%llu ssk=%px sk=%px sock=%px pid=%d comm=%s\n",
+	       ssk->lifetime_id, ssk, sk, sock, current->pid, current->comm);
 	mutex_init(&ssk->tx_lock);
 	mutex_init(&ssk->rx_lock);
 	ssk->tx_buffer = NULL;
@@ -277,6 +320,11 @@ struct sock *stcp_alloc_child_sock(
 	init_waitqueue_head(&ssk->recv_wq);
 	INIT_DELAYED_WORK(&ssk->retransmit_work, stcp_retransmit_workfn);
 	ssk->retransmit_work_started = false;
+	ssk->lifetime_id = (u64)atomic64_inc_return(&stcp_lifetime_seq);
+	ssk->teardown_started = false;
+	atomic_set(&ssk->retransmit_callbacks, 0);
+	pr_err("stcp-lifetime: CHILD-CREATE id=%llu ssk=%px sk=%px sock=%px pid=%d comm=%s\n",
+	       ssk->lifetime_id, ssk, newsk, newsock, current->pid, current->comm);
 	mutex_init(&ssk->tx_lock);
 	mutex_init(&ssk->rx_lock);
 	ssk->tx_buffer = NULL;

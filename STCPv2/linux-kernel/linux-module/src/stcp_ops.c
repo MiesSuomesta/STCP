@@ -140,6 +140,15 @@ static int stcp_release(struct socket *sock)
 	}
 
 	ssk = stcp_sk(sk);
+	if (xchg(&ssk->teardown_started, true))
+		pr_err("STCP-LIFETIME-BUG: duplicate/concurrent release id=%llu sock=%px sk=%px ssk=%px pid=%d comm=%s\n",
+		       READ_ONCE(ssk->lifetime_id), sock, sk, ssk, current->pid, current->comm);
+	pr_err("stcp-lifetime: RELEASE-MARK id=%llu sock=%px sk=%px ssk=%px ctx=%px carrier=%px retx_active=%d retx_pending=%d pid=%d comm=%s\n",
+	       READ_ONCE(ssk->lifetime_id), sock, sk, ssk,
+	       READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),
+	       atomic_read(&ssk->retransmit_callbacks),
+	       delayed_work_pending(&ssk->retransmit_work),
+	       current->pid, current->comm);
 	stcp_debug_socket_state("release-before-unregister", sock);
 
 	/* Remove it from /proc/stcp/users before freeing the socket. */
@@ -267,6 +276,9 @@ static int stcp_release(struct socket *sock)
 	pr_err("stcp-debug: release-after-final-sk-null sock=%px old_sk=%px pid=%d comm=%s\n",
 	       sock, sk, current->pid, current->comm);
 
+	pr_err("stcp-lifetime: RELEASE-EXIT id=%llu sock=%px old_sk=%px retx_active=%d pid=%d comm=%s\n",
+	       READ_ONCE(ssk->lifetime_id), sock, sk,
+	       atomic_read(&ssk->retransmit_callbacks), current->pid, current->comm);
 	pr_err("stcp-debug: release-exit sock=%px old_sk=%px pid=%d comm=%s\n",
 	       sock, sk, current->pid, current->comm);
 

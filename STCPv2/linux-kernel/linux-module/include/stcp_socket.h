@@ -19,6 +19,12 @@ struct stcp_sock {
 	struct delayed_work retransmit_work;
 	bool retransmit_work_started;
 
+	/* Crash/lifetime instrumentation.  These fields do not participate in
+	 * protocol decisions; they only make teardown races visible in dmesg. */
+	u64 lifetime_id;
+	bool teardown_started;
+	atomic_t retransmit_callbacks;
+
 	struct mutex tx_lock;
 	struct mutex rx_lock;
 	u8 *tx_buffer;

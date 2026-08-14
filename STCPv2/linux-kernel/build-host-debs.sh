@@ -8,10 +8,10 @@ OUT_DIR="${OUT_DIR:-$SCRIPT_DIR/packages}"
 JOBS="${JOBS:-$(nproc)}"
 CLEAN="${CLEAN:-0}"
 
-TS=$(date +"%Y%m%d-%H%M%S")
+TS=$(date +"%m%d-%H%M%S")
 GIT=$(git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
-LOCALVERSION="${LOCALVERSION:--stcp}"
+LOCALVERSION="${LOCALVERSION:--stcp-kuumin}"
 LOCALVERSION="${LOCALVERSION}-$GIT"
 
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"

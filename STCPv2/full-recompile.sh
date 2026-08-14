@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-IP="${IP:-192.168.1.199}"
+IP="${IP:-raspi}"
 RUSER="${RUSER:-pi}"
 WAIT_TIMEOUT="${WAIT_TIMEOUT:-900}"
 
@@ -134,8 +134,8 @@ check_unified_source_tree() {
 
 wait_for_raspberry() {
     local deadline=$((SECONDS + WAIT_TIMEOUT))
-
-    while ! ping -c 1 -W 1 "$IP" >/dev/null 2>&1; do
+    log "Starting to wait for Rapsberry ($IP) to respond..."
+    until ping -c 1 -W 1 "$IP" >/dev/null 2>&1; do
         if (( SECONDS >= deadline )); then
             fail "Raspberry did not answer ping within ${WAIT_TIMEOUT}s."
             return 1
@@ -144,7 +144,8 @@ wait_for_raspberry() {
         sleep 2
     done
 
-    while ! ssh \
+    log "Starting to wait for Rapsberry ($IP) SSH service to come up..."
+    until ssh \
         -o BatchMode=yes \
         -o ConnectTimeout=3 \
         -o StrictHostKeyChecking=accept-new \
@@ -314,15 +315,18 @@ fi
 # ---------------------------------------------------------------------------
 # 6. Robot matrix + diagnostic support bundle.
 # ---------------------------------------------------------------------------
-if [[ ! -f "$SUPPORT_BUNDLE_SCRIPT" ]]; then
-    BUNDLE_STATUS="FAIL(missing)"
-    remember_failure 1
-    warn "Support-bundle script not found: $SUPPORT_BUNDLE_SCRIPT"
-else
-    run_timed BUNDLE_STATUS BUNDLE_SECS \
-        "Running Robot tests and creating support bundle..." \
-        bash "$SUPPORT_BUNDLE_SCRIPT" || true
-fi
+(
+	cd "${STCP_ROOT}"
+	if [[ ! -f "$SUPPORT_BUNDLE_SCRIPT" ]]; then
+	    BUNDLE_STATUS="FAIL(missing)"
+	    remember_failure 1
+	    warn "Support-bundle script not found: $SUPPORT_BUNDLE_SCRIPT"
+	else
+	    run_timed BUNDLE_STATUS BUNDLE_SECS \
+	        "Running Robot tests and creating support bundle..." \
+	        bash "$SUPPORT_BUNDLE_SCRIPT" || true
+	fi
+)
 
 FINISH_EPOCH="$(date +%s)"
 FINISHED_AT="$(date --iso-8601=seconds)"

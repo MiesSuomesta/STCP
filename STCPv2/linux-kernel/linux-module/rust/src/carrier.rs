@@ -49,8 +49,8 @@ static UDP_SESSIONS: SpinLock<Vec<UdpSessionEntry>> = SpinLock::new(Vec::new());
 
 
 #[inline(always)]
-pub(crate) fn debug_event(_event: u32, _ctx: &StcpContext, _arg0: usize, _arg1: usize) {
-    // High-frequency numeric event tracing is disabled in performance builds.
+pub(crate) fn debug_event(event: u32, ctx: &StcpContext, arg0: usize, arg1: usize) {
+    unsafe { stcp_kernel_debug_event(event, ctx as *const StcpContext as usize, arg0, arg1); }
 }
 
 pub(crate) fn wake_accept(owner: usize) {
@@ -307,9 +307,11 @@ fn create_udp_child(
 
 pub(crate) fn unregister_context(ctx: &StcpContext) {
     let ptr = ctx as *const StcpContext as usize;
-    UDP_SESSIONS.lock().retain(|entry| {
-        entry.child != ptr && entry.listener != ptr
-    });
+    let mut sessions = UDP_SESSIONS.lock();
+    let before = sessions.len();
+    unsafe { stcp_kernel_debug_event(210, ptr, before, 0); }
+    sessions.retain(|entry| entry.child != ptr && entry.listener != ptr);
+    unsafe { stcp_kernel_debug_event(211, ptr, before, sessions.len()); }
 }
 
 #[unsafe(no_mangle)]
@@ -359,9 +361,14 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
     }
 
     let listener_ptr = ctx as *const StcpContext as usize;
+    unsafe { stcp_kernel_debug_event(220, listener_ptr, header.connection_id as usize, header.packet_type as usize); }
     let entry = match find_udp_child(listener_ptr, header.connection_id) {
-        Some(entry) => entry,
+        Some(entry) => {
+            unsafe { stcp_kernel_debug_event(221, listener_ptr, header.connection_id as usize, entry.child); }
+            entry
+        },
         None => {
+            unsafe { stcp_kernel_debug_event(222, listener_ptr, header.connection_id as usize, 0); }
             if header.packet_type != PacketType::PublicKey {
                 /* Unknown connection IDs are silently discarded. */
                 return 0;
@@ -389,6 +396,7 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
         return 0;
     }
 
+    unsafe { stcp_kernel_debug_event(223, listener_ptr, header.connection_id as usize, entry.child); }
     let child = unsafe { &*(entry.child as *const StcpContext) };
     queue_to_context(child, bytes)
 }

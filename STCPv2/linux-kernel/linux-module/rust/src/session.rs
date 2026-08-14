@@ -246,6 +246,7 @@ pub fn listen(
         address,
         ctx: ctx_ptr,
     });
+    crate::carrier::debug_event(230, ctx, address.port as usize, listeners.len());
 
     Ok(())
 }
@@ -328,6 +329,8 @@ pub fn connect(
             })
             .map(|entry| entry.ctx)
     };
+
+    crate::carrier::debug_event(231, ctx, target.port as usize, listener_ptr.unwrap_or(0));
 
     if listener_ptr.is_none() {
         let mut inner = ctx.inner.lock();
@@ -1397,13 +1400,10 @@ pub fn shutdown(
 fn unregister_listener(ctx: &StcpContext) {
     let ctx_ptr = ptr::from_ref(ctx) as usize;
     let mut listeners = LISTENERS.lock();
-
-    /*
-     * Remove by context identity rather than by socket state/address.
-     * Release may run after a partial setup, an error transition, or after
-     * the state was already changed to Closed.
-     */
+    let before = listeners.len();
+    crate::carrier::debug_event(232, ctx, before, 0);
     listeners.retain(|entry| entry.ctx != ctx_ptr);
+    crate::carrier::debug_event(233, ctx, before, listeners.len());
 }
 
 pub fn release(ctx: &StcpContext) {

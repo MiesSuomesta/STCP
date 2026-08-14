@@ -58,13 +58,15 @@ if [[ "$CLEAN" == 1 ]]; then make LLVM=1 mrproper; fi
 if [[ ! -f .config ]]; then 
 	cp "$SCRIPT_DIR"/x86.config .config
 fi
-if [[ -x scripts/config ]]; then
-  #scripts/config --set-str LOCALVERSION "$LOCALVERSION"
-  #scripts/config --disable LOCALVERSION_AUTO
-  pncnote -a "STCPv2/Host compile" "New kernel" "$(echo -ne "Kernel version set:\n${LOCALVERSION}")"
-fi
 
-pncnote -a "STCPv2/Host compile" "New kernel" "Doing kernel configuration...."
+#if [[ -x scripts/config ]]; then
+#    scripts/config --set-str LOCALVERSION "$LOCALVERSION"
+#    scripts/config --disable LOCALVERSION_AUTO
+#fi
+
+KERNEL_RELEASE=$(make -s kernelrelease)
+
+pncnote -a "STCPv2/Host compile $KERNEL_RELEASE" "New kernel" "Doing kernel configuration...."
 
 # Pakotetaan generointi ÄLÄ poista näitä!
 rm -f include/config/auto.conf.cmd

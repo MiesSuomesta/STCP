@@ -19,9 +19,8 @@ CLEAN="${CLEAN:-0}"
 TS=$(date +"%Y%m%d-%H%M%S")
 GIT=$(git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
-LOCALVERSION="${LOCALVERSION:--stcp}"
-#LOCALVERSION="${LOCALVERSION}-${TS}-${GIT}"
-LOCALVERSION="${LOCALVERSION}-${GIT}"
+LOCALVERSION="${LOCALVERSION:--stcp-rpi}"
+LOCALVERSION="${LOCALVERSION}-$GIT"
 
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"
 
@@ -39,7 +38,15 @@ check_kernel() {
 	
 	(
 		cd "$1"
-		make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
+
+		# Pakotetaan generointi ÄLÄ poista näitä!
+		rm -f include/config/auto.conf.cmd
+		rm -f include/generated/autoconf.h
+		rm -f include/config/kernel.release
+		rm -f include/generated/utsrelease.h
+
+
+		LOCALVERSION="$LOCALVERSION" make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
 	)
 }
 
@@ -51,7 +58,7 @@ ensure_crypto_config() {
        scripts/config --enable CONFIG_CRYPTO
        scripts/config --enable CONFIG_CRYPTO_SUPPORT
 
-       make ARCH="$ARCH" \
+       LOCALVERSION="$LOCALVERSION" make ARCH="$ARCH" \
            CROSS_COMPILE="$CROSS_COMPILE" \
            olddefconfig
     )
@@ -110,6 +117,7 @@ echo "[INFO] Raspberry kernel source : $KERNEL_SRC"
 echo "[INFO] Unified STCP source     : $STCP_SRC"
 echo "[INFO] Target                  : $TARGET ($ARCH)"
 echo "[INFO] Cross compiler          : $CROSS_COMPILE"
+echo "[INFO] LOCALVERSION            : $LOCALVERSION"
 
 rustup toolchain list | grep -q "^${RUST_TOOLCHAIN}" || die "Install nightly: rustup toolchain install $RUST_TOOLCHAIN --component rust-src"
 
@@ -127,32 +135,32 @@ if [[ ! -f .config ]]; then
 
 	ensure_crypto_config "$KERNEL_SRC";
 
-	yes "" | make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" "$DEFCONFIG";
+	LOCALVERSION="$LOCALVERSION" yes "" | make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" "$DEFCONFIG";
 fi
 
 check_crypto_config;
 
-if [[ -x scripts/config ]]; then
-  scripts/config --set-str LOCALVERSION "$LOCALVERSION"
-  scripts/config --disable LOCALVERSION_AUTO
-fi
+#if [[ -x scripts/config ]]; then
+#  scripts/config --set-str LOCALVERSION "$LOCALVERSION"
+#  scripts/config --disable LOCALVERSION_AUTO
+#fi
 
 make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" olddefconfig
 grep -q '^CONFIG_ARM64=y' .config || die "Kernel config is not ARM64"
 grep -q '^CONFIG_MODULES=y' .config || die "Kernel modules are disabled"
-pncwrap -t "STCPv2/Raspberry Pi build"  make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" -j"$JOBS" Image modules
-KREL="$(make -s ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" kernelrelease)"
+LOCALVERSION="$LOCALVERSION" pncwrap -t "STCPv2/Raspberry Pi build"  make ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" -j"$JOBS" Image modules
+KREL="$(LOCALVERSION="$LOCALVERSION" make -s ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" kernelrelease)"
 [[ -f Module.symvers ]] || die "Module.symvers missing"
 [[ -f arch/arm64/boot/Image ]] || die "Kernel Image missing"
 
 echo "== Rebuilding STCP against $KREL =="
-pncwrap -t "STCPv2/Raspberry Pi STCP clean build" make -C "$KERNEL_SRC" M="$STCP_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" clean || true
+LOCALVERSION="$LOCALVERSION" pncwrap -t "STCPv2/Raspberry Pi STCP clean build" make -C "$KERNEL_SRC" M="$STCP_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" clean || true
 
 rm -rf "$STCP_SRC/rust/target"
 rm -f "$STCP_SRC/src/rust_core.o" "$STCP_SRC/src/.rust_core.o.cmd" "$STCP_SRC/stcp.ko" "$STCP_SRC/stcp.o"
 
 pncwrap -t "STCPv2/Raspberry Pi STCP build" \
-    make -C "$STCP_SRC" \
+    LOCALVERSION="$LOCALVERSION" make -C "$STCP_SRC" \
         PLATFORM=rpi \
         KDIR="$KERNEL_SRC" \
         ARCH="$ARCH" \
@@ -172,7 +180,7 @@ PKG_NAME="stcp-rpi-${TARGET}-${KREL}"
 PKG_DIR="$WORK/$PKG_NAME"
 ROOTFS="$PKG_DIR/rootfs"
 mkdir -p "$ROOTFS/lib/modules/$KREL/extra" "$ROOTFS/boot/firmware"
-make -C "$KERNEL_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" INSTALL_MOD_PATH="$ROOTFS" modules_install
+LOCALVERSION="$LOCALVERSION" make -C "$KERNEL_SRC" ARCH="$ARCH" CROSS_COMPILE="$CROSS_COMPILE" INSTALL_MOD_PATH="$ROOTFS" modules_install
 install -m0644 "$STCP_KO" "$ROOTFS/lib/modules/$KREL/extra/stcp.ko"
 install -m0644 "$KERNEL_SRC/arch/arm64/boot/Image" "$ROOTFS/boot/firmware/kernel-stcp-${KREL}.img"
 DEPMOD="$(find_cmd depmod || true)"

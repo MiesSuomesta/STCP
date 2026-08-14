@@ -11,10 +11,11 @@ CLEAN="${CLEAN:-0}"
 TS=$(date +"%m%d-%H%M%S")
 GIT=$(git rev-parse --short HEAD 2>/dev/null || echo nogit)
 
-LOCALVERSION="${LOCALVERSION:--stcp-kuumin}"
+LOCALVERSION="${LOCALVERSION:--stcp-x86}"
 LOCALVERSION="${LOCALVERSION}-$GIT"
-
 RUST_TOOLCHAIN="${RUST_TOOLCHAIN:-nightly}"
+
+echo "[INFO] Compiling with version: $LOCALVERSION"
 
 die(){ echo "[FAIL] $*" >&2; exit 1; }
 find_cmd(){ command -v "$1" 2>/dev/null || { [[ -x /usr/sbin/$1 ]] && echo /usr/sbin/$1; }; }
@@ -58,17 +59,24 @@ if [[ ! -f .config ]]; then
 	cp "$SCRIPT_DIR"/x86.config .config
 fi
 if [[ -x scripts/config ]]; then
-  scripts/config --set-str LOCALVERSION "$LOCALVERSION"
-  scripts/config --disable LOCALVERSION_AUTO
+  #scripts/config --set-str LOCALVERSION "$LOCALVERSION"
+  #scripts/config --disable LOCALVERSION_AUTO
   pncnote -a "STCPv2/Host compile" "New kernel" "$(echo -ne "Kernel version set:\n${LOCALVERSION}")"
 fi
 
 pncnote -a "STCPv2/Host compile" "New kernel" "Doing kernel configuration...."
+
+# Pakotetaan generointi ÄLÄ poista näitä!
+rm -f include/config/auto.conf.cmd
+rm -f include/generated/autoconf.h
+rm -f include/config/kernel.release
+rm -f include/generated/utsrelease.h
+
 yes "" | make LLVM=1 olddefconfig || true
 
-pncwrap -t "STCPv2/Host kernel" -- make LLVM=1 -j"$JOBS" bindeb-pkg
+LOCALVERSION="$LOCALVERSION" pncwrap -t "STCPv2/Host kernel" -- make LLVM=1 -j"$JOBS" bindeb-pkg
 
-sudo -E pncwrap -t "STCPv2/Host modules" -- make LLVM=1 -j"$JOBS" modules_install
+LOCALVERSION="$LOCALVERSION" sudo -E pncwrap -t "STCPv2/Host modules" -- make LLVM=1 -j"$JOBS" modules_install
 
 KREL="$(make -s LLVM=1 kernelrelease)"
 [[ -f Module.symvers ]] || die "Module.symvers missing"
@@ -80,11 +88,11 @@ echo "== Rebuilding STCP against $KREL =="
 
 		mkdir -p "$OUT_DIR"
 
-		make LLVM=1 -j"$JOBS" \
+		LOCALVERSION="$LOCALVERSION" make LLVM=1 -j"$JOBS" \
 		    KDIR="$KERNEL_SRC" \
 		    clean
 
-		make LLVM=1 -j"$JOBS" \
+		LOCALVERSION="$LOCALVERSION" make LLVM=1 -j"$JOBS" \
 		    KDIR="$KERNEL_SRC" \
 		    module
 
@@ -95,7 +103,7 @@ echo "== Rebuilding STCP against $KREL =="
 			pncnote -a "STCPv2/Host compile" "New STCP module for $KREL" "Compiled STCP module..FAILED"
 		fi
 
-		sudo make LLVM=1 -j"$JOBS" \
+		LOCALVERSION="$LOCALVERSION" sudo -E make LLVM=1 -j"$JOBS" \
 		    KDIR="$KERNEL_SRC" \
 		    module-install
 
@@ -128,7 +136,7 @@ echo "== Rebuilding STCP against $KREL =="
 
 	cd "$OUT_DIR" && (
 		pncnote -a "STCPv2/Host compile" "Installing new kernel: $KREL" "Installing $KREL ..."
-		sudo dpkg -i *.deb && 
+		sudo dpkg -i *.deb
 		if [ $? -eq 0 ]
 		then
 			pncnote -a "STCPv2/Host compile" "New kernel $KREL" "Kernel $KREL ready, reboot."

@@ -42,6 +42,18 @@ BUNDLE_SECS=0
 
 FINAL_EXIT=0
 
+TS=$(date +"%d%m%Y-%H%M%S")
+VERSION_PREFIX=${VERSION_PREFIX:-stcp}
+LOCALVERSION_COMMON=${LOCALVERSION:--${TS}-${VERSION_PREFIX}}
+
+LOCALVERSION_HOST="${LOCALVERSION_COMMON}-host"
+LOCALVERSION_RPI="${LOCALVERSION_COMMON}-rpi"
+
+echo "[INFO] VERSION_PREFIX=$VERSION_PREFIX"
+echo "[INFO] LOCALVERSION_COMMON=$LOCALVERSION_COMMON"
+echo "[INFO] LOCALVERSION_HOST=$LOCALVERSION_HOST"
+echo "[INFO] LOCALVERSION_RPI=$LOCALVERSION_RPI"
+
 log() {
     printf '[INFO] %s\n' "$*"
 }
@@ -75,7 +87,7 @@ run_timed() {
     local started rc elapsed
     started="$(date +%s)"
     log "$title"
-
+    echo "[RUN TIMED] $@"
     set +e
     "$@"
     rc=$?
@@ -245,6 +257,12 @@ else
     # 2. Raspberry kernel/package. The wrapper must build STCP from
     #    $LINUX_MODULE_ROOT rather than an old Raspberry source copy.
     # -----------------------------------------------------------------------
+
+
+    log "Compiling kernel for host,      version: $LOCALVERSION_HOST"
+    log "Compiling kernel for Raspberry, version: $LOCALVERSION_RPI"
+
+
     if [[ ! -f "$RPI_BUILD_SCRIPT" ]]; then
         RPI_BUILD_STATUS="FAIL(missing)"
         remember_failure 1
@@ -254,7 +272,8 @@ else
             "Building Raspberry kernel/package + unified STCP module..." \
             env STCP_LINUX_MODULE_ROOT="$LINUX_MODULE_ROOT" \
                 LINUX_MODULE_ROOT="$LINUX_MODULE_ROOT" \
-                bash "$RPI_BUILD_SCRIPT" || true
+                LOCALVERSION="$LOCALVERSION_RPI" \
+                    bash "$RPI_BUILD_SCRIPT" || true
     fi
 
     # -----------------------------------------------------------------------
@@ -267,9 +286,10 @@ else
     else
         run_timed HOST_BUILD_STATUS HOST_BUILD_SECS \
             "Building and installing host unified STCP module..." \
-            env STCP_LINUX_MODULE_ROOT="$LINUX_MODULE_ROOT" \
-                LINUX_MODULE_ROOT="$LINUX_MODULE_ROOT" \
-                bash "$HOST_BUILD_SCRIPT" || true
+             env STCP_LINUX_MODULE_ROOT="$LINUX_MODULE_ROOT" \
+                 LINUX_MODULE_ROOT="$LINUX_MODULE_ROOT" \
+                 LOCALVERSION="$LOCALVERSION_HOST" \
+                    bash "$HOST_BUILD_SCRIPT" || true
     fi
 
     # -----------------------------------------------------------------------

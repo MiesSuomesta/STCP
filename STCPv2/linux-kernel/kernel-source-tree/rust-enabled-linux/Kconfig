@@ -32,3 +32,16 @@ source "lib/Kconfig.debug"
 source "Documentation/Kconfig"
 
 source "io_uring/Kconfig"
+
+config STCP
+        tristate "STCP secure network protocol"
+        depends on NET && INET
+        depends on IPV6 || !IPV6
+        select NET_UDP_TUNNEL
+        select DST_CACHE
+        select CRYPTO_LIB_CURVE25519
+        select CRYPTO_LIB_CHACHA20POLY1305
+        select CRYPTO_LIB_UTILS
+        help
+          STCP is very secure TCP implementation that will
+          automatically apply AES 256 bit encryption.

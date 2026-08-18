@@ -33,8 +33,6 @@ source "Documentation/Kconfig"
 
 source "io_uring/Kconfig"
 
-	  will be called dummy.
-
 config STCP
 	tristate "STCP secure network protocol"
 	depends on NET && INET

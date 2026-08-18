@@ -159,8 +159,10 @@ LOCALVERSION="$LOCALVERSION" pncwrap -t "STCPv2/Raspberry Pi STCP clean build" m
 rm -rf "$STCP_SRC/rust/target"
 rm -f "$STCP_SRC/src/rust_core.o" "$STCP_SRC/src/.rust_core.o.cmd" "$STCP_SRC/stcp.ko" "$STCP_SRC/stcp.o"
 
-pncwrap -t "STCPv2/Raspberry Pi STCP build" \
-    LOCALVERSION="$LOCALVERSION" make -C "$STCP_SRC" \
+LOCALVERSION="$LOCALVERSION" \
+  pncwrap -t "STCPv2/Raspberry Pi STCP build" \
+     make -C "$STCP_SRC" \
+        LOCALVERSION="$LOCALVERSION" \
         PLATFORM=rpi \
         KDIR="$KERNEL_SRC" \
         ARCH="$ARCH" \

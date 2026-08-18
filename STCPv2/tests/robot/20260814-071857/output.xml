@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.2 (Python 3.13.5 on linux)" generated="2026-08-14T07:19:12.450342" rpa="false" schemaversion="5">
+<suite id="s1" name="STCP Echo Any To Any" source="/home/pomo/SDK/v2/tests/robot/STCP_Echo_Any_To_Any.robot">
+<kw name="Validate Test Environment" owner="StcpEchoLibrary" type="SETUP">
+<status status="PASS" start="2026-08-14T07:19:12.557819" elapsed="0.808526"/>
+</kw>
+<test id="s1-t1" name="TCP Linux To Linux" line="8">
+<kw name="Run Echo Test" owner="StcpEchoLibrary">
+<arg>linux</arg>
+<arg>linux</arg>
+<arg>tcp</arg>
+<arg>19101</arg>
+<status status="PASS" start="2026-08-14T07:19:13.368979" elapsed="3.369289"/>
+</kw>
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>tcp</tag>
+<timeout value="45 seconds"/>
+<status status="PASS" start="2026-08-14T07:19:13.367232" elapsed="3.371985"/>
+</test>
+<test id="s1-t2" name="TCP Linux To Raspberry" line="11">
+<kw name="Run Echo Test" owner="StcpEchoLibrary">
+<arg>linux</arg>
+<arg>rpi</arg>
+<arg>tcp</arg>
+<arg>19102</arg>
+<status status="FAIL" start="2026-08-14T07:19:16.742292" elapsed="6.259448">Execution terminated by signal</status>
+</kw>
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>rpi</tag>
+<tag>tcp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:16.740649" elapsed="6.262251">Execution terminated by signal</status>
+</test>
+<test id="s1-t3" name="TCP Raspberry To Linux" line="14">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>tcp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.004359" elapsed="0.001763">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t4" name="TCP Raspberry To Raspberry" line="17">
+<tag>echo</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>tcp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.007519" elapsed="0.001473">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t5" name="UDP Linux To Linux" line="21">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.010324" elapsed="0.001418">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t6" name="UDP Linux To Raspberry" line="24">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.013046" elapsed="0.001513">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t7" name="UDP Raspberry To Linux" line="27">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.015823" elapsed="0.001525">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t8" name="UDP Raspberry To Raspberry" line="30">
+<tag>echo</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.018650" elapsed="0.001459">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t9" name="STCP-TCP Linux To Linux" line="34">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>stcp-tcp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.021442" elapsed="0.001490">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t10" name="STCP-TCP Linux To Raspberry" line="37">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>stcp-tcp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.024248" elapsed="0.001643">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t11" name="STCP-TCP Raspberry To Linux" line="40">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>stcp-tcp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.027306" elapsed="0.001539">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t12" name="STCP-TCP Raspberry To Raspberry" line="43">
+<tag>echo</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>stcp-tcp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.030377" elapsed="0.001718">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t13" name="STCP-UDP Linux To Linux" line="47">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>stcp-udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.033592" elapsed="0.001547">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t14" name="STCP-UDP Linux To Raspberry" line="50">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>stcp-udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.036473" elapsed="0.001518">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t15" name="STCP-UDP Raspberry To Linux" line="53">
+<tag>echo</tag>
+<tag>linux</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>stcp-udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.039361" elapsed="0.001499">Test execution stopped due to a fatal error.</status>
+</test>
+<test id="s1-t16" name="STCP-UDP Raspberry To Raspberry" line="56">
+<tag>echo</tag>
+<tag>robot:exit</tag>
+<tag>rpi</tag>
+<tag>stcp-udp</tag>
+<timeout value="45 seconds"/>
+<status status="FAIL" start="2026-08-14T07:19:23.042334" elapsed="0.001443">Test execution stopped due to a fatal error.</status>
+</test>
+<kw name="Stop All Test Processes" owner="StcpEchoLibrary" type="TEARDOWN">
+<errors>
+<msg time="2026-08-14T07:19:23.288825" level="ERROR">Execution stopped by user.</msg>
+</errors>
+</robot>

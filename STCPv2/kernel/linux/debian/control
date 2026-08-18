@@ -1,0 +1,43 @@
+Source: linux-upstream
+Section: kernel
+Priority: optional
+Maintainer: pomo <pomo@devaus.sokeavartija.org>
+Rules-Requires-Root: no
+Build-Depends: debhelper-compat (= 12)
+Build-Depends-Arch: bc, bison, flex,
+ gcc-x86-64-linux-gnu <!pkg.linux-upstream.nokernelheaders>,
+ kmod, libdw-dev:native, libelf-dev:native,
+ libssl-dev:native, libssl-dev <!pkg.linux-upstream.nokernelheaders>,
+ python3:native, rsync
+Homepage: https://www.kernel.org/
+
+Package: linux-image-7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be
+Architecture: amd64
+Description: Linux kernel, version 7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be
+ This package contains the Linux kernel, modules and corresponding other
+ files, version: 7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be.
+
+Package: linux-libc-dev
+Section: devel
+Provides: linux-kernel-headers
+Architecture: amd64
+Description: Linux support headers for userspace development
+ This package provides userspaces headers from the Linux kernel.  These headers
+ are used by the installed headers for GNU glibc and other system libraries.
+Multi-Arch: same
+
+Package: linux-headers-7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be
+Architecture: amd64
+Build-Profiles: <!pkg.linux-upstream.nokernelheaders>
+Description: Linux kernel headers for 7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be on amd64
+ This package provides kernel header files for 7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be on amd64
+ .
+ This is useful for people who need to build external modules
+
+Package: linux-image-7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be-dbg
+Section: debug
+Architecture: amd64
+Build-Profiles: <!pkg.linux-upstream.nokerneldbg>
+Description: Linux kernel debugging symbols for 7.2.0-rc6-next-20260804-rust-TheUusin-e96acc6be
+ This package will come in handy if you need to debug the kernel. It provides
+ all the necessary debug symbols for the kernel and its modules.

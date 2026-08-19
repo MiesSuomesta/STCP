@@ -11,6 +11,7 @@ PNC_ENABLE="${PNC_ENABLE:-1}"
 PNC_APP="${PNC_APP:-STCPv2 build}"
 PNC_MOBILE="${PNC_MOBILE:-0}"
 PNC_WRAPPER="${PNC_WRAPPER:-}"
+LOCALVERSION=${LOCALVERSION:--stcp}
 
 find_pnc_wrapper() {
     if [[ -n "$PNC_WRAPPER" ]] && command -v "$PNC_WRAPPER" >/dev/null 2>&1; then
@@ -62,7 +63,9 @@ Targets:
 Environment:
   JOBS=N             Parallel build jobs (default: nproc)
   RPI_KDIR=PATH      Raspberry Pi kernel tree (default: kernel/raspberry)
+  RPI_CONFIG=PATH    Known-good Raspberry Pi kernel config (default: kernel/rpi-working.config)
   RPI_CROSS_COMPILE= Prefix, e.g. aarch64-linux-gnu-
+  RPI_TARGET=pi4|pi5 Raspberry Pi board target (default: pi4)
   NCS_DIR=PATH       Nordic Connect SDK tree (default used by app scripts)
   ZEPHYR_SDK_INSTALL_DIR=PATH
   STRICT=1           Treat unavailable target as an error instead of skipping
@@ -183,39 +186,99 @@ check_rpi_crypto() {
 
 build_host() {
     [[ -d "/lib/modules/$(uname -r)/build" ]] || { skip "host: /lib/modules/$(uname -r)/build missing"; return $?; }
-    make -C "$KMOD" clean >/dev/null || true
-    if ! pnc_run "STCPv2 host module build" make -C "$KMOD" PLATFORM=host JOBS="$JOBS" module; then
+    make -C "$KMOD" LOCALVERSION=="$LOCALVERSION" clean >/dev/null || true
+    if ! pnc_run "STCPv2 host module build" make -C "$KMOD" LOCALVERSION=="$LOCALVERSION" PLATFORM=host JOBS="$JOBS" module; then
         echo "[FAIL] host: kernel module build failed" >&2
         return 1
     fi
     stage_kernel kernel-host || return 1
 }
 
+check_rpi_boot_config() {
+    local cfg="$1"
+    local target="$2"
+    local missing=()
+    local item
+
+    [[ -f "$cfg" ]] || {
+        echo "[FAIL] rpi: boot config missing: $cfg" >&2
+        return 1
+    }
+
+    # These are required for the Raspberry Pi 4 boot/storage/serial path.
+    if [[ "$target" == "pi4" ]]; then
+        for item in \
+            CONFIG_ARCH_BCM2835 \
+            CONFIG_SERIAL_AMBA_PL011 \
+            CONFIG_SERIAL_AMBA_PL011_CONSOLE \
+            CONFIG_MMC_SDHCI_IPROC \
+            CONFIG_MMC_BCM2835; do
+            grep -Fxq "${item}=y" "$cfg" || missing+=("$item")
+        done
+
+        # VC4 may be built-in or modular; absence is suspicious for our known-good Pi 4 config.
+        grep -Eq '^CONFIG_DRM_VC4=(y|m)$' "$cfg" || missing+=("CONFIG_DRM_VC4")
+    fi
+
+    if (( ${#missing[@]} )); then
+        echo "[FAIL] rpi: boot-critical Raspberry Pi options missing from $cfg:" >&2
+        printf '       - %s\n' "${missing[@]}" >&2
+        return 1
+    fi
+
+    echo "[ OK ] rpi boot-critical config ($target)"
+}
+
 build_rpi() {
     local kdir="${RPI_KDIR:-$ROOT/kernel/raspberry}"
+    local rpi_config="${RPI_CONFIG:-$ROOT/kernel/rpi-working.config}"
     local cross="${RPI_CROSS_COMPILE:-aarch64-linux-gnu-}"
+    local target="${RPI_TARGET:-pi4}"
     local stage="$OUT/kernel-rpi"
     local rootfs="$stage/rootfs"
-    local krel kimage vermagic
+    local boot="$stage/boot-payload"
+    local krel kimage vermagic target_dtb target_dtb_rel target_dtb_path overlay_src
+    local -a dtb_roots=()
+
+    case "$target" in
+        pi4) target_dtb="bcm2711-rpi-4-b.dtb" ;;
+        pi5) target_dtb="bcm2712-rpi-5-b.dtb" ;;
+        *) echo "[FAIL] rpi: RPI_TARGET must be pi4 or pi5" >&2; return 1 ;;
+    esac
 
     [[ -d "$kdir" && -f "$kdir/Makefile" ]] || {
         skip "rpi: Raspberry Pi kernel tree missing: $kdir"
         return $?
     }
-    [[ -f "$kdir/.config" ]] || {
-        echo "[FAIL] rpi: kernel configuration missing: $kdir/.config" >&2
-        echo "       Restore kernel/rpi-working.config first." >&2
+    [[ -f "$rpi_config" ]] || {
+        echo "[FAIL] rpi: known-good Raspberry Pi config missing: $rpi_config" >&2
+        echo "       Set RPI_CONFIG=/path/to/rpi-working.config if needed." >&2
         return 1
     }
 
-    echo "[INFO] Building Raspberry Pi kernel + in-tree modules"
-    if ! pnc_run "STCPv2/Raspberry Pi olddefconfig" make -C "$kdir" ARCH=arm64 CROSS_COMPILE="$cross" olddefconfig; then
-        echo "[FAIL] rpi: olddefconfig failed" >&2
+    echo "[INFO] Restoring known-good Raspberry Pi config: $rpi_config"
+    install -m 0644 "$rpi_config" "$kdir/.config"
+
+    echo "[INFO] Normalizing Raspberry Pi config with ARCH=arm64"
+    if ! pnc_run "STCPv2/Raspberry Pi olddefconfig" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" olddefconfig; then
+        echo "[FAIL] rpi: ARCH=arm64 olddefconfig failed" >&2
         return 1
     fi
-    if ! pnc_run "STCPv2/Raspberry Pi kernel build" make -C "$kdir" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" Image modules dtbs; then
+
+    check_rpi_boot_config "$kdir/.config" "$target" || return 1
+
+    echo "[INFO] Building Raspberry Pi kernel + in-tree modules + DTBs ($target)"
+    if ! pnc_run "STCPv2/Raspberry Pi kernel build" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" Image modules dtbs; then
         echo "[FAIL] rpi: kernel/Image/modules/dtbs build failed" >&2
         return 1
+    fi
+
+    target_dtb_rel="broadcom/$target_dtb"
+    target_dtb_path="$kdir/arch/arm64/boot/dts/$target_dtb_rel"
+    if [[ ! -f "$target_dtb_path" ]]; then
+        echo "[INFO] Building target DTB explicitly: $target_dtb"
+        pnc_run "STCPv2/Raspberry Pi target DTB" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" "$target_dtb_rel" || \
+        pnc_run "STCPv2/Raspberry Pi target DTB" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" "arch/arm64/boot/dts/$target_dtb_rel" || true
     fi
 
     check_rpi_crypto "$kdir" || return 1
@@ -224,10 +287,22 @@ build_rpi() {
     kimage="$kdir/arch/arm64/boot/Image"
     [[ -n "$krel" ]] || { echo "[FAIL] rpi: could not determine kernel release" >&2; return 1; }
     [[ -s "$kimage" ]] || { echo "[FAIL] rpi: kernel Image missing: $kimage" >&2; return 1; }
+    [[ -s "$kdir/System.map" ]] || { echo "[FAIL] rpi: System.map missing" >&2; return 1; }
+    [[ -s "$kdir/Module.symvers" ]] || { echo "[FAIL] rpi: Module.symvers missing" >&2; return 1; }
+
+    mapfile -t dtb_roots < <(find "$kdir/arch" -type d -path '*/boot/dts' -print | sort -u)
+    (( ${#dtb_roots[@]} > 0 )) || { echo "[FAIL] rpi: no boot/dts roots found" >&2; return 1; }
+    target_dtb_path=""
+    for root in "${dtb_roots[@]}"; do
+        target_dtb_path="$(find "$root" -type f -name "$target_dtb" -print -quit)"
+        [[ -n "$target_dtb_path" ]] && break
+    done
+    [[ -n "$target_dtb_path" ]] || { echo "[FAIL] rpi: target DTB missing after build: $target_dtb" >&2; return 1; }
 
     echo "[INFO] Building STCP module against Raspberry Pi kernel $krel"
-    make -C "$KMOD" clean >/dev/null || true
-    if ! pnc_run "STCPv2/Raspberry Pi STCP module build" make -C "$KMOD" PLATFORM=rpi KDIR="$kdir" CROSS_COMPILE="$cross" JOBS="$JOBS" module; then
+    LOCALVERSION="${LOCALVERSION}" \
+       make -C "$KMOD" clean >/dev/null || true
+    if ! pnc_run "STCPv2/Raspberry Pi STCP module build" make -C "$KMOD" LOCALVERSION=="$LOCALVERSION" PLATFORM=rpi KDIR="$kdir" CROSS_COMPILE="$cross" JOBS="$JOBS" module; then
         echo "[FAIL] rpi: STCP kernel module build failed" >&2
         return 1
     fi
@@ -239,10 +314,10 @@ build_rpi() {
         return 1
     fi
 
-    echo "[INFO] Staging Raspberry Pi kernel + complete module tree"
+    echo "[INFO] Staging complete Raspberry Pi boot/module set"
     rm -rf "$stage"
-    mkdir -p "$rootfs"
-    if ! pnc_run "STCPv2/Raspberry Pi modules staging" make -C "$kdir" ARCH=arm64 CROSS_COMPILE="$cross" \
+    mkdir -p "$rootfs" "$boot/dtbs" "$boot/overlays"
+    if ! pnc_run "STCPv2/Raspberry Pi modules staging" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" \
         INSTALL_MOD_PATH="$rootfs" DEPMOD=true modules_install; then
         echo "[FAIL] rpi: modules_install staging failed" >&2
         return 1
@@ -250,26 +325,71 @@ build_rpi() {
 
     mkdir -p "$rootfs/lib/modules/$krel/extra"
     install -m 0644 "$KMOD/stcp.ko" "$rootfs/lib/modules/$krel/extra/stcp.ko"
-    find "$rootfs/lib/modules/$krel" -maxdepth 1 -type l \
-        \( -name build -o -name source \) -delete
+    find "$rootfs/lib/modules/$krel" -maxdepth 1 -type l \( -name build -o -name source \) -delete 2>/dev/null || true
 
-    install -m 0644 "$kimage" "$stage/Image"
-    [[ -f "$kdir/System.map" ]] && install -m 0644 "$kdir/System.map" "$stage/System.map"
-    install -m 0644 "$kdir/.config" "$stage/kernel.config"
-    [[ -f "$kdir/Module.symvers" ]] && install -m 0644 "$kdir/Module.symvers" "$stage/Module.symvers"
+    install -m 0644 "$kimage" "$boot/Image"
+    install -m 0644 "$kdir/System.map" "$boot/System.map"
+    install -m 0644 "$kdir/.config" "$boot/config"
+    install -m 0644 "$kdir/Module.symvers" "$boot/Module.symvers"
+
+    for root in "${dtb_roots[@]}"; do
+        while IFS= read -r -d '' dtb; do
+            rel="${dtb#$root/}"
+            mkdir -p "$boot/dtbs/$(dirname "$rel")"
+            install -m 0644 "$dtb" "$boot/dtbs/$rel"
+        done < <(find "$root" -type f -name '*.dtb' -print0)
+    done
+
+    overlay_src=""
+    for root in "${dtb_roots[@]}"; do
+        if [[ -d "$root/overlays" ]] && find "$root/overlays" -maxdepth 1 -type f -name '*.dtbo' -print -quit | grep -q .; then
+            overlay_src="$root/overlays"
+            break
+        fi
+    done
+    if [[ -n "$overlay_src" ]]; then
+        while IFS= read -r -d '' overlay; do
+            install -m 0644 "$overlay" "$boot/overlays/$(basename "$overlay")"
+        done < <(find "$overlay_src" -maxdepth 1 -type f \( -name '*.dtbo' -o -name '*.dtb' -o -name README \) -print0)
+    fi
+
+    find "$boot/dtbs" -type f -name "$target_dtb" -print -quit | grep -q . || {
+        echo "[FAIL] rpi: target DTB not staged: $target_dtb" >&2
+        return 1
+    }
+
     printf '%s\n' "$krel" > "$stage/KERNEL_RELEASE"
-
+    printf '%s\n' "$target" > "$stage/TARGET"
+    printf '%s\n' "$target_dtb" > "$stage/TARGET_DTB"
     mkdir -p "$stage/module"
     install -m 0644 "$KMOD/stcp.ko" "$stage/module/stcp.ko"
     modinfo "$KMOD/stcp.ko" > "$stage/module/modinfo.txt" 2>/dev/null || true
+
+    cat > "$stage/manifest.txt" <<MANIFEST
+kernel_release=$krel
+target=$target
+target_dtb=$target_dtb
+stcp_vermagic=$vermagic
+kernel_image=yes
+system_map=yes
+kernel_config=yes
+module_symvers=yes
+modules=yes
+dtbs=yes
+overlays=packaged_if_available_else_copied_from_target
+initramfs=generated_on_target
+config_baseline=$rpi_config
+boot_layout=dedicated_kernel_filename
+MANIFEST
 
     (
         cd "$stage"
         find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
     )
 
-    echo "[OK] Raspberry Pi kernel + modules staged: $stage"
+    echo "[OK] Raspberry Pi kernel + modules + boot payload staged: $stage"
     echo "[INFO] kernel release: $krel"
+    echo "[INFO] target DTB    : $target_dtb"
 }
 
 ncs_available() {

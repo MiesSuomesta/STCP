@@ -112,7 +112,7 @@ install_host() {
 
 install_rpi() {
     local stage="$OUT/kernel-rpi"
-    local host user remote sudo_remote reboot krel local_module vermagic
+    local host user remote sudo_remote reboot krel target target_dtb local_module vermagic
     local pkg tmp archive remote_archive
     local -a ssh_opts=()
 
@@ -122,13 +122,18 @@ install_rpi() {
     reboot="${RPI_REBOOT:-0}"
     remote="${user}@${host}"
 
-    [[ -s "$stage/Image" ]] || {
-        echo "[FAIL] Missing staged Raspberry Pi kernel: $stage/Image" >&2
+    [[ -s "$stage/KERNEL_RELEASE" ]] || { echo "[FAIL] Missing $stage/KERNEL_RELEASE" >&2; return 1; }
+    [[ -s "$stage/TARGET" ]] || { echo "[FAIL] Missing $stage/TARGET" >&2; return 1; }
+    [[ -s "$stage/TARGET_DTB" ]] || { echo "[FAIL] Missing $stage/TARGET_DTB" >&2; return 1; }
+    [[ -s "$stage/boot-payload/Image" ]] || {
+        echo "[FAIL] Missing staged Raspberry Pi kernel: $stage/boot-payload/Image" >&2
         echo "       Build first with: scripts/build-all.sh rpi" >&2
         return 1
     }
-    [[ -s "$stage/KERNEL_RELEASE" ]] || { echo "[FAIL] Missing $stage/KERNEL_RELEASE" >&2; return 1; }
+
     krel="$(<"$stage/KERNEL_RELEASE")"
+    target="$(<"$stage/TARGET")"
+    target_dtb="$(<"$stage/TARGET_DTB")"
     [[ -n "$krel" ]] || { echo "[FAIL] Empty Raspberry Pi kernel release" >&2; return 1; }
     [[ -d "$stage/rootfs/lib/modules/$krel" ]] || {
         echo "[FAIL] Missing staged module tree: $stage/rootfs/lib/modules/$krel" >&2
@@ -136,6 +141,10 @@ install_rpi() {
     }
     local_module="$stage/rootfs/lib/modules/$krel/extra/stcp.ko"
     [[ -s "$local_module" ]] || { echo "[FAIL] Missing staged STCP module: $local_module" >&2; return 1; }
+    find "$stage/boot-payload/dtbs" -type f -name "$target_dtb" -print -quit | grep -q . || {
+        echo "[FAIL] Missing staged target DTB: $target_dtb" >&2
+        return 1
+    }
 
     vermagic="$(modinfo -F vermagic "$local_module" 2>/dev/null | awk '{print $1}' || true)"
     if [[ -n "$vermagic" && "$vermagic" != "$krel" ]]; then
@@ -145,6 +154,8 @@ install_rpi() {
 
     if [[ -n "${RPI_SSH_OPTS:-}" ]]; then
         read -r -a ssh_opts <<< "$RPI_SSH_OPTS"
+    else
+        ssh_opts=(-o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new)
     fi
     command -v ssh >/dev/null 2>&1 || { echo "[FAIL] ssh not found" >&2; return 1; }
     command -v scp >/dev/null 2>&1 || { echo "[FAIL] scp not found" >&2; return 1; }
@@ -158,64 +169,105 @@ install_rpi() {
 
     tmp="$(mktemp -d)"
     trap 'rm -rf "${tmp:-}"' RETURN
-    pkg="stcp-rpi-install-${krel}"
+    pkg="stcp-rpi-install-${target}-${krel}"
     mkdir -p "$tmp/$pkg"
-    cp -a "$stage/Image" "$tmp/$pkg/Image"
     cp -a "$stage/rootfs" "$tmp/$pkg/rootfs"
+    cp -a "$stage/boot-payload" "$tmp/$pkg/boot-payload"
     cp -a "$stage/KERNEL_RELEASE" "$tmp/$pkg/KERNEL_RELEASE"
-    [[ -f "$stage/System.map" ]] && cp -a "$stage/System.map" "$tmp/$pkg/System.map"
-    [[ -f "$stage/kernel.config" ]] && cp -a "$stage/kernel.config" "$tmp/$pkg/kernel.config"
+    cp -a "$stage/TARGET" "$tmp/$pkg/TARGET"
+    cp -a "$stage/TARGET_DTB" "$tmp/$pkg/TARGET_DTB"
+    [[ -f "$stage/manifest.txt" ]] && cp -a "$stage/manifest.txt" "$tmp/$pkg/manifest.txt"
 
     cat > "$tmp/$pkg/install.sh" <<'REMOTE_INSTALL'
 #!/usr/bin/env bash
 set -Eeuo pipefail
-[[ "$(id -u)" == 0 ]] || { echo "[FAIL] run installer as root" >&2; exit 1; }
-PKG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+trap 'rc=$?; echo "[FAIL] install.sh line=$LINENO command=$BASH_COMMAND rc=$rc" >&2' ERR
+
+log() { echo "[INFO] $*"; }
+die() { echo "[FAIL] $*" >&2; exit 1; }
+
+[[ "$(id -u)" == 0 ]] || die "Run installer as root"
+
+PKG_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOTFS="$PKG_DIR/rootfs"
+BOOT_PAYLOAD="$PKG_DIR/boot-payload"
 KREL="$(<"$PKG_DIR/KERNEL_RELEASE")"
-MODULE_SRC="$PKG_DIR/rootfs/lib/modules/$KREL"
-MODULE_DST="/lib/modules/$KREL"
+TARGET="$(<"$PKG_DIR/TARGET")"
+TARGET_DTB="$(<"$PKG_DIR/TARGET_DTB")"
+KERNEL_FILE="kernel-stcp-${KREL}.img"
+INITRAMFS_FILE="initramfs-stcp-${KREL}"
 
 if [[ -d /boot/firmware && -f /boot/firmware/config.txt ]]; then
     BOOT_DIR=/boot/firmware
 elif [[ -f /boot/config.txt ]]; then
     BOOT_DIR=/boot
 else
-    echo "[FAIL] Raspberry Pi config.txt not found" >&2
-    exit 1
+    die "Raspberry Pi config.txt not found"
 fi
-CONFIG_TXT="$BOOT_DIR/config.txt"
-KERNEL_FILE="kernel-stcp-${KREL}.img"
-KERNEL_DST="$BOOT_DIR/$KERNEL_FILE"
-DEPMOD="$(command -v depmod 2>/dev/null || true)"
-[[ -n "$DEPMOD" ]] || DEPMOD=/usr/sbin/depmod
 
-[[ -s "$PKG_DIR/Image" ]] || { echo "[FAIL] packaged Image missing" >&2; exit 1; }
-[[ -d "$MODULE_SRC" ]] || { echo "[FAIL] packaged modules missing" >&2; exit 1; }
-[[ -s "$MODULE_SRC/extra/stcp.ko" ]] || { echo "[FAIL] packaged stcp.ko missing" >&2; exit 1; }
+CONFIG_TXT="$BOOT_DIR/config.txt"
+CMDLINE_TXT="$BOOT_DIR/cmdline.txt"
+MODULE_SRC="$ROOTFS/lib/modules/$KREL"
+MODULE_DST="/lib/modules/$KREL"
+
+[[ -d "$MODULE_SRC" ]] || die "Packaged modules missing: $MODULE_SRC"
+[[ -s "$MODULE_SRC/extra/stcp.ko" ]] || die "Packaged STCP module missing"
+[[ -s "$BOOT_PAYLOAD/Image" ]] || die "Packaged kernel Image missing"
+[[ -s "$BOOT_PAYLOAD/System.map" ]] || die "Packaged System.map missing"
+[[ -s "$BOOT_PAYLOAD/config" ]] || die "Packaged kernel config missing"
+[[ -d "$BOOT_PAYLOAD/dtbs" ]] || die "Packaged DTBs missing"
+[[ -d "$BOOT_PAYLOAD/overlays" ]] || die "Packaged overlays directory missing"
+[[ -f "$CMDLINE_TXT" ]] || die "Missing target cmdline.txt: $CMDLINE_TXT"
+find "$BOOT_PAYLOAD/dtbs" -type f -name "$TARGET_DTB" -print -quit | grep -q . || die "Packaged target DTB missing: $TARGET_DTB"
+
+DEPMOD="$(command -v depmod 2>/dev/null || true)"; [[ -n "$DEPMOD" ]] || DEPMOD=/usr/sbin/depmod
+UPDATE_INITRAMFS="$(command -v update-initramfs 2>/dev/null || true)"; [[ -n "$UPDATE_INITRAMFS" ]] || UPDATE_INITRAMFS=/usr/sbin/update-initramfs
+[[ -x "$DEPMOD" ]] || die "depmod missing"
+[[ -x "$UPDATE_INITRAMFS" ]] || die "update-initramfs missing"
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP="/root/stcp-kernel-backup-${KREL}-${STAMP}"
 mkdir -p "$BACKUP"
+
+log "Backing up current boot configuration and conflicting files -> $BACKUP"
 cp -a "$CONFIG_TXT" "$BACKUP/config.txt"
-[[ -f "$KERNEL_DST" ]] && cp -a "$KERNEL_DST" "$BACKUP/"
+cp -a "$CMDLINE_TXT" "$BACKUP/cmdline.txt"
+[[ -e "$BOOT_DIR/$KERNEL_FILE" ]] && cp -a "$BOOT_DIR/$KERNEL_FILE" "$BACKUP/"
+[[ -e "$BOOT_DIR/$INITRAMFS_FILE" ]] && cp -a "$BOOT_DIR/$INITRAMFS_FILE" "$BACKUP/"
 [[ -d "$MODULE_DST" ]] && cp -a "$MODULE_DST" "$BACKUP/modules-$KREL"
-for f in "/boot/vmlinuz-$KREL" "/boot/System.map-$KREL" "/boot/config-$KREL"; do
+for f in "/boot/vmlinuz-$KREL" "/boot/System.map-$KREL" "/boot/config-$KREL" "/boot/initrd.img-$KREL"; do
     [[ -e "$f" ]] && cp -a "$f" "$BACKUP/"
 done
 
-echo "[INFO] Installing complete module tree -> $MODULE_DST"
+log "Installing complete kernel module tree"
 rm -rf "$MODULE_DST"
 mkdir -p "$MODULE_DST"
 cp -a "$MODULE_SRC/." "$MODULE_DST/"
-
-echo "[INFO] Installing kernel -> $KERNEL_DST"
-install -m0644 "$PKG_DIR/Image" "$KERNEL_DST"
-install -m0644 "$PKG_DIR/Image" "/boot/vmlinuz-$KREL"
-[[ -f "$PKG_DIR/System.map" ]] && install -m0644 "$PKG_DIR/System.map" "/boot/System.map-$KREL"
-[[ -f "$PKG_DIR/kernel.config" ]] && install -m0644 "$PKG_DIR/kernel.config" "/boot/config-$KREL"
 "$DEPMOD" -a "$KREL"
 
-TMP_CONFIG="$(mktemp)"
+log "Installing standard /boot kernel metadata"
+install -m0644 "$BOOT_PAYLOAD/Image" "/boot/vmlinuz-$KREL"
+install -m0644 "$BOOT_PAYLOAD/System.map" "/boot/System.map-$KREL"
+install -m0644 "$BOOT_PAYLOAD/config" "/boot/config-$KREL"
+
+log "Generating initramfs on Raspberry Pi"
+rm -f "/boot/initrd.img-$KREL"
+"$UPDATE_INITRAMFS" -c -k "$KREL"
+[[ -s "/boot/initrd.img-$KREL" ]] || die "initramfs generation failed"
+
+log "Installing STCP kernel alongside working Raspberry Pi kernel"
+install -m0644 "$BOOT_PAYLOAD/Image" "$BOOT_DIR/$KERNEL_FILE"
+install -m0644 "/boot/initrd.img-$KREL" "$BOOT_DIR/$INITRAMFS_FILE"
+[[ -s "$BOOT_DIR/$KERNEL_FILE" ]] || die "Installed kernel is empty: $BOOT_DIR/$KERNEL_FILE"
+[[ -s "$BOOT_DIR/$INITRAMFS_FILE" ]] || die "Installed initramfs is empty: $BOOT_DIR/$INITRAMFS_FILE"
+
+# Keep the currently working Raspberry Pi DTBs and overlays in place.
+# They are the rescue baseline. The STCP kernel is selected only by kernel=.
+[[ -f "$BOOT_DIR/$TARGET_DTB" ]] || die "Working target DTB missing from boot filesystem: $BOOT_DIR/$TARGET_DTB"
+[[ -d "$BOOT_DIR/overlays" ]] || die "Working overlays directory missing: $BOOT_DIR/overlays"
+
+log "Activating STCP kernel in config.txt"
+TMP_CONFIG="$(mktemp "${CONFIG_TXT}.stcp.XXXXXX")"
 TMP_CLEAN="$(mktemp)"
 awk '
     /^# BEGIN STCP KERNEL$/ { skip=1; next }
@@ -228,7 +280,8 @@ cat >> "$TMP_CONFIG" <<CFG
 # BEGIN STCP KERNEL
 [all]
 arm_64bit=1
-kernel=$KERNEL_FILE
+kernel=${KERNEL_FILE}
+initramfs ${INITRAMFS_FILE} followkernel
 # END STCP KERNEL
 CFG
 cp --no-preserve=ownership,mode,timestamps "$TMP_CONFIG" "${CONFIG_TXT}.new"
@@ -236,9 +289,8 @@ mv -f "${CONFIG_TXT}.new" "$CONFIG_TXT"
 rm -f "$TMP_CONFIG" "$TMP_CLEAN"
 sync
 
-grep -Fxq "kernel=$KERNEL_FILE" "$CONFIG_TXT" || { echo "[FAIL] config.txt activation failed" >&2; exit 1; }
-[[ -s "$KERNEL_DST" ]] || { echo "[FAIL] installed kernel missing" >&2; exit 1; }
-[[ -s "$MODULE_DST/extra/stcp.ko" ]] || { echo "[FAIL] installed STCP module missing" >&2; exit 1; }
+grep -Fxq "kernel=${KERNEL_FILE}" "$CONFIG_TXT" || die "config.txt kernel activation failed"
+grep -Fxq "initramfs ${INITRAMFS_FILE} followkernel" "$CONFIG_TXT" || die "config.txt initramfs activation failed"
 
 ROLLBACK="/usr/local/sbin/rollback-stcp-kernel-${KREL}.sh"
 cat > "$ROLLBACK" <<ROLLBACK_SCRIPT
@@ -246,21 +298,42 @@ cat > "$ROLLBACK" <<ROLLBACK_SCRIPT
 set -Eeuo pipefail
 [[ "\$(id -u)" == 0 ]] || { echo "Run as root" >&2; exit 1; }
 cp -a "$BACKUP/config.txt" "$CONFIG_TXT"
+rm -f "$BOOT_DIR/$KERNEL_FILE" "$BOOT_DIR/$INITRAMFS_FILE"
+if [[ -f "$BACKUP/$KERNEL_FILE" ]]; then
+    cp -a "$BACKUP/$KERNEL_FILE" "$BOOT_DIR/$KERNEL_FILE"
+fi
+if [[ -f "$BACKUP/$INITRAMFS_FILE" ]]; then
+    cp -a "$BACKUP/$INITRAMFS_FILE" "$BOOT_DIR/$INITRAMFS_FILE"
+fi
 rm -rf "$MODULE_DST"
-[[ -d "$BACKUP/modules-$KREL" ]] && cp -a "$BACKUP/modules-$KREL" "$MODULE_DST"
+if [[ -d "$BACKUP/modules-$KREL" ]]; then
+    cp -a "$BACKUP/modules-$KREL" "$MODULE_DST"
+fi
 "$DEPMOD" -a "$KREL" || true
 sync
-echo "Restored boot config/module tree from $BACKUP"
+echo "Restored previous Raspberry Pi boot configuration from $BACKUP"
+echo "Reboot when ready."
 ROLLBACK_SCRIPT
 chmod 0755 "$ROLLBACK"
+sync
 
-echo "[OK] Raspberry Pi kernel + modules installed"
-echo "Kernel release : $KREL"
-echo "Kernel image   : $KERNEL_DST"
-echo "Modules        : $MODULE_DST"
-echo "Backup         : $BACKUP"
-echo "Rollback       : sudo $ROLLBACK"
-echo "Reboot to activate kernel $KREL"
+cat <<SUMMARY
+
+[OK] Raspberry Pi kernel + STCP installation complete
+Kernel release : $KREL
+Target         : $TARGET
+Target DTB     : $TARGET_DTB
+Boot directory : $BOOT_DIR
+Boot kernel    : $BOOT_DIR/$KERNEL_FILE
+Boot initramfs : $BOOT_DIR/$INITRAMFS_FILE
+Modules        : $MODULE_DST
+Initramfs      : /boot/initrd.img-$KREL
+Backup         : $BACKUP
+Rollback       : sudo $ROLLBACK
+
+Active config block:
+SUMMARY
+grep -A6 -B1 'BEGIN STCP KERNEL' "$CONFIG_TXT"
 REMOTE_INSTALL
     chmod 0755 "$tmp/$pkg/install.sh"
 
@@ -268,10 +341,11 @@ REMOTE_INSTALL
     tar -C "$tmp" -czf "$archive" "$pkg"
     remote_archive="/tmp/${pkg}.tar.gz"
 
-    echo "[INFO] Copying kernel package -> $remote:$remote_archive"
-    pnc_note "STCP Raspberry Pi install" "Deploying kernel $krel + modules to $remote"
-    pnc_run "STCPv2/Raspberry Pi package upload" scp "${ssh_opts[@]}" "$archive" "$remote:$remote_archive"
-    echo "[INFO] Installing Raspberry Pi kernel + modules"
+    echo "[INFO] Copying Raspberry Pi kernel package -> $remote:$remote_archive"
+    pnc_note "STCP Raspberry Pi install" "Deploying $target kernel $krel + STCP to $remote"
+    pnc_run "STCPv2/Raspberry Pi package upload" scp "${ssh_opts[@]}" "$archive" "$remote:$remote_archive" || return 1
+
+    echo "[INFO] Installing Raspberry Pi isolated boot set"
     pnc_run "STCPv2/Raspberry Pi kernel install" ssh "${ssh_opts[@]}" "$remote" "
         set -Eeuo pipefail
         rm -rf '/tmp/$pkg'
@@ -280,18 +354,22 @@ REMOTE_INSTALL
         rm -rf '/tmp/$pkg' '$remote_archive'
     " || {
         echo "[FAIL] Raspberry Pi kernel installation failed" >&2
+        pnc_note "STCP Raspberry Pi install FAILED" "Kernel $krel installation failed on $remote"
         return 1
     }
 
-    echo "[OK] Raspberry Pi kernel + STCP module are installed and ready"
-    echo "[INFO] Installed kernel release: $krel"
-    pnc_note "STCP Raspberry Pi install complete" "Kernel $krel + STCP module installed on $remote"
+    echo "[OK] Raspberry Pi kernel + STCP boot set installed and ready"
+    echo "[INFO] Kernel release: $krel"
+    echo "[INFO] Boot kernel   : kernel-stcp-${krel}.img"
+    pnc_note "STCP Raspberry Pi install complete" "Kernel $krel + STCP installed on $remote"
+
     if [[ "$reboot" == 1 ]]; then
         echo "[INFO] Rebooting Raspberry Pi"
         pnc_note "STCP Raspberry Pi reboot" "$remote rebooting into kernel $krel"
         ssh "${ssh_opts[@]}" "$remote" "$sudo_remote reboot" >/dev/null 2>&1 || true
     else
-        echo "[INFO] Not rebooting (RPI_REBOOT=0). Activate with: ssh $remote '$sudo_remote reboot'"
+        echo "[INFO] Not rebooting (RPI_REBOOT=0)."
+        echo "[INFO] Activate with: ssh $remote '$sudo_remote reboot'"
     fi
 }
 

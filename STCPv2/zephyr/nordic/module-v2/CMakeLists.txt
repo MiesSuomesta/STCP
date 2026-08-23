@@ -17,10 +17,10 @@ if(CONFIG_STCP_V2)
     if(DEFINED ENV{STCP_SHARED_RUST_CORE_DIR})
         set(STCP_V2_RUST_DIR "$ENV{STCP_SHARED_RUST_CORE_DIR}")
     else()
-        # module-v2 lives at STCPv2/zephyr/nordic/module-v2
-        # canonical shared core lives at STCPv2/kernel/module/rust
+        # standalone layout: module-v2 and kernel are siblings under the STCP root
+        # canonical shared core lives at STCP_ROOT/kernel/module/rust
         get_filename_component(STCP_V2_RUST_DIR
-            "${CMAKE_CURRENT_LIST_DIR}/../../../kernel/module/rust" ABSOLUTE)
+            "${CMAKE_CURRENT_LIST_DIR}/../kernel/module/rust" ABSOLUTE)
     endif()
 
     if(NOT EXISTS "${STCP_V2_RUST_DIR}/Cargo.toml")

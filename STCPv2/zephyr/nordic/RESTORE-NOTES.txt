@@ -1,0 +1,32 @@
+STCPv2 Zephyr clean-v2 — reconstructed last state, 2026-08-23
+
+This is the latest reconstructed ~/zephyr-stcp/stcp/ clean-v2 tree from
+the artifacts created during this bring-up.
+
+IMPORTANT:
+The canonical shared Rust core is external and is NOT overwritten by this ZIP.
+
+Expected canonical core:
+  /home/pomo/git/github/STCP/STCPv2/kernel/module/rust
+
+The temporary session.rs replacement used while debugging AtomicU64 was stale.
+DO NOT restore it. After the user's git reset, the Git version of the canonical
+core is the correct baseline.
+
+Last reached state:
+  * sysbuild/application configuration succeeds
+  * module-v2 is found
+  * canonical Rust core path is passed explicitly
+  * build reaches compilation of stcp-kernel-core
+  * remaining real portability issue: AtomicU64 is unavailable on nRF9151 /
+    Cortex-M33 and needs a MINIMAL fix against the current canonical session.rs
+  * CONFIG_NET_SOCKETS_OFFLOAD is intended to stay disabled
+
+Restore:
+  mkdir -p ~/zephyr-stcp/stcp
+  cd ~/zephyr-stcp/stcp
+  unzip -o stcp-zephyr-v2-last-known-good-20260823.zip
+
+Build:
+  cd ~/zephyr-stcp/stcp/application
+  bash scripts/build-v2-clean.sh

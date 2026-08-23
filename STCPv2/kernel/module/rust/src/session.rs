@@ -500,7 +500,26 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
         PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
-        PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} received_done=true; }
+        PacketType::HandshakeDone => {
+            if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
+            received_done = true;
+
+            /*
+             * HandshakeDone is the protocol boundary.  TCP may coalesce the
+             * peer's HandshakeDone and first application DATA frame into the
+             * same kernel_recvmsg() buffer.  Do not keep parsing that DATA as
+             * a handshake frame: doing so returned EPROTO and left accept()
+             * waiting until timeout (most reproducibly on Raspberry ->
+             * Raspberry).
+             *
+             * Stop here after consuming HandshakeDone.  The state transition
+             * below marks the context Ready and progress_receive() immediately
+             * calls fill_application_buffer(), which consumes any complete
+             * DATA frame already queued behind it.
+             */
+            crate::carrier::debug_event(253, ctx, queue.lock().len(), 0);
+            break;
+        }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
     if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }

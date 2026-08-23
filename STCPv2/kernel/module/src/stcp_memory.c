@@ -52,6 +52,7 @@ void stcp_kernel_debug_event(u32 event, unsigned long ctx,
 	case 231: name = "LISTENER-LOOKUP"; break;
 	case 232: name = "LISTENER-UNREG-ENTER"; break;
 	case 233: name = "LISTENER-UNREG-EXIT"; break;
+	case 253: name = "HS-DONE-BOUNDARY"; break;
 	case 300: name = "HS-START-ENTER"; break;
 	case 301: name = "HS-START-LOCKED"; break;
 	case 302: name = "HS-PUBKEY-ENTER"; break;

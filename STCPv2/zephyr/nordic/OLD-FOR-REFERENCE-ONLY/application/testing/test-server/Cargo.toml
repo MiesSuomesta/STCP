@@ -1,0 +1,26 @@
+[package]
+name = "stcp-v2-test-tools"
+version = "0.2.1"
+edition = "2024"
+autobins = false
+
+[dependencies]
+stcp-kernel-core = { path = "../../../../../kernel/module/rust", features = ["userspace"] }
+libc = "0.2"
+rand_core = { version = "0.6", features = ["getrandom"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+
+[[bin]]
+name = "stcp-server"
+path = "bin/stcp_server.rs"
+
+[profile.dev]
+opt-level = 1
+panic = "abort"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

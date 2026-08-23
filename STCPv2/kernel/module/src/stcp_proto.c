@@ -123,7 +123,24 @@ out:
 
 void stcp_start_retransmit_work(struct stcp_sock *ssk)
 {
+	struct stcp_carrier *carrier;
+
 	if (!ssk || !READ_ONCE(ssk->rust_ctx))
+		return;
+
+	/*
+	 * STCP retransmission is required only for the UDP carrier. TCP already
+	 * provides reliable ordered delivery and carrier RX drives handshake/data
+	 * parsing synchronously through queue_to_context().
+	 *
+	 * Previously every TCP socket queued this 20 ms delayed work forever.
+	 * tick() correctly skipped reliability for TCP but returned true, causing
+	 * the worker to requeue at 50 Hz until release(). Apart from needless CPU
+	 * and printk/netconsole load, that created a teardown race where a pending
+	 * TCP worker could enter after teardown_started was set.
+	 */
+	carrier = READ_ONCE(ssk->carrier);
+	if (!carrier || !stcp_carrier_needs_reliability(carrier))
 		return;
 
 	/* Do not queue the same delayed work twice. */
@@ -223,6 +240,8 @@ static int stcp_create(
 	ssk->lifetime_id = (u64)atomic64_inc_return(&stcp_lifetime_seq);
 	ssk->teardown_started = false;
 	atomic_set(&ssk->retransmit_callbacks, 0);
+	atomic_set(&ssk->recv_callbacks, 0);
+	init_waitqueue_head(&ssk->recv_drain_wq);
 	pr_err("stcp-lifetime: SOCK-CREATE id=%llu ssk=%px sk=%px sock=%px pid=%d comm=%s\n",
 	       ssk->lifetime_id, ssk, sk, sock, current->pid, current->comm);
 	mutex_init(&ssk->tx_lock);
@@ -323,6 +342,8 @@ struct sock *stcp_alloc_child_sock(
 	ssk->lifetime_id = (u64)atomic64_inc_return(&stcp_lifetime_seq);
 	ssk->teardown_started = false;
 	atomic_set(&ssk->retransmit_callbacks, 0);
+	atomic_set(&ssk->recv_callbacks, 0);
+	init_waitqueue_head(&ssk->recv_drain_wq);
 	pr_err("stcp-lifetime: CHILD-CREATE id=%llu ssk=%px sk=%px sock=%px pid=%d comm=%s\n",
 	       ssk->lifetime_id, ssk, newsk, newsock, current->pid, current->comm);
 	mutex_init(&ssk->tx_lock);

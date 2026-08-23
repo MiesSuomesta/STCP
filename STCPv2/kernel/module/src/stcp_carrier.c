@@ -23,7 +23,7 @@
 #include "stcp_kernel_compat.h"
 #include "stcp_test.h"
 
-#define STCP_CARRIER_TCP_RX_BUFFER_SIZE (8 * 1024 * 1024)
+#define STCP_CARRIER_TCP_RX_BUFFER_SIZE (256 * 1024)
 #define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
 #define STCP_TCP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
 #define STCP_UDP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
@@ -38,6 +38,9 @@ struct stcp_carrier {
 	enum stcp_carrier_kind kind;
 	u64 debug_id;
 	atomic_t rx_callbacks;
+	atomic_t debug_rx_budget;
+	atomic_t debug_tx_budget;
+	atomic_t terminal_error;
 	bool destroy_started;
 	struct socket *socket;
 	struct task_struct *receiver;
@@ -75,6 +78,11 @@ struct stcp_carrier {
 };
 
 static atomic64_t stcp_carrier_debug_seq = ATOMIC64_INIT(0);
+
+static void stcp_carrier_record_terminal_error(
+	struct stcp_carrier *carrier,
+	int error
+);
 
 extern int stcp_rust_carrier_receive_from(
 	void *rust_ctx,
@@ -307,8 +315,21 @@ static void stcp_carrier_free_root(struct stcp_carrier *carrier)
 {
 	struct socket *socket;
 
-	/* Idempotent: listener release normally stopped it already. */
-	if (!stcp_carrier_stop_root(carrier))
+	/*
+	 * Root lifetime invariant:
+	 *
+	 * The root's own reference is dropped only by stcp_carrier_destroy(),
+	 * and that function synchronously calls stcp_carrier_stop_root() before
+	 * stcp_carrier_put_root().  UDP children may keep additional references,
+	 * but when the last child eventually drops the final root reference the
+	 * root is already inert/stopped.
+	 *
+	 * Do NOT call stcp_carrier_stop_root() again from the final-free path.
+	 * Besides being redundant, the second stop entered lifecycle_lock again
+	 * after stop_done had completed and was observed on KASAN builds as a
+	 * general-protection fault during root carrier teardown.
+	 */
+	if (WARN_ON_ONCE(!READ_ONCE(carrier->stopped)))
 		return;
 
 	mutex_lock(&carrier->lifecycle_lock);
@@ -342,7 +363,10 @@ static int stcp_receiver_thread(void *argument)
 		? STCP_CARRIER_UDP_RX_BUFFER_SIZE
 		: STCP_CARRIER_TCP_RX_BUFFER_SIZE;
 
-	buffer = kvmalloc(buffer_size, GFP_KERNEL);
+	pr_emerg("stcp-xconnect: RX01 thread-enter cid=%llu carrier=%px kind=%d socket=%px buffer_size=%zu pid=%d comm=%s\n",
+		 READ_ONCE(carrier->debug_id), carrier, carrier->kind,
+		 READ_ONCE(carrier->socket), buffer_size, current->pid, current->comm);
+	buffer = kvmalloc(buffer_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!buffer) {
 		/*
 		 * Do not let the task disappear while carrier->receiver still
@@ -353,6 +377,9 @@ static int stcp_receiver_thread(void *argument)
 			schedule_timeout_interruptible(1);
 		return -ENOMEM;
 	}
+
+	pr_emerg("stcp-xconnect: RX02 buffer-ready cid=%llu carrier=%px buffer=%px size=%zu\n",
+		 READ_ONCE(carrier->debug_id), carrier, buffer, buffer_size);
 
 	while (!kthread_should_stop()) {
 		struct sockaddr_storage peer;
@@ -371,6 +398,12 @@ static int stcp_receiver_thread(void *argument)
 		int ret;
 
 		memset(&peer, 0, sizeof(peer));
+		{
+			bool trace_recv = atomic_dec_if_positive(&carrier->debug_rx_budget) >= 0;
+
+			if (trace_recv)
+				pr_emerg("stcp-xconnect: RX03 recv-enter cid=%llu carrier=%px socket=%px\n",
+					 READ_ONCE(carrier->debug_id), carrier, READ_ONCE(carrier->socket));
 		ret = kernel_recvmsg(
 			carrier->socket,
 			&message,
@@ -380,7 +413,20 @@ static int stcp_receiver_thread(void *argument)
 			0
 		);
 
+			if (trace_recv)
+				pr_emerg("stcp-xconnect: RX04 recv-exit cid=%llu carrier=%px ret=%d\n",
+					 READ_ONCE(carrier->debug_id), carrier, ret);
+		}
+
 		if (ret <= 0) {
+			if (carrier->kind == STCP_CARRIER_TCP && !kthread_should_stop()) {
+				int terminal = ret < 0 ? ret : -ECONNRESET;
+
+				pr_emerg("stcp-xconnect: RX05 terminal cid=%llu carrier=%px ret=%d terminal=%d owner=%px\n",
+					 READ_ONCE(carrier->debug_id), carrier, ret, terminal,
+					 READ_ONCE(carrier->owner));
+				stcp_carrier_record_terminal_error(carrier, terminal);
+			}
 			if (kthread_should_stop())
 				break;
 
@@ -469,11 +515,15 @@ static int stcp_receiver_thread(void *argument)
 
 static int stcp_carrier_start_receiver(struct stcp_carrier *carrier)
 {
-	struct task_struct *receiver;
+	struct task_struct *receiver = NULL;
 	int ret = 0;
 
 	if (!carrier || !carrier->socket)
 		return -EINVAL;
+
+	pr_emerg("stcp-xconnect: R01 rx-create-lock-enter cid=%llu carrier=%px socket=%px receiver=%px stopping=%d\n",
+		 READ_ONCE(carrier->debug_id), carrier, READ_ONCE(carrier->socket),
+		 READ_ONCE(carrier->receiver), READ_ONCE(carrier->stopping));
 
 	mutex_lock(&carrier->lifecycle_lock);
 
@@ -485,7 +535,17 @@ static int stcp_carrier_start_receiver(struct stcp_carrier *carrier)
 	if (carrier->receiver)
 		goto out_unlock;
 
-	receiver = kthread_run(
+	/*
+	 * Create the worker stopped, publish carrier->receiver while holding the
+	 * lifecycle mutex, then drop the mutex before waking it.  kthread_run()
+	 * can schedule the worker immediately while this mutex is still held,
+	 * which makes the exact connect/RX interleaving unnecessarily difficult
+	 * to reason about and used to leave a small publication window during
+	 * cross-host handshakes.
+	 */
+	pr_emerg("stcp-xconnect: R02 kthread-create-enter cid=%llu carrier=%px\n",
+		 READ_ONCE(carrier->debug_id), carrier);
+	receiver = kthread_create(
 		stcp_receiver_thread,
 		carrier,
 		"stcp-rx/%p",
@@ -494,13 +554,26 @@ static int stcp_carrier_start_receiver(struct stcp_carrier *carrier)
 
 	if (IS_ERR(receiver)) {
 		ret = PTR_ERR(receiver);
+		pr_emerg("stcp-xconnect: R03 kthread-create-failed cid=%llu carrier=%px ret=%d\n",
+			 READ_ONCE(carrier->debug_id), carrier, ret);
 		goto out_unlock;
 	}
 
 	carrier->receiver = receiver;
+	pr_emerg("stcp-xconnect: R03 rx-published cid=%llu carrier=%px receiver=%px\n",
+		 READ_ONCE(carrier->debug_id), carrier, receiver);
 
  out_unlock:
 	mutex_unlock(&carrier->lifecycle_lock);
+
+	if (!ret && receiver && !IS_ERR(receiver)) {
+		pr_emerg("stcp-xconnect: R04 rx-wake cid=%llu carrier=%px receiver=%px\n",
+			 READ_ONCE(carrier->debug_id), carrier, receiver);
+		wake_up_process(receiver);
+	}
+
+	pr_emerg("stcp-xconnect: R05 rx-start-return cid=%llu carrier=%px ret=%d receiver=%px\n",
+		 READ_ONCE(carrier->debug_id), carrier, ret, READ_ONCE(carrier->receiver));
 	return ret;
 }
 
@@ -522,6 +595,9 @@ struct stcp_carrier *stcp_carrier_create(
 	carrier->kind = kind;
 	carrier->debug_id = (u64)atomic64_inc_return(&stcp_carrier_debug_seq);
 	atomic_set(&carrier->rx_callbacks, 0);
+	atomic_set(&carrier->debug_rx_budget, 16);
+	atomic_set(&carrier->debug_tx_budget, 16);
+	atomic_set(&carrier->terminal_error, 0);
 	carrier->destroy_started = false;
 	carrier->rust_ctx = rust_ctx;
 	carrier->owner = owner;
@@ -595,6 +671,9 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	child->kind = STCP_CARRIER_UDP;
 	child->debug_id = (u64)atomic64_inc_return(&stcp_carrier_debug_seq);
 	atomic_set(&child->rx_callbacks, 0);
+	atomic_set(&child->debug_rx_budget, 16);
+	atomic_set(&child->debug_tx_budget, 16);
+	atomic_set(&child->terminal_error, 0);
 	child->destroy_started = false;
 	/* UDP children borrow the root socket through parent; never copy it. */
 	child->socket = NULL;
@@ -617,6 +696,31 @@ void stcp_carrier_set_owner(
 		carrier->owner = owner;
 }
 
+int stcp_carrier_last_error(const struct stcp_carrier *carrier)
+{
+	if (!carrier)
+		return -EINVAL;
+
+	return atomic_read(&carrier->terminal_error);
+}
+
+static void stcp_carrier_record_terminal_error(
+	struct stcp_carrier *carrier,
+	int error
+)
+{
+	if (!carrier || carrier->kind != STCP_CARRIER_TCP || error >= 0)
+		return;
+
+	/* Preserve the first transport failure: it is the most useful cause for
+	 * connect()/release diagnostics.  Publish disconnected before waking the
+	 * owner so a waiter cannot re-enter the dead TCP transport. */
+	atomic_cmpxchg(&carrier->terminal_error, 0, error);
+	WRITE_ONCE(carrier->connected, false);
+	if (READ_ONCE(carrier->owner))
+		stcp_kernel_wake_recv(READ_ONCE(carrier->owner));
+}
+
 int stcp_carrier_get_endpoints(
 	struct stcp_carrier *carrier,
 	u32 *local_addr,
@@ -635,11 +739,17 @@ int stcp_carrier_get_endpoints(
 	    !peer_addr || !peer_port)
 		return -EINVAL;
 
+	/* kernel_getsockname()/kernel_getpeername() return the sockaddr length
+	 * on success on current kernels, not necessarily zero.  Treating any
+	 * positive length as an error made STCP ->accept() return +16 after it
+	 * had already accepted and destroyed the TCP carrier.  The generic
+	 * socket layer considers positive protocol-accept return values success,
+	 * leaving userspace with an fd whose newsock->sk was never initialized. */
 	ret = kernel_getsockname(carrier->socket, (struct sockaddr *)&local);
-	if (ret)
+	if (ret < 0)
 		return ret;
 	ret = kernel_getpeername(carrier->socket, (struct sockaddr *)&peer);
-	if (ret)
+	if (ret < 0)
 		return ret;
 	if (local4->sin_family != AF_INET || peer4->sin_family != AF_INET)
 		return -EAFNOSUPPORT;
@@ -758,6 +868,7 @@ int stcp_carrier_connect(
 
 	carrier->peer = socket_address;
 	carrier->has_peer = true;
+	atomic_set(&carrier->terminal_error, 0);
 	/* The socket was already tuned immediately after creation. Repeating
 	 * tcp_sock_set_nodelay() here races teardown after failed/aborted connects
 	 * and was observed by KASAN as a slab-use-after-free. */
@@ -795,6 +906,9 @@ int stcp_carrier_accept_unattached(
 	child->kind = STCP_CARRIER_TCP;
 	child->debug_id = (u64)atomic64_inc_return(&stcp_carrier_debug_seq);
 	atomic_set(&child->rx_callbacks, 0);
+	atomic_set(&child->debug_rx_budget, 16);
+	atomic_set(&child->debug_tx_budget, 16);
+	atomic_set(&child->terminal_error, 0);
 	child->destroy_started = false;
 	child->socket = accepted;
 	child->connected = true;
@@ -898,13 +1012,14 @@ ssize_t stcp_carrier_send(
 
 	if (!carrier)
 		return -EINVAL;
-	if (!carrier->connected)
-		return -ENOTCONN;
 	if (!data && len)
 		return -EINVAL;
 
 	if (carrier->kind == STCP_CARRIER_UDP) {
 		ssize_t ret;
+
+		if (!READ_ONCE(carrier->connected))
+			return -ENOTCONN;
 		bool data_frame;
 
 		if (!carrier->has_peer)
@@ -974,27 +1089,49 @@ ssize_t stcp_carrier_send(
 
 	/*
 	 * Protect the TCP socket against concurrent close.  release() waits for
-	 * active_sends to reach zero before beginning the FIN sequence.
+	 * active_sends to reach zero before beginning the FIN sequence.  Snapshot
+	 * the socket under the same lock; all send iterations then use that exact
+	 * socket while active_sends pins the carrier's transport lifetime.
 	 */
-	mutex_lock(&carrier->lifecycle_lock);
-	if (carrier->stopping || !carrier->socket) {
-		mutex_unlock(&carrier->lifecycle_lock);
-		return -ESHUTDOWN;
-	}
-	atomic_inc(&carrier->active_sends);
-	mutex_unlock(&carrier->lifecycle_lock);
+	{
+		struct socket *send_socket;
+		bool trace_send = atomic_dec_if_positive(&carrier->debug_tx_budget) >= 0;
 
-	while (position < len) {
+		if (trace_send)
+		pr_emerg("stcp-xconnect: TX01 send-lock-enter cid=%llu carrier=%px len=%zu stopping=%d connected=%d socket=%px\n",
+			 READ_ONCE(carrier->debug_id), carrier, len, READ_ONCE(carrier->stopping),
+			 READ_ONCE(carrier->connected), READ_ONCE(carrier->socket));
+		mutex_lock(&carrier->lifecycle_lock);
+		if (carrier->stopping || !carrier->socket || !carrier->connected) {
+			mutex_unlock(&carrier->lifecycle_lock);
+			return -ESHUTDOWN;
+		}
+		send_socket = carrier->socket;
+		atomic_inc(&carrier->active_sends);
+		mutex_unlock(&carrier->lifecycle_lock);
+
+		if (trace_send)
+		pr_emerg("stcp-xconnect: TX02 send-active cid=%llu carrier=%px socket=%px active=%d len=%zu\n",
+			 READ_ONCE(carrier->debug_id), carrier, send_socket,
+			 atomic_read(&carrier->active_sends), len);
+
+		while (position < len) {
 		int ret;
 		vector.iov_base = (void *)(data + position);
 		vector.iov_len = len - position;
+		if (trace_send)
+		pr_emerg("stcp-xconnect: TX03 kernel-send-enter cid=%llu carrier=%px socket=%px pos=%zu remain=%zu\n",
+			 READ_ONCE(carrier->debug_id), carrier, send_socket, position, len - position);
 		ret = kernel_sendmsg(
-			carrier->socket,
+			send_socket,
 			&message,
 			&vector,
 			1,
 			len - position
 		);
+		if (trace_send)
+		pr_emerg("stcp-xconnect: TX04 kernel-send-exit cid=%llu carrier=%px ret=%d pos=%zu\n",
+			 READ_ONCE(carrier->debug_id), carrier, ret, position);
 		if (ret < 0) {
 			send_result = ret;
 			break;
@@ -1006,11 +1143,23 @@ ssize_t stcp_carrier_send(
 		position += (size_t)ret;
 	}
 
-	if (atomic_dec_and_test(&carrier->active_sends))
-		wake_up_all(&carrier->send_wait);
+		if (atomic_dec_and_test(&carrier->active_sends))
+			wake_up_all(&carrier->send_wait);
+		if (trace_send)
+		pr_emerg("stcp-xconnect: TX05 send-done cid=%llu carrier=%px result=%zd bytes=%zu active=%d\n",
+			 READ_ONCE(carrier->debug_id), carrier, send_result, position,
+			 atomic_read(&carrier->active_sends));
+	}
 
-	if (send_result < 0)
+	if (send_result < 0) {
+		stcp_carrier_record_terminal_error(carrier, (int)send_result);
+		pr_emerg("stcp-xconnect: TX06 send-return-error cid=%llu carrier=%px error=%zd terminal=%d connected=%d\n",
+			 READ_ONCE(carrier->debug_id), carrier, send_result,
+			 atomic_read(&carrier->terminal_error), READ_ONCE(carrier->connected));
 		return send_result;
+	}
+	pr_emerg("stcp-xconnect: TX06 send-return-ok cid=%llu carrier=%px bytes=%zu\n",
+		 READ_ONCE(carrier->debug_id), carrier, position);
 	return (ssize_t)position;
 }
 

@@ -132,6 +132,7 @@ pub(crate) fn transmit(
 }
 
 fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
+    debug_event(310, ctx, bytes.len(), 0);
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
         let Some(endpoint) = &inner.connection else {
@@ -146,6 +147,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     {
         return error.errno();
     }
+    debug_event(311, ctx, bytes.len(), owner);
 
     /* External TCP server children are created before the first wire frame is
      * consumed.  Adopt the client's non-zero connection id from the initial
@@ -183,11 +185,13 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
      * captured, losing the only connect wakeup. */
     let was_connected = crate::session::is_ready_snapshot(ctx);
 
+    debug_event(312, ctx, was_connected as usize, adopted_connection_id as usize);
     match crate::session::progress_receive(ctx) {
         Ok(readable) => {
             let became_connected =
                 !was_connected && crate::session::is_ready_snapshot(ctx);
 
+            debug_event(313, ctx, readable as usize, became_connected as usize);
             if readable || became_connected || adopted_connection_id {
                 wake_recv(owner);
             }

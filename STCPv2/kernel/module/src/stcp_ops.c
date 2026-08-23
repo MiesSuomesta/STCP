@@ -122,6 +122,8 @@ static int stcp_release(struct socket *sock)
 	struct sock *sk;
 	void *rust_ctx;
 	struct stcp_reliability_stats stats;
+	u64 lifetime_id;
+	int retransmit_callbacks;
 	u8 *tx_buffer;
 	u8 *rx_buffer;
 	size_t tx_buffer_size;
@@ -177,8 +179,24 @@ static int stcp_release(struct socket *sock)
 	 * becomes a no-op.  The carrier is still fully alive here, therefore the
 	 * CLOSE frame can be queued synchronously before teardown begins.
 	 */
-	if (READ_ONCE(ssk->rust_ctx))
-		stcp_rust_shutdown(READ_ONCE(ssk->rust_ctx), SHUT_RDWR);
+	if (READ_ONCE(ssk->rust_ctx)) {
+		int carrier_error = READ_ONCE(ssk->carrier)
+			? stcp_carrier_last_error(READ_ONCE(ssk->carrier)) : 0;
+
+		if (!carrier_error) {
+			pr_emerg("stcp-xconnect: REL01 protocol-close-send id=%llu ctx=%px carrier=%px\n",
+				 READ_ONCE(ssk->lifetime_id), READ_ONCE(ssk->rust_ctx),
+				 READ_ONCE(ssk->carrier));
+			stcp_rust_shutdown(READ_ONCE(ssk->rust_ctx), SHUT_RDWR);
+		} else {
+			/* The peer has already reset/closed the TCP carrier.  Sending the
+			 * STCP CLOSE frame only re-enters a dead transport during release.
+			 * Rust final release below still performs local state teardown. */
+			pr_emerg("stcp-xconnect: REL01 protocol-close-skip id=%llu ctx=%px carrier=%px terminal=%d\n",
+				 READ_ONCE(ssk->lifetime_id), READ_ONCE(ssk->rust_ctx),
+				 READ_ONCE(ssk->carrier), carrier_error);
+		}
+	}
 
 	/*
 	 * Keep the TCP carrier alive long enough for queued STCP data and the
@@ -258,6 +276,14 @@ static int stcp_release(struct socket *sock)
 	wake_up_interruptible_all(&ssk->accept_wq);
 	wake_up_interruptible_all(&ssk->recv_wq);
 
+	/*
+	 * sk_common_release() may drop the final reference to @sk and free the
+	 * containing struct stcp_sock.  Snapshot diagnostic fields before that
+	 * point; nothing after sk_common_release() may dereference sk/ssk.
+	 */
+	lifetime_id = READ_ONCE(ssk->lifetime_id);
+	retransmit_callbacks = atomic_read(&ssk->retransmit_callbacks);
+
 	pr_err("stcp-debug: release-before-sock-orphan sock=%px sk=%px ssk=%px pid=%d comm=%s\n",
 	       sock, sk, ssk, current->pid, current->comm);
 	sock_orphan(sk);
@@ -277,8 +303,8 @@ static int stcp_release(struct socket *sock)
 	       sock, sk, current->pid, current->comm);
 
 	pr_err("stcp-lifetime: RELEASE-EXIT id=%llu sock=%px old_sk=%px retx_active=%d pid=%d comm=%s\n",
-	       READ_ONCE(ssk->lifetime_id), sock, sk,
-	       atomic_read(&ssk->retransmit_callbacks), current->pid, current->comm);
+	       lifetime_id, sock, sk, retransmit_callbacks,
+	       current->pid, current->comm);
 	pr_err("stcp-debug: release-exit sock=%px old_sk=%px pid=%d comm=%s\n",
 	       sock, sk, current->pid, current->comm);
 
@@ -376,6 +402,10 @@ static int stcp_connect(
 	if (!ssk->rust_ctx || !ssk->carrier)
 		return -EINVAL;
 
+	pr_emerg("stcp-xconnect: C01 carrier-connect-enter sk=%px ctx=%px carrier=%px addr=%pI4 port=%u flags=0x%x pid=%d comm=%s\n",
+		sock->sk, ssk->rust_ctx, ssk->carrier, &sin->sin_addr.s_addr,
+		ntohs(sin->sin_port), flags, current->pid, current->comm);
+
 	ret = stcp_carrier_connect(
 		ssk->carrier,
 		(__force u32)sin->sin_addr.s_addr,
@@ -383,6 +413,8 @@ static int stcp_connect(
 		flags
 	);
 
+	pr_emerg("stcp-xconnect: C02 carrier-connect-exit sk=%px ctx=%px carrier=%px ret=%d\n",
+		sock->sk, ssk->rust_ctx, ssk->carrier, ret);
 	if (ret)
 		return ret;
 
@@ -398,6 +430,8 @@ static int stcp_connect(
 
 	pr_info("stcp: connect rust result ctx=%px ret=%d\n",
 		ssk->rust_ctx, ret);
+	pr_emerg("stcp-xconnect: C03 rust-connect-exit sk=%px ctx=%px carrier=%px ret=%d\n",
+		sock->sk, ssk->rust_ctx, ssk->carrier, ret);
 	if (ret)
 		return ret;
 
@@ -407,11 +441,19 @@ static int stcp_connect(
 	 * while no carrier RX worker exists, leaving recv() asleep forever.
 	 * At this point connect(), carrier attachment and owner setup are complete.
 	 */
+	pr_emerg("stcp-xconnect: C04 rx-start-enter ctx=%px carrier=%px\n",
+		ssk->rust_ctx, ssk->carrier);
 	ret = stcp_carrier_start_receiver_thread(ssk->carrier);
+	pr_emerg("stcp-xconnect: C05 rx-start-exit ctx=%px carrier=%px ret=%d\n",
+		ssk->rust_ctx, ssk->carrier, ret);
 	if (ret)
 		return ret;
 
+	pr_emerg("stcp-xconnect: C06 handshake-start-enter ctx=%px carrier=%px\n",
+		ssk->rust_ctx, ssk->carrier);
 	ret = stcp_rust_start_handshake(ssk->rust_ctx);
+	pr_emerg("stcp-xconnect: C07 handshake-start-exit ctx=%px carrier=%px ret=%d\n",
+		ssk->rust_ctx, ssk->carrier, ret);
 	if (ret) {
 		stcp_carrier_shutdown(ssk->carrier, SHUT_RDWR);
 		return ret;
@@ -427,7 +469,11 @@ static int stcp_connect(
 	 * handshake state changes.  Nonblocking connect keeps normal socket
 	 * semantics and reports -EINPROGRESS until poll() observes Ready.
 	 */
+	pr_emerg("stcp-xconnect: C08 retx-start-enter ctx=%px carrier=%px\n",
+		ssk->rust_ctx, ssk->carrier);
 	stcp_start_retransmit_work(ssk);
+	pr_emerg("stcp-xconnect: C09 wait-ready-enter ctx=%px carrier=%px\n",
+		ssk->rust_ctx, ssk->carrier);
 
 	if (stcp_rust_is_connected(ssk->rust_ctx) > 0) {
 		sock->state = SS_CONNECTED;
@@ -441,15 +487,28 @@ static int stcp_connect(
 		return -EINPROGRESS;
 	}
 
+	pr_emerg("stcp-xconnect: C10 wait-event-enter ctx=%px carrier=%px timeout_ms=%u\n",
+		ssk->rust_ctx, ssk->carrier, STCP_CONNECT_TIMEOUT_MS);
 	ret = wait_event_interruptible_timeout(
 		ssk->recv_wq,
-		stcp_rust_is_connected(ssk->rust_ctx) > 0,
+		stcp_rust_is_connected(ssk->rust_ctx) > 0 ||
+		stcp_carrier_last_error(ssk->carrier) != 0,
 		msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS)
 	);
+	pr_emerg("stcp-xconnect: C11 wait-event-exit ctx=%px carrier=%px ret=%d terminal=%d\n",
+		ssk->rust_ctx, ssk->carrier, ret,
+		stcp_carrier_last_error(ssk->carrier));
 	if (ret < 0) {
 		pr_info("stcp: connect interrupted ctx=%px ret=%d\n",
 			ssk->rust_ctx, ret);
 		return ret;
+	}
+	if (stcp_carrier_last_error(ssk->carrier) != 0) {
+		int carrier_error = stcp_carrier_last_error(ssk->carrier);
+
+		pr_info("stcp: connect carrier failed ctx=%px error=%d\n",
+			ssk->rust_ctx, carrier_error);
+		return carrier_error;
 	}
 	if (ret == 0) {
 		pr_info("stcp: connect handshake timeout ctx=%px\n", ssk->rust_ctx);
@@ -512,6 +571,9 @@ static int stcp_accept(
 	if (!listener->rust_ctx || !listener->carrier)
 		return -EINVAL;
 
+	pr_emerg("stcp-xconnect: A01 accept-enter listener=%px ctx=%px carrier=%px flags=0x%x newsock=%px\n",
+		listener, listener->rust_ctx, listener->carrier, flags, newsock);
+
 	/* Keep the mature Raspberry Pi UDP accept path unchanged. */
 	if (stcp_carrier_get_kind(listener->carrier) == STCP_CARRIER_UDP) {
 		for (;;) {
@@ -537,11 +599,15 @@ static int stcp_accept(
 		 * the carrier, briefly give the local path a chance to provide its
 		 * already-created child; otherwise create an external server child.
 		 */
+		pr_emerg("stcp-xconnect: A02 kernel-accept-enter listener_carrier=%px\n",
+			listener->carrier);
 		ret = stcp_carrier_accept_unattached(
 			listener->carrier,
 			&accepted_carrier,
 			flags
 		);
+		pr_emerg("stcp-xconnect: A03 kernel-accept-exit ret=%d accepted_carrier=%px\n",
+			ret, accepted_carrier);
 		if (ret)
 			return ret;
 
@@ -555,12 +621,17 @@ static int stcp_accept(
 		}
 
 		ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, O_NONBLOCK);
+		pr_emerg("stcp-xconnect: A04 rust-accept ret=%d accepted_ctx=%px accepted_carrier=%px\n",
+			ret, accepted_ctx, accepted_carrier);
 		if (ret == -EAGAIN) {
 			ret = stcp_carrier_get_endpoints(
 				accepted_carrier,
 				&local_addr, &local_port,
 				&peer_addr, &peer_port
 			);
+			pr_emerg("stcp-xconnect: A05 endpoints ret=%d local=%pI4:%u peer=%pI4:%u carrier=%px\n",
+				ret, &local_addr, ntohs(local_port), &peer_addr, ntohs(peer_port),
+				accepted_carrier);
 			if (ret) {
 				stcp_carrier_destroy(accepted_carrier);
 				return ret;
@@ -571,6 +642,8 @@ static int stcp_accept(
 				local_addr, local_port, peer_addr, peer_port,
 				&accepted_ctx
 			);
+			pr_emerg("stcp-xconnect: A06 external-child-create ret=%d ctx=%px carrier=%px\n",
+				ret, accepted_ctx, accepted_carrier);
 			if (ret) {
 				stcp_carrier_destroy(accepted_carrier);
 				return ret;
@@ -589,7 +662,11 @@ static int stcp_accept(
 	if (!accepted_ctx)
 		return -EIO;
 
+	pr_emerg("stcp-xconnect: A07 child-sock-alloc-enter ctx=%px carrier=%px newsock=%px\n",
+		accepted_ctx, accepted_carrier, newsock);
 	newsk = stcp_alloc_child_sock(sock_net(sock->sk), newsock);
+	pr_emerg("stcp-xconnect: A08 child-sock-alloc-exit newsk=%px newsock_sk=%px\n",
+		newsk, READ_ONCE(newsock->sk));
 	if (IS_ERR(newsk)) {
 		if (accepted_carrier)
 			stcp_carrier_destroy(accepted_carrier);
@@ -615,12 +692,18 @@ static int stcp_accept(
 	} else {
 		child->carrier = accepted_carrier;
 		stcp_carrier_attach(child->carrier, child->rust_ctx, child);
+		pr_emerg("stcp-xconnect: A09 carrier-attached child=%px ctx=%px carrier=%px external=%d\n",
+			child, child->rust_ctx, child->carrier, external_tcp);
 	}
 
 	stcp_rust_set_carrier(child->rust_ctx, child->carrier);
 	stcp_rust_set_owner(child->rust_ctx, child);
 
+	pr_emerg("stcp-xconnect: A10 rx-start-enter child=%px ctx=%px carrier=%px\n",
+		child, child->rust_ctx, child->carrier);
 	ret = stcp_carrier_start_receiver_thread(child->carrier);
+	pr_emerg("stcp-xconnect: A11 rx-start-exit ret=%d child=%px ctx=%px carrier=%px\n",
+		ret, child, child->rust_ctx, child->carrier);
 	if (ret) {
 		stcp_accept_cleanup_child(newsock, newsk, child);
 		return ret;
@@ -629,11 +712,22 @@ static int stcp_accept(
 	if (external_tcp) {
 		/* The RX worker consumes the already queued Zephyr PublicKey frame and
 		 * adopts its connection id before the server emits its own PublicKey. */
+		pr_emerg("stcp-xconnect: A12 connection-id-wait-enter child=%px ctx=%px carrier=%px\n",
+			child, child->rust_ctx, child->carrier);
 		ret = wait_event_interruptible_timeout(
 			child->recv_wq,
-			stcp_rust_connection_id(child->rust_ctx) != 0,
+			stcp_rust_connection_id(child->rust_ctx) != 0 ||
+			stcp_carrier_last_error(child->carrier) != 0,
 			msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS)
 		);
+		pr_emerg("stcp-xconnect: A13 connection-id-wait-exit ret=%d cid=%llu terminal=%d\n",
+			ret, (unsigned long long)stcp_rust_connection_id(child->rust_ctx),
+			stcp_carrier_last_error(child->carrier));
+		if (stcp_carrier_last_error(child->carrier) != 0) {
+			ret = stcp_carrier_last_error(child->carrier);
+			stcp_accept_cleanup_child(newsock, newsk, child);
+			return ret;
+		}
 		if (ret <= 0) {
 			pr_info("stcp: external TCP connection-id wait failed ctx=%px ret=%d\n",
 				child->rust_ctx, ret);
@@ -642,17 +736,32 @@ static int stcp_accept(
 		}
 	}
 
+	pr_emerg("stcp-xconnect: A14 handshake-start-enter child=%px ctx=%px carrier=%px external=%d\n",
+		child, child->rust_ctx, child->carrier, external_tcp);
 	ret = stcp_rust_start_handshake(child->rust_ctx);
+	pr_emerg("stcp-xconnect: A15 handshake-start-exit ret=%d child=%px ctx=%px carrier=%px\n",
+		ret, child, child->rust_ctx, child->carrier);
 	if (ret) {
 		stcp_accept_cleanup_child(newsock, newsk, child);
 		return ret;
 	}
 
+	pr_emerg("stcp-xconnect: A16 handshake-wait-enter child=%px ctx=%px carrier=%px\n",
+		child, child->rust_ctx, child->carrier);
 	ret = wait_event_interruptible_timeout(
 		child->recv_wq,
-		stcp_rust_is_connected(child->rust_ctx) > 0,
+		stcp_rust_is_connected(child->rust_ctx) > 0 ||
+		stcp_carrier_last_error(child->carrier) != 0,
 		msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS)
 	);
+	pr_emerg("stcp-xconnect: A17 handshake-wait-exit ret=%d connected=%d terminal=%d\n",
+		ret, stcp_rust_is_connected(child->rust_ctx),
+		stcp_carrier_last_error(child->carrier));
+	if (stcp_carrier_last_error(child->carrier) != 0) {
+		ret = stcp_carrier_last_error(child->carrier);
+		stcp_accept_cleanup_child(newsock, newsk, child);
+		return ret;
+	}
 	if (ret <= 0) {
 		pr_info("stcp: accepted handshake wait failed ctx=%px external=%d ret=%d\n",
 			child->rust_ctx, external_tcp, ret);

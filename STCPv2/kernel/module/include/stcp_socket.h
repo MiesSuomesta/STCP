@@ -25,6 +25,12 @@ struct stcp_sock {
 	bool teardown_started;
 	atomic_t retransmit_callbacks;
 
+	/* Userspace recvmsg() lifetime guard. release() marks teardown, wakes
+	 * blocked receivers and waits for this count to drain before freeing
+	 * Rust/carrier/sk state. */
+	atomic_t recv_callbacks;
+	wait_queue_head_t recv_drain_wq;
+
 	struct mutex tx_lock;
 	struct mutex rx_lock;
 	u8 *tx_buffer;

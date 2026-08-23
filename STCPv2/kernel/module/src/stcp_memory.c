@@ -52,6 +52,20 @@ void stcp_kernel_debug_event(u32 event, unsigned long ctx,
 	case 231: name = "LISTENER-LOOKUP"; break;
 	case 232: name = "LISTENER-UNREG-ENTER"; break;
 	case 233: name = "LISTENER-UNREG-EXIT"; break;
+	case 300: name = "HS-START-ENTER"; break;
+	case 301: name = "HS-START-LOCKED"; break;
+	case 302: name = "HS-PUBKEY-ENTER"; break;
+	case 303: name = "HS-PUBKEY-ENCODED"; break;
+	case 304: name = "FRAME-SEND-ENTER"; break;
+	case 305: name = "FRAME-SEND-SNAPSHOT"; break;
+	case 306: name = "CARRIER-TX-ENTER"; break;
+	case 307: name = "CARRIER-TX-EXIT"; break;
+	case 308: name = "HS-PUBKEY-SENT"; break;
+	case 309: name = "HS-START-EXIT"; break;
+	case 310: name = "RX-QUEUE-ENTER"; break;
+	case 311: name = "RX-QUEUE-PUSHED"; break;
+	case 312: name = "RX-PROGRESS-ENTER"; break;
+	case 313: name = "RX-PROGRESS-EXIT"; break;
 	default: return;
 	}
 	pr_err("stcp-demux: %s event=%u ctx=%px arg0=%#lx arg1=%#lx pid=%d comm=%s\n",

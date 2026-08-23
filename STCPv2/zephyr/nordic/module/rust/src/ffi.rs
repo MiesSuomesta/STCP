@@ -1,4 +1,4 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, sync::Arc};
 
 use core::{
     ffi::{c_int, c_void},
@@ -8,7 +8,7 @@ use core::{
 
 use crate::{
     error::StcpError,
-    state::StcpContext,
+    state::{Address, Connection, StcpContext},
     session,
 };
 
@@ -180,6 +180,45 @@ pub extern "C" fn stcp_rust_start_handshake(
     raw: *mut c_void,
 ) -> c_int {
     with_ctx_result(raw, session::start_handshake)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_create_accepted_stream(
+    proto: u8,
+    carrier: *mut c_void,
+    out_ctx: *mut *mut c_void,
+) -> c_int {
+    if out_ctx.is_null() || carrier.is_null() {
+        return EINVAL;
+    }
+
+    unsafe {
+        ptr::write(out_ctx, ptr::null_mut());
+    }
+
+    let shared = Arc::new(Connection::new());
+    let ctx = match StcpContext::connected_child(
+        proto,
+        Address { addr: 0, port: 0 },
+        Address { addr: 0, port: 0 },
+        shared,
+    ) {
+        Ok(ctx) => ctx,
+        Err(error) => return error.errno(),
+    };
+
+    {
+        let mut inner = ctx.inner.lock();
+        inner.carrier = carrier as usize;
+    }
+
+    let raw = Box::into_raw(Box::new(ctx)).cast();
+
+    unsafe {
+        ptr::write(out_ctx, raw);
+    }
+
+    0
 }
 
 #[unsafe(no_mangle)]

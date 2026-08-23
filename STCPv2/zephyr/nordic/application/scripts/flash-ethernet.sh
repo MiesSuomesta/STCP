@@ -5,4 +5,6 @@ NORDIC_DIR="$(cd "$APP_DIR/.." && pwd)"
 NCS_DIR="${NCS_DIR:-$NORDIC_DIR/ncs-3.3.0}"
 PYTHON="$NCS_DIR/.venv/bin/python"
 unset PYTHONHOME PYTHONPATH
-exec "$PYTHON" -m west flash -d "$APP_DIR/build-ethernet"
+
+cd "$NCS_DIR" && \
+  exec "$PYTHON" -m west flash -d "$APP_DIR/build-ethernet"

@@ -138,3 +138,8 @@ support-bundle-*
 
 /STCPv2/kernel/linux/
 /STCPv2/kernel/raspberry/
+STCPv2/kernel/linux-upstream_*.buildinfo
+STCPv2/kernel/linux-upstream_*.changes
+STCPv2/kernel/module/*.patch
+STCPv2/kernel/module/include/*.patch
+STCPv2/kernel/module/src/*.before-*

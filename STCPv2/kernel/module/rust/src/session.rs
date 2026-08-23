@@ -7,7 +7,7 @@ use alloc::{
 
 use core::{
     ptr,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use crate::{
@@ -55,7 +55,7 @@ struct ListenerEntry {
 static LISTENERS: SpinLock<Vec<ListenerEntry>> =
     SpinLock::new(Vec::new());
 
-static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
+static NEXT_CONNECTION_ID: AtomicU32 = AtomicU32::new(1);
 
 unsafe extern "C" {
     fn stcp_carrier_destroy(carrier: *mut core::ffi::c_void);
@@ -160,7 +160,7 @@ fn reset_reliability(inner: &mut crate::state::ContextInner) {
 }
 
 fn connection_id(ctx: &StcpContext) -> u64 {
-    ctx.inner.lock().connection_id
+    ctx.inner.lock().connection_id as u64
 }
 
 pub fn set_owner(ctx: &StcpContext, owner: usize) {
@@ -289,11 +289,11 @@ pub fn connect(
 
         if inner.connection_id == 0 {
             inner.connection_id =
-                NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+                NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed) as u64;
 
             if inner.connection_id == 0 {
                 inner.connection_id =
-                    NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+                    NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed) as u64;
             }
         }
 
@@ -344,11 +344,11 @@ pub fn connect(
 
         if inner.connection_id == 0 {
             inner.connection_id =
-                NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+                NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed) as u64;
 
             if inner.connection_id == 0 {
                 inner.connection_id =
-                    NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+                    NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed) as u64;
             }
         }
 
@@ -592,7 +592,7 @@ pub fn create_external_tcp_child(
 }
 
 pub fn connection_id_value(ctx: &StcpContext) -> u64 {
-    ctx.inner.lock().connection_id
+    ctx.inner.lock().connection_id as u64
 }
 
 pub fn accept(

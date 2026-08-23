@@ -341,8 +341,8 @@ ensure_rpi_kernel_tree_healthy() {
 
 build_host() {
     [[ -d "/lib/modules/$(uname -r)/build" ]] || { skip "host: /lib/modules/$(uname -r)/build missing"; return $?; }
-    make -C "$KMOD" LOCALVERSION=="$LOCALVERSION" clean >/dev/null || true
-    if ! pnc_run "STCPv2 host module build" make -C "$KMOD" LOCALVERSION=="$LOCALVERSION" PLATFORM=host JOBS="$JOBS" module; then
+    make -C "$KMOD" LOCALVERSION="$LOCALVERSION" clean >/dev/null || true
+    if ! pnc_run "STCPv2 host module build" make -C "$KMOD" LOCALVERSION="$LOCALVERSION" PLATFORM=host JOBS="$JOBS" module; then
         echo "[FAIL] host: kernel module build failed" >&2
         return 1
     fi
@@ -415,7 +415,7 @@ build_rpi() {
     install -m 0644 "$rpi_config" "$kdir/.config"
 
     echo "[INFO] Normalizing Raspberry Pi config with ARCH=arm64"
-    if ! pnc_run "STCPv2/Raspberry Pi olddefconfig" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" olddefconfig; then
+    if ! pnc_run "STCPv2/Raspberry Pi olddefconfig" make -C "$kdir" LOCALVERSION="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" olddefconfig; then
         echo "[FAIL] rpi: ARCH=arm64 olddefconfig failed" >&2
         return 1
     fi
@@ -423,7 +423,7 @@ build_rpi() {
     check_rpi_boot_config "$kdir/.config" "$target" || return 1
 
     echo "[INFO] Building Raspberry Pi kernel + in-tree modules + DTBs ($target)"
-    if ! pnc_run "STCPv2/Raspberry Pi kernel build" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" Image modules dtbs; then
+    if ! pnc_run "STCPv2/Raspberry Pi kernel build" make -C "$kdir" LOCALVERSION="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" Image modules dtbs; then
         echo "[FAIL] rpi: kernel/Image/modules/dtbs build failed" >&2
         return 1
     fi
@@ -432,13 +432,13 @@ build_rpi() {
     target_dtb_path="$kdir/arch/arm64/boot/dts/$target_dtb_rel"
     if [[ ! -f "$target_dtb_path" ]]; then
         echo "[INFO] Building target DTB explicitly: $target_dtb"
-        pnc_run "STCPv2/Raspberry Pi target DTB" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" "$target_dtb_rel" || \
-        pnc_run "STCPv2/Raspberry Pi target DTB" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" "arch/arm64/boot/dts/$target_dtb_rel" || true
+        pnc_run "STCPv2/Raspberry Pi target DTB" make -C "$kdir" LOCALVERSION="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" "$target_dtb_rel" || \
+        pnc_run "STCPv2/Raspberry Pi target DTB" make -C "$kdir" LOCALVERSION="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" -j"$JOBS" "arch/arm64/boot/dts/$target_dtb_rel" || true
     fi
 
     check_rpi_crypto "$kdir" || return 1
 
-    krel="$(make -s -C "$kdir" ARCH=arm64 CROSS_COMPILE="$cross" kernelrelease)"
+    krel="$(make -s -C "$kdir" LOCALVERSION="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" kernelrelease)"
     kimage="$kdir/arch/arm64/boot/Image"
     [[ -n "$krel" ]] || { echo "[FAIL] rpi: could not determine kernel release" >&2; return 1; }
     [[ -s "$kimage" ]] || { echo "[FAIL] rpi: kernel Image missing: $kimage" >&2; return 1; }
@@ -457,7 +457,7 @@ build_rpi() {
     echo "[INFO] Building STCP module against Raspberry Pi kernel $krel"
     LOCALVERSION="${LOCALVERSION}" \
        make -C "$KMOD" clean >/dev/null || true
-    if ! pnc_run "STCPv2/Raspberry Pi STCP module build" make -C "$KMOD" LOCALVERSION=="$LOCALVERSION" PLATFORM=rpi KDIR="$kdir" CROSS_COMPILE="$cross" JOBS="$JOBS" module; then
+    if ! pnc_run "STCPv2/Raspberry Pi STCP module build" make -C "$KMOD" LOCALVERSION="$LOCALVERSION" PLATFORM=rpi KDIR="$kdir" CROSS_COMPILE="$cross" JOBS="$JOBS" module; then
         echo "[FAIL] rpi: STCP kernel module build failed" >&2
         return 1
     fi
@@ -472,7 +472,7 @@ build_rpi() {
     echo "[INFO] Staging complete Raspberry Pi boot/module set"
     rm -rf "$stage"
     mkdir -p "$rootfs" "$boot/dtbs" "$boot/overlays"
-    if ! pnc_run "STCPv2/Raspberry Pi modules staging" make -C "$kdir" LOCALVERSION=="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" \
+    if ! pnc_run "STCPv2/Raspberry Pi modules staging" make -C "$kdir" LOCALVERSION="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" \
         INSTALL_MOD_PATH="$rootfs" DEPMOD=true modules_install; then
         echo "[FAIL] rpi: modules_install staging failed" >&2
         return 1

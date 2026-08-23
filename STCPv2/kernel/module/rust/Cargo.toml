@@ -7,7 +7,7 @@ publish = false
 [lib]
 name = "stcp_kernel_core"
 path = "src/lib.rs"
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
 
 [profile.release]
 panic = "abort"
@@ -18,3 +18,7 @@ debug = true
 strip = false
 
 [dependencies]
+
+[features]
+default = []
+userspace = []

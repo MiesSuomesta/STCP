@@ -179,10 +179,12 @@ fn send_frame(
     frame: &[u8],
     flags: i32,
 ) -> Result<(), StcpError> {
+    crate::carrier::debug_event(304, ctx, frame.len(), flags as usize);
     let (carrier_ptr, connection_id) = {
         let inner = ctx.inner.lock();
         (inner.carrier, inner.connection_id)
     };
+    crate::carrier::debug_event(305, ctx, carrier_ptr, connection_id as usize);
 
     if frame.len() < STCP_HEADER_LEN {
         return Err(StcpError::Protocol);
@@ -190,13 +192,16 @@ fn send_frame(
 
     /* Frames are encoded with the final connection id. Avoid a full-frame copy. */
     let _ = connection_id;
-    crate::carrier::transmit(
+    crate::carrier::debug_event(306, ctx, carrier_ptr, frame.len());
+    let result = crate::carrier::transmit(
         shared,
         side,
         carrier_ptr,
         frame,
         flags,
-    )
+    );
+    crate::carrier::debug_event(307, ctx, result.is_ok() as usize, frame.len());
+    result
 }
 
 pub fn bind(
@@ -427,8 +432,10 @@ pub fn connect(
 }
 
 pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
+    crate::carrier::debug_event(300, ctx, 0, 0);
     {
         let inner = ctx.inner.lock();
+        crate::carrier::debug_event(301, ctx, inner.carrier, inner.state as usize);
 
         if inner.state != SocketState::Handshake {
             return Err(StcpError::InvalidState);
@@ -439,7 +446,9 @@ pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
         }
     }
 
-    send_public_key(ctx)
+    let result = send_public_key(ctx);
+    crate::carrier::debug_event(309, ctx, result.is_ok() as usize, 0);
+    result
 }
 
 pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
@@ -453,6 +462,7 @@ pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
 }
 
 fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
+    crate::carrier::debug_event(302, ctx, 0, 0);
     let (shared, side, public_key) = {
         let inner = ctx.inner.lock();
 
@@ -477,8 +487,10 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
         connection_id(ctx),
         &public_key,
     )?;
+    crate::carrier::debug_event(303, ctx, frame.len(), connection_id(ctx) as usize);
 
     send_frame(ctx, &shared, side, &frame, 0)?;
+    crate::carrier::debug_event(308, ctx, frame.len(), 0);
     Ok(())
 }
 

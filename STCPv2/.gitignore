@@ -34,7 +34,6 @@ temp/
 *.xz
 *.gz
 *.sha256
-*.deb
 
 # --- Rust / Cargo -------------------------------------------------
 target/
@@ -79,7 +78,7 @@ artifacts/tmp/
 *.mod.c
 *.mod.o
 *.symvers
-*.lds.S
+
 Module.symvers
 modules.order
 
@@ -102,9 +101,6 @@ RaspberryPI/build-rpi.log
 # Unified/current build staging
 artifacts/build/kernel-host/
 artifacts/build/kernel-rpi/
-
-# Kernel source tree
-**/kernel/linux/**
 
 # --- Zephyr --------------------------------------------------------
 zephyr/**/build/
@@ -135,6 +131,3 @@ support-bundle-*
 .env.local
 .env.*
 !.env.example
-
-/STCPv2/kernel/linux/
-/STCPv2/kernel/raspberry/

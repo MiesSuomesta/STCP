@@ -13,6 +13,13 @@ PNC_MOBILE="${PNC_MOBILE:-0}"
 PNC_WRAPPER="${PNC_WRAPPER:-}"
 LOCALVERSION=${LOCALVERSION:--stcp}
 
+# Kernel source health/recovery. A fresh clone is used only when the source
+# tree itself fails structural/Git health checks; ordinary build failures do
+# not trigger a re-clone.
+KERNEL_AUTO_RECOVER="${KERNEL_AUTO_RECOVER:-1}"
+RPI_KERNEL_GIT_URL="${RPI_KERNEL_GIT_URL:-https://github.com/raspberrypi/linux.git}"
+RPI_KERNEL_GIT_REF="${RPI_KERNEL_GIT_REF:-rpi-6.18.y}"
+
 find_pnc_wrapper() {
     if [[ -n "$PNC_WRAPPER" ]] && command -v "$PNC_WRAPPER" >/dev/null 2>&1; then
         command -v "$PNC_WRAPPER"
@@ -66,6 +73,9 @@ Environment:
   RPI_CONFIG=PATH    Known-good Raspberry Pi kernel config (default: kernel/rpi-working.config)
   RPI_CROSS_COMPILE= Prefix, e.g. aarch64-linux-gnu-
   RPI_TARGET=pi4|pi5 Raspberry Pi board target (default: pi4)
+  KERNEL_AUTO_RECOVER=0 Disable automatic recovery of an unhealthy kernel tree
+  RPI_KERNEL_GIT_URL=URL Raspberry Pi kernel source URL
+  RPI_KERNEL_GIT_REF=REF Raspberry Pi kernel branch/tag (default: rpi-6.18.y)
   NCS_DIR=PATH       Nordic Connect SDK tree (default used by app scripts)
   ZEPHYR_SDK_INSTALL_DIR=PATH
   STRICT=1           Treat unavailable target as an error instead of skipping
@@ -184,6 +194,151 @@ check_rpi_crypto() {
     echo "[ OK ] rpi crypto config + Module.symvers"
 }
 
+kernel_tree_health_check() {
+    local name="$1"
+    local kdir="$2"
+    local arch="${3:-}"
+
+    echo "[INFO] Checking $name kernel source tree health: $kdir"
+
+    if [[ ! -d "$kdir" ]]; then
+        echo "[WARN] $name: kernel tree directory is missing" >&2
+        return 1
+    fi
+
+    local required=(
+        Makefile
+        Kconfig
+        scripts/Kconfig.include
+        scripts/Makefile.build
+        include/linux/kernel.h
+        include/linux/module.h
+    )
+
+    if [[ "$arch" == "arm64" ]]; then
+        required+=(
+            arch/arm64/Makefile
+            arch/arm64/Kconfig
+            arch/arm64/boot/Makefile
+        )
+    fi
+
+    local missing=()
+    local item
+    for item in "${required[@]}"; do
+        [[ -e "$kdir/$item" ]] || missing+=("$item")
+    done
+
+    if (( ${#missing[@]} )); then
+        echo "[WARN] $name: kernel tree is structurally incomplete:" >&2
+        printf '       - missing %s\n' "${missing[@]}" >&2
+        return 1
+    fi
+
+    # If this is a Git checkout, verify that Git can actually read its object
+    # database and resolve HEAD. We deliberately do not require a clean
+    # working tree: kernel builds legitimately create/modify generated files.
+    if [[ -e "$kdir/.git" ]]; then
+        if ! git -C "$kdir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            echo "[WARN] $name: .git exists but Git cannot open the work tree" >&2
+            return 1
+        fi
+
+        if ! git -C "$kdir" rev-parse --verify HEAD^{commit} >/dev/null 2>&1; then
+            echo "[WARN] $name: Git cannot resolve HEAD" >&2
+            return 1
+        fi
+
+        # fsck is more expensive, but this path runs only once before a kernel
+        # build and catches truncated/empty objects like the corruption seen
+        # earlier. Dangling objects are fine; non-zero fsck is not.
+        local fsck_log
+        fsck_log="$(mktemp)"
+        if ! git -C "$kdir" fsck --full >"$fsck_log" 2>&1; then
+            echo "[WARN] $name: Git object database failed fsck:" >&2
+            tail -n 40 "$fsck_log" >&2 || true
+            rm -f "$fsck_log"
+            return 1
+        fi
+        rm -f "$fsck_log"
+    else
+        echo "[INFO] $name: non-Git kernel tree; structural checks passed"
+    fi
+
+    # Make sure the top-level kernel Makefile is parseable enough to expose
+    # VERSION/PATCHLEVEL/SUBLEVEL. This catches accidental truncation without
+    # treating compiler/build failures as source-tree corruption.
+    local version patchlevel sublevel
+    version="$(awk '$1=="VERSION" && $2=="=" {print $3; exit}' "$kdir/Makefile" 2>/dev/null || true)"
+    patchlevel="$(awk '$1=="PATCHLEVEL" && $2=="=" {print $3; exit}' "$kdir/Makefile" 2>/dev/null || true)"
+    sublevel="$(awk '$1=="SUBLEVEL" && $2=="=" {print $3; exit}' "$kdir/Makefile" 2>/dev/null || true)"
+
+    if [[ -z "$version" || -z "$patchlevel" || -z "$sublevel" ]]; then
+        echo "[WARN] $name: top-level Makefile does not look like a valid Linux kernel tree" >&2
+        return 1
+    fi
+
+    echo "[ OK ] $name kernel tree health: ${version}.${patchlevel}.${sublevel}"
+    return 0
+}
+
+clone_fresh_rpi_kernel_tree() {
+    local kdir="$1"
+    local backup="${kdir}.unhealthy.$(date +%Y%m%d-%H%M%S)"
+
+    [[ "$KERNEL_AUTO_RECOVER" == 1 ]] || {
+        echo "[FAIL] rpi: kernel tree is unhealthy and KERNEL_AUTO_RECOVER=0" >&2
+        return 1
+    }
+
+    command -v git >/dev/null 2>&1 || {
+        echo "[FAIL] rpi: git is required for kernel source recovery" >&2
+        return 1
+    }
+
+    if [[ -e "$kdir" ]]; then
+        echo "[WARN] rpi: preserving unhealthy kernel tree as: $backup"
+        mv "$kdir" "$backup"
+    fi
+
+    mkdir -p "$(dirname "$kdir")"
+    echo "[INFO] rpi: cloning fresh kernel tree"
+    echo "[INFO]   url=$RPI_KERNEL_GIT_URL"
+    echo "[INFO]   ref=$RPI_KERNEL_GIT_REF"
+    echo "[INFO]   dst=$kdir"
+
+    if ! git clone --depth 1 --branch "$RPI_KERNEL_GIT_REF" \
+        "$RPI_KERNEL_GIT_URL" "$kdir"; then
+        echo "[FAIL] rpi: fresh kernel clone failed" >&2
+        rm -rf "$kdir"
+        if [[ -e "$backup" ]]; then
+            echo "[INFO] rpi: restoring previous kernel tree"
+            mv "$backup" "$kdir"
+        fi
+        return 1
+    fi
+
+    kernel_tree_health_check rpi "$kdir" arm64 || {
+        echo "[FAIL] rpi: freshly cloned kernel tree failed health check" >&2
+        return 1
+    }
+
+    pnc_note "STCPv2 Raspberry kernel recovered" \
+        "Unhealthy Raspberry kernel source tree replaced with fresh $RPI_KERNEL_GIT_REF clone"
+    return 0
+}
+
+ensure_rpi_kernel_tree_healthy() {
+    local kdir="$1"
+
+    if kernel_tree_health_check rpi "$kdir" arm64; then
+        return 0
+    fi
+
+    echo "[WARN] rpi: kernel source tree health check failed; recovering source tree" >&2
+    clone_fresh_rpi_kernel_tree "$kdir"
+}
+
 build_host() {
     [[ -d "/lib/modules/$(uname -r)/build" ]] || { skip "host: /lib/modules/$(uname -r)/build missing"; return $?; }
     make -C "$KMOD" LOCALVERSION=="$LOCALVERSION" clean >/dev/null || true
@@ -246,9 +401,9 @@ build_rpi() {
         *) echo "[FAIL] rpi: RPI_TARGET must be pi4 or pi5" >&2; return 1 ;;
     esac
 
-    [[ -d "$kdir" && -f "$kdir/Makefile" ]] || {
-        skip "rpi: Raspberry Pi kernel tree missing: $kdir"
-        return $?
+    ensure_rpi_kernel_tree_healthy "$kdir" || {
+        echo "[FAIL] rpi: Raspberry Pi kernel source tree is unusable" >&2
+        return 1
     }
     [[ -f "$rpi_config" ]] || {
         echo "[FAIL] rpi: known-good Raspberry Pi config missing: $rpi_config" >&2

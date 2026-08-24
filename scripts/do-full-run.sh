@@ -18,110 +18,6 @@ fail() {
     exit 1
 }
 
-# ~/.bashrc: executed by bash(1) for non-login shells.
-# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
-# for examples
-
-zephyr-env()
-{
-    local workspace=""
-    local dir="$PWD"
-    local venv=""
-    local req=""
-
-    # Etsi west-workspacen juuri nykyisestä hakemistosta ylöspäin.
-    while [[ "$dir" != "/" ]]; do
-        if [[ -d "$dir/zephyr" && -f "$dir/.west/config" ]]; then
-            workspace="$dir"
-            break
-        fi
-        dir="$(dirname "$dir")"
-    done
-
-    # Jos ollaan workspace-puun ulkopuolella, käytä oletusta.
-    if [[ -z "$workspace" ]]; then
-        workspace="$HOME/zephyr-stcp"
-
-        if [[ ! -d "$workspace/zephyr" ||
-              ! -f "$workspace/.west/config" ]]; then
-            echo "[FAIL] Zephyr workspace not found."
-            echo "       Checked current directory tree and:"
-            echo "       $workspace"
-            return 1
-        fi
-    fi
-
-    venv="$workspace/.venv"
-
-    echo "[INFO] Zephyr workspace: $workspace"
-
-    # Luo venv tarvittaessa.
-    if [[ ! -d "$venv" ]]; then
-        echo "[INFO] Creating Python environment: $venv"
-        python3 -m venv "$venv" || return 1
-
-        echo "[INFO] Activating Python environment..."
-        source "$venv/bin/activate" || return 1
-
-        echo "[INFO] Updating pip..."
-        python -m pip install --upgrade pip || return 1
-
-        # Ensimmäisellä luonnilla asennetaan Zephyr requirements.
-        if [[ -f "$workspace/zephyr/scripts/requirements.txt" ]]; then
-            echo "[INFO] Installing Zephyr requirements..."
-            python -m pip install \
-                -r "$workspace/zephyr/scripts/requirements.txt" || return 1
-        fi
-
-        # NCS requirements, jos ne löytyvät tästä workspacesta.
-        for req in \
-            "$workspace/nrf/scripts/requirements.txt" \
-            "$workspace/nrf/scripts/requirements-base.txt"
-        do
-            if [[ -f "$req" ]]; then
-                echo "[INFO] Installing: $req"
-                python -m pip install -r "$req" || return 1
-            fi
-        done
-    else
-        echo "[INFO] Activating existing Python environment..."
-        source "$venv/bin/activate" || return 1
-    fi
-
-    # West tarvittaessa.
-    if ! python -m west --version >/dev/null 2>&1; then
-        echo "[INFO] Installing west..."
-        python -m pip install west || return 1
-    fi
-
-    export ZEPHYR_BASE="$workspace/zephyr"
-
-    if [[ -d "$HOME/zephyr-sdk-0.16.8" ]]; then
-        export ZEPHYR_SDK_INSTALL_DIR="$HOME/zephyr-sdk-0.16.8"
-    fi
-
-    cd "$workspace" || return 1
-
-    echo
-    echo "========================================"
-    echo "[OK] Zephyr environment active"
-    echo "========================================"
-    echo "Workspace   : $workspace"
-    echo "Python      : $(command -v python)"
-    echo "West        : $(command -v west 2>/dev/null || echo unavailable)"
-    echo "ZEPHYR_BASE : $ZEPHYR_BASE"
-    echo "SDK         : ${ZEPHYR_SDK_INSTALL_DIR:-not set}"
-    echo
-
-    export NCS_DIR="$workspace"
-    export STCP_MODULE_DIR="$workspace/stcp/module"
-    export ZEPHYR_BASE="$workspace/zephyr"
-    export ZEPHYR_SDK_INSTALL_DIR="$HOME/zephyr-sdk-0.16.8"
-
-    python --version
-    python -m west --version
-}
-
 wait_raspi_down() {
     info "Waiting Raspberry Pi to go down..."
     for _ in $(seq 1 60); do
@@ -210,7 +106,9 @@ run_zephyr_tests() {
         ./run-robot-tests.sh
     else
         # Known STCPv2 robot-v2 layout fallback.
-        if [[ -f ./robot-v2.robot ]]; then
+        if [[ -f ./zephyr-v2.robot ]]; then
+            robot zephyr-v2.robot
+        elif [[ -f ./robot-v2.robot ]]; then
             robot robot-v2.robot
         elif [[ -f ./tests.robot ]]; then
             robot tests.robot

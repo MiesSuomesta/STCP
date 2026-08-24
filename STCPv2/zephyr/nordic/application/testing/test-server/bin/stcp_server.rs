@@ -5,7 +5,7 @@ use std::{
     os::fd::{AsRawFd, RawFd},
     ptr,
     slice,
-    sync::Mutex,
+    sync::{Mutex, atomic::{AtomicU64, Ordering}},
     time::{Duration, Instant},
 };
 
@@ -34,6 +34,29 @@ const STCP_PROTO_TCP: u8 = 253;
 const DEFAULT_LISTEN: &str = "0.0.0.0:19000";
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
+static TRACE_SEQ: AtomicU64 = AtomicU64::new(1);
+
+fn trace(msg: impl std::fmt::Display) {
+    let seq = TRACE_SEQ.fetch_add(1, Ordering::Relaxed);
+    eprintln!("[STCPDBG #{seq:06}] {msg}");
+}
+
+fn hex_preview(data: &[u8]) -> String {
+    const MAX: usize = 48;
+    let n = data.len().min(MAX);
+    let mut out = String::with_capacity(n * 3 + 32);
+    for (i, b) in data[..n].iter().enumerate() {
+        if i != 0 { out.push(' '); }
+        use std::fmt::Write;
+        let _ = write!(&mut out, "{b:02x}");
+    }
+    if data.len() > MAX {
+        use std::fmt::Write;
+        let _ = write!(&mut out, " ... (+{} bytes)", data.len() - MAX);
+    }
+    out
+}
+
 unsafe extern "C" {
     fn stcp_rust_carrier_receive_from(
         ctx: *mut c_void,
@@ -61,7 +84,8 @@ fn errno() -> i32 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn stcp_carrier_needs_reliability(_carrier: *const c_void) -> bool {
+pub extern "C" fn stcp_carrier_needs_reliability(carrier: *const c_void) -> bool {
+    trace(format!("CALLBACK carrier_needs_reliability carrier={carrier:p} -> false"));
     false
 }
 
@@ -76,18 +100,26 @@ pub extern "C" fn stcp_carrier_create_udp_child(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn stcp_carrier_destroy(_carrier: *mut c_void) {}
+pub extern "C" fn stcp_carrier_destroy(carrier: *mut c_void) {
+    trace(format!("CALLBACK carrier_destroy carrier={carrier:p}"));
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn stcp_kernel_wake_accept(_owner: *mut c_void) {}
+pub extern "C" fn stcp_kernel_wake_accept(owner: *mut c_void) {
+    trace(format!("CALLBACK wake_accept owner={owner:p}"));
+}
 
 #[unsafe(no_mangle)]
-pub extern "C" fn stcp_kernel_wake_recv(_owner: *mut c_void) {}
+pub extern "C" fn stcp_kernel_wake_recv(owner: *mut c_void) {
+    trace(format!("CALLBACK wake_recv owner={owner:p}"));
+}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_kernel_debug_event(
-    _event: u32, _ctx: usize, _arg0: usize, _arg1: usize,
-) {}
+    event: u32, ctx: usize, arg0: usize, arg1: usize,
+) {
+    trace(format!("CORE_EVENT event={event} ctx=0x{ctx:x} arg0=0x{arg0:x} arg1=0x{arg1:x}"));
+}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_carrier_send(
@@ -96,9 +128,17 @@ pub extern "C" fn stcp_carrier_send(
     len: usize,
     flags: i32,
 ) -> isize {
+    trace(format!("CARRIER_SEND enter carrier={carrier:p} data={data:p} len={len} flags=0x{flags:x}"));
     if carrier.is_null() || (data.is_null() && len != 0) {
+        trace("CARRIER_SEND invalid argument");
         return -(libc::EINVAL as isize);
     }
+
+    let preview = if len == 0 { String::new() } else {
+        let b = unsafe { slice::from_raw_parts(data, len) };
+        hex_preview(b)
+    };
+    trace(format!("CARRIER_SEND payload [{preview}]"));
 
     let carrier = unsafe { &*carrier.cast::<UserspaceCarrier>() };
     let _guard = match carrier.tx_lock.lock() {
@@ -120,13 +160,22 @@ pub extern "C" fn stcp_carrier_send(
         };
         if rc < 0 {
             let e = errno();
-            if e == libc::EINTR { continue; }
+            if e == libc::EINTR {
+                trace("CARRIER_SEND send interrupted, retry");
+                continue;
+            }
+            trace(format!("CARRIER_SEND send failed errno={e} done={done}/{len}"));
             return -(e as isize);
         }
-        if rc == 0 { return -(libc::EPIPE as isize); }
+        if rc == 0 {
+            trace(format!("CARRIER_SEND send returned 0 done={done}/{len} -> EPIPE"));
+            return -(libc::EPIPE as isize);
+        }
         done += rc as usize;
+        trace(format!("CARRIER_SEND progress rc={rc} done={done}/{len}"));
     }
 
+    trace(format!("CARRIER_SEND exit success bytes={done}"));
     done as isize
 }
 
@@ -138,7 +187,11 @@ fn nonce_bytes(nonce: u64) -> [u8; 12] {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_kernel_x25519_keypair(secret: *mut u8, public_key: *mut u8) -> i32 {
-    if secret.is_null() || public_key.is_null() { return -libc::EINVAL; }
+    trace(format!("CRYPTO x25519_keypair enter secret={secret:p} public={public_key:p}"));
+    if secret.is_null() || public_key.is_null() {
+        trace("CRYPTO x25519_keypair EINVAL");
+        return -libc::EINVAL;
+    }
 
     let mut secret_bytes = [0u8; 32];
     OsRng.fill_bytes(&mut secret_bytes);
@@ -153,6 +206,7 @@ pub extern "C" fn stcp_kernel_x25519_keypair(secret: *mut u8, public_key: *mut u
         ptr::copy_nonoverlapping(secret_bytes.as_ptr(), secret, 32);
         ptr::copy_nonoverlapping(public.as_bytes().as_ptr(), public_key, 32);
     }
+    trace(format!("CRYPTO x25519_keypair success public=[{}]", hex_preview(public.as_bytes())));
     0
 }
 
@@ -160,7 +214,11 @@ pub extern "C" fn stcp_kernel_x25519_keypair(secret: *mut u8, public_key: *mut u
 pub extern "C" fn stcp_kernel_x25519_shared(
     shared: *mut u8, secret: *const u8, peer: *const u8,
 ) -> i32 {
-    if shared.is_null() || secret.is_null() || peer.is_null() { return -libc::EINVAL; }
+    trace(format!("CRYPTO x25519_shared enter shared={shared:p} secret={secret:p} peer={peer:p}"));
+    if shared.is_null() || secret.is_null() || peer.is_null() {
+        trace("CRYPTO x25519_shared EINVAL");
+        return -libc::EINVAL;
+    }
 
     let mut secret_bytes = [0u8; 32];
     let mut peer_bytes = [0u8; 32];
@@ -172,9 +230,13 @@ pub extern "C" fn stcp_kernel_x25519_shared(
     let private = StaticSecret::from(secret_bytes);
     let public = PublicKey::from(peer_bytes);
     let result = private.diffie_hellman(&public);
-    if result.as_bytes().iter().all(|b| *b == 0) { return -libc::EKEYREJECTED; }
+    if result.as_bytes().iter().all(|b| *b == 0) {
+        trace("CRYPTO x25519_shared rejected all-zero result");
+        return -libc::EKEYREJECTED;
+    }
 
     unsafe { ptr::copy_nonoverlapping(result.as_bytes().as_ptr(), shared, 32); }
+    trace("CRYPTO x25519_shared success");
     0
 }
 
@@ -351,37 +413,47 @@ fn ipv4_u32(addr: SocketAddr) -> u32 {
 }
 
 fn create_listener(port: u16) -> Result<*mut c_void, String> {
+    trace(format!("LISTENER create start port={port} proto={STCP_PROTO_TCP}"));
     let mut ctx = ptr::null_mut();
     let rc = stcp_rust_create(STCP_PROTO_TCP, &mut ctx);
+    trace(format!("LISTENER stcp_rust_create rc={rc} ctx={ctx:p}"));
     if rc < 0 || ctx.is_null() {
         return Err(format!("stcp_rust_create rc={rc}"));
     }
 
+    trace(format!("LISTENER bind enter ctx={ctx:p} addr=0 port={port}"));
     let rc = stcp_rust_bind(ctx, 0, port);
+    trace(format!("LISTENER bind exit rc={rc}"));
     if rc < 0 {
         unsafe { stcp_rust_release(ctx) };
         return Err(format!("stcp_rust_bind rc={rc}"));
     }
 
+    trace(format!("LISTENER listen enter ctx={ctx:p} backlog=1"));
     let rc = stcp_rust_listen(ctx, 1);
+    trace(format!("LISTENER listen exit rc={rc}"));
     if rc < 0 {
         unsafe { stcp_rust_release(ctx) };
         return Err(format!("stcp_rust_listen rc={rc}"));
     }
 
+    trace(format!("LISTENER ready ctx={ctx:p}"));
     Ok(ctx)
 }
 
 fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<(), String> {
     let local = stream.local_addr().map_err(|e| e.to_string())?;
     let peer = stream.peer_addr().map_err(|e| e.to_string())?;
+    trace(format!("CONN accepted fd={} local={local} peer={peer}", stream.as_raw_fd()));
     stream.set_nodelay(true).ok();
     stream.set_read_timeout(Some(Duration::from_millis(20))).map_err(|e| e.to_string())?;
 
     let carrier = Box::new(UserspaceCarrier::new(stream.as_raw_fd()));
     let carrier_ptr = Box::into_raw(carrier);
+    trace(format!("CONN carrier allocated ptr={carrier_ptr:p} fd={}", stream.as_raw_fd()));
 
     let mut ctx = ptr::null_mut();
+    trace(format!("CONN create_external_tcp_child enter listener={listener_ctx:p} local={local} peer={peer}"));
     let rc = stcp_rust_create_external_tcp_child(
         listener_ctx,
         ipv4_u32(local),
@@ -390,15 +462,20 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
         peer.port(),
         &mut ctx,
     );
+    trace(format!("CONN create_external_tcp_child exit rc={rc} ctx={ctx:p}"));
     if rc < 0 || ctx.is_null() {
         unsafe { drop(Box::from_raw(carrier_ptr)); }
         return Err(format!("stcp_rust_create_external_tcp_child rc={rc}"));
     }
 
+    trace(format!("CONN set_carrier ctx={ctx:p} carrier={carrier_ptr:p}"));
     stcp_rust_set_carrier(ctx, carrier_ptr.cast());
+    trace("CONN set_carrier returned");
 
     let result = (|| {
+        trace(format!("HANDSHAKE start enter ctx={ctx:p}"));
         let rc = stcp_rust_start_handshake(ctx);
+        trace(format!("HANDSHAKE start exit rc={rc} connected={}", stcp_rust_is_connected(ctx)));
         if rc < 0 {
             return Err(format!("stcp_rust_start_handshake rc={rc}"));
         }
@@ -407,33 +484,57 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
         let mut wire = [0u8; 16384];
         let mut plain = [0u8; 16384];
 
+        let mut hs_iter: u64 = 0;
         while stcp_rust_is_connected(ctx) != 1 {
+            hs_iter += 1;
             if Instant::now() >= deadline {
+                trace(format!("HANDSHAKE timeout iter={hs_iter} connected={}", stcp_rust_is_connected(ctx)));
                 return Err("STCPv2 handshake timeout".into());
             }
+            trace(format!("HANDSHAKE read wait iter={hs_iter}"));
             match stream.read(&mut wire) {
-                Ok(0) => return Err("peer closed during handshake".into()),
+                Ok(0) => {
+                    trace("HANDSHAKE TCP read EOF");
+                    return Err("peer closed during handshake".into());
+                }
                 Ok(n) => {
+                    trace(format!("HANDSHAKE TCP RX n={n} [{}]", hex_preview(&wire[..n])));
+                    trace(format!("HANDSHAKE core_receive enter ctx={ctx:p} n={n}"));
                     let rc = unsafe { stcp_rust_carrier_receive_from(ctx, wire.as_ptr(), n, 0, 0) };
+                    trace(format!("HANDSHAKE core_receive exit rc={rc} connected={}", stcp_rust_is_connected(ctx)));
                     if rc < 0 {
                         return Err(format!("stcp_rust_carrier_receive_from rc={rc}"));
                     }
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {
+                    trace("HANDSHAKE TCP read EINTR");
+                    continue;
+                }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock
-                    || e.kind() == std::io::ErrorKind::TimedOut => {}
-                Err(e) => return Err(format!("carrier read: {e}")),
+                    || e.kind() == std::io::ErrorKind::TimedOut => {
+                    trace(format!("HANDSHAKE TCP read timeout/wouldblock iter={hs_iter}"));
+                }
+                Err(e) => {
+                    trace(format!("HANDSHAKE TCP read fatal: {e}"));
+                    return Err(format!("carrier read: {e}"));
+                }
             }
         }
 
+        trace(format!("HANDSHAKE CONNECTED ctx={ctx:p} peer={peer} iterations={hs_iter}"));
         println!("[server] STCPv2 connected: {peer}");
 
         loop {
             loop {
+                trace(format!("DATA core_recv enter ctx={ctx:p} cap={}", plain.len()));
                 let n = stcp_rust_recv(ctx, plain.as_mut_ptr(), plain.len(), 0);
+                trace(format!("DATA core_recv exit n={n}"));
                 if n > 0 {
                     let n = n as usize;
+                    trace(format!("DATA plaintext RX n={n} [{}]", hex_preview(&plain[..n])));
+                    trace(format!("DATA core_send echo enter n={n}"));
                     let sent = stcp_rust_send(ctx, plain.as_ptr(), n, 0);
+                    trace(format!("DATA core_send echo exit sent={sent}"));
                     if sent < 0 {
                         return Err(format!("stcp_rust_send rc={sent}"));
                     }
@@ -451,49 +552,77 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
                 break;
             }
 
+            trace("DATA TCP read wait");
             match stream.read(&mut wire) {
-                Ok(0) => break,
+                Ok(0) => {
+                    trace("DATA TCP EOF");
+                    break;
+                }
                 Ok(n) => {
+                    trace(format!("DATA TCP RX n={n} [{}]", hex_preview(&wire[..n])));
+                    trace(format!("DATA core_receive enter ctx={ctx:p} n={n}"));
                     let rc = unsafe { stcp_rust_carrier_receive_from(ctx, wire.as_ptr(), n, 0, 0) };
+                    trace(format!("DATA core_receive exit rc={rc} connected={}", stcp_rust_is_connected(ctx)));
                     if rc < 0 {
                         return Err(format!("stcp_rust_carrier_receive_from rc={rc}"));
                     }
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {
+                    trace("DATA TCP read EINTR");
+                    continue;
+                }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock
-                    || e.kind() == std::io::ErrorKind::TimedOut => {}
-                Err(e) => return Err(format!("carrier read: {e}")),
+                    || e.kind() == std::io::ErrorKind::TimedOut => {
+                    trace("DATA TCP read timeout/wouldblock");
+                }
+                Err(e) => {
+                    trace(format!("DATA TCP read fatal: {e}"));
+                    return Err(format!("carrier read: {e}"));
+                }
             }
         }
         Ok(())
     })();
 
+    trace(format!("CONN cleanup release ctx={ctx:p}"));
     unsafe { stcp_rust_release(ctx); }
+    trace(format!("CONN cleanup free carrier={carrier_ptr:p}"));
     unsafe { drop(Box::from_raw(carrier_ptr)); }
+    trace(format!("CONN finished peer={peer} result={:?}", result.as_ref().err()));
     result
 }
 
 fn main() -> Result<(), String> {
     let listen = std::env::var("STCP_LISTEN").unwrap_or_else(|_| DEFAULT_LISTEN.into());
     let socket_addr: SocketAddr = listen.parse().map_err(|e| format!("bad STCP_LISTEN: {e}"))?;
+    trace(format!("MAIN starting STCP_LISTEN={listen}"));
+    trace(format!("MAIN native TcpListener::bind({socket_addr})"));
     let listener = TcpListener::bind(socket_addr).map_err(|e| e.to_string())?;
+    trace(format!("MAIN native listener ready fd={}", listener.as_raw_fd()));
     let listener_ctx = create_listener(socket_addr.port())?;
+    trace(format!("MAIN STCP listener ctx={listener_ctx:p}"));
 
     println!("STCPv2 shared-core echo server");
     println!("  listen : {listen}");
     println!("  core   : kernel/module/rust");
     println!("  model  : one TCP connection at a time");
 
+    trace("MAIN entering accept loop");
     for conn in listener.incoming() {
+        trace("MAIN accept returned");
         match conn {
             Ok(stream) => {
+                trace(format!("MAIN accepted native TCP fd={} peer={:?}", stream.as_raw_fd(), stream.peer_addr()));
                 if let Err(e) = run_connection(listener_ctx, stream) {
                     eprintln!("[server] connection failed: {e}");
                 } else {
                     println!("[server] client disconnected");
                 }
             }
-            Err(e) => eprintln!("[server] accept error: {e}"),
+            Err(e) => {
+                trace(format!("MAIN accept error: {e}"));
+                eprintln!("[server] accept error: {e}");
+            },
         }
     }
 

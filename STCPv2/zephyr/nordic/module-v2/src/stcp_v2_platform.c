@@ -1017,10 +1017,73 @@ void stcp_carrier_destroy(void *carrier)
 ssize_t stcp_carrier_send(void *carrier, const uint8_t *data,
                           size_t len, int flags)
 {
+    struct stcp_v2_carrier *c = (struct stcp_v2_carrier *)carrier;
+    size_t done = 0;
+
+    if (c == NULL || (data == NULL && len != 0U)) {
+        return -EINVAL;
+    }
+
     if (IS_ENABLED(CONFIG_STCP_V2_TRACE_WIRE)) {
         LOG_HEXDUMP_DBG(data, MIN(len, (size_t)CONFIG_STCP_V2_HEXDUMP_BYTES),
                         "STCPv2 wire TX");
     }
-    return stcp_v2_carrier_send_wire((struct stcp_v2_carrier *)carrier,
-                                     data, len, flags);
+
+    /*
+     * Datagram writes are atomic.  Keep their existing one-call semantics:
+     * STCP reliability needs to observe a datagram as one frame rather than
+     * accidentally splitting it into multiple UDP packets.
+     */
+    if (c->socket_type == SOCK_DGRAM) {
+        return stcp_v2_carrier_send_wire(c, data, len, flags);
+    }
+
+    /*
+     * SOCK_STREAM may legally return a positive short write.  That is not an
+     * I/O failure: the unwritten tail still belongs to the same STCP wire
+     * frame and must be pushed before reporting success to the Rust core.
+     *
+     * This mirrors normal write_all()/send_all() semantics and prevents a
+     * short native TCP write from being mapped to -EIO by the upper layer.
+     */
+    while (done < len) {
+        ssize_t rc = stcp_v2_carrier_send_wire(c, data + done,
+                                               len - done, flags);
+
+        if (rc > 0) {
+            if ((size_t)rc > len - done) {
+                LOG_ERR("carrier TX invalid short-write result rc=%d remaining=%u",
+                        (int)rc, (unsigned int)(len - done));
+                return -EIO;
+            }
+
+            done += (size_t)rc;
+
+            if (done < len) {
+                LOG_WRN("carrier TX partial write rc=%d progress=%u/%u; continuing",
+                        (int)rc, (unsigned int)done, (unsigned int)len);
+            }
+            continue;
+        }
+
+        if (rc == 0) {
+            LOG_ERR("carrier TX zero write progress=%u/%u",
+                    (unsigned int)done, (unsigned int)len);
+            return -EPIPE;
+        }
+
+        /*
+         * stcp_v2_carrier_send_wire() returns negative errno values.
+         * EINTR is transient and the same bytes have not been consumed.
+         */
+        if (rc == -EINTR) {
+            continue;
+        }
+
+        LOG_ERR("carrier TX failed rc=%d progress=%u/%u",
+                (int)rc, (unsigned int)done, (unsigned int)len);
+        return rc;
+    }
+
+    return (ssize_t)done;
 }

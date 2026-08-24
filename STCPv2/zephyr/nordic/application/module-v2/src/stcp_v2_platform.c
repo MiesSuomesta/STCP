@@ -131,198 +131,6 @@ static void x25519_clamp(uint8_t secret[32])
     secret[31] |= 64U;
 }
 
-
-#define STCP_KDF_KEY_LEN 32U
-
-static int stcp_psa_hash_sha256_3(const uint8_t *a, size_t a_len,
-                                  const uint8_t *b, size_t b_len,
-                                  const uint8_t *c, size_t c_len,
-                                  uint8_t out[STCP_KDF_KEY_LEN])
-{
-    uint8_t *input;
-    size_t total;
-    size_t off = 0;
-    size_t written = 0;
-    psa_status_t status;
-
-    if (a_len > SIZE_MAX - b_len || a_len + b_len > SIZE_MAX - c_len) {
-        return -EOVERFLOW;
-    }
-    total = a_len + b_len + c_len;
-
-    input = k_malloc(total ? total : 1U);
-    if (input == NULL) {
-        return -ENOMEM;
-    }
-
-    if (a_len) {
-        memcpy(input + off, a, a_len);
-        off += a_len;
-    }
-    if (b_len) {
-        memcpy(input + off, b, b_len);
-        off += b_len;
-    }
-    if (c_len) {
-        memcpy(input + off, c, c_len);
-    }
-
-    status = psa_hash_compute(PSA_ALG_SHA_256,
-                              input, total,
-                              out, STCP_KDF_KEY_LEN,
-                              &written);
-
-    memset(input, 0, total);
-    k_free(input);
-
-    if (status != PSA_SUCCESS) {
-        LOG_ERR("SHA256 KDF hash failed: status=%d (%s)",
-                (int)status, psa_status_name(status));
-        return psa_to_errno(status);
-    }
-    if (written != STCP_KDF_KEY_LEN) {
-        return -EIO;
-    }
-    return 0;
-}
-
-static int stcp_psa_hmac_sha256_2(const uint8_t *key, size_t key_len,
-                                  const uint8_t *a, size_t a_len,
-                                  const uint8_t *b, size_t b_len,
-                                  uint8_t out[STCP_KDF_KEY_LEN])
-{
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t key_id = 0;
-    uint8_t *input;
-    size_t total;
-    size_t written = 0;
-    psa_status_t status;
-
-    if (a_len > SIZE_MAX - b_len) {
-        return -EOVERFLOW;
-    }
-    total = a_len + b_len;
-
-    input = k_malloc(total ? total : 1U);
-    if (input == NULL) {
-        return -ENOMEM;
-    }
-
-    if (a_len) {
-        memcpy(input, a, a_len);
-    }
-    if (b_len) {
-        memcpy(input + a_len, b, b_len);
-    }
-
-    psa_set_key_type(&attr, PSA_KEY_TYPE_HMAC);
-    psa_set_key_bits(&attr, key_len * 8U);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_SIGN_MESSAGE);
-    psa_set_key_algorithm(&attr, PSA_ALG_HMAC(PSA_ALG_SHA_256));
-
-    status = psa_import_key(&attr, key, key_len, &key_id);
-    if (status == PSA_SUCCESS) {
-        status = psa_mac_compute(key_id,
-                                 PSA_ALG_HMAC(PSA_ALG_SHA_256),
-                                 input, total,
-                                 out, STCP_KDF_KEY_LEN,
-                                 &written);
-    }
-
-    if (key_id != 0) {
-        (void)psa_destroy_key(key_id);
-    }
-    psa_reset_key_attributes(&attr);
-
-    memset(input, 0, total);
-    k_free(input);
-
-    if (status != PSA_SUCCESS) {
-        LOG_ERR("HMAC-SHA256 KDF failed: status=%d (%s)",
-                (int)status, psa_status_name(status));
-        return psa_to_errno(status);
-    }
-    if (written != STCP_KDF_KEY_LEN) {
-        return -EIO;
-    }
-    return 0;
-}
-
-int stcp_kernel_derive_session_keys(const uint8_t *shared,
-                                    const uint8_t *client_pub,
-                                    const uint8_t *server_pub,
-                                    uint8_t *client_to_server,
-                                    uint8_t *server_to_client)
-{
-    static const uint8_t domain[] = "STCPv2-HKDF-SHA256";
-    static const uint8_t client_label[] = "STCPv2 client to server key";
-    static const uint8_t server_label[] = "STCPv2 server to client key";
-    static const uint8_t counter = 1U;
-    uint8_t salt[STCP_KDF_KEY_LEN];
-    uint8_t prk[STCP_KDF_KEY_LEN];
-    int rc;
-
-    if (shared == NULL || client_pub == NULL || server_pub == NULL ||
-        client_to_server == NULL || server_to_client == NULL) {
-        return -EINVAL;
-    }
-
-    rc = stcp_crypto_ensure_ready();
-    if (rc != 0) {
-        return rc;
-    }
-
-    rc = stcp_psa_hash_sha256_3(domain, sizeof(domain) - 1U,
-                                client_pub, STCP_KDF_KEY_LEN,
-                                server_pub, STCP_KDF_KEY_LEN,
-                                salt);
-    if (rc != 0) {
-        goto out;
-    }
-
-    rc = stcp_psa_hmac_sha256_2(salt, sizeof(salt),
-                                shared, STCP_KDF_KEY_LEN,
-                                NULL, 0,
-                                prk);
-    if (rc != 0) {
-        goto out;
-    }
-
-    rc = stcp_psa_hmac_sha256_2(prk, sizeof(prk),
-                                client_label, sizeof(client_label) - 1U,
-                                &counter, sizeof(counter),
-                                client_to_server);
-    if (rc != 0) {
-        goto out;
-    }
-
-    rc = stcp_psa_hmac_sha256_2(prk, sizeof(prk),
-                                server_label, sizeof(server_label) - 1U,
-                                &counter, sizeof(counter),
-                                server_to_client);
-    if (rc != 0) {
-        goto out;
-    }
-
-    if (memcmp(client_to_server, server_to_client, STCP_KDF_KEY_LEN) == 0) {
-        rc = -EKEYREJECTED;
-        goto out;
-    }
-
-    if (IS_ENABLED(CONFIG_STCP_V2_TRACE_CRYPTO)) {
-        LOG_DBG("session KDF complete via PSA SHA256/HMAC");
-    }
-
-out:
-    if (rc != 0) {
-        memset(client_to_server, 0, STCP_KDF_KEY_LEN);
-        memset(server_to_client, 0, STCP_KDF_KEY_LEN);
-    }
-    memset(salt, 0, sizeof(salt));
-    memset(prk, 0, sizeof(prk));
-    return rc;
-}
-
 int stcp_kernel_x25519_keypair(uint8_t *secret, uint8_t *public_key)
 {
     psa_status_t status;
@@ -373,74 +181,33 @@ int stcp_kernel_x25519_keypair(uint8_t *secret, uint8_t *public_key)
 }
 
 int stcp_kernel_x25519_shared(uint8_t *shared, const uint8_t *secret,
-                               const uint8_t *peer)
+                              const uint8_t *peer)
 {
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t key_id = 0;
-    size_t shared_len = 0;
-    psa_status_t status;
     int rc;
 
     if (shared == NULL || secret == NULL || peer == NULL) {
         return -EINVAL;
     }
+    if (!IS_ENABLED(CONFIG_STCP_V2_X25519_SOFTWARE)) {
+        return -ENOTSUP;
+    }
 
-    rc = stcp_crypto_ensure_ready();
+    LOG_INF("X25519 shared-secret start: backend=software-rfc7748");
+    if (IS_ENABLED(CONFIG_STCP_V2_TRACE_CRYPTO)) {
+        LOG_HEXDUMP_INF(peer, 32, "X25519 peer public key");
+    }
+    rc = stcp_x25519_soft(shared, secret, peer);
     if (rc != 0) {
+        LOG_ERR("X25519 software shared-secret calculation failed: rc=%d", rc);
+        memset(shared, 0, 32);
         return rc;
     }
-
-    /*
-     * nRF Connect SDK's PSA X25519 path supports imported Montgomery-255
-     * private keys for ECDH even on configurations where psa_generate_key()
-     * for that key type returns PSA_ERROR_NOT_SUPPORTED.
-     *
-     * Keep keypair generation on the already-working RFC7748 software path,
-     * but move the expensive shared-secret scalar multiplication out of the
-     * stcp-v2-rx stack into the PSA backend.
-     */
-    psa_set_key_type(&attr,
-                     PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_MONTGOMERY));
-    psa_set_key_bits(&attr, 255);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_ECDH);
-
-    LOG_INF("X25519 shared-secret start: backend=PSA imported-key");
-
-    status = psa_import_key(&attr, secret, 32U, &key_id);
-    if (status != PSA_SUCCESS) {
-        LOG_ERR("X25519 psa_import_key failed: status=%d (%s)",
-                (int)status, psa_status_name(status));
-        memset(shared, 0, 32U);
-        psa_reset_key_attributes(&attr);
-        return psa_to_errno(status);
-    }
-
-    status = psa_raw_key_agreement(PSA_ALG_ECDH,
-                                   key_id,
-                                   peer, 32U,
-                                   shared, 32U,
-                                   &shared_len);
-
-    (void)psa_destroy_key(key_id);
-    psa_reset_key_attributes(&attr);
-
-    if (status != PSA_SUCCESS || shared_len != 32U) {
-        LOG_ERR("X25519 psa_raw_key_agreement failed: status=%d len=%u (%s)",
-                (int)status,
-                (unsigned int)shared_len,
-                psa_status_name(status));
-        memset(shared, 0, 32U);
-        return status == PSA_SUCCESS ? -EIO : psa_to_errno(status);
-    }
-
     if (stcp_x25519_soft_is_all_zero(shared)) {
-        LOG_ERR("X25519 PSA shared secret is all zero (low-order peer key)");
-        memset(shared, 0, 32U);
+        LOG_ERR("X25519 software shared secret is all zero (low-order peer key)");
+        memset(shared, 0, 32);
         return -EKEYREJECTED;
     }
-
-    LOG_INF("X25519 shared-secret complete: backend=PSA imported-key");
+    LOG_INF("X25519 shared-secret complete: backend=software-rfc7748");
     return 0;
 }
 

@@ -75,7 +75,15 @@ int main(int argc,char **argv){
     const char *bind_ip=argc>1?argv[1]:"0.0.0.0"; int port=argc>2?atoi(argv[2]):19000;
     signal(SIGINT,on_signal);signal(SIGTERM,on_signal);
     int s=socket(AF_STCP,SOCK_STREAM,IPPROTO_STCP);if(s<0){perror("socket(AF_STCP)");return 2;}
-    int one=1;setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&one,sizeof(one));
+
+	int one = 1;
+
+	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0) {
+	    perror("setsockopt(SO_REUSEADDR)");
+	    close(s);
+	    return 1;
+	}
+
     struct sockaddr_in a={.sin_family=AF_INET,.sin_port=htons((uint16_t)port)};if(inet_pton(AF_INET,bind_ip,&a.sin_addr)!=1){fprintf(stderr,"bad bind ip\n");return 2;}
     if(bind(s,(struct sockaddr*)&a,sizeof(a))<0){perror("bind");return 2;}if(listen(s,8)<0){perror("listen");return 2;}
     fprintf(stderr,"[server] STCPv2 BEN2 listening %s:%d\n",bind_ip,port);fflush(stderr);

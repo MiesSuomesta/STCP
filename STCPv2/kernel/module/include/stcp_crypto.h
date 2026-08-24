@@ -17,6 +17,14 @@ int stcp_kernel_x25519_shared(
 	const u8 peer_public_key[STCP_CURVE25519_KEY_LEN]
 );
 
+int stcp_kernel_derive_session_keys(
+	const u8 shared[STCP_CURVE25519_KEY_LEN],
+	const u8 client_public_key[STCP_CURVE25519_KEY_LEN],
+	const u8 server_public_key[STCP_CURVE25519_KEY_LEN],
+	u8 client_to_server[STCP_AEAD_KEY_LEN],
+	u8 server_to_client[STCP_AEAD_KEY_LEN]
+);
+
 int stcp_kernel_chacha_encrypt(
 	const u8 key[STCP_AEAD_KEY_LEN],
 	u64 nonce,

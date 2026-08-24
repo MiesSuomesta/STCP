@@ -68,15 +68,8 @@ config STCP_V2_TRACE_CRYPTO
     default n
 
 config STCP_V2_X25519_SOFTWARE
-    bool "Use bundled RFC7748 X25519 keypair backend"
+    bool "Use bundled RFC7748 X25519 backend"
     default y
     select MBEDTLS_PSA_CRYPTO_C
-    select PSA_WANT_ALG_SHA_256
-    select PSA_WANT_ALG_HMAC
-    select PSA_WANT_KEY_TYPE_HMAC
-    select PSA_WANT_ALG_ECDH
-    select PSA_WANT_ECC_MONTGOMERY_255
-    select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_IMPORT
-    select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_DERIVE
 
 endif

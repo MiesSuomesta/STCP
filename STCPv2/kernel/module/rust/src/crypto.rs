@@ -1,12 +1,19 @@
 use alloc::vec::Vec;
 use core::ffi::c_int;
-use crate::{error::StcpError, kdf::derive_directional_keys};
+use crate::error::StcpError;
 
 pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const CHACHA_TAG_LEN:usize=16; pub const NONCE_LEN:usize=8;
 #[derive(Clone,Copy,PartialEq,Eq)] pub enum Role{Client,Server}
 unsafe extern "C" {
  fn stcp_kernel_x25519_keypair(secret:*mut u8,public_key:*mut u8)->c_int;
  fn stcp_kernel_x25519_shared(shared:*mut u8,secret:*const u8,peer:*const u8)->c_int;
+ fn stcp_kernel_derive_session_keys(
+  shared:*const u8,
+  client_pub:*const u8,
+  server_pub:*const u8,
+  client_to_server:*mut u8,
+  server_to_client:*mut u8
+ )->c_int;
  fn stcp_kernel_chacha_encrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,plain:*const u8,plain_len:usize,out:*mut u8,out_len:usize)->c_int;
  fn stcp_kernel_chacha_decrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*const u8,cipher_len:usize,out:*mut u8,out_len:usize)->c_int;
  fn stcp_kernel_chacha_decrypt_in_place(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*mut u8,cipher_len:usize)->c_int;
@@ -15,7 +22,53 @@ unsafe extern "C" {
 impl CryptoContext{
  pub fn new()->Result<Self,StcpError>{let mut secret=[0;32];let mut pub32=[0;32];let r=unsafe{stcp_kernel_x25519_keypair(secret.as_mut_ptr(),pub32.as_mut_ptr())};if r!=0{return Err(StcpError::Kernel(r));}let mut public=[0;64];public[..32].copy_from_slice(&pub32);Ok(Self{secret_key:secret,public_key:public,tx_key:None,rx_key:None})}
  pub const fn public_key(&self)->[u8;64]{self.public_key}
- pub fn derive_session_keys(&mut self,peer:&[u8;64],role:Role)->Result<(),StcpError>{let mut shared=[0;32];let r=unsafe{stcp_kernel_x25519_shared(shared.as_mut_ptr(),self.secret_key.as_ptr(),peer.as_ptr())};if r!=0{return Err(StcpError::Kernel(r));}let mut local=[0u8;32];local.copy_from_slice(&self.public_key[..32]);let mut remote=[0u8;32];remote.copy_from_slice(&peer[..32]);let (client_pub,server_pub)=match role{Role::Client=>(&local,&remote),Role::Server=>(&remote,&local)};let (c2s,s2c)=derive_directional_keys(&shared,client_pub,server_pub)?;shared.fill(0);match role{Role::Client=>{self.tx_key=Some(c2s);self.rx_key=Some(s2c)},Role::Server=>{self.tx_key=Some(s2c);self.rx_key=Some(c2s)}}Ok(())}
+ pub fn derive_session_keys(&mut self,peer:&[u8;64],role:Role)->Result<(),StcpError>{
+  let mut shared=[0u8;32];
+  let r=unsafe{stcp_kernel_x25519_shared(shared.as_mut_ptr(),self.secret_key.as_ptr(),peer.as_ptr())};
+  if r!=0{return Err(StcpError::Kernel(r));}
+
+  let mut local=[0u8;32];
+  local.copy_from_slice(&self.public_key[..32]);
+  let mut remote=[0u8;32];
+  remote.copy_from_slice(&peer[..32]);
+
+  let (client_pub,server_pub)=match role{
+   Role::Client=>(&local,&remote),
+   Role::Server=>(&remote,&local),
+  };
+
+  let mut c2s=[0u8;32];
+  let mut s2c=[0u8;32];
+  let r=unsafe{
+   stcp_kernel_derive_session_keys(
+    shared.as_ptr(),
+    client_pub.as_ptr(),
+    server_pub.as_ptr(),
+    c2s.as_mut_ptr(),
+    s2c.as_mut_ptr()
+   )
+  };
+  shared.fill(0);
+  local.fill(0);
+  remote.fill(0);
+
+  if r!=0{
+   c2s.fill(0);
+   s2c.fill(0);
+   return Err(StcpError::Kernel(r));
+  }
+  if c2s==s2c{
+   c2s.fill(0);
+   s2c.fill(0);
+   return Err(StcpError::Crypto);
+  }
+
+  match role{
+   Role::Client=>{self.tx_key=Some(c2s);self.rx_key=Some(s2c)},
+   Role::Server=>{self.tx_key=Some(s2c);self.rx_key=Some(c2s)},
+  }
+  Ok(())
+ }
  pub const fn ready(&self)->bool{self.tx_key.is_some()&&self.rx_key.is_some()}
  pub fn encrypt_into(&self,nonce:u64,aad:&[u8],plain:&[u8],out:&mut[u8])->Result<usize,StcpError>{
   let required=plain.len().checked_add(CHACHA_TAG_LEN).ok_or(StcpError::NoMem)?;

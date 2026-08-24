@@ -44,6 +44,7 @@ unsafe impl GlobalAlloc for KernelAllocator {
 #[global_allocator]
 static GLOBAL_ALLOCATOR: KernelAllocator = KernelAllocator;
 
+#[cfg(not(feature = "userspace"))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     loop {

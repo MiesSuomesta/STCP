@@ -70,6 +70,7 @@ fn try_parser_guard(ctx: &StcpContext) -> Option<ParserGuard<'_>> {
 }
 struct WireFrame { header: Header, payload: Vec<u8> }
 fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Result<Option<WireFrame>, StcpError> {
+    debug_event(350, ctx as *const _ as usize, 0, 0);
     let mut retries = 0usize;
     loop {
         retries = retries.saturating_add(1);
@@ -261,6 +262,7 @@ pub fn connect(
     addr: u32,
     port: u16,
 ) -> Result<(), StcpError> {
+    debug_event(320, ctx as *const _ as usize, 0, 0);
     {
         let inner = ctx.inner.lock();
 
@@ -432,6 +434,7 @@ pub fn connect(
 }
 
 pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
+    debug_event(321, ctx as *const _ as usize, 0, 0);
     crate::carrier::debug_event(300, ctx, 0, 0);
     {
         let inner = ctx.inner.lock();
@@ -495,12 +498,15 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
 }
 
 fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
+    debug_event(260, ctx as *const _ as usize, 0, 0);
     let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,1,0); return Ok(()); };
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
+        PacketType::PublicKey => {
+                debug_event(261, ctx as *const _ as usize, frame.payload.len(), 0); if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
         PacketType::HandshakeDone => {
+                debug_event(268, ctx as *const _ as usize, 0, 0);
             if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
             received_done = true;
 
@@ -522,7 +528,11 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
-    if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }
+    debug_event(264, ctx as *const _ as usize, 0, 0);
+    if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?;
+    debug_event(266, ctx as *const _ as usize, 0, 0);
+    debug_event(265, ctx as *const _ as usize, done.len(), 0); send_frame(ctx,&shared,side,&done,0)?;
+    debug_event(267, ctx as *const _ as usize, 0, 0); }
     {
         let mut inner = ctx.inner.lock();
 
@@ -543,6 +553,7 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
          * Handshake.  The first frame could then be consumed as a handshake
          * frame or left unprocessed until both userspace peers timed out.
          */
+        debug_event(269, ctx as *const _ as usize, inner.crypto.ready() as usize, inner.peer_handshake_done as usize);
         if inner.crypto.ready() && inner.peer_handshake_done {
             if inner.state != SocketState::Ready {
                 inner.state = SocketState::Ready;
@@ -557,8 +568,8 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
             );
         }
     }
-    Ok(())
-}
+    debug_event(271, ctx as *const _ as usize, 0, 0);
+    Ok(())}
 
 
 pub fn create_external_tcp_child(
@@ -568,6 +579,7 @@ pub fn create_external_tcp_child(
     peer_addr: u32,
     peer_port: u16,
 ) -> Result<Box<StcpContext>, StcpError> {
+    debug_event(333, 0, 0, 0);
     let (backlog, queued) = {
         let inner = listener.inner.lock();
         if inner.state != SocketState::Listening || listener.proto == 254 {
@@ -598,6 +610,7 @@ pub fn connection_id_value(ctx: &StcpContext) -> u64 {
 pub fn accept(
     ctx: &StcpContext,
 ) -> Result<Box<StcpContext>, StcpError> {
+    debug_event(332, ctx as *const _ as usize, 0, 0);
     let mut inner = ctx.inner.lock();
 
     if inner.state != SocketState::Listening {
@@ -648,6 +661,7 @@ pub fn send(
     ctx: &StcpContext,
     data: &[u8],
 ) -> Result<usize, StcpError> {
+    debug_event(330, ctx as *const _ as usize, 0, 0);
     progress_handshake(ctx)?;
 
     if !is_ready(ctx) {
@@ -778,6 +792,7 @@ pub fn send(
                 });
                 inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
             }
+            debug_event(337, ctx as *const _ as usize, 0, 0);
             send_frame(ctx, &shared, side, &frame, 0)?;
         } else {
             {
@@ -806,6 +821,7 @@ pub fn recv(
     ctx: &StcpContext,
     output: &mut [u8],
 ) -> Result<usize, StcpError> {
+    debug_event(331, ctx as *const _ as usize, 0, 0);
     crate::carrier::debug_event(101, ctx, output.len(), 0);
     progress_handshake(ctx)?;
     crate::carrier::debug_event(102, ctx, 0, 0);
@@ -1157,6 +1173,7 @@ fn queue_pong(
 fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> { crate::carrier::debug_event(140,ctx,0,0); let result=fill_application_buffer(ctx); crate::carrier::debug_event(143,ctx,result.is_ok() as usize,0); result }
 
 pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
+    debug_event(335, ctx as *const _ as usize, 0, 0);
     {
         let inner = ctx.inner.lock();
 
@@ -1438,6 +1455,7 @@ fn unregister_listener(ctx: &StcpContext) {
 }
 
 pub fn release(ctx: &StcpContext) {
+    debug_event(334, ctx as *const _ as usize, 0, 0);
     crate::carrier::unregister_context(ctx);
     unregister_listener(ctx);
 

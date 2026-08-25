@@ -12,18 +12,77 @@ LOG_MODULE_REGISTER(stcp_v2_socket, CONFIG_STCP_V2_LOG_LEVEL);
 
 static int wait_connected(struct stcp_v2_socket *sock)
 {
-    int64_t deadline = k_uptime_get() + CONFIG_STCP_V2_CONNECT_TIMEOUT_MS;
+    int64_t started = k_uptime_get();
+    int64_t deadline = started + CONFIG_STCP_V2_CONNECT_TIMEOUT_MS;
+    unsigned int iter = 0;
+
+    LOG_INF("CONNDIAG wait ENTER sock=%p app_fd=%d native_fd=%d ctx=%p "
+            "timeout_ms=%d rx_running=%ld",
+            sock,
+            sock->fd,
+            sock->carrier != NULL ? sock->carrier->fd : -1,
+            sock->rust_ctx,
+            CONFIG_STCP_V2_CONNECT_TIMEOUT_MS,
+            (long)atomic_get(&sock->rx_running));
+
     while (k_uptime_get() < deadline) {
-        int rc = stcp_rust_is_connected(sock->rust_ctx);
+        int rc;
+        int tick_rc;
+        int sem_rc;
+
+        iter++;
+        rc = stcp_rust_is_connected(sock->rust_ctx);
+
         if (rc > 0) {
+            LOG_INF("CONNDIAG CONNECTED iter=%u elapsed_ms=%lld "
+                    "rx_running=%ld",
+                    iter,
+                    (long long)(k_uptime_get() - started),
+                    (long)atomic_get(&sock->rx_running));
             return 0;
         }
+
         if (rc < 0 && rc != -EAGAIN) {
+            LOG_ERR("CONNDIAG is_connected FAILED iter=%u rc=%d "
+                    "elapsed_ms=%lld",
+                    iter,
+                    rc,
+                    (long long)(k_uptime_get() - started));
             return rc;
         }
-        (void)stcp_rust_tick(sock->rust_ctx);
-        (void)k_sem_take(&sock->event, K_MSEC(20));
+
+        tick_rc = stcp_rust_tick(sock->rust_ctx);
+
+        if (tick_rc < 0 && tick_rc != -EAGAIN) {
+            LOG_ERR("CONNDIAG tick rc=%d iter=%u elapsed_ms=%lld",
+                    tick_rc,
+                    iter,
+                    (long long)(k_uptime_get() - started));
+        }
+
+        sem_rc = k_sem_take(&sock->event, K_MSEC(20));
+
+        if (iter == 1 || (iter % 25) == 0) {
+            LOG_INF("CONNDIAG wait iter=%u elapsed_ms=%lld connected_rc=%d "
+                    "tick_rc=%d sem_rc=%d rx_running=%ld rx_stop=%ld",
+                    iter,
+                    (long long)(k_uptime_get() - started),
+                    rc,
+                    tick_rc,
+                    sem_rc,
+                    (long)atomic_get(&sock->rx_running),
+                    (long)atomic_get(&sock->rx_stop));
+        }
     }
+
+    LOG_ERR("CONNDIAG TIMEOUT iter=%u elapsed_ms=%lld rx_running=%ld "
+            "rx_stop=%ld native_fd=%d",
+            iter,
+            (long long)(k_uptime_get() - started),
+            (long)atomic_get(&sock->rx_running),
+            (long)atomic_get(&sock->rx_stop),
+            sock->carrier != NULL ? sock->carrier->fd : -1);
+
     return -ETIMEDOUT;
 }
 
@@ -114,38 +173,104 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
 {
     struct stcp_v2_socket *sock = obj;
     const struct sockaddr_in *peer = (const struct sockaddr_in *)addr;
-    if (sock == NULL || peer == NULL || addrlen < sizeof(*peer) || peer->sin_family != AF_INET) {
+    int rc;
+    int native_rc;
+    int saved_errno;
+    int64_t started;
+
+    if (sock == NULL || peer == NULL ||
+        addrlen < sizeof(*peer) ||
+        peer->sin_family != AF_INET) {
         errno = EINVAL;
         return -1;
     }
 
-    if (zsock_connect(sock->carrier->fd, addr, addrlen) < 0) {
+    started = k_uptime_get();
+
+    LOG_INF("CONNDIAG connect ENTER sock=%p app_fd=%d carrier=%p "
+            "native_fd=%d ctx=%p addrlen=%u peer_port=%u",
+            sock,
+            sock->fd,
+            sock->carrier,
+            sock->carrier != NULL ? sock->carrier->fd : -1,
+            sock->rust_ctx,
+            (unsigned int)addrlen,
+            (unsigned int)ntohs(peer->sin_port));
+
+    errno = 0;
+    native_rc = zsock_connect(sock->carrier->fd, addr, addrlen);
+    saved_errno = errno;
+
+    LOG_INF("CONNDIAG native connect RETURN rc=%d errno=%d "
+            "elapsed_ms=%lld native_fd=%d",
+            native_rc,
+            saved_errno,
+            (long long)(k_uptime_get() - started),
+            sock->carrier->fd);
+
+    if (native_rc < 0) {
+        errno = saved_errno;
         return -1;
     }
+
     memcpy(&sock->carrier->peer, peer, sizeof(*peer));
     sock->carrier->peer_valid = true;
     memcpy(&sock->peer, peer, sizeof(*peer));
 
-    int rc = stcp_rust_connect(sock->rust_ctx, peer->sin_addr.s_addr, peer->sin_port, 0);
+    rc = stcp_rust_connect(sock->rust_ctx,
+                           peer->sin_addr.s_addr,
+                           peer->sin_port,
+                           0);
+
+    LOG_INF("CONNDIAG rust_connect RETURN rc=%d elapsed_ms=%lld ctx=%p",
+            rc,
+            (long long)(k_uptime_get() - started),
+            sock->rust_ctx);
+
     if (rc < 0) {
         errno = -rc;
         return -1;
     }
+
     rc = stcp_v2_rx_start(sock);
+
+    LOG_INF("CONNDIAG rx_start RETURN rc=%d elapsed_ms=%lld "
+            "rx_running=%ld",
+            rc,
+            (long long)(k_uptime_get() - started),
+            (long)atomic_get(&sock->rx_running));
+
     if (rc < 0) {
         errno = -rc;
         return -1;
     }
+
     rc = stcp_rust_start_handshake(sock->rust_ctx);
+
+    LOG_INF("CONNDIAG start_handshake RETURN rc=%d elapsed_ms=%lld "
+            "rx_running=%ld",
+            rc,
+            (long long)(k_uptime_get() - started),
+            (long)atomic_get(&sock->rx_running));
+
     if (rc < 0) {
         errno = -rc;
         return -1;
     }
+
     rc = wait_connected(sock);
+
+    LOG_INF("CONNDIAG wait_connected RETURN rc=%d elapsed_ms=%lld "
+            "rx_running=%ld",
+            rc,
+            (long long)(k_uptime_get() - started),
+            (long)atomic_get(&sock->rx_running));
+
     if (rc < 0) {
         errno = -rc;
         return -1;
     }
+
     LOG_INF("connected fd=%d type=%d", sock->fd, sock->socket_type);
     return 0;
 }

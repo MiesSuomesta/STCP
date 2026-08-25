@@ -5,7 +5,16 @@ use alloc::{
 
 use crate::error::StcpError;
 
-pub const BYTE_QUEUE_CHUNK_SIZE: usize = (1024 * 1024) + 64;
+/*
+ * Wire queues used to grow a nominal 1 MiB chunk a few KiB at a time.
+ * Vec::try_reserve_exact() therefore reallocated the same tail chunk on
+ * virtually every W5500/TCP receive.  On Zephyr this fragmented the
+ * small heap until carrier_receive() returned -ENOMEM.
+ *
+ * Use modest fixed-capacity chunks instead.  Capacity is allocated once
+ * when a chunk is created and subsequent appends never reallocate it.
+ */
+pub const BYTE_QUEUE_CHUNK_SIZE: usize = 16 * 1024;
 
 pub struct ByteChunk {
     data: Vec<u8>,
@@ -49,13 +58,19 @@ impl ByteQueue {
 
         while !input.is_empty() {
             if let Some(back) = self.chunks.back_mut() {
-                let spare = BYTE_QUEUE_CHUNK_SIZE.saturating_sub(back.data.len());
+                /*
+                 * ByteQueue-created chunks reserve BYTE_QUEUE_CHUNK_SIZE once
+                 * up front.  Fill only existing capacity here: never call
+                 * reserve() on the hot receive path.
+                 *
+                 * Chunks inserted by push_vec()/push_vec_from() may have no
+                 * spare capacity; those simply become immutable queue chunks
+                 * and a fresh fixed-capacity tail is created below.
+                 */
+                let spare = back.data.capacity().saturating_sub(back.data.len());
 
                 if spare != 0 {
                     let count = spare.min(input.len());
-                    back.data
-                        .try_reserve_exact(count)
-                        .map_err(|_| StcpError::NoMem)?;
                     back.data.extend_from_slice(&input[..count]);
                     input = &input[count..];
                     continue;
@@ -65,10 +80,13 @@ impl ByteQueue {
             let count = input.len().min(BYTE_QUEUE_CHUNK_SIZE);
             let mut chunk = Vec::new();
             chunk
-                .try_reserve_exact(BYTE_QUEUE_CHUNK_SIZE.min(count.max(4096)))
+                .try_reserve_exact(BYTE_QUEUE_CHUNK_SIZE)
                 .map_err(|_| StcpError::NoMem)?;
             chunk.extend_from_slice(&input[..count]);
-            self.chunks.push_back(ByteChunk { data: chunk, offset: 0 });
+            self.chunks.push_back(ByteChunk {
+                data: chunk,
+                offset: 0,
+            });
             input = &input[count..];
         }
 

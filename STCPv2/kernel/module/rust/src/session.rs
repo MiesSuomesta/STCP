@@ -5,8 +5,6 @@ use alloc::{
     vec::Vec,
 };
 
-use crate::crypto::Role;
-
 use core::{
     ptr,
     sync::atomic::{AtomicU32, Ordering},
@@ -14,6 +12,7 @@ use core::{
 
 use crate::{
     crypto::{
+        Role,
         CHACHA_TAG_LEN,
         NONCE_LEN,
         PUBLIC_KEY_WIRE_LEN,
@@ -991,8 +990,11 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
     crate::carrier::debug_event(120,ctx,0,0);
-    const MAX_RX_BATCH_FRAMES: usize = 128;
-    received_frames.try_reserve(MAX_RX_BATCH_FRAMES.min(8)).map_err(|_| StcpError::NoMem)?;
+    /* Keep temporary RX ownership bounded.  Eight 4 KiB stream frames
+     * are enough to amortize parser overhead without pinning ~512 KiB
+     * of ciphertext in a temporary Vec on Zephyr. */
+    const MAX_RX_BATCH_FRAMES: usize = 8;
+    received_frames.try_reserve_exact(MAX_RX_BATCH_FRAMES).map_err(|_| StcpError::NoMem)?;
     let mut extracted = 0usize;
     loop {
       if extracted >= MAX_RX_BATCH_FRAMES { break; }
@@ -1151,9 +1153,24 @@ fn process_in_order_frame(
         inner.last_rx_sequence = Some(sequence);
         inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)?;
 
-        if packet_type == PacketType::DataChunkEnd {
-            inner.rx_message_ready = true;
+        /*
+         * SOCK_STREAM is a byte stream: expose decrypted bytes as soon as
+         * each STCP frame is complete.  Waiting for DataChunkEnd caused a
+         * 1 MiB userspace send() to be buffered entirely inside the embedded
+         * receiver before recv() could drain it, which exhausted the Zephyr
+         * heap and surfaced as carrier_receive() == -ENOMEM.
+         *
+         * Protocol 254 is the datagram/message transport and must preserve
+         * its message boundary semantics.
+         */
+        if ctx.proto == 254 {
+            if packet_type == PacketType::DataChunkEnd {
+                inner.rx_message_ready = true;
+            }
+        } else {
+            inner.rx_message_ready = !inner.rx_app_data.is_empty();
         }
+
         !was_readable && inner.rx_message_ready
     };
 

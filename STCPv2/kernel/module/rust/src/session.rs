@@ -985,70 +985,169 @@ pub fn recv(
 }
 
 fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
-    { let inner=ctx.inner.lock(); if inner.state!=SocketState::Ready && inner.state!=SocketState::Closed{return Err(StcpError::InvalidState);} if inner.peer_eof{return Ok(());} }
-    let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,2,0); return Ok(()); };
-    let (shared,side)=connection_for_data(ctx)?; let queue=incoming_queue(&shared,side);
-    let mut received_frames=Vec::new(); let mut deferred_acks=Vec::new(); let mut deferred_pongs=Vec::new(); let mut peer_eof=false; let mut late_handshake_done=false;
-    crate::carrier::debug_event(120,ctx,0,0);
-    /* Keep temporary RX ownership bounded.  Eight 4 KiB stream frames
-     * are enough to amortize parser overhead without pinning ~512 KiB
-     * of ciphertext in a temporary Vec on Zephyr. */
-    const MAX_RX_BATCH_FRAMES: usize = 8;
-    received_frames.try_reserve_exact(MAX_RX_BATCH_FRAMES).map_err(|_| StcpError::NoMem)?;
-    let mut extracted = 0usize;
-    loop {
-      if extracted >= MAX_RX_BATCH_FRAMES { break; }
-      let Some(frame)=extract_next_wire_frame(ctx,queue)? else {break;};
-      extracted += 1; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
-      PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext:frame.payload}); }
-      PacketType::Ack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_acks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_acks.push(header.acknowledgment); }
-      PacketType::Ping => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_pongs.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_pongs.push(header.sequence); }
-      PacketType::Pong => { if !frame.payload.is_empty(){return protocol_error(ctx);} }
-      PacketType::Reset => return protocol_error(ctx), PacketType::Close => {peer_eof=true;break;}
-      PacketType::PublicKey => {if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return protocol_error(ctx);}}
-      PacketType::HandshakeDone => {if !frame.payload.is_empty(){return protocol_error(ctx);} late_handshake_done=true;}
-    }}
-    crate::carrier::debug_event(123,ctx,deferred_acks.len(),deferred_pongs.len()); for a in deferred_acks{update_acknowledgment(ctx,a)?;} for seq in deferred_pongs{queue_pong(ctx,seq)?;} crate::carrier::debug_event(124,ctx,received_frames.len(),0);
-    let mut became_readable = false;
-    for frame in received_frames {
-        let expected = current_expected_sequence(ctx);
-        if frame.header.sequence < expected {
-            {
-                let mut inner = ctx.inner.lock();
-                inner.stats.duplicate_frames = inner.stats.duplicate_frames.saturating_add(1);
-            }
-            queue_ack(ctx, frame.header.sequence, true)?;
-            continue;
+    {
+        let inner = ctx.inner.lock();
+        if inner.state != SocketState::Ready && inner.state != SocketState::Closed {
+            return Err(StcpError::InvalidState);
         }
-        if frame.header.sequence > expected {
-            {
-                let mut inner = ctx.inner.lock();
-                inner.stats.reordered_frames = inner.stats.reordered_frames.saturating_add(1);
-            }
-            buffer_out_of_order_frame(ctx, frame)?;
-            continue;
-        }
-        became_readable |= process_in_order_frame(ctx, frame)?;
-        while let Some(buffered) = take_next_buffered_frame(ctx) {
-            became_readable |= process_in_order_frame(ctx, buffered)?;
+        if inner.peer_eof {
+            return Ok(());
         }
     }
+
+    let Some(_guard) = try_parser_guard(ctx) else {
+        crate::carrier::debug_event(209, ctx, 2, 0);
+        return Ok(());
+    };
+
+    let (shared, side) = connection_for_data(ctx)?;
+    let queue = incoming_queue(&shared, side);
+    let mut became_readable = false;
+    let mut peer_eof = false;
+    let mut late_handshake_done = false;
+
+    crate::carrier::debug_event(120, ctx, 0, 0);
+
+    /*
+     * Process frames directly instead of collecting them into temporary
+     * Vec batches. The old path unconditionally reserved space for eight
+     * BufferedFrame values before it even knew the packet type. Under
+     * Zephyr heap pressure that meant a zero-payload 40-byte Close/Ack/Pong
+     * frame could fail with -ENOMEM.
+     *
+     * Direct processing also releases each extracted frame before parsing
+     * the next one, sharply reducing peak heap use during sustained TCP RX.
+     */
+    const MAX_RX_FRAMES_PER_PASS: usize = 16;
+    let mut extracted = 0usize;
+
+    while extracted < MAX_RX_FRAMES_PER_PASS {
+        let Some(frame) = extract_next_wire_frame(ctx, queue)? else {
+            break;
+        };
+
+        extracted += 1;
+        let header = frame.header;
+        crate::carrier::debug_event(
+            210,
+            ctx,
+            header.packet_type as usize,
+            frame.payload.len(),
+        );
+
+        match header.packet_type {
+            PacketType::DataChunk | PacketType::DataChunkEnd => {
+                if frame.payload.len() < NONCE_LEN + CHACHA_TAG_LEN {
+                    return protocol_error(ctx);
+                }
+
+                let mut nonce_bytes = [0u8; NONCE_LEN];
+                nonce_bytes.copy_from_slice(&frame.payload[..NONCE_LEN]);
+                let nonce = u64::from_be_bytes(nonce_bytes);
+                let buffered = BufferedFrame {
+                    header,
+                    nonce,
+                    ciphertext: frame.payload,
+                };
+
+                let expected = current_expected_sequence(ctx);
+
+                if buffered.header.sequence < expected {
+                    {
+                        let mut inner = ctx.inner.lock();
+                        inner.stats.duplicate_frames =
+                            inner.stats.duplicate_frames.saturating_add(1);
+                    }
+                    queue_ack(ctx, buffered.header.sequence, true)?;
+                    continue;
+                }
+
+                if buffered.header.sequence > expected {
+                    {
+                        let mut inner = ctx.inner.lock();
+                        inner.stats.reordered_frames =
+                            inner.stats.reordered_frames.saturating_add(1);
+                    }
+                    buffer_out_of_order_frame(ctx, buffered)?;
+                    continue;
+                }
+
+                became_readable |= process_in_order_frame(ctx, buffered)?;
+
+                while let Some(buffered) = take_next_buffered_frame(ctx) {
+                    became_readable |= process_in_order_frame(ctx, buffered)?;
+                }
+            }
+
+            PacketType::Ack => {
+                if !frame.payload.is_empty() {
+                    return protocol_error(ctx);
+                }
+                update_acknowledgment(ctx, header.acknowledgment)?;
+            }
+
+            PacketType::Ping => {
+                if !frame.payload.is_empty() {
+                    return protocol_error(ctx);
+                }
+                queue_pong(ctx, header.sequence)?;
+            }
+
+            PacketType::Pong => {
+                if !frame.payload.is_empty() {
+                    return protocol_error(ctx);
+                }
+            }
+
+            PacketType::Reset => {
+                return protocol_error(ctx);
+            }
+
+            PacketType::Close => {
+                if !frame.payload.is_empty() {
+                    return protocol_error(ctx);
+                }
+                peer_eof = true;
+                break;
+            }
+
+            PacketType::PublicKey => {
+                if frame.payload.len() != PUBLIC_KEY_WIRE_LEN {
+                    return protocol_error(ctx);
+                }
+            }
+
+            PacketType::HandshakeDone => {
+                if !frame.payload.is_empty() {
+                    return protocol_error(ctx);
+                }
+                late_handshake_done = true;
+            }
+        }
+    }
+
     let mut should_wake = became_readable;
+
     if peer_eof || late_handshake_done {
         let mut inner = ctx.inner.lock();
+
         if peer_eof && !inner.peer_eof {
             inner.peer_eof = true;
             should_wake = true;
         }
+
         if late_handshake_done {
             inner.peer_handshake_done = true;
         }
     }
+
     if should_wake {
         let owner = ctx.inner.lock().owner;
         wake_recv(owner);
     }
-    crate::carrier::debug_event(299,ctx,0,0); Ok(())
+
+    crate::carrier::debug_event(299, ctx, extracted, 0);
+    Ok(())
 }
 
 fn buffer_out_of_order_frame(

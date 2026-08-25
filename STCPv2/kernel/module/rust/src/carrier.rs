@@ -145,6 +145,11 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         .lock()
         .push_slice(bytes)
     {
+        if matches!(error, StcpError::NoMem) {
+            /* NOMEM-9001: incoming carrier bytes could not be appended to
+             * the wire ByteQueue. arg0=received byte count, arg1=errno. */
+            debug_event(9001, ctx, bytes.len(), error.errno().unsigned_abs() as usize);
+        }
         return error.errno();
     }
     debug_event(311, ctx, bytes.len(), owner);
@@ -348,7 +353,13 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
 
     let state = ctx.inner.lock().state;
     if state != SocketState::Listening || ctx.proto != 254 {
-        return queue_to_context(ctx, bytes);
+        let rc = queue_to_context(ctx, bytes);
+        if rc == StcpError::NoMem.errno() {
+            /* NOMEM-9090: carrier_receive final result is -ENOMEM.
+             * arg0=input bytes, arg1=current socket state. */
+            debug_event(9090, ctx, bytes.len(), state as usize);
+        }
+        return rc;
     }
 
     if bytes.len() < STCP_HEADER_LEN {

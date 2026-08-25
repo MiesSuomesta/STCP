@@ -104,7 +104,23 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
             if header.payload_len == 0 {
                 Vec::new()
             } else {
-                wire.take_or_read_vec(header.payload_len)?
+                match wire.take_or_read_vec(header.payload_len) {
+                    Ok(payload) => payload,
+                    Err(error) => {
+                        if matches!(error, StcpError::NoMem) {
+                            /* NOMEM-9002: complete wire frame existed but
+                             * extracting its payload into an owned Vec failed.
+                             * arg0=payload_len, arg1=packet type. */
+                            crate::carrier::debug_event(
+                                9002,
+                                ctx,
+                                header.payload_len,
+                                header.packet_type as usize,
+                            );
+                        }
+                        return Err(error);
+                    }
+                }
             }
         };
         return Ok(Some(WireFrame { header, payload }));
@@ -1175,10 +1191,17 @@ fn buffer_out_of_order_frame(
         return Err(StcpError::Protocol);
     }
 
-    inner
-        .out_of_order_frames
-        .try_reserve(1)
-        .map_err(|_| StcpError::NoMem)?;
+    if inner.out_of_order_frames.try_reserve(1).is_err() {
+        /* NOMEM-9003: out-of-order frame metadata/storage allocation.
+         * arg0=current buffered count, arg1=frame sequence low bits. */
+        crate::carrier::debug_event(
+            9003,
+            ctx,
+            inner.out_of_order_frames.len(),
+            frame.header.sequence as usize,
+        );
+        return Err(StcpError::NoMem);
+    }
 
     inner.out_of_order_frames.push(frame);
     Ok(())
@@ -1250,7 +1273,20 @@ fn process_in_order_frame(
             .checked_add(1)
             .ok_or(StcpError::Protocol)?;
         inner.last_rx_sequence = Some(sequence);
-        inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)?;
+        if let Err(error) = inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN) {
+            if matches!(error, StcpError::NoMem) {
+                /* NOMEM-9004: decrypted plaintext could not be published
+                 * to the application ByteQueue. arg0=sequence, arg1=current
+                 * application queue length. */
+                crate::carrier::debug_event(
+                    9004,
+                    ctx,
+                    sequence as usize,
+                    inner.rx_app_data.len(),
+                );
+            }
+            return Err(error);
+        }
 
         /*
          * SOCK_STREAM is a byte stream: expose decrypted bytes as soon as
@@ -1397,7 +1433,17 @@ fn queue_pong(
     Ok(())
 }
 
-fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> { crate::carrier::debug_event(140,ctx,0,0); let result=fill_application_buffer(ctx); crate::carrier::debug_event(143,ctx,result.is_ok() as usize,0); result }
+fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> {
+    crate::carrier::debug_event(140, ctx, 0, 0);
+    let result = fill_application_buffer(ctx);
+    if matches!(result, Err(StcpError::NoMem)) {
+        /* NOMEM-9091: fill_application_buffer propagated -ENOMEM after
+         * the more specific instrumentation above had a chance to fire. */
+        crate::carrier::debug_event(9091, ctx, 0, 0);
+    }
+    crate::carrier::debug_event(143, ctx, result.is_ok() as usize, 0);
+    result
+}
 
 pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     debug_event(335, ctx, 0, 0);

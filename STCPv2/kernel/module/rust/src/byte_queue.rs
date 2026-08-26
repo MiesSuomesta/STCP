@@ -16,6 +16,19 @@ use crate::error::StcpError;
  */
 pub const BYTE_QUEUE_CHUNK_SIZE: usize = 16 * 1024;
 
+#[inline]
+fn byte_queue_chunk_capacity(remaining: usize) -> usize {
+    if remaining <= 256 {
+        256
+    } else if remaining <= 1024 {
+        1024
+    } else if remaining <= 4096 {
+        4096
+    } else {
+        BYTE_QUEUE_CHUNK_SIZE
+    }
+}
+
 pub struct ByteChunk {
     data: Vec<u8>,
     offset: usize,
@@ -77,10 +90,17 @@ impl ByteQueue {
                 }
             }
 
-            let count = input.len().min(BYTE_QUEUE_CHUNK_SIZE);
+            /*
+             * Small control frames must not force a 16 KiB allocation.
+             * Keep large stream traffic on fixed 16 KiB chunks, but size
+             * small tails in bounded tiers so Handshake/ChunkEnd/Close
+             * frames remain cheap even when the Zephyr heap is tight.
+             */
+            let capacity = byte_queue_chunk_capacity(input.len());
+            let count = input.len().min(capacity);
             let mut chunk = Vec::new();
             chunk
-                .try_reserve_exact(BYTE_QUEUE_CHUNK_SIZE)
+                .try_reserve_exact(capacity)
                 .map_err(|_| StcpError::NoMem)?;
             chunk.extend_from_slice(&input[..count]);
             self.chunks.push_back(ByteChunk {

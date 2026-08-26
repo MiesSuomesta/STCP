@@ -213,19 +213,56 @@ int stcp_v2_rx_start(struct stcp_v2_socket *sock)
 
 void stcp_v2_rx_stop(struct stcp_v2_socket *sock)
 {
+    int join_rc;
+
     if (sock == NULL || !atomic_get(&sock->rx_running)) {
         return;
     }
 
     rxstat_report(sock, "stop-enter");
     atomic_set(&sock->rx_stop, 1);
+
+    /*
+     * Wake a blocking recv() before waiting for the RX thread.
+     *
+     * Do NOT use sock->event as a thread-completion primitive here.  That
+     * semaphore is also used by handshake/data signalling and may already
+     * contain a token.  Consuming such a stale token used to let close()
+     * continue while rx_thread was still running, after which rust_ctx and
+     * carrier could be released underneath it.
+     */
     if (sock->carrier != NULL && sock->carrier->owns_fd && sock->carrier->fd >= 0) {
-        (void)zsock_shutdown(sock->carrier->fd, ZSOCK_SHUT_RDWR);
+        int shutdown_rc;
+        int saved_errno;
+
+        errno = 0;
+        shutdown_rc = zsock_shutdown(sock->carrier->fd, ZSOCK_SHUT_RDWR);
+        saved_errno = errno;
+        LOG_ERR("LIFECYCLE RX SHUTDOWN fd=%d rc=%d errno=%d",
+                sock->carrier->fd, shutdown_rc, saved_errno);
     }
-    (void)k_sem_take(&sock->event, K_MSEC(250));
-    if (atomic_get(&sock->rx_running)) {
+
+    LOG_ERR("LIFECYCLE RX JOIN ENTER sock=%p running=%ld",
+            sock, (long)atomic_get(&sock->rx_running));
+    join_rc = k_thread_join(&sock->rx_thread, K_SECONDS(1));
+    LOG_ERR("LIFECYCLE RX JOIN RETURN sock=%p rc=%d running=%ld",
+            sock, join_rc, (long)atomic_get(&sock->rx_running));
+
+    if (join_rc != 0) {
+        /* Hard fallback: make teardown deterministic before freeing ctx/fd. */
+        LOG_ERR("LIFECYCLE RX ABORT sock=%p join_rc=%d", sock, join_rc);
         k_thread_abort(&sock->rx_thread);
+        (void)k_thread_join(&sock->rx_thread, K_FOREVER);
         atomic_clear(&sock->rx_running);
     }
+
+    /* The normal thread exit clears rx_running itself. */
+    if (atomic_get(&sock->rx_running)) {
+        LOG_ERR("LIFECYCLE RX JOINED BUT RUNNING sock=%p; forcing clear", sock);
+        atomic_clear(&sock->rx_running);
+    }
+
+    /* No stale event token is allowed to leak into any later close/read path. */
+    k_sem_reset(&sock->event);
     rxstat_report(sock, "stop-exit");
 }

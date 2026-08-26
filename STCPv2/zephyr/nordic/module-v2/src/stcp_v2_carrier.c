@@ -2,7 +2,10 @@
 #include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/net/socket.h>
+#include <zephyr/logging/log.h>
 #include <stcp/stcp_v2_internal.h>
+
+LOG_MODULE_REGISTER(stcp_v2_carrier, CONFIG_STCP_V2_LOG_LEVEL);
 
 struct stcp_v2_carrier *stcp_v2_carrier_open(int socket_type)
 {
@@ -17,9 +20,13 @@ struct stcp_v2_carrier *stcp_v2_carrier_open(int socket_type)
     carrier->fd = zsock_socket(AF_INET, socket_type,
                                socket_type == SOCK_DGRAM ? IPPROTO_UDP : IPPROTO_TCP);
     if (carrier->fd < 0) {
+        LOG_ERR("LIFECYCLE NATIVE OPEN FAIL carrier=%p type=%d errno=%d",
+                carrier, socket_type, errno);
         k_free(carrier);
         return NULL;
     }
+    LOG_ERR("LIFECYCLE NATIVE OPEN carrier=%p type=%d fd=%d",
+            carrier, socket_type, carrier->fd);
     k_mutex_init(&carrier->tx_lock);
     return carrier;
 }
@@ -52,9 +59,19 @@ void stcp_v2_carrier_free(struct stcp_v2_carrier *carrier)
         return;
     }
     if (carrier->owns_fd && carrier->fd >= 0) {
-        (void)zsock_close(carrier->fd);
+        int old_fd = carrier->fd;
+        int close_rc;
+        int saved_errno;
+
+        LOG_ERR("LIFECYCLE NATIVE CLOSE ENTER carrier=%p fd=%d", carrier, old_fd);
+        errno = 0;
+        close_rc = zsock_close(old_fd);
+        saved_errno = errno;
+        LOG_ERR("LIFECYCLE NATIVE CLOSE RETURN carrier=%p fd=%d rc=%d errno=%d",
+                carrier, old_fd, close_rc, saved_errno);
         carrier->fd = -1;
     }
+    LOG_ERR("LIFECYCLE CARRIER KFREE carrier=%p", carrier);
     k_free(carrier);
 }
 

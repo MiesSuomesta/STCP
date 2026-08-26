@@ -413,28 +413,11 @@ int main(int argc, char **argv)
         errno = 0;
         c = accept(s, NULL, NULL);
         if (c < 0) {
-            int accept_errno = errno;
-
-            if (accept_errno == EINTR) {
+            if (errno == EINTR) {
                 DBG("ACCEPT EINTR stop=%d", stop_flag ? 1 : 0);
                 continue;
             }
-
-            /*
-             * AF_STCP may time out an idle accept window while leaving the
-             * listener valid.  Robot has gaps between benchmark cases, so
-             * these are transient conditions, not listener failures.
-             */
-            if (accept_errno == ETIMEDOUT ||
-                accept_errno == EAGAIN ||
-                accept_errno == EWOULDBLOCK) {
-                DBG("ACCEPT TRANSIENT listener_fd=%d errno=%d(%s) retry=1",
-                    s, accept_errno, strerror(accept_errno));
-                continue;
-            }
-
-            DBG("ACCEPT FAIL listener_fd=%d errno=%d(%s)",
-                s, accept_errno, strerror(accept_errno));
+            DBG("ACCEPT FAIL listener_fd=%d errno=%d(%s)", s, errno, strerror(errno));
             break;
         }
 

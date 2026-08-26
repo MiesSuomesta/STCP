@@ -10,6 +10,72 @@
 
 LOG_MODULE_REGISTER(stcp_v2_socket, CONFIG_STCP_V2_LOG_LEVEL);
 
+/*
+ * Persistent lifecycle diagnostics.
+ *
+ * Robot may discard the serial output belonging to a PASSed test before the
+ * following test fails.  Keep the previous socket teardown result in static
+ * storage and print it when the next AF_STCP socket is created.
+ *
+ * stage_mask bits:
+ *   0x01 close entered
+ *   0x02 RX stop returned
+ *   0x04 Rust context released (or there was no Rust context)
+ *   0x08 carrier free returned (or there was no carrier)
+ *   0x10 socket free entered
+ *   0x20 socket free returned / close complete
+ */
+struct stcp_v2_lifecycle_summary {
+    uint32_t close_seq;
+    uint32_t create_seq;
+    uint32_t stage_mask;
+    int app_fd;
+    int native_fd;
+    int had_rust_ctx;
+    int had_carrier;
+    long rx_running_before;
+    long rx_stop_before;
+    long rx_running_after_stop;
+    long rx_stop_after_stop;
+    int64_t close_started_ms;
+    int64_t close_finished_ms;
+};
+
+static struct stcp_v2_lifecycle_summary stcp_v2_lifesum;
+static struct k_spinlock stcp_v2_lifesum_lock;
+
+static void stcp_v2_lifesum_print_previous(void)
+{
+    struct stcp_v2_lifecycle_summary snap;
+    k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+    snap = stcp_v2_lifesum;
+    k_spin_unlock(&stcp_v2_lifesum_lock, key);
+
+    LOG_ERR("LIFESUM PREV close_seq=%u create_seq=%u stage_mask=0x%02x "
+            "app_fd=%d native_fd=%d had_ctx=%d had_carrier=%d "
+            "rx_before=%ld/%ld rx_after_stop=%ld/%ld "
+            "close_ms=%lld duration_ms=%lld complete=%d",
+            snap.close_seq, snap.create_seq, snap.stage_mask,
+            snap.app_fd, snap.native_fd,
+            snap.had_rust_ctx, snap.had_carrier,
+            snap.rx_running_before, snap.rx_stop_before,
+            snap.rx_running_after_stop, snap.rx_stop_after_stop,
+            (long long)snap.close_started_ms,
+            snap.close_finished_ms >= snap.close_started_ms && snap.close_started_ms != 0
+                ? (long long)(snap.close_finished_ms - snap.close_started_ms) : -1LL,
+            (snap.stage_mask & 0x20U) != 0U ? 1 : 0);
+}
+
+static uint32_t stcp_v2_lifesum_note_create(void)
+{
+    uint32_t seq;
+    k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+    stcp_v2_lifesum.create_seq++;
+    seq = stcp_v2_lifesum.create_seq;
+    k_spin_unlock(&stcp_v2_lifesum_lock, key);
+    return seq;
+}
+
 static int wait_connected(struct stcp_v2_socket *sock)
 {
     int64_t started = k_uptime_get();
@@ -33,16 +99,6 @@ static int wait_connected(struct stcp_v2_socket *sock)
         iter++;
         rc = stcp_rust_is_connected(sock->rust_ctx);
 
-        if (iter <= 5) {
-            LOG_ERR("CONNDIAG W01 iter=%u is_connected=%d elapsed_ms=%lld "
-                    "rx_running=%ld rx_stop=%ld",
-                    iter,
-                    rc,
-                    (long long)(k_uptime_get() - started),
-                    (long)atomic_get(&sock->rx_running),
-                    (long)atomic_get(&sock->rx_stop));
-        }
-
         if (rc > 0) {
             LOG_INF("CONNDIAG CONNECTED iter=%u elapsed_ms=%lld "
                     "rx_running=%ld",
@@ -63,13 +119,6 @@ static int wait_connected(struct stcp_v2_socket *sock)
 
         tick_rc = stcp_rust_tick(sock->rust_ctx);
 
-        if (iter <= 5) {
-            LOG_ERR("CONNDIAG W02 iter=%u tick_rc=%d elapsed_ms=%lld",
-                    iter,
-                    tick_rc,
-                    (long long)(k_uptime_get() - started));
-        }
-
         if (tick_rc < 0 && tick_rc != -EAGAIN) {
             LOG_ERR("CONNDIAG tick rc=%d iter=%u elapsed_ms=%lld",
                     tick_rc,
@@ -78,15 +127,6 @@ static int wait_connected(struct stcp_v2_socket *sock)
         }
 
         sem_rc = k_sem_take(&sock->event, K_MSEC(20));
-
-        if (iter <= 5) {
-            LOG_ERR("CONNDIAG W03 iter=%u sem_rc=%d elapsed_ms=%lld "
-                    "rx_running=%ld",
-                    iter,
-                    sem_rc,
-                    (long long)(k_uptime_get() - started),
-                    (long)atomic_get(&sock->rx_running));
-        }
 
         if (iter == 1 || (iter % 25) == 0) {
             LOG_INF("CONNDIAG wait iter=%u elapsed_ms=%lld connected_rc=%d "
@@ -115,20 +155,87 @@ static int wait_connected(struct stcp_v2_socket *sock)
 static int close_socket(void *obj)
 {
     struct stcp_v2_socket *sock = obj;
+    int native_fd;
+
     if (sock == NULL) {
         return 0;
     }
 
+    native_fd = sock->carrier != NULL ? sock->carrier->fd : -1;
+    {
+        k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+        stcp_v2_lifesum.close_seq++;
+        stcp_v2_lifesum.stage_mask = 0x01U;
+        stcp_v2_lifesum.app_fd = sock->fd;
+        stcp_v2_lifesum.native_fd = native_fd;
+        stcp_v2_lifesum.had_rust_ctx = sock->rust_ctx != NULL ? 1 : 0;
+        stcp_v2_lifesum.had_carrier = sock->carrier != NULL ? 1 : 0;
+        stcp_v2_lifesum.rx_running_before = (long)atomic_get(&sock->rx_running);
+        stcp_v2_lifesum.rx_stop_before = (long)atomic_get(&sock->rx_stop);
+        stcp_v2_lifesum.rx_running_after_stop = -1;
+        stcp_v2_lifesum.rx_stop_after_stop = -1;
+        stcp_v2_lifesum.close_started_ms = k_uptime_get();
+        stcp_v2_lifesum.close_finished_ms = 0;
+        k_spin_unlock(&stcp_v2_lifesum_lock, key);
+    }
+    LOG_ERR("LIFECYCLE CLOSE ENTER sock=%p app_fd=%d native_fd=%d ctx=%p carrier=%p rx_running=%ld rx_stop=%ld",
+            sock, sock->fd, native_fd, sock->rust_ctx, sock->carrier,
+            (long)atomic_get(&sock->rx_running),
+            (long)atomic_get(&sock->rx_stop));
+
+    LOG_ERR("LIFECYCLE RX STOP ENTER sock=%p native_fd=%d", sock, native_fd);
     stcp_v2_rx_stop(sock);
+    LOG_ERR("LIFECYCLE RX STOP RETURN sock=%p native_fd=%d rx_running=%ld rx_stop=%ld",
+            sock, native_fd,
+            (long)atomic_get(&sock->rx_running),
+            (long)atomic_get(&sock->rx_stop));
+    {
+        k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+        stcp_v2_lifesum.rx_running_after_stop = (long)atomic_get(&sock->rx_running);
+        stcp_v2_lifesum.rx_stop_after_stop = (long)atomic_get(&sock->rx_stop);
+        stcp_v2_lifesum.stage_mask |= 0x02U;
+        k_spin_unlock(&stcp_v2_lifesum_lock, key);
+    }
+
     if (sock->rust_ctx != NULL) {
+        LOG_ERR("LIFECYCLE RUST RELEASE ENTER sock=%p ctx=%p", sock, sock->rust_ctx);
         stcp_rust_set_owner(sock->rust_ctx, NULL);
         stcp_rust_set_carrier(sock->rust_ctx, NULL);
         stcp_rust_release(sock->rust_ctx);
         sock->rust_ctx = NULL;
+        LOG_ERR("LIFECYCLE RUST RELEASE RETURN sock=%p", sock);
     }
+    {
+        k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+        stcp_v2_lifesum.stage_mask |= 0x04U;
+        k_spin_unlock(&stcp_v2_lifesum_lock, key);
+    }
+
+    LOG_ERR("LIFECYCLE CARRIER FREE ENTER sock=%p carrier=%p native_fd=%d",
+            sock, sock->carrier, native_fd);
     stcp_v2_carrier_free(sock->carrier);
     sock->carrier = NULL;
+    LOG_ERR("LIFECYCLE CARRIER FREE RETURN sock=%p old_native_fd=%d", sock, native_fd);
+    {
+        k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+        stcp_v2_lifesum.stage_mask |= 0x08U;
+        k_spin_unlock(&stcp_v2_lifesum_lock, key);
+    }
+
+    LOG_ERR("LIFECYCLE SOCKET FREE ENTER sock=%p app_fd=%d", sock, sock->fd);
+    {
+        k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+        stcp_v2_lifesum.stage_mask |= 0x10U;
+        k_spin_unlock(&stcp_v2_lifesum_lock, key);
+    }
     stcp_v2_socket_free(sock);
+    {
+        k_spinlock_key_t key = k_spin_lock(&stcp_v2_lifesum_lock);
+        stcp_v2_lifesum.stage_mask |= 0x20U;
+        stcp_v2_lifesum.close_finished_ms = k_uptime_get();
+        k_spin_unlock(&stcp_v2_lifesum_lock, key);
+    }
+    LOG_ERR("LIFECYCLE CLOSE DONE sock=%p old_native_fd=%d", sock, native_fd);
     return 0;
 }
 
@@ -243,18 +350,10 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
     sock->carrier->peer_valid = true;
     memcpy(&sock->peer, peer, sizeof(*peer));
 
-    LOG_ERR("CONNDIAG C11 CORE CONNECT ENTER ctx=%p native_fd=%d",
-            sock->rust_ctx,
-            sock->carrier != NULL ? sock->carrier->fd : -1);
-
     rc = stcp_rust_connect(sock->rust_ctx,
                            peer->sin_addr.s_addr,
                            peer->sin_port,
                            0);
-
-    LOG_ERR("CONNDIAG C12 CORE CONNECT RETURN rc=%d ctx=%p",
-            rc,
-            sock->rust_ctx);
 
     LOG_INF("CONNDIAG rust_connect RETURN rc=%d elapsed_ms=%lld ctx=%p",
             rc,
@@ -266,11 +365,7 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
-    LOG_ERR("CONNDIAG C13 RX START ENTER ctx=%p", sock->rust_ctx);
     rc = stcp_v2_rx_start(sock);
-    LOG_ERR("CONNDIAG C14 RX START RETURN rc=%d rx_running=%ld",
-            rc,
-            (long)atomic_get(&sock->rx_running));
 
     LOG_INF("CONNDIAG rx_start RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -283,9 +378,7 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
-    LOG_ERR("CONNDIAG C15 HANDSHAKE START ENTER ctx=%p", sock->rust_ctx);
     rc = stcp_rust_start_handshake(sock->rust_ctx);
-    LOG_ERR("CONNDIAG C16 HANDSHAKE START RETURN rc=%d", rc);
 
     LOG_INF("CONNDIAG start_handshake RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -298,9 +391,7 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
-    LOG_ERR("CONNDIAG C17 WAIT CONNECTED ENTER ctx=%p", sock->rust_ctx);
     rc = wait_connected(sock);
-    LOG_ERR("CONNDIAG C18 WAIT CONNECTED RETURN rc=%d", rc);
 
     LOG_INF("CONNDIAG wait_connected RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -313,8 +404,6 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
-    LOG_ERR("CONNDIAG C19 CONNECT SUCCESS RETURN fd=%d ctx=%p",
-            sock->fd, sock->rust_ctx);
     LOG_INF("connected fd=%d type=%d", sock->fd, sock->socket_type);
     return 0;
 }
@@ -495,18 +584,35 @@ static bool stcp_v2_supported(int family, int type, int protocol)
 
 static int stcp_v2_socket_create(int family, int type, int protocol)
 {
+    uint32_t create_seq;
+
     ARG_UNUSED(family);
+    stcp_v2_lifesum_print_previous();
+    create_seq = stcp_v2_lifesum_note_create();
+    LOG_ERR("LIFESUM CREATE BEGIN create_seq=%u type=%d protocol=%d",
+            create_seq, type, protocol);
+
     struct stcp_v2_socket *sock = stcp_v2_socket_alloc();
     if (sock == NULL) {
         errno = ENOMEM;
         return -1;
     }
 
+    LOG_ERR("LIFECYCLE CREATE ALLOC sock=%p fd=%d type=%d rx_running=%ld rx_stop=%ld ctx=%p carrier=%p",
+            sock, sock->fd, type,
+            (long)atomic_get(&sock->rx_running),
+            (long)atomic_get(&sock->rx_stop),
+            sock->rust_ctx, sock->carrier);
+
     sock->carrier = stcp_v2_carrier_open(type);
     if (sock->carrier == NULL) {
+        LOG_ERR("LIFECYCLE CREATE CARRIER FAIL sock=%p errno=%d", sock, errno);
         stcp_v2_socket_free(sock);
         return -1;
     }
+
+    LOG_ERR("LIFECYCLE CREATE CARRIER sock=%p carrier=%p native_fd=%d owns_fd=%d",
+            sock, sock->carrier, sock->carrier->fd, sock->carrier->owns_fd ? 1 : 0);
 
     int rc = stcp_rust_create(type == SOCK_DGRAM ? 254 : 253, &sock->rust_ctx);
     if (rc < 0 || sock->rust_ctx == NULL) {
@@ -516,6 +622,8 @@ static int stcp_v2_socket_create(int family, int type, int protocol)
         return -1;
     }
 
+    LOG_ERR("LIFECYCLE CREATE RUST sock=%p ctx=%p native_fd=%d",
+            sock, sock->rust_ctx, sock->carrier->fd);
     stcp_rust_set_owner(sock->rust_ctx, sock);
     stcp_rust_set_carrier(sock->rust_ctx, sock->carrier);
 
@@ -530,6 +638,10 @@ static int stcp_v2_socket_create(int family, int type, int protocol)
     zvfs_finalize_typed_fd(fd, sock,
         (const struct fd_op_vtable *)&stcp_v2_vtable, ZVFS_MODE_IFSOCK);
 
+    LOG_ERR("LIFECYCLE CREATE DONE create_seq=%u sock=%p app_fd=%d native_fd=%d ctx=%p rx_running=%ld rx_stop=%ld",
+            create_seq, sock, fd, sock->carrier->fd, sock->rust_ctx,
+            (long)atomic_get(&sock->rx_running),
+            (long)atomic_get(&sock->rx_stop));
     LOG_INF("AF_STCP fd=%d type=%d native_fd=%d", fd, type, sock->carrier->fd);
     return fd;
 }

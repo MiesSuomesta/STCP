@@ -31,10 +31,6 @@ struct stcp_v2_socket {
     K_KERNEL_STACK_MEMBER(rx_stack, CONFIG_STCP_V2_RX_STACK_SIZE);
     atomic_t rx_running;
     atomic_t rx_stop;
-    uint32_t rxstat_calls;
-    uint32_t rxstat_eagain;
-    uint64_t rxstat_bytes;
-    int rxstat_last_errno;
 };
 
 struct stcp_v2_socket *stcp_v2_socket_alloc(void);

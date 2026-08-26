@@ -8,7 +8,7 @@ Suite Teardown   Stop STCPv2 Matrix
 ${SERIAL}        %{STCP_ZEPHYR_SERIAL=/dev/ttyACM0}
 ${BAUD}          %{STCP_ZEPHYR_BAUD=115200}
 ${SERVER_HOST}   %{STCP_ZEPHYR_SERVER_HOST=192.168.1.20}
-${SERVER_PORT}   %{STCP_ZEPHYR_SERVER_PORT=19000}
+${SERVER_PORT}   %{STCP_ZEPHYR_SERVER_PORT=14000}
 ${TOTAL}         %{STCP_ZEPHYR_TOTAL=262144}
 ${CHUNK}         %{STCP_ZEPHYR_CHUNK=4096}
 ${SERVER_BIN}    %{STCP_ZEPHYR_SERVER_BIN=./server/stcp-v2-bench-server}
@@ -39,15 +39,15 @@ Native Network Is Alive
 
 STCPv2 Upload To Linux
     Use Transport    stcp
-    ${r}=    Run Benchmark    stcp bench upload    timeout=90
+    ${r}=    Run Benchmark    stcp bench upload    timeout=40
     Should Be Equal As Integers    ${r}[status]    0
 
 STCPv2 Download From Linux
     Use Transport    stcp
-    ${r}=    Run Benchmark    stcp bench download    timeout=90
+    ${r}=    Run Benchmark    stcp bench download    timeout=40
     Should Be Equal As Integers    ${r}[status]    0
 
 STCPv2 Full Duplex With Linux
     Use Transport    stcp
-    ${r}=    Run Benchmark    stcp bench full    timeout=90
+    ${r}=    Run Benchmark    stcp bench full    timeout=40
     Should Be Equal As Integers    ${r}[status]    0

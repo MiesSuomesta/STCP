@@ -52,6 +52,7 @@ venv/
 # --- Robot Framework ----------------------------------------------
 robot-results/
 **/robot-results/
+**/results/
 
 output.xml
 log.html

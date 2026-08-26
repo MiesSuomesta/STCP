@@ -736,30 +736,40 @@ static int stcp_accept(
 		}
 	}
 
-	pr_emerg("stcp-xconnect: A14 handshake-start-enter child=%px ctx=%px carrier=%px external=%d\n",
-		child, child->rust_ctx, child->carrier, external_tcp);
-	ret = stcp_rust_start_handshake(child->rust_ctx);
-	pr_emerg("stcp-xconnect: A15 handshake-start-exit ret=%d child=%px ctx=%px carrier=%px cid=%llu\n",
-		ret, child, child->rust_ctx, child->carrier,
-		(unsigned long long)stcp_rust_connection_id(child->rust_ctx));
-
 	/*
-	 * The accepted carrier RX worker is started before this point.  On a fast
-	 * same-host TCP connection (notably RPi -> RPi) it can consume the peer's
-	 * PublicKey and advance the Rust handshake before stcp_accept() reaches
-	 * this call.  start_handshake() then correctly reports -EINVAL because the
-	 * state is no longer the initial handshake state.
+	 * External TCP children are RX-first: the carrier receiver is already
+	 * running above and may consume the peer PublicKey before accept reaches
+	 * this point.  Once RX has adopted a non-zero connection id, the handshake
+	 * has already started and calling stcp_rust_start_handshake() again can emit
+	 * a duplicate server PublicKey (Zephyr case) or return -EINVAL (fast
+	 * same-host/RPi case).  In that state go directly to the connected wait.
 	 *
-	 * A non-zero connection id proves that RX has already accepted a valid
-	 * STCP handshake frame for this child, so treat only that specific -EINVAL
-	 * as the benign "already started by RX" race.  Keep every other error
-	 * fatal so genuine invalid-state bugs are not hidden.
+	 * Do not apply this to normal/non-external accepted sockets: their existing
+	 * handshake-start semantics remain unchanged.
 	 */
-	if (ret == -EINVAL && stcp_rust_connection_id(child->rust_ctx) != 0) {
-		pr_emerg("stcp-xconnect: A15B handshake already advanced by RX; continuing child=%px ctx=%px cid=%llu\n",
-			child, child->rust_ctx,
+	if (external_tcp && stcp_rust_connection_id(child->rust_ctx) != 0) {
+		pr_emerg("stcp-xconnect: A14B handshake already started by RX; skipping start child=%px ctx=%px carrier=%px cid=%llu\n",
+			child, child->rust_ctx, child->carrier,
 			(unsigned long long)stcp_rust_connection_id(child->rust_ctx));
 		ret = 0;
+	} else {
+		pr_emerg("stcp-xconnect: A14 handshake-start-enter child=%px ctx=%px carrier=%px external=%d\n",
+			child, child->rust_ctx, child->carrier, external_tcp);
+		ret = stcp_rust_start_handshake(child->rust_ctx);
+		pr_emerg("stcp-xconnect: A15 handshake-start-exit ret=%d child=%px ctx=%px carrier=%px cid=%llu\n",
+			ret, child, child->rust_ctx, child->carrier,
+			(unsigned long long)stcp_rust_connection_id(child->rust_ctx));
+
+		/*
+		 * Keep the previous same-host race guard as a fallback for any path
+		 * where RX advances between the cid check above and start_handshake().
+		 */
+		if (ret == -EINVAL && stcp_rust_connection_id(child->rust_ctx) != 0) {
+			pr_emerg("stcp-xconnect: A15B handshake advanced concurrently by RX; continuing child=%px ctx=%px cid=%llu\n",
+				child, child->rust_ctx,
+				(unsigned long long)stcp_rust_connection_id(child->rust_ctx));
+			ret = 0;
+		}
 	}
 
 	if (ret) {

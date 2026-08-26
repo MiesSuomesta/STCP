@@ -33,6 +33,16 @@ static int wait_connected(struct stcp_v2_socket *sock)
         iter++;
         rc = stcp_rust_is_connected(sock->rust_ctx);
 
+        if (iter <= 5) {
+            LOG_ERR("CONNDIAG W01 iter=%u is_connected=%d elapsed_ms=%lld "
+                    "rx_running=%ld rx_stop=%ld",
+                    iter,
+                    rc,
+                    (long long)(k_uptime_get() - started),
+                    (long)atomic_get(&sock->rx_running),
+                    (long)atomic_get(&sock->rx_stop));
+        }
+
         if (rc > 0) {
             LOG_INF("CONNDIAG CONNECTED iter=%u elapsed_ms=%lld "
                     "rx_running=%ld",
@@ -53,6 +63,13 @@ static int wait_connected(struct stcp_v2_socket *sock)
 
         tick_rc = stcp_rust_tick(sock->rust_ctx);
 
+        if (iter <= 5) {
+            LOG_ERR("CONNDIAG W02 iter=%u tick_rc=%d elapsed_ms=%lld",
+                    iter,
+                    tick_rc,
+                    (long long)(k_uptime_get() - started));
+        }
+
         if (tick_rc < 0 && tick_rc != -EAGAIN) {
             LOG_ERR("CONNDIAG tick rc=%d iter=%u elapsed_ms=%lld",
                     tick_rc,
@@ -61,6 +78,15 @@ static int wait_connected(struct stcp_v2_socket *sock)
         }
 
         sem_rc = k_sem_take(&sock->event, K_MSEC(20));
+
+        if (iter <= 5) {
+            LOG_ERR("CONNDIAG W03 iter=%u sem_rc=%d elapsed_ms=%lld "
+                    "rx_running=%ld",
+                    iter,
+                    sem_rc,
+                    (long long)(k_uptime_get() - started),
+                    (long)atomic_get(&sock->rx_running));
+        }
 
         if (iter == 1 || (iter % 25) == 0) {
             LOG_INF("CONNDIAG wait iter=%u elapsed_ms=%lld connected_rc=%d "
@@ -217,10 +243,18 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
     sock->carrier->peer_valid = true;
     memcpy(&sock->peer, peer, sizeof(*peer));
 
+    LOG_ERR("CONNDIAG C11 CORE CONNECT ENTER ctx=%p native_fd=%d",
+            sock->rust_ctx,
+            sock->carrier != NULL ? sock->carrier->fd : -1);
+
     rc = stcp_rust_connect(sock->rust_ctx,
                            peer->sin_addr.s_addr,
                            peer->sin_port,
                            0);
+
+    LOG_ERR("CONNDIAG C12 CORE CONNECT RETURN rc=%d ctx=%p",
+            rc,
+            sock->rust_ctx);
 
     LOG_INF("CONNDIAG rust_connect RETURN rc=%d elapsed_ms=%lld ctx=%p",
             rc,
@@ -232,7 +266,11 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
+    LOG_ERR("CONNDIAG C13 RX START ENTER ctx=%p", sock->rust_ctx);
     rc = stcp_v2_rx_start(sock);
+    LOG_ERR("CONNDIAG C14 RX START RETURN rc=%d rx_running=%ld",
+            rc,
+            (long)atomic_get(&sock->rx_running));
 
     LOG_INF("CONNDIAG rx_start RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -245,7 +283,9 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
+    LOG_ERR("CONNDIAG C15 HANDSHAKE START ENTER ctx=%p", sock->rust_ctx);
     rc = stcp_rust_start_handshake(sock->rust_ctx);
+    LOG_ERR("CONNDIAG C16 HANDSHAKE START RETURN rc=%d", rc);
 
     LOG_INF("CONNDIAG start_handshake RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -258,7 +298,9 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
+    LOG_ERR("CONNDIAG C17 WAIT CONNECTED ENTER ctx=%p", sock->rust_ctx);
     rc = wait_connected(sock);
+    LOG_ERR("CONNDIAG C18 WAIT CONNECTED RETURN rc=%d", rc);
 
     LOG_INF("CONNDIAG wait_connected RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -271,6 +313,8 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
+    LOG_ERR("CONNDIAG C19 CONNECT SUCCESS RETURN fd=%d ctx=%p",
+            sock->fd, sock->rust_ctx);
     LOG_INF("connected fd=%d type=%d", sock->fd, sock->socket_type);
     return 0;
 }

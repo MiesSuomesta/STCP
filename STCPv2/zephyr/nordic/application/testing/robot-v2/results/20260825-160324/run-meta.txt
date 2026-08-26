@@ -1,0 +1,6 @@
+run_id=20260825-160324
+started_at=2026-08-25T16:03:24+03:00
+suite=./zephyr-v2.robot
+cwd=/home/pomo/zephyr-stcp/stcp/application/testing/robot-v2
+finished_at=2026-08-25T16:05:04+03:00
+robot_rc=3

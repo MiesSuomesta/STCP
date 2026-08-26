@@ -334,16 +334,42 @@ static int send_request(int fd, uint32_t mode, const struct bench_config *cfg)
         .mode = sys_cpu_to_be32(mode), .chunk_size = sys_cpu_to_be32(cfg->chunk_size),
         .total_bytes = sys_cpu_to_be32(cfg->total_bytes),
     };
-    return send_all(fd, &r, sizeof(r));
+
+    LOG_ERR("BENCHCHK R01 SEND_ALL ENTER fd=%d mode=%u len=%u",
+            fd, mode, (unsigned int)sizeof(r));
+    int rc = send_all(fd, &r, sizeof(r));
+    LOG_ERR("BENCHCHK R02 SEND_ALL RETURN fd=%d mode=%u rc=%d",
+            fd, mode, rc);
+    return rc;
 }
 
 static int recv_reply(int fd, uint32_t mode, struct bench_reply *reply)
 {
+    LOG_ERR("BENCHCHK P01 RECV_ALL ENTER fd=%d mode=%u len=%u",
+            fd, mode, (unsigned int)sizeof(*reply));
     int rc = recv_all(fd, reply, sizeof(*reply));
-    if (rc < 0) return rc;
-    if (sys_be32_to_cpu(reply->magic) != BENCH_MAGIC || sys_be32_to_cpu(reply->mode) != mode)
+    LOG_ERR("BENCHCHK P02 RECV_ALL RETURN fd=%d mode=%u rc=%d",
+            fd, mode, rc);
+
+    if (rc < 0) {
+        return rc;
+    }
+
+    if (sys_be32_to_cpu(reply->magic) != BENCH_MAGIC ||
+        sys_be32_to_cpu(reply->mode) != mode) {
+        LOG_ERR("BENCHCHK P03 REPLY INVALID fd=%d mode=%u magic=0x%08x reply_mode=%u",
+                fd, mode,
+                (unsigned int)sys_be32_to_cpu(reply->magic),
+                (unsigned int)sys_be32_to_cpu(reply->mode));
         return -EBADMSG;
-    return -(int)sys_be32_to_cpu(reply->status);
+    }
+
+    rc = -(int)sys_be32_to_cpu(reply->status);
+    LOG_ERR("BENCHCHK P04 REPLY VALID fd=%d mode=%u status_rc=%d rx=%u tx=%u",
+            fd, mode, rc,
+            (unsigned int)sys_be32_to_cpu(reply->bytes_received),
+            (unsigned int)sys_be32_to_cpu(reply->bytes_sent));
+    return rc;
 }
 
 static uint64_t bps(uint64_t bytes, int64_t elapsed_ms)
@@ -506,12 +532,36 @@ int bench_run_upload(const struct bench_config *cfg)
         last_summary.upload.status = -ENOMEM;
         return -ENOMEM;
     }
+    LOG_ERR("BENCHCHK U01 CONNECT ENTER");
     int fd = connect_server(cfg);
-    if (fd < 0) { last_summary.upload.status = fd; k_free(tx_buf); return fd; }
+    LOG_ERR("BENCHCHK U02 CONNECT RETURN fd=%d", fd);
+    if (fd < 0) {
+        last_summary.upload.status = fd;
+        k_free(tx_buf);
+        return fd;
+    }
+
+    LOG_ERR("BENCHCHK U03 REQUEST SEND ENTER fd=%d len=%u",
+            fd, (unsigned int)sizeof(struct bench_request));
     int rc = send_request(fd, BENCH_MODE_UPLOAD, cfg);
+    LOG_ERR("BENCHCHK U04 REQUEST SEND RETURN fd=%d rc=%d", fd, rc);
+
     int64_t start = k_uptime_get();
-    if (!rc) rc = stream_send(fd, tx_buf, cfg->total_bytes, cfg->chunk_size, 0x17, "UPLOAD TX");
-    if (!rc) rc = recv_reply(fd, BENCH_MODE_UPLOAD, &reply);
+
+    if (!rc) {
+        LOG_ERR("BENCHCHK U05 UPLOAD STREAM ENTER fd=%d total=%u chunk=%u",
+                fd, cfg->total_bytes, cfg->chunk_size);
+        rc = stream_send(fd, tx_buf, cfg->total_bytes, cfg->chunk_size,
+                         0x17, "UPLOAD TX");
+        LOG_ERR("BENCHCHK U06 UPLOAD STREAM RETURN fd=%d rc=%d", fd, rc);
+    }
+
+    if (!rc) {
+        LOG_ERR("BENCHCHK U07 REPLY RECV ENTER fd=%d len=%u",
+                fd, (unsigned int)sizeof(struct bench_reply));
+        rc = recv_reply(fd, BENCH_MODE_UPLOAD, &reply);
+        LOG_ERR("BENCHCHK U08 REPLY RECV RETURN fd=%d rc=%d", fd, rc);
+    }
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
     k_free(tx_buf);

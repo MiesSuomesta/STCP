@@ -279,13 +279,39 @@ run_host_rpi_tests() {
 }
 
 run_zephyr_build_flash() {
+    local stcp_repo="$HOME/STCP/STCPv2"
+    local rust_core="$stcp_repo/kernel/module/rust"
+    local rust_arm_target="$rust_core/target/thumbv8m.main-none-eabi"
+
     info "Loading Zephyr environment..."
     zephyr-env
+
+    # Zephyr links the canonical shared Rust core directly from:
+    #   kernel/module/rust/target/thumbv8m.main-none-eabi/release/libstcp_kernel_core.a
+    #
+    # Always remove the ARM target tree before the Zephyr clean build so a
+    # stale staticlib can never survive source/overlay changes.
+    [[ -f "$rust_core/Cargo.toml" ]] ||         fail "Canonical Rust core not found: $rust_core/Cargo.toml"
+
+    if [[ -e "$rust_arm_target" ]]; then
+        info "Cleaning canonical Rust ARM target: $rust_arm_target"
+        rm -rf -- "$rust_arm_target"
+        ok "Canonical Rust ARM target cleaned"
+    else
+        info "Canonical Rust ARM target already clean: $rust_arm_target"
+    fi
 
     cd ~/zephyr-stcp/stcp/application
 
     info "Building Zephyr STCPv2 clean image..."
     bash scripts/build-v2-clean.sh
+
+    # Verify that the canonical ARM staticlib was rebuilt by this build.
+    local rust_staticlib="$rust_core/target/thumbv8m.main-none-eabi/release/libstcp_kernel_core.a"
+    [[ -s "$rust_staticlib" ]] ||         fail "Canonical Rust ARM staticlib missing after build: $rust_staticlib"
+
+    info "Rust ARM staticlib rebuilt:"
+    ls -lh "$rust_staticlib"
 
     info "Flashing Zephyr STCPv2 image..."
     bash scripts/flash-v2-clean.sh
@@ -296,37 +322,84 @@ run_zephyr_build_flash() {
 run_zephyr_tests() {
     local zephyr_root="$HOME/zephyr-stcp/stcp/application"
     local robot_dir="$zephyr_root/testing/robot-v2"
+    local results_dir="$robot_dir/results"
+    local run_id=""
+    local run_dir=""
+    local latest_tmp=""
+    local suite=""
+    local rc=0
 
     info "Running Zephyr STCPv2 Robot regression suite..."
 
     cleanup_stcp_users
+
+    mkdir -p "$results_dir"
     cd "$robot_dir"
 
-    # Prefer a project-provided runner if present.
-    if [[ -x ./run.sh ]]; then
-        ./run.sh
-    elif [[ -x ./run-robot.sh ]]; then
-        ./run-robot.sh
-    elif [[ -x ./run-tests.sh ]]; then
-        ./run-tests.sh
-    elif [[ -x ./run-robot-tests.sh ]]; then
-        ./run-robot-tests.sh
+    if [[ -f ./zephyr-v2.robot ]]; then
+        suite="./zephyr-v2.robot"
+    elif [[ -f ./robot-v2.robot ]]; then
+        suite="./robot-v2.robot"
+    elif [[ -f ./tests.robot ]]; then
+        suite="./tests.robot"
     else
-        # Known STCPv2 robot-v2 layout fallback.
-        if [[ -f ./zephyr-v2.robot ]]; then
-            robot zephyr-v2.robot
-        elif [[ -f ./robot-v2.robot ]]; then
-            robot robot-v2.robot
-        elif [[ -f ./tests.robot ]]; then
-            robot tests.robot
-        else
-            fail "No Zephyr Robot runner/test suite found in $robot_dir"
-            return 1
-        fi
+        fail "No Zephyr Robot suite found in $robot_dir"
+        return 1
     fi
-    RC=$?
-    ok "Zephyr STCPv2 Robot regression suite done, rc=$RC"
-    return $RC
+
+    # Use a collision-safe timestamped directory owned by this full run.
+    run_id="$(date +%Y%m%d-%H%M%S)"
+    run_dir="$results_dir/$run_id"
+
+    # Extremely unlikely, but avoid reusing an existing directory when two
+    # launches happen within the same second.
+    if [[ -e "$run_dir" ]]; then
+        run_id="${run_id}-$$"
+        run_dir="$results_dir/$run_id"
+    fi
+
+    mkdir -p "$run_dir"
+
+    {
+        printf 'run_id=%s\n' "$run_id"
+        printf 'started_at=%s\n' "$(date --iso-8601=seconds)"
+        printf 'suite=%s\n' "$suite"
+        printf 'cwd=%s\n' "$robot_dir"
+    } >"$run_dir/run-meta.txt"
+
+    info "Zephyr Robot run directory: $run_dir"
+    info "Zephyr Robot suite        : $suite"
+
+    # Run Robot directly so output.xml/log.html/report.html are guaranteed to
+    # belong to THIS run. Do not let set -e abort before results/latest is
+    # updated on a failing test.
+    if robot --exitonfailure --outputdir "$run_dir" "$suite"; then
+        rc=0
+    else
+        rc=$?
+    fi
+
+    {
+        printf 'finished_at=%s\n' "$(date --iso-8601=seconds)"
+        printf 'robot_rc=%s\n' "$rc"
+    } >>"$run_dir/run-meta.txt"
+
+    # Atomically publish latest AFTER Robot has closed its result files.
+    # This is done for both PASS and FAIL so postmortem always sees the run
+    # that just finished.
+    latest_tmp="$results_dir/.latest.$$"
+    rm -f "$latest_tmp"
+    ln -s "$run_id" "$latest_tmp"
+    mv -Tf "$latest_tmp" "$results_dir/latest"
+
+    # Also publish the exact selected run in a plain text file. This makes
+    # postmortem diagnostics independent of symlink interpretation.
+    printf '%s\n' "$run_dir" >"$results_dir/latest-run-path.txt"
+
+    info "Zephyr results/latest -> $(readlink -f "$results_dir/latest")"
+    info "Zephyr STCPv2 Robot regression suite done, rc=$rc"
+
+    return "$rc"
 }
 
 main() {
@@ -355,6 +428,7 @@ main() {
     else
         zephyr_rc=$?
         info "Zephyr Robot tests FAIL rc=$zephyr_rc"
+        info "Collecting postmortem from finalized Zephyr results/latest..."
         bash ~/SDK/v2/scripts/stcp-postmortem.sh || true
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi

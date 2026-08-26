@@ -12,7 +12,6 @@ use core::{
 
 use crate::{
     crypto::{
-        Role,
         CHACHA_TAG_LEN,
         NONCE_LEN,
         PUBLIC_KEY_WIRE_LEN,
@@ -452,10 +451,8 @@ pub fn connect(
 }
 
 pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
-    debug_event(321, ctx, 0, 0);
     crate::carrier::debug_event(300, ctx, 0, 0);
-
-    let (carrier, role) = {
+    {
         let inner = ctx.inner.lock();
         crate::carrier::debug_event(301, ctx, inner.carrier, inner.state as usize);
 
@@ -466,26 +463,6 @@ pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
         if inner.carrier == 0 {
             return Err(StcpError::Kernel(-107));
         }
-
-        (inner.carrier, inner.role)
-    };
-
-    /*
-     * External TCP server children deliberately wait for the client's
-     * PublicKey before sending their own PublicKey.
-     *
-     * This avoids an observed W5500/Zephyr first-boot failure where the
-     * server's first STCP payload can arrive immediately after the TCP
-     * handshake and never reaches the client socket, even though the TCP
-     * connection itself succeeds.
-     *
-     * The client still initiates immediately. Internal paired transports
-     * remain unchanged because this branch is only reached with a real
-     * external carrier.
-     */
-    if carrier != 0 && role == Role::Server {
-        crate::carrier::debug_event(322, ctx, 1, 0);
-        return Ok(());
     }
 
     let result = send_public_key(ctx);
@@ -505,13 +482,10 @@ pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
 
 fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
     crate::carrier::debug_event(302, ctx, 0, 0);
-
-    let (shared, side, public_key, already_sent) = {
+    let (shared, side, public_key) = {
         let inner = ctx.inner.lock();
 
-        if inner.state != SocketState::Handshake &&
-           inner.state != SocketState::Ready
-        {
+        if inner.state != SocketState::Handshake {
             return Err(StcpError::InvalidState);
         }
 
@@ -524,14 +498,8 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
             endpoint.shared.clone(),
             endpoint.side,
             inner.crypto.public_key(),
-            inner.local_public_key_sent,
         )
     };
-
-    if already_sent {
-        crate::carrier::debug_event(323, ctx, 1, 0);
-        return Ok(());
-    }
 
     let frame = encode_frame(
         PacketType::PublicKey,
@@ -541,61 +509,17 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
     crate::carrier::debug_event(303, ctx, frame.len(), connection_id(ctx) as usize);
 
     send_frame(ctx, &shared, side, &frame, 0)?;
-
-    {
-        let mut inner = ctx.inner.lock();
-        inner.local_public_key_sent = true;
-    }
-
     crate::carrier::debug_event(308, ctx, frame.len(), 0);
     Ok(())
 }
 
-fn send_handshake_done(
-    ctx: &StcpContext,
-    shared: &Arc<Connection>,
-    side: Side,
-) -> Result<(), StcpError> {
-    let already_sent = {
-        let inner = ctx.inner.lock();
-        inner.local_handshake_done_sent
-    };
-
-    if already_sent {
-        crate::carrier::debug_event(324, ctx, 1, 0);
-        return Ok(());
-    }
-
-    let done = encode_frame(
-        PacketType::HandshakeDone,
-        connection_id(ctx),
-        &[],
-    )?;
-
-    debug_event(266, ctx, 0, 0);
-    debug_event(265, ctx, done.len(), 0);
-
-    send_frame(ctx, shared, side, &done, 0)?;
-
-    {
-        let mut inner = ctx.inner.lock();
-        inner.local_handshake_done_sent = true;
-    }
-
-    debug_event(267, ctx, 0, 0);
-    Ok(())
-}
-
 fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
-    debug_event(260, ctx, 0, 0);
     let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,1,0); return Ok(()); };
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => {
-                debug_event(261, ctx, frame.payload.len(), 0); if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
+        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
         PacketType::HandshakeDone => {
-                debug_event(268, ctx, 0, 0);
             if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
             received_done = true;
 
@@ -617,48 +541,7 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
-    debug_event(264, ctx, 0, 0);
-    if let Some(key) = received_key {
-        let (role, need_public_key) = {
-            let inner = ctx.inner.lock();
-            (
-                inner.role,
-                !inner.local_public_key_sent,
-            )
-        };
-
-        /*
-         * External TCP servers are client-first. Once the client's PublicKey
-         * arrives, publish the server PublicKey before HandshakeDone.
-         */
-        if role == Role::Server && need_public_key {
-            send_public_key(ctx)?;
-        }
-
-        {
-            let mut inner = ctx.inner.lock();
-            let role = inner.role;
-            inner.crypto.derive_session_keys(&key, role)?;
-        }
-
-        send_handshake_done(ctx, &shared, side)?;
-    }
-    /*
-     * A peer HandshakeDone can arrive in a separate TCP receive after the
-     * peer PublicKey. If our previous local Done send was transiently unable
-     * to complete, retry it before evaluating Ready.
-     */
-    if received_done {
-        let need_local_done = {
-            let inner = ctx.inner.lock();
-            inner.crypto.ready() && !inner.local_handshake_done_sent
-        };
-
-        if need_local_done {
-            send_handshake_done(ctx, &shared, side)?;
-        }
-    }
-
+    if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }
     {
         let mut inner = ctx.inner.lock();
 
@@ -679,7 +562,6 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
          * Handshake.  The first frame could then be consumed as a handshake
          * frame or left unprocessed until both userspace peers timed out.
          */
-        debug_event(269, ctx, inner.crypto.ready() as usize, inner.peer_handshake_done as usize);
         if inner.crypto.ready() && inner.peer_handshake_done {
             if inner.state != SocketState::Ready {
                 inner.state = SocketState::Ready;
@@ -694,9 +576,8 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
             );
         }
     }
-    debug_event(271, ctx, 0, 0);
-    Ok(())}
-
+    Ok(())
+}
 
 pub fn create_external_tcp_child(
     listener: &StcpContext,

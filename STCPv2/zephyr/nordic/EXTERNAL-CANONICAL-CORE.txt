@@ -1,1 +1,0 @@
-/home/pomo/git/github/STCP/STCPv2/kernel/module/rust

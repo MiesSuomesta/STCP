@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+sudo renice -n -20 $$
+
 ts() {
     date +"[%d.%m.%Y %H:%M:%S]"
 }
@@ -319,6 +321,53 @@ run_zephyr_build_flash() {
     ok "Zephyr build + flash complete"
 }
 
+
+collect_zephyr_server_logs() {
+    local robot_dir="$1"
+    local run_dir="$2"
+    local artifacts_dir="$run_dir/artifacts/server"
+    local found=0
+    local f=""
+
+    mkdir -p "$artifacts_dir"
+
+    # Robot Process library writes these relative paths from the suite.
+    # Copy them into the timestamped run before results/latest is published,
+    # so stcp-postmortem.sh can collect the exact server logs for this run.
+    for f in \
+        "$robot_dir/server.stdout.log" \
+        "$robot_dir/server.stderr.log"
+    do
+        if [[ -f "$f" ]]; then
+            cp -a -- "$f" "$artifacts_dir/"
+            found=1
+        fi
+    done
+
+    # Also collect any future/alternate server log names without failing
+    # when none exist.
+    while IFS= read -r -d '' f; do
+        case "$(basename "$f")" in
+            server.stdout.log|server.stderr.log)
+                continue
+                ;;
+        esac
+        cp -a -- "$f" "$artifacts_dir/"
+        found=1
+    done < <(
+        find "$robot_dir" -maxdepth 1 -type f \
+            \( -name 'server*.log' -o -name 'stcp-v2-bench-server*.log' \) \
+            -print0 2>/dev/null
+    )
+
+    if (( found )); then
+        ok "Zephyr server logs collected: $artifacts_dir"
+        ls -lh "$artifacts_dir" || true
+    else
+        info "No Zephyr server logs found to collect from $robot_dir"
+    fi
+}
+
 run_zephyr_tests() {
     local zephyr_root="$HOME/zephyr-stcp/stcp/application"
     local robot_dir="$zephyr_root/testing/robot-v2"
@@ -370,6 +419,11 @@ run_zephyr_tests() {
     info "Zephyr Robot run directory: $run_dir"
     info "Zephyr Robot suite        : $suite"
 
+    # Remove stale Process-library logs before this run. Otherwise a failed
+    # server start could make postmortem accidentally collect an older run.
+    rm -f --         "$robot_dir/server.stdout.log"         "$robot_dir/server.stderr.log"
+    find "$robot_dir" -maxdepth 1 -type f         \( -name 'server*.log' -o -name 'stcp-v2-bench-server*.log' \)         -delete 2>/dev/null || true
+
     # Run Robot directly so output.xml/log.html/report.html are guaranteed to
     # belong to THIS run. Do not let set -e abort before results/latest is
     # updated on a failing test.
@@ -383,6 +437,10 @@ run_zephyr_tests() {
         printf 'finished_at=%s\n' "$(date --iso-8601=seconds)"
         printf 'robot_rc=%s\n' "$rc"
     } >>"$run_dir/run-meta.txt"
+
+    # Preserve bench-server stdout/stderr in THIS timestamped Robot run before
+    # results/latest is published and before any postmortem collection starts.
+    collect_zephyr_server_logs "$robot_dir" "$run_dir"
 
     # Atomically publish latest AFTER Robot has closed its result files.
     # This is done for both PASS and FAIL so postmortem always sees the run
@@ -410,28 +468,6 @@ main() {
 
     cleanup_stcp_users
 
-    # Build/flash and run Zephyr first. This ensures that
-    # /home/pomo/zephyr-stcp/stcp/application/testing/robot-v2/results/latest
-    # already contains the current modem test run before the Linux/RPi Robot
-    # suite and its postmortem/result-note collection are started.
-    run_zephyr_build_flash
-
-    info "Waiting 3 seconds after Zephyr flash..."
-    sleep 3
-
-    # Start the Zephyr run with a clean receiver log so a failure postmortem
-    # contains only this run's netconsole traffic.
-    ssh lja@fuji "echo > /var/log/stcp/netconsole/wire.log" || true
-
-    if run_zephyr_tests; then
-        ok "Zephyr STCPv2 Robot regression PASS"
-    else
-        zephyr_rc=$?
-        info "Zephyr Robot tests FAIL rc=$zephyr_rc"
-        info "Collecting postmortem from finalized Zephyr results/latest..."
-        bash ~/SDK/v2/scripts/stcp-postmortem.sh || true
-        fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
-    fi
 
     run_host_rpi_build_install
 
@@ -449,6 +485,31 @@ main() {
     else
         host_rpi_rc=$?
         fail "Stopping full run after Linux/Raspberry Robot failure rc=$host_rpi_rc"
+    fi
+
+    # Build/flash and run Zephyr first. This ensures that
+    # /home/pomo/zephyr-stcp/stcp/application/testing/robot-v2/results/latest
+    # already contains the current modem test run before the Linux/RPi Robot
+    # suite and its postmortem/result-note collection are started.
+    cleanup_stcp_users
+
+    run_zephyr_build_flash
+
+    info "Waiting 3 seconds after Zephyr flash..."
+    sleep 3
+
+    # Start the Zephyr run with a clean receiver log so a failure postmortem
+    # contains only this run's netconsole traffic.
+    ssh lja@fuji "echo > /var/log/stcp/netconsole/wire.log" || true
+
+    if run_zephyr_tests; then
+        ok "Zephyr STCPv2 Robot regression PASS"
+    else
+        zephyr_rc=$?
+        info "Zephyr Robot tests FAIL rc=$zephyr_rc"
+        info "Collecting postmortem from finalized Zephyr results/latest..."
+        bash ~/SDK/v2/scripts/stcp-postmortem.sh || true
+        fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 
     ok "=================================================="

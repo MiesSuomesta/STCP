@@ -128,8 +128,8 @@ static int wait_connected(struct stcp_v2_socket *sock)
         }
 
         sem_rc = k_sem_take(&sock->event, K_MSEC(20));
-
-        if (iter == 1 || (iter % 25) == 0) {
+#if 0
+        if (iter == 1 /*|| (iter % 25) == 0 */ ) {
             LOG_INF("CONNDIAG wait iter=%u elapsed_ms=%lld connected_rc=%d "
                     "tick_rc=%d sem_rc=%d rx_running=%ld rx_stop=%ld",
                     iter,
@@ -140,6 +140,7 @@ static int wait_connected(struct stcp_v2_socket *sock)
                     (long)atomic_get(&sock->rx_running),
                     (long)atomic_get(&sock->rx_stop));
         }
+#endif
     }
 
     LOG_ERR("CONNDIAG TIMEOUT iter=%u elapsed_ms=%lld rx_running=%ld "

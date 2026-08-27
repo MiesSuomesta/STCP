@@ -36,53 +36,28 @@ int mqtt_stcp_poll_fd(const struct mqtt_client *client)
 int mqtt_client_custom_transport_connect(struct mqtt_client *client)
 {
     struct mqtt_stcp_transport_data *data = transport_data(client);
-    struct net_sockaddr_in peer = { 0 };
+    const struct net_sockaddr *broker =
+        (const struct net_sockaddr *)client->broker;
+    net_socklen_t broker_len;
     int fd;
-    int rc;
 
-    if (data == NULL) {
+    if (data == NULL || broker == NULL) {
         return -EINVAL;
     }
 
-    /*
-     * Do not reuse client->broker here.  The MQTT layer only needs the
-     * broker object for its own bookkeeping; the STCP transport builds the
-     * actual IPv4 carrier destination explicitly from the application
-     * configuration.  This also guarantees that zsock_connect() receives
-     * the port in network byte order.
-     */
-    peer.sin_family = NET_AF_INET;
-    peer.sin_port = net_htons(CONFIG_STCP_MQTT_BROKER_PORT);
-
-    rc = zsock_inet_pton(NET_AF_INET,
-                         CONFIG_STCP_MQTT_BROKER_IPV4,
-                         &peer.sin_addr);
-    if (rc != 1) {
-        LOG_ERR("Invalid MQTT broker IPv4 address: %s",
-                CONFIG_STCP_MQTT_BROKER_IPV4);
-        return -EINVAL;
+    if (broker->sa_family != NET_AF_INET) {
+        return -EAFNOSUPPORT;
     }
 
-    LOG_INF("MQTT STCP connect target=%s:%d host_port=%u raw_port=%u",
-            CONFIG_STCP_MQTT_BROKER_IPV4,
-            CONFIG_STCP_MQTT_BROKER_PORT,
-            (unsigned int)net_ntohs(peer.sin_port),
-            (unsigned int)peer.sin_port);
+    broker_len = sizeof(struct net_sockaddr_in);
 
     fd = zsock_socket(AF_STCP, NET_SOCK_STREAM, IPPROTO_STCP);
     if (fd < 0) {
         return -errno;
     }
 
-    if (zsock_connect(fd,
-                      (const struct net_sockaddr *)&peer,
-                      sizeof(peer)) < 0) {
+    if (zsock_connect(fd, broker, broker_len) < 0) {
         int err = -errno;
-
-        LOG_ERR("MQTT STCP connect failed target=%s:%d fd=%d errno=%d",
-                CONFIG_STCP_MQTT_BROKER_IPV4,
-                CONFIG_STCP_MQTT_BROKER_PORT,
-                fd, errno);
 
         (void)zsock_close(fd);
         return err;
@@ -90,10 +65,7 @@ int mqtt_client_custom_transport_connect(struct mqtt_client *client)
 
     data->fd = fd;
 
-    LOG_INF("MQTT custom transport connected over STCP fd=%d target=%s:%d",
-            fd,
-            CONFIG_STCP_MQTT_BROKER_IPV4,
-            CONFIG_STCP_MQTT_BROKER_PORT);
+    LOG_INF("MQTT custom transport connected over STCP fd=%d", fd);
     return 0;
 }
 

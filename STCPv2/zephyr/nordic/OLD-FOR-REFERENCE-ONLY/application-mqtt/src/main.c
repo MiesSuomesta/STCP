@@ -100,46 +100,32 @@ static void client_init(void)
     client.transport.custom_transport_data = &transport;
 }
 
-/*
- * AF_STCP does not currently provide poll() readiness semantics that the
- * generic Zephyr MQTT sample loop expects.  The custom transport read path is
- * non-blocking when mqtt_input() asks for non-blocking input, so drive the
- * MQTT parser directly and treat -EAGAIN as "no packet yet".
- */
-static int mqtt_service_once(void)
-{
-    int rc;
-
-    rc = mqtt_input(&client);
-    if (rc < 0 && rc != -EAGAIN) {
-        return rc;
-    }
-
-    rc = mqtt_live(&client);
-    if (rc < 0 && rc != -EAGAIN) {
-        return rc;
-    }
-
-    return 0;
-}
-
 static int service_until_connected(int timeout_ms)
 {
     int64_t deadline = k_uptime_get() + timeout_ms;
 
     while (!connected && k_uptime_get() < deadline) {
-        int rc = mqtt_service_once();
+        struct zsock_pollfd pfd = {
+            .fd = mqtt_stcp_poll_fd(&client),
+            .events = ZSOCK_POLLIN,
+        };
 
+        int rc = zsock_poll(&pfd, 1, 500);
         if (rc < 0) {
-            LOG_ERR("MQTT service during CONNACK wait failed: %d", rc);
+            return -errno;
+        }
+
+        if (rc > 0 && (pfd.revents & ZSOCK_POLLIN) != 0) {
+            rc = mqtt_input(&client);
+            if (rc < 0 && rc != -EAGAIN) {
+                return rc;
+            }
+        }
+
+        rc = mqtt_live(&client);
+        if (rc < 0 && rc != -EAGAIN) {
             return rc;
         }
-
-        if (connected) {
-            return 0;
-        }
-
-        k_sleep(K_MSEC(20));
     }
 
     return connected ? 0 : -ETIMEDOUT;
@@ -239,15 +225,33 @@ int main(void)
                 k_uptime_get() + CONFIG_STCP_MQTT_PUBLISH_INTERVAL_MS;
 
             while (connected && k_uptime_get() < deadline) {
-                rc = mqtt_service_once();
+                int timeout = mqtt_keepalive_time_left(&client);
+                struct zsock_pollfd pfd = {
+                    .fd = mqtt_stcp_poll_fd(&client),
+                    .events = ZSOCK_POLLIN,
+                };
 
+                if (timeout < 0 || timeout > 500) {
+                    timeout = 500;
+                }
+
+                rc = zsock_poll(&pfd, 1, timeout);
                 if (rc < 0) {
-                    LOG_ERR("MQTT service failed: %d", rc);
-                    connected = false;
+                    rc = -errno;
                     break;
                 }
 
-                k_sleep(K_MSEC(20));
+                if (rc > 0 && (pfd.revents & ZSOCK_POLLIN) != 0) {
+                    rc = mqtt_input(&client);
+                    if (rc < 0 && rc != -EAGAIN) {
+                        break;
+                    }
+                }
+
+                rc = mqtt_live(&client);
+                if (rc < 0 && rc != -EAGAIN) {
+                    break;
+                }
             }
         }
 

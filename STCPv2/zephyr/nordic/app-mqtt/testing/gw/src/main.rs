@@ -150,7 +150,7 @@ fn stcp_listener(ip: Ipv4Addr, port: u16) -> io::Result<StcpFd> {
     }
 
     let mut addr: libc::sockaddr_in = unsafe { zeroed() };
-    addr.sin_family = AF_STCP as libc::sa_family_t;
+    addr.sin_family = libc::AF_INET as libc::sa_family_t;
     addr.sin_port = port.to_be();
     addr.sin_addr = libc::in_addr {
         s_addr: u32::from_ne_bytes(ip.octets()),

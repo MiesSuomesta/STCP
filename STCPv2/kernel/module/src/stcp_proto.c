@@ -204,23 +204,8 @@ static int stcp_create(
 	if (!sock)
 		return -EINVAL;
 
-	/*
-	 * Public STCP socket contract:
-	 *
-	 *   STCP-TCP (253): SOCK_STREAM only
-	 *   STCP-UDP (254): SOCK_STREAM legacy ABI OR SOCK_DGRAM native ABI
-	 *
-	 * The carrier is selected from protocol below, not from socket type.
-	 * Keeping SOCK_STREAM+254 preserves the existing SDK/Linux ABI while
-	 * restoring SOCK_DGRAM+254 as documented by FIX-STCP-CROSSHOST-AND-UDP.md.
-	 */
-	if (protocol == STCP_PROTO_UDP) {
-		if (sock->type != SOCK_STREAM && sock->type != SOCK_DGRAM)
-			return -ESOCKTNOSUPPORT;
-	} else {
-		if (sock->type != SOCK_STREAM)
-			return -ESOCKTNOSUPPORT;
-	}
+	if (sock->type != SOCK_STREAM)
+		return -ESOCKTNOSUPPORT;
 
 	ret = stcp_protocol_to_carrier(
 		protocol,
@@ -228,10 +213,6 @@ static int stcp_create(
 	);
 	if (ret)
 		return ret;
-
-	pr_info("stcp: create type=%d protocol=%d carrier=%s\n",
-		sock->type, protocol,
-		carrier_kind == STCP_CARRIER_UDP ? "udp" : "tcp");
 
 	sk = sk_alloc(
 		net,

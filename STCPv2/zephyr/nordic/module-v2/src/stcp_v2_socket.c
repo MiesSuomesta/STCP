@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/sys/fdtable.h>
@@ -333,6 +334,9 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
     errno = 0;
     native_rc = zsock_connect(sock->carrier->fd, addr, addrlen);
     saved_errno = errno;
+    printk("ZP 1 native_connect_return rc=%d errno=%d fd=%d\n",
+           native_rc, saved_errno,
+           sock->carrier != NULL ? sock->carrier->fd : -1);
 
     LOG_INF("CONNDIAG native connect RETURN rc=%d errno=%d "
             "elapsed_ms=%lld native_fd=%d",
@@ -354,6 +358,8 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
                            peer->sin_addr.s_addr,
                            peer->sin_port,
                            0);
+    printk("ZP 2 rust_connect_return rc=%d ctx=%p\n",
+           rc, sock->rust_ctx);
 
     LOG_INF("CONNDIAG rust_connect RETURN rc=%d elapsed_ms=%lld ctx=%p",
             rc,
@@ -365,7 +371,14 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
+    printk("ZP 3 before_rx_start fd=%d ctx=%p\n",
+           sock->carrier != NULL ? sock->carrier->fd : -1,
+           sock->rust_ctx);
     rc = stcp_v2_rx_start(sock);
+    printk("ZP 4 after_rx_start rc=%d running=%ld stop=%ld\n",
+           rc,
+           (long)atomic_get(&sock->rx_running),
+           (long)atomic_get(&sock->rx_stop));
 
     LOG_INF("CONNDIAG rx_start RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -378,7 +391,10 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
+    printk("ZP 5 before_handshake_start ctx=%p\n", sock->rust_ctx);
     rc = stcp_rust_start_handshake(sock->rust_ctx);
+    printk("ZP 6 after_handshake_start rc=%d connected=%d\n",
+           rc, stcp_rust_is_connected(sock->rust_ctx));
 
     LOG_INF("CONNDIAG start_handshake RETURN rc=%d elapsed_ms=%lld "
             "rx_running=%ld",
@@ -391,6 +407,8 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
         return -1;
     }
 
+    printk("ZP 7 before_wait_connected ctx=%p connected=%d\n",
+           sock->rust_ctx, stcp_rust_is_connected(sock->rust_ctx));
     rc = wait_connected(sock);
 
     LOG_INF("CONNDIAG wait_connected RETURN rc=%d elapsed_ms=%lld "

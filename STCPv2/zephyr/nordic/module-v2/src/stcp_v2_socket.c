@@ -324,6 +324,50 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
 
     started = k_uptime_get();
 
+    /*
+     * STCP-UDP/W5500 diagnostic: explicitly allocate the native UDP
+     * socket's local ephemeral endpoint before connect().
+     * Stream carriers are intentionally untouched.
+     */
+    if (sock->carrier->socket_type == SOCK_DGRAM) {
+        struct sockaddr_in local = {
+            .sin_family = AF_INET,
+            .sin_port = htons(0),
+            .sin_addr = { .s_addr = htonl(INADDR_ANY) },
+        };
+        struct sockaddr_in actual = {0};
+        socklen_t actual_len = sizeof(actual);
+
+        errno = 0;
+        native_rc = zsock_bind(sock->carrier->fd,
+                               (const struct sockaddr *)&local,
+                               sizeof(local));
+        saved_errno = errno;
+
+        LOG_ERR("UDPDIAG explicit bind fd=%d rc=%d errno=%d",
+                sock->carrier->fd, native_rc,
+                native_rc < 0 ? saved_errno : 0);
+
+        if (native_rc < 0) {
+            errno = saved_errno;
+            return -1;
+        }
+
+        errno = 0;
+        native_rc = zsock_getsockname(sock->carrier->fd,
+                                      (struct sockaddr *)&actual,
+                                      &actual_len);
+        saved_errno = errno;
+
+        LOG_ERR("UDPDIAG after bind fd=%d getsockname_rc=%d errno=%d "
+                "local_addr=0x%08x local_port=%u",
+                sock->carrier->fd,
+                native_rc,
+                native_rc < 0 ? saved_errno : 0,
+                native_rc == 0 ? (unsigned int)ntohl(actual.sin_addr.s_addr) : 0U,
+                native_rc == 0 ? (unsigned int)ntohs(actual.sin_port) : 0U);
+    }
+
     LOG_INF("CONNDIAG connect ENTER sock=%p app_fd=%d carrier=%p "
             "native_fd=%d ctx=%p addrlen=%u peer_port=%u",
             sock,
@@ -348,6 +392,27 @@ static int connect_socket(void *obj, const struct sockaddr *addr, socklen_t addr
     if (native_rc < 0) {
         errno = saved_errno;
         return -1;
+    }
+
+    if (sock->carrier->socket_type == SOCK_DGRAM) {
+        struct sockaddr_in actual = {0};
+        socklen_t actual_len = sizeof(actual);
+        int name_rc;
+        int name_errno;
+
+        errno = 0;
+        name_rc = zsock_getsockname(sock->carrier->fd,
+                                    (struct sockaddr *)&actual,
+                                    &actual_len);
+        name_errno = errno;
+
+        LOG_ERR("UDPDIAG after connect fd=%d getsockname_rc=%d errno=%d "
+                "local_addr=0x%08x local_port=%u",
+                sock->carrier->fd,
+                name_rc,
+                name_rc < 0 ? name_errno : 0,
+                name_rc == 0 ? (unsigned int)ntohl(actual.sin_addr.s_addr) : 0U,
+                name_rc == 0 ? (unsigned int)ntohs(actual.sin_port) : 0U);
     }
 
     memcpy(&sock->carrier->peer, peer, sizeof(*peer));

@@ -467,7 +467,22 @@ pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
 
     let result = send_public_key(ctx);
     crate::carrier::debug_event(309, ctx, result.is_ok() as usize, 0);
-    result
+
+    /*
+     * UDP server children can receive the peer PublicKey (and even the
+     * peer HandshakeDone) before userspace reaches accept() and calls
+     * start_handshake(). queue_to_context() normally advances the parser,
+     * but a concurrent parser guard can legitimately defer that pass.
+     *
+     * After emitting our PublicKey, immediately retry handshake progress so
+     * any already queued peer handshake frame is consumed before the kernel
+     * accept path goes to sleep waiting for Ready.
+     *
+     * This is safe for the TCP/253 path as well: with no queued handshake
+     * frame progress_handshake() is a no-op, and no wire behavior changes.
+     */
+    result?;
+    progress_handshake(ctx)
 }
 
 pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {

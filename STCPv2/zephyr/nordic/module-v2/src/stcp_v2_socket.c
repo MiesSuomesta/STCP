@@ -592,18 +592,39 @@ static bool stcp_v2_supported(int family, int type, int protocol)
 {
     return family == AF_STCP &&
            (type == SOCK_STREAM || type == SOCK_DGRAM) &&
-           (protocol == 0 || protocol == IPPROTO_STCP);
+           (protocol == 0 ||
+            protocol == IPPROTO_STCP ||
+            protocol == IPPROTO_STCP_UDP);
 }
 
 static int stcp_v2_socket_create(int family, int type, int protocol)
 {
     uint32_t create_seq;
+    bool udp_mode;
+    int effective_type;
+    int rust_protocol;
 
     ARG_UNUSED(family);
+
+    /*
+     * Keep the Linux/SDK public ABI while retaining compatibility with the
+     * original Zephyr spelling:
+     *
+     *   SOCK_STREAM + 253 -> STCP-TCP
+     *   SOCK_STREAM + 254 -> STCP-UDP       (canonical)
+     *   SOCK_DGRAM  + 253 -> STCP-UDP       (legacy Zephyr compatibility)
+     *   SOCK_DGRAM  + 254 -> STCP-UDP
+     *
+     * socket_type stored in struct stcp_v2_socket is the EFFECTIVE carrier
+     * type because listen/accept/RX/send-wire behavior depends on it.
+     */
+    udp_mode = (protocol == IPPROTO_STCP_UDP) || (type == SOCK_DGRAM);
+    effective_type = udp_mode ? SOCK_DGRAM : SOCK_STREAM;
+    rust_protocol = udp_mode ? IPPROTO_STCP_UDP : IPPROTO_STCP;
     stcp_v2_lifesum_print_previous();
     create_seq = stcp_v2_lifesum_note_create();
-    LOG_ERR("LIFESUM CREATE BEGIN create_seq=%u type=%d protocol=%d",
-            create_seq, type, protocol);
+    LOG_ERR("LIFESUM CREATE BEGIN create_seq=%u public_type=%d protocol=%d effective_type=%d rust_protocol=%d",
+            create_seq, type, protocol, effective_type, rust_protocol);
 
     struct stcp_v2_socket *sock = stcp_v2_socket_alloc();
     if (sock == NULL) {
@@ -617,7 +638,7 @@ static int stcp_v2_socket_create(int family, int type, int protocol)
             (long)atomic_get(&sock->rx_stop),
             sock->rust_ctx, sock->carrier);
 
-    sock->carrier = stcp_v2_carrier_open(type);
+    sock->carrier = stcp_v2_carrier_open(effective_type);
     if (sock->carrier == NULL) {
         LOG_ERR("LIFECYCLE CREATE CARRIER FAIL sock=%p errno=%d", sock, errno);
         stcp_v2_socket_free(sock);
@@ -627,7 +648,7 @@ static int stcp_v2_socket_create(int family, int type, int protocol)
     LOG_ERR("LIFECYCLE CREATE CARRIER sock=%p carrier=%p native_fd=%d owns_fd=%d",
             sock, sock->carrier, sock->carrier->fd, sock->carrier->owns_fd ? 1 : 0);
 
-    int rc = stcp_rust_create(type == SOCK_DGRAM ? 254 : 253, &sock->rust_ctx);
+    int rc = stcp_rust_create(rust_protocol, &sock->rust_ctx);
     if (rc < 0 || sock->rust_ctx == NULL) {
         stcp_v2_carrier_free(sock->carrier);
         stcp_v2_socket_free(sock);
@@ -646,8 +667,8 @@ static int stcp_v2_socket_create(int family, int type, int protocol)
         return -1;
     }
     sock->fd = fd;
-    sock->socket_type = type;
-    sock->protocol = protocol == 0 ? IPPROTO_STCP : protocol;
+    sock->socket_type = effective_type;
+    sock->protocol = rust_protocol;
     zvfs_finalize_typed_fd(fd, sock,
         (const struct fd_op_vtable *)&stcp_v2_vtable, ZVFS_MODE_IFSOCK);
 
@@ -655,7 +676,8 @@ static int stcp_v2_socket_create(int family, int type, int protocol)
             create_seq, sock, fd, sock->carrier->fd, sock->rust_ctx,
             (long)atomic_get(&sock->rx_running),
             (long)atomic_get(&sock->rx_stop));
-    LOG_INF("AF_STCP fd=%d type=%d native_fd=%d", fd, type, sock->carrier->fd);
+    LOG_INF("AF_STCP fd=%d public_type=%d effective_type=%d protocol=%d native_fd=%d",
+            fd, type, effective_type, rust_protocol, sock->carrier->fd);
     return fd;
 }
 

@@ -556,7 +556,33 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
-    if let Some(key)=received_key { {let mut inner=ctx.inner.lock(); let role=inner.role; inner.crypto.derive_session_keys(&key,role)?;} let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?; send_frame(ctx,&shared,side,&done,0)?; }
+    if let Some(key)=received_key {
+        /*
+         * Do not hold ctx.inner's busy-spin lock across X25519/KDF.
+         *
+         * On Zephyr the connect waiter concurrently calls
+         * stcp_rust_is_connected(), which takes the same SpinLock.  If RX
+         * keeps the lock while doing the relatively long software X25519,
+         * the waiter can busy-spin on the same CPU and starve the RX thread
+         * that owns the lock.  Snapshot the crypto context and role under
+         * the lock, perform crypto without the lock, then publish the
+         * derived context under a short lock.
+         */
+        let (role, mut crypto) = {
+            let inner = ctx.inner.lock();
+            (inner.role, inner.crypto.clone())
+        };
+
+        crypto.derive_session_keys(&key, role)?;
+
+        {
+            let mut inner = ctx.inner.lock();
+            inner.crypto = crypto;
+        }
+
+        let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?;
+        send_frame(ctx,&shared,side,&done,0)?;
+    }
     {
         let mut inner = ctx.inner.lock();
 

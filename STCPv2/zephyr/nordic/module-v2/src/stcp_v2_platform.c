@@ -407,7 +407,13 @@ int stcp_kernel_x25519_shared(uint8_t *shared, const uint8_t *secret,
 
     LOG_INF("X25519 shared-secret start: backend=PSA imported-key");
 
+    LOG_ERR("X25519DIAG IMPORT ENTER");
+
     status = psa_import_key(&attr, secret, 32U, &key_id);
+
+    LOG_ERR("X25519DIAG IMPORT RETURN status=%d key_id=%u",
+            (int)status, (unsigned int)key_id);
+
     if (status != PSA_SUCCESS) {
         LOG_ERR("X25519 psa_import_key failed: status=%d (%s)",
                 (int)status, psa_status_name(status));
@@ -416,11 +422,17 @@ int stcp_kernel_x25519_shared(uint8_t *shared, const uint8_t *secret,
         return psa_to_errno(status);
     }
 
+    LOG_ERR("X25519DIAG AGREEMENT ENTER key_id=%u",
+            (unsigned int)key_id);
+
     status = psa_raw_key_agreement(PSA_ALG_ECDH,
                                    key_id,
                                    peer, 32U,
                                    shared, 32U,
                                    &shared_len);
+
+    LOG_ERR("X25519DIAG AGREEMENT RETURN status=%d len=%u",
+            (int)status, (unsigned int)shared_len);
 
     (void)psa_destroy_key(key_id);
     psa_reset_key_attributes(&attr);

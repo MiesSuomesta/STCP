@@ -24,7 +24,7 @@ static void rx_thread(void *p1, void *p2, void *p3)
 
         errno = 0;
 
-        if (sock->socket_type == SOCK_DGRAM) {
+        if (sock->carrier->socket_type == SOCK_DGRAM) {
             struct sockaddr_in peer = {0};
             socklen_t peer_len = sizeof(peer);
             n = zsock_recvfrom(sock->carrier->fd, buffer, sizeof(buffer), 0,

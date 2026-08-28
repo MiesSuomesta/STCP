@@ -11,6 +11,9 @@
 
 LOG_MODULE_REGISTER(stcp_v2_socket, CONFIG_STCP_V2_LOG_LEVEL);
 
+/* Read only from the connect waiter; RX/crypto path only stores atomically. */
+extern size_t stcp_rust_crypto_diag_stage_get(void);
+
 /*
  * Persistent lifecycle diagnostics.
  *
@@ -142,12 +145,13 @@ static int wait_connected(struct stcp_v2_socket *sock)
     }
 
     LOG_ERR("CONNDIAG TIMEOUT iter=%u elapsed_ms=%lld rx_running=%ld "
-            "rx_stop=%ld native_fd=%d",
+            "rx_stop=%ld native_fd=%d crypto_stage=%u",
             iter,
             (long long)(k_uptime_get() - started),
             (long)atomic_get(&sock->rx_running),
             (long)atomic_get(&sock->rx_stop),
-            sock->carrier != NULL ? sock->carrier->fd : -1);
+            sock->carrier != NULL ? sock->carrier->fd : -1,
+            (unsigned int)stcp_rust_crypto_diag_stage_get());
 
     return -ETIMEDOUT;
 }

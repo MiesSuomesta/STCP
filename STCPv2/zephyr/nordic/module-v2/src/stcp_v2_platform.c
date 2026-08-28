@@ -13,6 +13,10 @@
 
 LOG_MODULE_REGISTER(stcp_rust_platform, CONFIG_STCP_V2_LOG_LEVEL);
 
+/* Silent Rust-owned stage recorder; no UART/logging in crypto context. */
+extern void stcp_rust_crypto_diag_stage_set(size_t stage);
+
+
 static atomic_t crypto_ready;
 static psa_status_t crypto_init_status = PSA_ERROR_BAD_STATE;
 
@@ -453,10 +457,13 @@ int stcp_kernel_x25519_shared(uint8_t *shared, const uint8_t *secret,
      *  3 = stcp_x25519_soft() returned
      *  4 = shared secret passed the all-zero check
      */
+    stcp_rust_crypto_diag_stage_set(50U);
     stcp_x25519_reset_stage(1U, shared, secret, peer);
     stcp_x25519_reset_stage(2U, shared, secret, peer);
 
+    stcp_rust_crypto_diag_stage_set(60U);
     rc = stcp_x25519_soft(shared, secret, peer);
+    stcp_rust_crypto_diag_stage_set(70U);
 
     stcp_x25519_reset_stage(3U, shared, secret, peer);
 
@@ -471,6 +478,7 @@ int stcp_kernel_x25519_shared(uint8_t *shared, const uint8_t *secret,
     }
 
     stcp_x25519_reset_stage(4U, shared, secret, peer);
+    stcp_rust_crypto_diag_stage_set(80U);
 
     return 0;
 }

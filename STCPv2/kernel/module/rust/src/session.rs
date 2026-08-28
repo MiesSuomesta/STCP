@@ -533,7 +533,7 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
+        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); crate::crypto::crypto_diag_stage_set(20); received_key=Some(key); }
         PacketType::HandshakeDone => {
             if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
             received_done = true;

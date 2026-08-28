@@ -1,35 +1,32 @@
-STCPv2 recv/release lifetime race fix
-Baseline: module-22082026_143739.zip
+STCPv2 silent crypto-stage memory diagnostic
+============================================
 
-Changed files:
-  include/stcp_socket.h
-  src/stcp_proto.c
-  src/stcp_ops.c
+Based on the uploaded current kernel/module Rust sources and the current
+Zephyr silent-X25519/no-wait-tick diagnostic baseline.
 
-What changed:
-  - per-socket recv_callbacks counter + recv_drain_wq
-  - stcp_recvmsg() logs RECV-ENTER/RECV-EXIT and participates in lifetime drain
-  - teardown wakes blocked recvmsg() calls and waits until recv_callbacks == 0
-  - recvmsg wait condition observes teardown/rust_ctx disappearance
-  - release logs RELEASE-WAIT-RECV / RELEASE-RECV-DRAINED / RELEASE-HANDOFF
-  - release no longer writes sock->sk = NULL itself
-  - after sk_common_release(), release returns immediately without touching sk/ssk
+No printk/LOG calls are added to the RX -> Rust -> crypto -> X25519 path.
+The path only performs relaxed atomic stores to a Rust AtomicUsize.
 
-Expected useful trace around close:
-  stcp-lifetime: RELEASE-MARK ...
-  stcp-lifetime: RELEASE-WAIT-RECV ... active=N
-  stcp-lifetime: RECV-EXIT ... active=0 teardown=1 ...
-  stcp-lifetime: RELEASE-RECV-DRAINED ... active=0
-  ... carrier/Rust teardown ...
-  stcp-lifetime: RELEASE-HANDOFF ... recv_active=0
+Stages:
+  10  stcp_rust_carrier_receive_from entered
+  20  PublicKey payload parsed/copied
+  30  derive_session_keys entered
+  40  immediately before stcp_kernel_x25519_shared FFI
+  50  C stcp_kernel_x25519_shared entered
+  60  immediately before stcp_x25519_soft
+  70  stcp_x25519_soft returned
+  80  C shared-secret success path returning
+  90  Rust returned from stcp_kernel_x25519_shared
+ 100  derive_session_keys completed successfully
+ 110  queue_to_context / carrier receive returned
 
-Install as overlay from module root:
-  unzip stcp-recv-release-race-fix-20260822.zip
-  cp -av stcp-recv-release-race-fix/include/stcp_socket.h include/
-  cp -av stcp-recv-release-race-fix/src/stcp_proto.c src/
-  cp -av stcp-recv-release-race-fix/src/stcp_ops.c src/
+The connect waiter prints the current stage ONLY on its normal 60 s timeout:
+  CONNDIAG TIMEOUT ... crypto_stage=<N>
 
-Build note:
-  Source structural checks completed. Full host build could not be run in the
-  sandbox because this project Makefile requires rustup, which is unavailable
-  here.
+Interpretation:
+  stage=60 strongly isolates the block inside stcp_x25519_soft().
+  stage=40 means Rust->C call did not reach the first C stage store.
+  stage=50 means C entered but did not reach the soft-call boundary.
+  stage>=70 means X25519 itself returned.
+
+Apply as a project-root overlay.  Build/flash Zephyr and rerun CoAP.

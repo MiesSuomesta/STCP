@@ -118,14 +118,12 @@ static int wait_connected(struct stcp_v2_socket *sock)
             return rc;
         }
 
-        tick_rc = stcp_rust_tick(sock->rust_ctx);
-
-        if (tick_rc < 0 && tick_rc != -EAGAIN) {
-            LOG_ERR("CONNDIAG tick rc=%d iter=%u elapsed_ms=%lld",
-                    tick_rc,
-                    iter,
-                    (long long)(k_uptime_get() - started));
-        }
+        /*
+         * Diagnostic: do not re-enter the same Rust context from the
+         * connect waiter while the RX thread may be inside
+         * stcp_rust_carrier_receive_from() -> handshake -> X25519.
+         */
+        tick_rc = 0;
 
         sem_rc = k_sem_take(&sock->event, K_MSEC(20));
 #if 0

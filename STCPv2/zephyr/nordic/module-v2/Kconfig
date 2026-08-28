@@ -35,7 +35,7 @@ config STCP_V2_RUST_TOOLCHAIN
 config STCP_V2_RX_STACK_SIZE
     int "Per-socket native carrier RX thread stack"
     default 4096
-    range 2048 8192
+    range 2048 32768
 
 config STCP_V2_RX_PRIORITY
     int "Native carrier RX thread priority"

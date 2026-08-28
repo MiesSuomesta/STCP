@@ -48,12 +48,40 @@ static void rx_thread(void *p1, void *p2, void *p3)
                     (unsigned int)ntohs(peer.sin_port));
 
             if (n > 0) {
+                {
+                    size_t unused = 0U;
+                    int stack_rc = k_thread_stack_space_get(&sock->rx_thread, &unused);
+
+                    LOG_ERR("RXSTACK BEFORE_RUST sock=%p n=%d rc=%d unused=%u total=%u used=%u",
+                            sock, (int)n, stack_rc,
+                            (unsigned int)unused,
+                            (unsigned int)K_KERNEL_STACK_SIZEOF(sock->rx_stack),
+                            stack_rc == 0 &&
+                            unused <= K_KERNEL_STACK_SIZEOF(sock->rx_stack)
+                                ? (unsigned int)(K_KERNEL_STACK_SIZEOF(sock->rx_stack) - unused)
+                                : 0U);
+                }
+
                 LOG_ERR("RXDIAG RUST ENTER ctx=%p n=%d peer_port=%u",
                         sock->rust_ctx, (int)n,
                         (unsigned int)ntohs(peer.sin_port));
 
                 rc = stcp_rust_carrier_receive_from(sock->rust_ctx, buffer, (size_t)n,
                                                     peer.sin_addr.s_addr, peer.sin_port);
+
+                {
+                    size_t unused = 0U;
+                    int stack_rc = k_thread_stack_space_get(&sock->rx_thread, &unused);
+
+                    LOG_ERR("RXSTACK AFTER_RUST sock=%p n=%d rc=%d unused=%u total=%u used=%u",
+                            sock, (int)n, stack_rc,
+                            (unsigned int)unused,
+                            (unsigned int)K_KERNEL_STACK_SIZEOF(sock->rx_stack),
+                            stack_rc == 0 &&
+                            unused <= K_KERNEL_STACK_SIZEOF(sock->rx_stack)
+                                ? (unsigned int)(K_KERNEL_STACK_SIZEOF(sock->rx_stack) - unused)
+                                : 0U);
+                }
 
                 LOG_ERR("RXDIAG RUST RETURN ctx=%p n=%d rc=%d connected=%d",
                         sock->rust_ctx, (int)n, rc,

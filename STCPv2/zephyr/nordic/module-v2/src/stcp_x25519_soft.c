@@ -157,7 +157,15 @@ int stcp_x25519_soft(uint8_t out[32], const uint8_t scalar[32],
         return -EINVAL;
     }
 
-    memcpy(z, scalar, sizeof(z));
+    /*
+     * Keep the current explicit byte copy.  The previous diagnostic build
+     * replaced memcpy() so an unaligned scalar cannot make libc/compiler
+     * choose wider loads here.
+     */
+    for (i = 0; i < 32; ++i) {
+        z[i] = scalar[i];
+    }
+
     z[31] = (uint8_t)((z[31] & 127U) | 64U);
     z[0] &= 248U;
     unpack25519(x, point);
@@ -170,6 +178,7 @@ int stcp_x25519_soft(uint8_t out[32], const uint8_t scalar[32],
 
     for (i = 254; i >= 0; --i) {
         const int r = (z[i >> 3] >> (i & 7)) & 1;
+
         sel25519(a, b, r);
         sel25519(c, d, r);
         add(e, a, c);

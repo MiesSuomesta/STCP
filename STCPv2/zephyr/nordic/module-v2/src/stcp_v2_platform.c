@@ -16,6 +16,41 @@ LOG_MODULE_REGISTER(stcp_rust_platform, CONFIG_STCP_V2_LOG_LEVEL);
 static atomic_t crypto_ready;
 static psa_status_t crypto_init_status = PSA_ERROR_BAD_STATE;
 
+/*
+ * X25519 reset diagnostic.
+ *
+ * Kept in .noinit so a warm reset can reveal the last stage reached even
+ * when the UART/debug transport disappears before the final log is emitted.
+ * No logging is done while advancing the stage in the shared-secret path.
+ */
+#define STCP_X25519_RESET_MAGIC 0x58323535U /* "X255" */
+
+struct stcp_x25519_reset_diag {
+    uint32_t magic;
+    uint32_t stage;
+    uint32_t cycle;
+    uintptr_t thread;
+    uintptr_t shared;
+    uintptr_t secret;
+    uintptr_t peer;
+};
+
+__noinit static struct stcp_x25519_reset_diag stcp_x25519_reset_diag;
+
+static inline void stcp_x25519_reset_stage(uint32_t stage,
+                                           const uint8_t *shared,
+                                           const uint8_t *secret,
+                                           const uint8_t *peer)
+{
+    stcp_x25519_reset_diag.magic = STCP_X25519_RESET_MAGIC;
+    stcp_x25519_reset_diag.stage = stage;
+    stcp_x25519_reset_diag.cycle = k_cycle_get_32();
+    stcp_x25519_reset_diag.thread = (uintptr_t)k_current_get();
+    stcp_x25519_reset_diag.shared = (uintptr_t)shared;
+    stcp_x25519_reset_diag.secret = (uintptr_t)secret;
+    stcp_x25519_reset_diag.peer = (uintptr_t)peer;
+}
+
 static const char *psa_status_name(psa_status_t status)
 {
     switch (status) {
@@ -67,6 +102,20 @@ static int stcp_crypto_ensure_ready(void)
 
 static int stcp_crypto_init_hook(void)
 {
+    if (stcp_x25519_reset_diag.magic == STCP_X25519_RESET_MAGIC) {
+        printk("X25519RESET PREV stage=%u cycle=%u tid=%p shared=%p secret=%p peer=%p\n",
+               (unsigned int)stcp_x25519_reset_diag.stage,
+               (unsigned int)stcp_x25519_reset_diag.cycle,
+               (void *)stcp_x25519_reset_diag.thread,
+               (void *)stcp_x25519_reset_diag.shared,
+               (void *)stcp_x25519_reset_diag.secret,
+               (void *)stcp_x25519_reset_diag.peer);
+    } else {
+        printk("X25519RESET PREV none\n");
+    }
+
+    memset(&stcp_x25519_reset_diag, 0, sizeof(stcp_x25519_reset_diag));
+
     int rc = stcp_crypto_ensure_ready();
     if (rc != 0) {
         LOG_ERR("STCP crypto backend unavailable at boot: rc=%d psa=%d (%s)",
@@ -375,87 +424,56 @@ int stcp_kernel_x25519_keypair(uint8_t *secret, uint8_t *public_key)
 int stcp_kernel_x25519_shared(uint8_t *shared, const uint8_t *secret,
                                const uint8_t *peer)
 {
-    psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
-    psa_key_id_t key_id = 0;
-    size_t shared_len = 0;
-    psa_status_t status;
     int rc;
 
     if (shared == NULL || secret == NULL || peer == NULL) {
         return -EINVAL;
     }
 
-    rc = stcp_crypto_ensure_ready();
-    if (rc != 0) {
-        return rc;
+    /*
+     * Keep the X25519 backend consistent with keypair generation.
+     *
+     * The nRF Connect SDK PSA imported Montgomery/X25519 private-key path
+     * can block inside psa_import_key() on this target.  The RFC7748
+     * software implementation is already used for public-key generation,
+     * is allocation-free, and clamps a private copy of the scalar itself.
+     */
+    if (!IS_ENABLED(CONFIG_STCP_V2_X25519_SOFTWARE)) {
+        LOG_ERR("X25519 software shared-secret backend disabled");
+        memset(shared, 0, 32U);
+        return -ENOTSUP;
     }
 
     /*
-     * nRF Connect SDK's PSA X25519 path supports imported Montgomery-255
-     * private keys for ECDH even on configurations where psa_generate_key()
-     * for that key type returns PSA_ERROR_NOT_SUPPORTED.
+     * Deliberately silent diagnostic stages.  If the board resets or the
+     * debug UART vanishes here, the next boot prints the last retained stage.
      *
-     * Keep keypair generation on the already-working RFC7748 software path,
-     * but move the expensive shared-secret scalar multiplication out of the
-     * stcp-v2-rx stack into the PSA backend.
+     *  1 = returned from the start LOG_INF
+     *  2 = immediately before stcp_x25519_soft()
+     *  3 = stcp_x25519_soft() returned
+     *  4 = shared secret passed the all-zero check
      */
-    psa_set_key_type(&attr,
-                     PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_MONTGOMERY));
-    psa_set_key_bits(&attr, 255);
-    psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
-    psa_set_key_algorithm(&attr, PSA_ALG_ECDH);
+    stcp_x25519_reset_stage(1U, shared, secret, peer);
+    stcp_x25519_reset_stage(2U, shared, secret, peer);
 
-    LOG_INF("X25519 shared-secret start: backend=PSA imported-key");
+    rc = stcp_x25519_soft(shared, secret, peer);
 
-    LOG_ERR("X25519DIAG IMPORT ENTER");
+    stcp_x25519_reset_stage(3U, shared, secret, peer);
 
-    status = psa_import_key(&attr, secret, 32U, &key_id);
-
-    LOG_ERR("X25519DIAG IMPORT RETURN status=%d key_id=%u",
-            (int)status, (unsigned int)key_id);
-
-    if (status != PSA_SUCCESS) {
-        LOG_ERR("X25519 psa_import_key failed: status=%d (%s)",
-                (int)status, psa_status_name(status));
+    if (rc != 0) {
         memset(shared, 0, 32U);
-        psa_reset_key_attributes(&attr);
-        return psa_to_errno(status);
-    }
-
-    LOG_ERR("X25519DIAG AGREEMENT ENTER key_id=%u",
-            (unsigned int)key_id);
-
-    status = psa_raw_key_agreement(PSA_ALG_ECDH,
-                                   key_id,
-                                   peer, 32U,
-                                   shared, 32U,
-                                   &shared_len);
-
-    LOG_ERR("X25519DIAG AGREEMENT RETURN status=%d len=%u",
-            (int)status, (unsigned int)shared_len);
-
-    (void)psa_destroy_key(key_id);
-    psa_reset_key_attributes(&attr);
-
-    if (status != PSA_SUCCESS || shared_len != 32U) {
-        LOG_ERR("X25519 psa_raw_key_agreement failed: status=%d len=%u (%s)",
-                (int)status,
-                (unsigned int)shared_len,
-                psa_status_name(status));
-        memset(shared, 0, 32U);
-        return status == PSA_SUCCESS ? -EIO : psa_to_errno(status);
+        return rc;
     }
 
     if (stcp_x25519_soft_is_all_zero(shared)) {
-        LOG_ERR("X25519 PSA shared secret is all zero (low-order peer key)");
         memset(shared, 0, 32U);
         return -EKEYREJECTED;
     }
 
-    LOG_INF("X25519 shared-secret complete: backend=PSA imported-key");
+    stcp_x25519_reset_stage(4U, shared, secret, peer);
+
     return 0;
 }
-
 
 /*
  * RFC 8439 software ChaCha20-Poly1305 fallback.

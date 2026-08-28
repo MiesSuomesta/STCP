@@ -1,6 +1,32 @@
 use alloc::vec::Vec;
 use core::ffi::c_int;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use crate::error::StcpError;
+
+
+/*
+ * Silent crypto-path diagnostic.
+ *
+ * The RX/crypto execution context only stores stage numbers here.  It does
+ * not printk/log.  A different Zephyr thread reads the value on connect
+ * timeout, avoiding UART/debug I/O in the suspected blocking path.
+ */
+static STCP_CRYPTO_DIAG_STAGE: AtomicUsize = AtomicUsize::new(0);
+
+#[inline(always)]
+pub(crate) fn crypto_diag_stage_set(stage: usize) {
+    STCP_CRYPTO_DIAG_STAGE.store(stage, Ordering::Relaxed);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_crypto_diag_stage_set(stage: usize) {
+    crypto_diag_stage_set(stage);
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_crypto_diag_stage_get() -> usize {
+    STCP_CRYPTO_DIAG_STAGE.load(Ordering::Relaxed)
+}
 
 pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const CHACHA_TAG_LEN:usize=16; pub const NONCE_LEN:usize=8;
 #[derive(Clone,Copy,PartialEq,Eq)] pub enum Role{Client,Server}
@@ -23,8 +49,11 @@ impl CryptoContext{
  pub fn new()->Result<Self,StcpError>{let mut secret=[0;32];let mut pub32=[0;32];let r=unsafe{stcp_kernel_x25519_keypair(secret.as_mut_ptr(),pub32.as_mut_ptr())};if r!=0{return Err(StcpError::Kernel(r));}let mut public=[0;64];public[..32].copy_from_slice(&pub32);Ok(Self{secret_key:secret,public_key:public,tx_key:None,rx_key:None})}
  pub const fn public_key(&self)->[u8;64]{self.public_key}
  pub fn derive_session_keys(&mut self,peer:&[u8;64],role:Role)->Result<(),StcpError>{
+  crypto_diag_stage_set(30);
   let mut shared=[0u8;32];
+  crypto_diag_stage_set(40);
   let r=unsafe{stcp_kernel_x25519_shared(shared.as_mut_ptr(),self.secret_key.as_ptr(),peer.as_ptr())};
+  crypto_diag_stage_set(90);
   if r!=0{return Err(StcpError::Kernel(r));}
 
   let mut local=[0u8;32];
@@ -67,6 +96,7 @@ impl CryptoContext{
    Role::Client=>{self.tx_key=Some(c2s);self.rx_key=Some(s2c)},
    Role::Server=>{self.tx_key=Some(s2c);self.rx_key=Some(c2s)},
   }
+  crypto_diag_stage_set(100);
   Ok(())
  }
  pub const fn ready(&self)->bool{self.tx_key.is_some()&&self.rx_key.is_some()}

@@ -344,6 +344,7 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
         return -22;
     }
 
+    crate::crypto::crypto_diag_stage_set(10);
     let ctx = unsafe { &*(raw_ctx as *const StcpContext) };
     let bytes = if len == 0 {
         &[]
@@ -354,6 +355,7 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
     let state = ctx.inner.lock().state;
     if state != SocketState::Listening || ctx.proto != 254 {
         let rc = queue_to_context(ctx, bytes);
+        crate::crypto::crypto_diag_stage_set(110);
         if rc == StcpError::NoMem.errno() {
             /* NOMEM-9090: carrier_receive final result is -ENOMEM.
              * arg0=input bytes, arg1=current socket state. */

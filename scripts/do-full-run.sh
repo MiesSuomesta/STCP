@@ -27,6 +27,7 @@ cleanup_stcp_runtime() {
     pkill -TERM -x stcp-echo-client 2>/dev/null || true
     pkill -TERM -x stcp-v2-bench-server 2>/dev/null || true
     pkill -TERM -x stcp-server 2>/dev/null || true
+    pkill -TERM -x minicom 2>/dev/null || true
 
     sleep 1
 
@@ -34,6 +35,7 @@ cleanup_stcp_runtime() {
     pkill -KILL -x stcp-echo-client 2>/dev/null || true
     pkill -KILL -x stcp-v2-bench-server 2>/dev/null || true
     pkill -KILL -x stcp-server 2>/dev/null || true
+    pkill -KILL -x minicom 2>/dev/null || true
 
     sleep 1
 
@@ -460,6 +462,91 @@ run_zephyr_tests() {
     return "$rc"
 }
 
+
+run_zephyr_app_build_flash() {
+    local app_name="$1"
+    local app_root="$HOME/zephyr-stcp/stcp/$app_name"
+
+    [[ -d "$app_root" ]] || fail "Zephyr application missing: $app_root"
+    [[ -x "$app_root/scripts/build-v2-clean.sh" || -f "$app_root/scripts/build-v2-clean.sh" ]] || \
+        fail "Build script missing: $app_root/scripts/build-v2-clean.sh"
+    [[ -x "$app_root/scripts/flash-v2-clean.sh" || -f "$app_root/scripts/flash-v2-clean.sh" ]] || \
+        fail "Flash script missing: $app_root/scripts/flash-v2-clean.sh"
+
+    info "Building Zephyr application: $app_name"
+    cd "$app_root"
+    bash scripts/build-v2-clean.sh
+
+    info "Flashing Zephyr application: $app_name"
+    bash scripts/flash-v2-clean.sh
+
+    info "Waiting 3 seconds after $app_name flash..."
+    sleep 3
+
+    ok "Zephyr application build + flash complete: $app_name"
+}
+
+run_zephyr_app_tests() {
+    local app_name="$1"
+    local app_root="$HOME/zephyr-stcp/stcp/$app_name"
+    local runner="$app_root/scripts/run-application-robot.sh"
+    local rc=0
+
+    [[ -f "$runner" ]] || fail "Application Robot runner missing: $runner"
+
+    info "Running $app_name application regression..."
+
+    # App suites own their gateway/backend processes. Kill stale STCP users
+    # and Minicom before handing the serial port and AF_STCP sockets to them.
+    cleanup_stcp_users
+
+    cd "$app_root"
+
+    if bash "$runner"; then
+        ok "$app_name application regression PASS"
+        return 0
+    else
+        rc=$?
+        info "$app_name application regression FAIL rc=$rc"
+        return "$rc"
+    fi
+}
+
+run_coap_regression() {
+    local rc=0
+
+    run_zephyr_app_build_flash "app-coap"
+
+    if run_zephyr_app_tests "app-coap"; then
+        return 0
+    else
+        rc=$?
+        return "$rc"
+    fi
+}
+
+run_mqtt_regression() {
+    local rc=0
+
+    run_zephyr_app_build_flash "app-mqtt"
+
+    if run_zephyr_app_tests "app-mqtt"; then
+        return 0
+    else
+        rc=$?
+        return "$rc"
+    fi
+}
+
+restore_zephyr_golden_image() {
+    info "Restoring normal Zephyr STCPv2 test application..."
+    cleanup_stcp_users
+    run_zephyr_build_flash
+    info "Waiting 3 seconds after golden Zephyr restore..."
+    sleep 3
+    ok "Normal Zephyr STCPv2 test application restored"
+}
+
 main() {
     info "=================================================="
     info " STCPv2 FULL BUILD / DEPLOY / TEST RUN"
@@ -512,12 +599,47 @@ main() {
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 
+    # Golden transport regression has passed. Application regressions are
+    # deliberately run afterwards so a CoAP/MQTT application failure cannot
+    # hide a transport regression.
+    cleanup_stcp_users
+
+    if run_coap_regression; then
+        ok "Zephyr CoAP application regression PASS"
+    else
+        coap_rc=$?
+        info "Zephyr CoAP application regression FAIL rc=$coap_rc"
+        # Best effort: leave the board in the normal Robot-v2 firmware even
+        # after an application-suite failure.
+        restore_zephyr_golden_image || true
+        fail "Stopping full run after CoAP application failure rc=$coap_rc"
+    fi
+
+    cleanup_stcp_users
+
+    if run_mqtt_regression; then
+        ok "Zephyr MQTT application regression PASS"
+    else
+        mqtt_rc=$?
+        info "Zephyr MQTT application regression FAIL rc=$mqtt_rc"
+        restore_zephyr_golden_image || true
+        fail "Stopping full run after MQTT application failure rc=$mqtt_rc"
+    fi
+
+    # app-mqtt is the last firmware flashed above. Always put the normal
+    # command-driven test application back on the board, otherwise a later
+    # manual robot-v2 run sees "stcp: command not found".
+    restore_zephyr_golden_image
+
     ok "=================================================="
     ok " FULL STCPv2 RUN PASSED"
     ok " Host/RPi build+install : PASS"
     ok " Zephyr build+flash     : PASS"
     ok " Zephyr Robot           : PASS"
     ok " Host/RPi Robot         : PASS"
+    ok " Zephyr CoAP app        : PASS"
+    ok " Zephyr MQTT app        : PASS"
+    ok " Golden Zephyr restore  : PASS"
     ok "=================================================="
 }
 

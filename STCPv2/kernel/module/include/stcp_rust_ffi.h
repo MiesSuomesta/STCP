@@ -55,8 +55,22 @@ int stcp_rust_tick(void *ctx);
 int stcp_rust_get_reliability_stats(void *ctx, struct stcp_reliability_stats *out_stats);
 int stcp_rust_crypto_selftest(void);
 
+/* Native STCP_P2P shared-core status / wire-codec selftest. */
+u32 stcp_p2p_core_abi_version(void);
+int stcp_p2p_core_selftest(void);
+int stcp_p2p_core_ready(void);
+int stcp_p2p_noise_core_ready(void);
+int stcp_p2p_noise_selftest(void);
+int stcp_p2p_noise_dialer_new(const u8 identity_seed[32], void **out_ctx);
+void stcp_p2p_noise_dialer_free(void *ctx);
+int stcp_p2p_noise_dialer_message1(void *ctx, u8 *out, size_t cap);
+int stcp_p2p_noise_dialer_message2(void *ctx, const u8 *msg2, size_t msg2_len, u8 *out3, size_t cap);
+int stcp_p2p_noise_dialer_complete(void *ctx);
+const u8 *stcp_p2p_core_stage_name(u32 stage);
+
 int stcp_rust_carrier_receive(void *ctx, const u8 *data, size_t len);
 int stcp_rust_carrier_receive_from(void *ctx, const u8 *data, size_t len, u32 peer_addr, u16 peer_port);
 int stcp_rust_get_udp_peer(void *ctx, u32 *out_addr, u16 *out_port);
 
 #endif
+

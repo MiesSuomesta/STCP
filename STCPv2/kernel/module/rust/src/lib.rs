@@ -11,9 +11,11 @@ mod error;
 mod ffi;
 mod carrier;
 mod frame;
+mod kdf;
 mod spinlock;
 mod state;
 mod session;
+mod p2p;
 
 pub use error::StcpError;
 pub use state::StcpContext;

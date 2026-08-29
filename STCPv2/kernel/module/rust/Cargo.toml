@@ -18,6 +18,7 @@ debug = true
 strip = false
 
 [dependencies]
+ed25519-compact = { version = "2.3.1", default-features = false }
 
 [features]
 default = []

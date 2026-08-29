@@ -19,6 +19,47 @@ fail() {
     echo "$(ts) [FAIL] $*" >&2
     exit 1
 }
+teardown() {
+    local rc=$?
+    trap - EXIT INT TERM HUP
+    set +e
+
+    info "=================================================="
+    info " FULL RUN TEARDOWN rc=$rc"
+    info "=================================================="
+
+    # devaus / local host
+    cleanup_stcp_users
+
+    # Raspberry Pi
+    ssh -o ConnectTimeout=3 pi@raspi '
+        sudo pkill -TERM -f "stcp|echo-server|echo-client|bench-server" 2>/dev/null || true
+        sleep 1
+        sudo pkill -KILL -f "stcp|echo-server|echo-client|bench-server" 2>/dev/null || true
+    ' || true
+
+    # Netconsole receiver host:
+    # remove leaked receivers, but do NOT kill unrelated tcpdump instances.
+    ssh -o ConnectTimeout=3 lja@fuji '
+        pkill -TERM -f "bash /home/lja/enable-tcpdump.sh" 2>/dev/null || true
+        sudo pkill -TERM -f "tcpdump -lni any -s0 -A udp dst port 6666" 2>/dev/null || true
+        sleep 1
+        pkill -KILL -f "bash /home/lja/enable-tcpdump.sh" 2>/dev/null || true
+        sudo pkill -KILL -f "tcpdump -lni any -s0 -A udp dst port 6666" 2>/dev/null || true
+    ' || true
+
+    # Local leftovers from Robot / gateways / serial users
+    pkill -TERM -f 'mqtt_proxy|coap|stcp-v2-mqtt|stcp-v2.*gateway' 2>/dev/null || true
+    pkill -TERM -x minicom 2>/dev/null || true
+    sleep 1
+    pkill -KILL -f 'mqtt_proxy|coap|stcp-v2-mqtt|stcp-v2.*gateway' 2>/dev/null || true
+    pkill -KILL -x minicom 2>/dev/null || true
+
+    ok "FULL RUN TEARDOWN COMPLETE"
+    exit "$rc"
+}
+
+trap teardown EXIT INT TERM HUP
 
 cleanup_stcp_runtime() {
     info "Cleaning STCP users and kernel runtime..."

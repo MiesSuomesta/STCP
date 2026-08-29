@@ -114,13 +114,6 @@ static int set_nonblocking(int fd)
     return zsock_fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0 ? -errno : 0;
 }
 
-static int set_blocking(int fd)
-{
-    int flags = zsock_fcntl(fd, F_GETFL, 0);
-    if (flags < 0) return -errno;
-    return zsock_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0 ? -errno : 0;
-}
-
 static int configure_socket_timeouts(int fd, uint32_t timeout_ms)
 {
     struct zsock_timeval tv = {
@@ -298,10 +291,27 @@ static int connect_server(const struct bench_config *cfg)
             LOG_ERR("APP SO_ERROR fd=%d error=%d", fd, err);
             if (err) { rc = -err; goto fail; }
         }
-        rc = set_blocking(fd);
-        LOG_ERR("APP BLOCKING RETURN fd=%d rc=%d errno=%d", fd, rc, errno);
-        if (rc < 0) goto fail;
+        /* Keep the connected socket non-blocking for the benchmark data plane.
+         * The stream helpers below enforce their own inactivity deadlines with
+         * poll(), so they must not be able to block indefinitely inside
+         * zsock_send()/zsock_recv() when SO_SNDTIMEO/SO_RCVTIMEO are rejected
+         * by a socket provider/offload.
+         */
+        LOG_ERR("APP DATA PLANE fd=%d mode=nonblocking", fd);
     }
+
+#if defined(CONFIG_BENCH_STCP_BLOCKING_CONNECT)
+    if (cfg->transport == BENCH_TRANSPORT_STCP) {
+        /* AF_STCP socket offload does not implement F_GETFL/F_SETFL.
+         * Keep STCP in blocking mode after a successful blocking connect.
+         * Native TCP continues to use the non-blocking + poll data plane.
+         */
+        LOG_ERR("APP DATA PLANE fd=%d transport=stcp mode=blocking "
+                "nonblock_setup=skipped feature=BENCH_STCP_BLOCKING_CONNECT",
+                fd);
+    }
+#endif
+
     if (resolved_with_dns) {
         zsock_freeaddrinfo(res);
     }
@@ -453,9 +463,18 @@ static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_s
     uint32_t off = 0;
     uint32_t send_calls = 0;
     uint32_t partial_calls = 0;
+    uint32_t eagain_calls = 0;
+    uint32_t poll_calls = 0;
+    uint32_t next_diag = 1024U * 1024U;
     size_t max_send = 0;
     int64_t started = k_uptime_get();
     int64_t last_report = started;
+    int64_t deadline = started + active_cfg->timeout_ms;
+
+    if (active_cfg->transport == BENCH_TRANSPORT_STCP) {
+        LOG_ERR("BENCH_STCP_SEND_SLICE bytes=1024 app_chunk=%u total=%u",
+                chunk_size, total);
+    }
 
     while (off < total) {
         size_t chunk_len = MIN(chunk_size, total - off);
@@ -465,25 +484,77 @@ static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_s
 
         while (chunk_off < chunk_len) {
             size_t remaining = chunk_len - chunk_off;
-            ssize_t n = zsock_send(fd, tx_buf + chunk_off, remaining, 0);
+            size_t send_len = remaining;
+
+            /* Diagnostic phase 1.7: keep the BEN2/application chunk unchanged,
+             * but slice STCP payload writes into small syscalls.  This isolates
+             * whether a large blocking AF_STCP send() is what stalls the data
+             * plane.  TCP remains untouched for a clean baseline comparison.
+             */
+            if (active_cfg->transport == BENCH_TRANSPORT_STCP) {
+                send_len = MIN(send_len, (size_t)1024U);
+            }
+
+            ssize_t n = zsock_send(fd, tx_buf + chunk_off, send_len, 0);
             send_calls++;
 
             if (n > 0) {
-                if ((size_t)n < remaining) partial_calls++;
+                if ((size_t)n < send_len) partial_calls++;
                 if ((size_t)n > max_send) max_send = (size_t)n;
                 chunk_off += (size_t)n;
                 off += (uint32_t)n;
+                deadline = k_uptime_get() + active_cfg->timeout_ms;
+
+                while (off >= next_diag && next_diag <= total) {
+                    int64_t elapsed_ms = MAX(k_uptime_get() - started, 1);
+                    LOG_ERR("BENCH_TX_PROGRESS bytes=%u/%u elapsed_ms=%lld calls=%u partial=%u eagain=%u polls=%u max_send=%u",
+                            off, total, (long long)elapsed_ms, send_calls,
+                            partial_calls, eagain_calls, poll_calls,
+                            (uint32_t)max_send);
+                    if (UINT32_MAX - next_diag < (1024U * 1024U)) {
+                        next_diag = UINT32_MAX;
+                        break;
+                    }
+                    next_diag += 1024U * 1024U;
+                }
+
                 report_progress(label, off, total, started, &last_report, off == total);
                 continue;
             }
             if (n == 0) return -ECONNRESET;
             if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                int rc;
+
+                int64_t poll_started_ms;
+                int64_t poll_elapsed_ms;
+
+                eagain_calls++;
+                poll_calls++;
+                poll_started_ms = k_uptime_get();
+                rc = wait_socket_ready(fd, ZSOCK_POLLOUT, deadline);
+                poll_elapsed_ms = k_uptime_get() - poll_started_ms;
+
+                /* Keep diagnostics sparse so logging does not become the benchmark. */
+                if (eagain_calls <= 8U || (eagain_calls % 1024U) == 0U) {
+                    LOG_ERR("BENCH_TX_WAIT seq=%u bytes=%u rc=%d wait_ms=%lld",
+                            eagain_calls, off, rc, (long long)poll_elapsed_ms);
+                }
+
+                if (rc < 0) {
+                    LOG_ERR("%s TX wait failed rc=%d transferred=%u/%u eagain=%u polls=%u",
+                            label, rc, off, total, eagain_calls, poll_calls);
+                    return rc;
+                }
+                continue;
+            }
             return -errno;
         }
     }
 
-    LOG_INF("%s I/O stats calls=%u partial=%u max_send=%u",
-            label, send_calls, partial_calls, (uint32_t)max_send);
+    LOG_INF("%s I/O stats calls=%u partial=%u eagain=%u polls=%u max_send=%u",
+            label, send_calls, partial_calls, eagain_calls, poll_calls,
+            (uint32_t)max_send);
     return 0;
 }
 
@@ -492,9 +563,12 @@ static int stream_recv(int fd, uint8_t *rx_buf, uint32_t total, uint32_t rx_buf_
 {
     uint32_t off = 0;
     uint32_t recv_calls = 0;
+    uint32_t eagain_calls = 0;
+    uint32_t poll_calls = 0;
     size_t max_recv = 0;
     int64_t started = k_uptime_get();
     int64_t last_report = started;
+    int64_t deadline = started + active_cfg->timeout_ms;
 
     while (off < total) {
         size_t wanted = MIN(rx_buf_size, total - off);
@@ -506,15 +580,30 @@ static int stream_recv(int fd, uint8_t *rx_buf, uint32_t total, uint32_t rx_buf_
             if (rc < 0) return rc;
             if ((size_t)n > max_recv) max_recv = (size_t)n;
             off += (uint32_t)n;
+            deadline = k_uptime_get() + active_cfg->timeout_ms;
             report_progress(label, off, total, started, &last_report, off == total);
             continue;
         }
         if (n == 0) return -ECONNRESET;
         if (errno == EINTR) continue;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            int rc;
+
+            eagain_calls++;
+            poll_calls++;
+            rc = wait_socket_ready(fd, ZSOCK_POLLIN, deadline);
+            if (rc < 0) {
+                LOG_ERR("%s RX wait failed rc=%d transferred=%u/%u eagain=%u polls=%u",
+                        label, rc, off, total, eagain_calls, poll_calls);
+                return rc;
+            }
+            continue;
+        }
         return -errno;
     }
 
-    LOG_INF("%s I/O stats calls=%u max_recv=%u", label, recv_calls, (uint32_t)max_recv);
+    LOG_INF("%s I/O stats calls=%u eagain=%u polls=%u max_recv=%u",
+            label, recv_calls, eagain_calls, poll_calls, (uint32_t)max_recv);
     return 0;
 }
 

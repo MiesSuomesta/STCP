@@ -27,7 +27,7 @@ endchoice
 config ECHO_PAYLOAD_SIZE
     int "Echo payload size"
     default 1024
-    range 1 4096
+    range 1 40960
 
 config ECHO_ITERATIONS
     int "Number of echo round trips"
@@ -79,7 +79,7 @@ config BENCH_SENDER_STACK_SIZE
 config BENCH_WORKER_STACK_SIZE
     int "Benchmark worker thread stack size"
     default 8192
-    range 6144 24576
+    range 4096 24576
     help
       Stack reserved for the dedicated benchmark worker. AF_STCP socket and
       Rust session creation run in this thread instead of the shell UART

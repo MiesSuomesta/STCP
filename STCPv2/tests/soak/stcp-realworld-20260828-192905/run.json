@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "started_at": "2026-08-28T16:29:05.913626+00:00",
+  "seed": 1787934545,
+  "serial": "/dev/ttyACM0",
+  "baud": 115200,
+  "host": "192.168.1.20",
+  "ports": {
+    "upload": 19000,
+    "download": 19001,
+    "full": 19002
+  },
+  "duration_s": 3600,
+  "case_timeout_s": 90,
+  "min_total": 65536,
+  "max_total": 8388608,
+  "chunks": [
+    256,
+    512,
+    1024,
+    1536,
+    4096,
+    8192,
+    16384
+  ],
+  "fault_every": 0,
+  "fault_command": null
+}

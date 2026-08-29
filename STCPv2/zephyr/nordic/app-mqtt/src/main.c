@@ -106,16 +106,27 @@ static void client_init(void)
  * non-blocking when mqtt_input() asks for non-blocking input, so drive the
  * MQTT parser directly and treat -EAGAIN as "no packet yet".
  */
+
 static int mqtt_service_once(void)
 {
     int rc;
 
+    LOG_INF("MQTT SERVICE before input");
+
     rc = mqtt_input(&client);
+
+    LOG_INF("MQTT SERVICE after input rc=%d", rc);
+
     if (rc < 0 && rc != -EAGAIN) {
         return rc;
     }
 
+    LOG_INF("MQTT SERVICE before live");
+
     rc = mqtt_live(&client);
+
+    LOG_INF("MQTT SERVICE after live rc=%d", rc);
+
     if (rc < 0 && rc != -EAGAIN) {
         return rc;
     }
@@ -224,39 +235,69 @@ int main(void)
 
         LOG_INF("MQTT connected over STCP");
 
-        while (connected) {
-            int64_t deadline;
+	while (connected) {
+		int64_t deadline;
+		int64_t now;
 
-            rc = publish_once(sequence++);
-            if (rc < 0) {
-                LOG_ERR("mqtt_publish failed: %d", rc);
-                break;
-            }
+		LOG_INF("MQTT PUBLISH begin seq=%u", sequence);
 
-            LOG_INF("MQTT PUBLISH OK");
+		rc = publish_once(sequence++);
 
-            deadline =
-                k_uptime_get() + CONFIG_STCP_MQTT_PUBLISH_INTERVAL_MS;
+		LOG_INF("MQTT PUBLISH returned rc=%d connected=%d",
+			rc, connected);
 
-            while (connected && k_uptime_get() < deadline) {
-                rc = mqtt_service_once();
+		if (rc < 0) {
+			LOG_ERR("mqtt_publish failed: %d", rc);
+			break;
+		}
 
-                if (rc < 0) {
-                    LOG_ERR("MQTT service failed: %d", rc);
-                    connected = false;
-                    break;
+                LOG_INF("MQTT PUBLISH OK");
+
+                LOG_ERR("MQTTDBG A");
+
+                now = k_uptime_get();
+                deadline = now + CONFIG_STCP_MQTT_PUBLISH_INTERVAL_MS;
+
+                LOG_ERR("MQTTDBG B now=%lld deadline=%lld connected=%d",
+                        now, deadline, connected);
+
+                while (connected && k_uptime_get() < deadline) {
+                        LOG_ERR("MQTTDBG C");
+
+                        rc = mqtt_service_once();
+
+                        LOG_ERR("MQTTDBG D rc=%d connected=%d",
+                                rc, connected);
+
+                        if (rc < 0) {
+                                connected = false;
+                                break;
+                        }
+
+                        k_sleep(K_MSEC(20));
                 }
 
-                k_sleep(K_MSEC(20));
-            }
-        }
+                LOG_ERR("MQTTDBG E now=%lld deadline=%lld connected=%d",
+                        k_uptime_get(), deadline, connected);
+
+		LOG_INF("MQTT LOOP ended connected=%d now=%lld deadline=%lld",
+			connected,
+			k_uptime_get(),
+			deadline);
+	}
+
+	LOG_INF("MQTT main publish loop exited connected=%d", connected);
+
+	(void)mqtt_abort(&client);
+
+reconnect:
+	LOG_WRN("MQTT reconnect in %d ms",
+		CONFIG_STCP_MQTT_RECONNECT_DELAY_MS);
+	k_sleep(K_MSEC(CONFIG_STCP_MQTT_RECONNECT_DELAY_MS));
+
 
         (void)mqtt_abort(&client);
 
-reconnect:
-        LOG_WRN("MQTT reconnect in %d ms",
-                CONFIG_STCP_MQTT_RECONNECT_DELAY_MS);
-        k_sleep(K_MSEC(CONFIG_STCP_MQTT_RECONNECT_DELAY_MS));
     }
 
     return 0;

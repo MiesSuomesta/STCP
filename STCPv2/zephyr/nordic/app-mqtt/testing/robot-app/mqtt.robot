@@ -11,7 +11,7 @@ ${GATEWAY_BIN}     %{STCP_MQTT_GATEWAY_BIN=../gw/target/release/stcp-v2-mqtt-gat
 ${GATEWAY_HOST}    %{STCP_MQTT_GATEWAY_HOST=0.0.0.0}
 ${GATEWAY_PORT}    %{STCP_MQTT_GATEWAY_PORT=18830}
 ${BACKEND_HOST}    %{STCP_MQTT_BACKEND_HOST=127.0.0.1}
-${BACKEND_PORT}    %{STCP_MQTT_BACKEND_PORT=1883}
+${BACKEND_PORT}    %{STCP_MQTT_BACKEND_PORT=1884}
 
 *** Keywords ***
 Start MQTT E2E
@@ -47,5 +47,7 @@ MQTT Publish Zephyr To Linux Broker
 
 MQTT Repeated Publishes
     Sleep    7s
+    ${serial}=    Dump Serial    15.0
+    Log    ${serial}
     ${count}=    Count File Text    mqtt-backend.log    MQTT_TEST_PUBLISH
     Should Be True    ${count} >= 3    Expected at least 3 MQTT publishes, got ${count}

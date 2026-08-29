@@ -177,7 +177,14 @@ int mqtt_client_custom_transport_read(struct mqtt_client *client,
         return -ENOTCONN;
     }
 
+    LOG_INF("MQTT READ enter fd=%d block=%d flags=0x%x len=%u",
+        transport->fd, shall_block, flags, buflen);
+
     n = zsock_recv(transport->fd, data, buflen, flags);
+
+    LOG_INF("MQTT READ exit fd=%d n=%d errno=%d",
+         transport->fd, (int)n, errno);
+
     if (n < 0) {
         return -errno;
     }

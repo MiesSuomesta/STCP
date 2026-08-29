@@ -243,21 +243,41 @@ static int close_socket(void *obj)
     return 0;
 }
 
-static ssize_t read_socket(void *obj, void *buf, size_t len)
+static ssize_t read_socket_flags(void *obj, void *buf, size_t len, int flags)
 {
     struct stcp_v2_socket *sock = obj;
+
     while (true) {
         ssize_t rc = stcp_rust_recv(sock->rust_ctx, buf, len, 0);
+
         if (rc >= 0) {
             return rc;
         }
+
         if (rc != -EAGAIN) {
             errno = (int)-rc;
             return -1;
         }
+
+        /*
+         * Preserve POSIX/Zephyr MSG_DONTWAIT semantics at the AF_STCP
+         * socket boundary.  The Rust core reports an empty RX queue as
+         * -EAGAIN; a non-blocking recv must surface that immediately
+         * instead of waiting on the socket event semaphore.
+         */
+        if ((flags & ZSOCK_MSG_DONTWAIT) != 0) {
+            errno = EAGAIN;
+            return -1;
+        }
+
         (void)k_sem_take(&sock->event, K_MSEC(100));
         (void)stcp_rust_tick(sock->rust_ctx);
     }
+}
+
+static ssize_t read_socket(void *obj, void *buf, size_t len)
+{
+    return read_socket_flags(obj, buf, len, 0);
 }
 
 static ssize_t write_socket(void *obj, const void *buf, size_t len)
@@ -598,14 +618,15 @@ static ssize_t recvfrom_socket(void *obj, void *buf, size_t len, int flags,
                                struct sockaddr *src, socklen_t *srclen)
 {
     struct stcp_v2_socket *sock = obj;
-    ARG_UNUSED(flags);
-    ssize_t rc = read_socket(obj, buf, len);
+    ssize_t rc = read_socket_flags(obj, buf, len, flags);
+
     if (rc >= 0 && src != NULL && srclen != NULL && *srclen >= sizeof(struct sockaddr_in)) {
         if (sock->carrier != NULL && sock->carrier->peer_valid) {
             memcpy(src, &sock->carrier->peer, sizeof(sock->carrier->peer));
             *srclen = sizeof(sock->carrier->peer);
         }
     }
+
     return rc;
 }
 

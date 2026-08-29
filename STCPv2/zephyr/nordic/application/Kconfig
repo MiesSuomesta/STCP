@@ -27,7 +27,7 @@ endchoice
 config ECHO_PAYLOAD_SIZE
     int "Echo payload size"
     default 1024
-    range 1 4096
+    range 1 40960
 
 config ECHO_ITERATIONS
     int "Number of echo round trips"
@@ -79,7 +79,7 @@ config BENCH_SENDER_STACK_SIZE
 config BENCH_WORKER_STACK_SIZE
     int "Benchmark worker thread stack size"
     default 8192
-    range 6144 24576
+    range 4096 24576
     help
       Stack reserved for the dedicated benchmark worker. AF_STCP socket and
       Rust session creation run in this thread instead of the shell UART
@@ -119,6 +119,51 @@ config BENCH_FULL_RX_BUFFER_SIZE
       Full-duplex uses the configured chunk size for TX, but a smaller RX
       scratch buffer to avoid reserving two 64 KiB buffers at once. TCP is a
       byte stream, so receive calls do not need to match the peer send size.
+
+endmenu
+
+menu "STCP P2P benchmark"
+
+config STCP_P2P_BENCH
+    bool "Enable native STCP P2P benchmark"
+    default n
+
+if STCP_P2P_BENCH
+
+config P2P_BENCH_HOST
+    string "Default P2P peer host"
+    default "192.168.1.20"
+
+config P2P_BENCH_PORT
+    string "Default P2P peer port"
+    default "19010"
+
+config P2P_BENCH_PAYLOAD_SIZE
+    int "Default P2P benchmark payload size"
+    default 4096
+    range 1 65536
+
+config P2P_BENCH_TOTAL_BYTES
+    int "Default P2P benchmark total bytes"
+    default 1048576
+    range 1 2147483647
+
+config P2P_BENCH_TIMEOUT_MS
+    int "Default P2P operation timeout"
+    default 30000
+    range 1000 600000
+
+config P2P_BENCH_WORKER_STACK_SIZE
+    int "P2P benchmark worker thread stack size"
+    default 8192
+    range 4096 24576
+
+config P2P_BENCH_WORKER_PRIORITY
+    int "P2P benchmark worker thread priority"
+    default 5
+    range 0 15
+
+endif # STCP_P2P_BENCH
 
 endmenu
 

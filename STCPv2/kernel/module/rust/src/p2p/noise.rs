@@ -101,7 +101,16 @@ impl SymmetricState {
         } else {
             hash(&[NOISE_PROTOCOL_NAME])
         };
-        Self { ck: initial, h: initial, cipher: CipherState::new() }
+        let mut state = Self { ck: initial, h: initial, cipher: CipherState::new() };
+
+        /* Noise handshake initialization always performs MixHash(prologue).
+         * rust-libp2p's noise::Config::new() uses an empty prologue, but
+         * MixHash("") is NOT a no-op: h = HASH(h || "").
+         * Missing this step leaves ck correct while h differs from the
+         * responder, causing the first encrypted static key in XX message 2
+         * to fail ChaChaPoly authentication with -EBADMSG. */
+        state.mix_hash(&[]);
+        state
     }
 
     fn mix_hash(&mut self, data: &[u8]) { self.h = hash(&[&self.h, data]); }
@@ -301,6 +310,7 @@ pub fn selftest()->Result<(),StcpError>{
     let st=SymmetricState::new();
     let mut expected = [0u8; 32];
     expected.copy_from_slice(NOISE_PROTOCOL_NAME);
-    if st.ck != expected || st.h != expected { return Err(StcpError::Protocol); }
+    let expected_h = hash(&[expected.as_slice(), b""]);
+    if st.ck != expected || st.h != expected_h { return Err(StcpError::Protocol); }
     Ok(())
 }

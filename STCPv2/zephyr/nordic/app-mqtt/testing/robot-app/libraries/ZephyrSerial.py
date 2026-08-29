@@ -1,3 +1,4 @@
+from robot.api.deco import keyword
 import json
 import re
 import time
@@ -18,6 +19,22 @@ class ZephyrSerial:
         self.ser.reset_input_buffer()
         self.ser.write(b"\r\n")
         return device
+
+    @keyword("Dump Serial")
+    def dump_serial(self, duration=5.0):
+         if self.ser is None:
+             raise RuntimeError("Serial is not open")
+
+         end = time.time() + float(duration)
+         data = bytearray()
+
+         while time.time() < end:
+             chunk = self.ser.read(4096)
+             if chunk:
+                 data.extend(chunk)
+
+         return data.decode(errors="replace")
+
 
     def close_zephyr_serial(self):
         if self.ser is not None:

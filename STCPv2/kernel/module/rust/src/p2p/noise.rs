@@ -293,6 +293,96 @@ impl NoiseInitiator {
     pub fn complete(&self)->bool{self.step==NoiseStep::Complete}
 }
 
+#[derive(Debug,Clone,Copy,PartialEq,Eq)]
+pub enum ResponderStep { WaitMessage1, WaitMessage3, Complete }
+
+pub struct NoiseResponder {
+    symmetric: SymmetricState,
+    e_secret:Option<[u8;32]>,
+    s_secret:[u8;32],
+    s_public:[u8;32],
+    identity_key:Vec<u8>,
+    identity_sig:Vec<u8>,
+    step:ResponderStep,
+    pub remote_identity_key:Option<Vec<u8>>,
+    tx_key:Option<[u8;32]>,
+    rx_key:Option<[u8;32]>,
+}
+
+impl NoiseResponder {
+    pub fn from_identity_seed(seed:[u8;32])->Result<Self,StcpError>{
+        let (s_secret,s_public)=x25519_keypair()?;
+        let (identity_key,identity_sig)=make_ed25519_identity(seed,&s_public)?;
+        Ok(Self{
+            symmetric:SymmetricState::new(),
+            e_secret:None,
+            s_secret,
+            s_public,
+            identity_key,
+            identity_sig,
+            step:ResponderStep::WaitMessage1,
+            remote_identity_key:None,
+            tx_key:None,
+            rx_key:None,
+        })
+    }
+
+    pub fn read_message1_write_message2(&mut self,msg1:&[u8])->Result<Vec<u8>,StcpError>{
+        if self.step!=ResponderStep::WaitMessage1 || msg1.len()!=32{return Err(StcpError::Protocol);}
+
+        let mut re=[0u8;32];
+        re.copy_from_slice(msg1);
+        self.symmetric.mix_hash(&re);
+        let empty=self.symmetric.decrypt_and_hash(&[])?;
+        debug_assert!(empty.is_empty());
+
+        let (e_secret,e_public)=x25519_keypair()?;
+        self.symmetric.mix_hash(&e_public);
+        let ee=x25519(&e_secret,&re)?;
+        self.symmetric.mix_key(&ee);
+
+        let enc_s=self.symmetric.encrypt_and_hash(&self.s_public)?;
+        let es=x25519(&self.s_secret,&re)?;
+        self.symmetric.mix_key(&es);
+        let payload=encode_handshake_payload(&self.identity_key,&self.identity_sig)?;
+        let enc_payload=self.symmetric.encrypt_and_hash(&payload)?;
+
+        let mut msg2=Vec::new();
+        msg2.try_reserve_exact(32+enc_s.len()+enc_payload.len()).map_err(|_|StcpError::NoMem)?;
+        msg2.extend_from_slice(&e_public);
+        msg2.extend_from_slice(&enc_s);
+        msg2.extend_from_slice(&enc_payload);
+
+        self.e_secret=Some(e_secret);
+        self.step=ResponderStep::WaitMessage3;
+        Ok(msg2)
+    }
+
+    pub fn read_message3(&mut self,msg3:&[u8])->Result<(),StcpError>{
+        if self.step!=ResponderStep::WaitMessage3 || msg3.len()<48+16{return Err(StcpError::Protocol);}
+        let e_secret=self.e_secret.as_ref().ok_or(StcpError::InvalidState)?;
+
+        let rs_plain=self.symmetric.decrypt_and_hash(&msg3[..48])?;
+        if rs_plain.len()!=32{return Err(StcpError::Protocol);}
+        let mut rs=[0u8;32];
+        rs.copy_from_slice(&rs_plain);
+
+        let se=x25519(e_secret,&rs)?;
+        self.symmetric.mix_key(&se);
+        let remote_payload=self.symmetric.decrypt_and_hash(&msg3[48..])?;
+        self.remote_identity_key=Some(verify_identity_payload(&remote_payload,&rs)?);
+
+        let (k1,k2)=self.symmetric.split();
+        /* Split is ordered initiator -> responder, responder -> initiator. */
+        self.rx_key=Some(k1);
+        self.tx_key=Some(k2);
+        self.step=ResponderStep::Complete;
+        Ok(())
+    }
+
+    pub fn complete(&self)->bool{self.step==ResponderStep::Complete}
+}
+
 pub fn encode_noise_frame(msg:&[u8],out:&mut Vec<u8>)->Result<(),StcpError>{
     if msg.len()>NOISE_MAX_FRAME{return Err(StcpError::Protocol);}out.try_reserve(msg.len()+2).map_err(|_|StcpError::NoMem)?;out.extend_from_slice(&(msg.len() as u16).to_be_bytes());out.extend_from_slice(msg);Ok(())
 }
@@ -312,5 +402,22 @@ pub fn selftest()->Result<(),StcpError>{
     expected.copy_from_slice(NOISE_PROTOCOL_NAME);
     let expected_h = hash(&[expected.as_slice(), b""]);
     if st.ck != expected || st.h != expected_h { return Err(StcpError::Protocol); }
+
+    /* Exercise the complete XX exchange in-kernel.  This catches responder
+     * regressions on both Linux and Raspberry Pi because the shared Rust core
+     * uses the platform's X25519 and ChaChaPoly implementations here. */
+    let mut initiator=NoiseInitiator::from_identity_seed([0x51u8;32])?;
+    let mut responder=NoiseResponder::from_identity_seed([0xa7u8;32])?;
+    let msg1=initiator.write_message1()?;
+    let msg2=responder.read_message1_write_message2(&msg1)?;
+    let msg3=initiator.read_message2_write_message3(&msg2)?;
+    responder.read_message3(&msg3)?;
+    if !initiator.complete() || !responder.complete(){return Err(StcpError::Protocol);}
+    if initiator.tx_key != responder.rx_key || initiator.rx_key != responder.tx_key {
+        return Err(StcpError::Crypto);
+    }
+    if initiator.remote_identity_key.is_none() || responder.remote_identity_key.is_none() {
+        return Err(StcpError::Crypto);
+    }
     Ok(())
 }

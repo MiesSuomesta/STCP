@@ -209,6 +209,7 @@ cleanup_stcp_users() {
         stcp-v2-bench-server
         stcp-server
         stcp_large_test
+        stcp-libp2p
     )
     local name
     local refcnt=""
@@ -579,6 +580,156 @@ run_mqtt_regression() {
     fi
 }
 
+
+run_p2p_regression() {
+    local p2p_root="$HOME/zephyr-stcp/stcp/p2p-application"
+    local p2p_server="$HOME/SDK/v2/target/release/stcp-libp2p"
+    local p2p_log=""
+    local p2p_pid=""
+    local serial_dev="${STCP_ZEPHYR_SERIAL:-/dev/ttyACM0}"
+    local rc=0
+
+    [[ -d "$p2p_root" ]] || fail "P2P application missing: $p2p_root"
+    [[ -f "$p2p_root/scripts/build.sh" ]] || fail "P2P build script missing: $p2p_root/scripts/build.sh"
+    [[ -f "$p2p_root/scripts/flash.sh" ]] || fail "P2P flash script missing: $p2p_root/scripts/flash.sh"
+    [[ -x "$p2p_server" ]] || fail "Golden rust-libp2p server missing/not executable: $p2p_server"
+    [[ -e "$serial_dev" ]] || fail "Zephyr serial device missing: $serial_dev"
+
+    info "Running standalone Zephyr P2P/Noise regression..."
+
+    cleanup_stcp_users
+    zephyr-env
+
+    cd "$p2p_root"
+
+    info "Building standalone P2P application..."
+    bash scripts/build.sh
+
+    info "Flashing standalone P2P application..."
+    bash scripts/flash.sh
+
+    info "Waiting 3 seconds after P2P flash..."
+    sleep 3
+
+    cleanup_stcp_users
+
+    mkdir -p "$p2p_root/testing/results"
+    p2p_log="$p2p_root/testing/results/p2p-server-$(date +%Y%m%d-%H%M%S).log"
+
+    info "Starting golden rust-libp2p STCP server: $p2p_server"
+    "$p2p_server" --listen /ip4/0.0.0.0/tcp/19010 >"$p2p_log" 2>&1 &
+    p2p_pid=$!
+
+    # Always reap the P2P server before returning from this function.
+    for _ in $(seq 1 50); do
+        if ! kill -0 "$p2p_pid" 2>/dev/null; then
+            info "Golden rust-libp2p server exited during startup"
+            cat "$p2p_log" || true
+            wait "$p2p_pid" 2>/dev/null || true
+            return 1
+        fi
+
+        if grep -q 'libp2p listener ready:' "$p2p_log" 2>/dev/null; then
+            break
+        fi
+        sleep 0.1
+    done
+
+    if ! grep -q 'libp2p listener ready:' "$p2p_log" 2>/dev/null; then
+        info "Golden rust-libp2p server did not become ready"
+        cat "$p2p_log" || true
+        kill -TERM "$p2p_pid" 2>/dev/null || true
+        wait "$p2p_pid" 2>/dev/null || true
+        return 1
+    fi
+
+    ok "Golden rust-libp2p server ready"
+
+    # This is deliberately the interoperability regression only:
+    # multistream-select + Noise XX + libp2p identity over AF_STCP.
+    # Native Yamux/ping/throughput are not promoted to the full-run gate
+    # until their backend is declared ready by the P2P application.
+    info "Running Zephyr P2P Noise/libp2p interoperability probe..."
+
+    if python - "$serial_dev" <<'PY'
+import sys
+import time
+import serial
+
+device = sys.argv[1]
+baud = 115200
+timeout = 30.0
+
+ser = serial.Serial(device, baud, timeout=0.1)
+
+def read_until(needle, seconds):
+    end = time.monotonic() + seconds
+    data = ""
+    while time.monotonic() < end:
+        chunk = ser.read(4096)
+        if chunk:
+            data += chunk.decode("utf-8", errors="replace")
+            if needle in data:
+                return data
+        else:
+            time.sleep(0.02)
+    raise RuntimeError(
+        f"timeout waiting for {needle!r}; received:\n{data[-12000:]}"
+    )
+
+try:
+    ser.reset_input_buffer()
+    ser.write(b"\r\n")
+    ser.flush()
+    read_until("stcp>", 5.0)
+
+    ser.write(b"stcp p2p show\r\n")
+    ser.flush()
+    show = read_until("stcp>", 5.0)
+    print(show, end="")
+    if "Noise core  : XX+identity linked selftest=PASS (0)" not in show:
+        raise RuntimeError("P2P Noise core selftest did not report PASS")
+
+    ser.write(b"stcp p2p noise\r\n")
+    ser.flush()
+    noise = read_until("stcp>", timeout)
+    print(noise, end="")
+
+    required = (
+        "multistream : PASS",
+        "/noise      : PASS",
+        "Noise XX + libp2p identity: PASS",
+    )
+    missing = [item for item in required if item not in noise]
+    if missing:
+        raise RuntimeError("P2P Noise regression missing: " + ", ".join(missing))
+finally:
+    ser.close()
+PY
+    then
+        rc=0
+        ok "Zephyr P2P Noise/libp2p interoperability PASS"
+    else
+        rc=$?
+        info "Zephyr P2P Noise/libp2p interoperability FAIL rc=$rc"
+    fi
+
+    info "P2P server log: $p2p_log"
+    tail -n 100 "$p2p_log" || true
+
+    kill -TERM "$p2p_pid" 2>/dev/null || true
+    for _ in $(seq 1 20); do
+        if ! kill -0 "$p2p_pid" 2>/dev/null; then
+            break
+        fi
+        sleep 0.1
+    done
+    kill -KILL "$p2p_pid" 2>/dev/null || true
+    wait "$p2p_pid" 2>/dev/null || true
+
+    return "$rc"
+}
+
 restore_zephyr_golden_image() {
     info "Restoring normal Zephyr STCPv2 test application..."
     cleanup_stcp_users
@@ -667,9 +818,19 @@ main() {
         fail "Stopping full run after MQTT application failure rc=$mqtt_rc"
     fi
 
-    # app-mqtt is the last firmware flashed above. Always put the normal
-    # command-driven test application back on the board, otherwise a later
-    # manual robot-v2 run sees "stcp: command not found".
+    cleanup_stcp_users
+
+    if run_p2p_regression; then
+        ok "Zephyr standalone P2P application regression PASS"
+    else
+        p2p_rc=$?
+        info "Zephyr standalone P2P application regression FAIL rc=$p2p_rc"
+        restore_zephyr_golden_image || true
+        fail "Stopping full run after P2P application failure rc=$p2p_rc"
+    fi
+
+    # p2p-application is the last firmware flashed above. Always put the
+    # normal command-driven test application back on the board.
     restore_zephyr_golden_image
 
     ok "=================================================="
@@ -680,6 +841,7 @@ main() {
     ok " Host/RPi Robot         : PASS"
     ok " Zephyr CoAP app        : PASS"
     ok " Zephyr MQTT app        : PASS"
+    ok " Zephyr P2P app         : PASS"
     ok " Golden Zephyr restore  : PASS"
     ok "=================================================="
 }

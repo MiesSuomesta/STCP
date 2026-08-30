@@ -114,6 +114,18 @@ static int __init stcp_module_init(void)
 
 	pr_info("stcp: directional crypto selftest passed\n");
 
+	/* P2P core selftest includes the complete Noise XX initiator/responder
+	 * exchange and validates the resulting directional transport keys. */
+	ret = stcp_p2p_core_selftest();
+	if (ret) {
+		pr_err("stcp: P2P shared-core selftest failed: %d\n", ret);
+		stcp_rust_exit();
+		return ret;
+	}
+
+	pr_info("stcp: P2P shared core ABI=%u Noise XX initiator/responder selftest passed\n",
+		stcp_p2p_core_abi_version());
+
 	ret = stcp_users_init();
 	if (ret) {
 		stcp_rust_exit();

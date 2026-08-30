@@ -128,6 +128,19 @@ extern int stcp_p2p_core_ready(void);
 extern int stcp_p2p_noise_core_ready(void);
 extern int stcp_p2p_noise_selftest(void);
 
+/*
+ * The crypto selftests are intentionally cached.  On nRF9151 the software
+ * X25519/RFC8439 path is relatively slow; `stcp p2p show` is a status command
+ * and must not rerun the same expensive selftests on every invocation.
+ *
+ * First access runs each test once.  Later status queries return the cached
+ * result.  The explicit `stcp p2p noise` interoperability probe is unchanged.
+ */
+static bool p2p_core_selftest_cached;
+static int p2p_core_selftest_result;
+static bool p2p_noise_selftest_cached;
+static int p2p_noise_selftest_result;
+
 uint32_t p2p_bench_core_abi(void)
 {
     return stcp_p2p_core_abi_version();
@@ -135,7 +148,11 @@ uint32_t p2p_bench_core_abi(void)
 
 int p2p_bench_core_selftest(void)
 {
-    return stcp_p2p_core_selftest();
+    if (!p2p_core_selftest_cached) {
+        p2p_core_selftest_result = stcp_p2p_core_selftest();
+        p2p_core_selftest_cached = true;
+    }
+    return p2p_core_selftest_result;
 }
 
 int p2p_bench_protocol_ready(void)
@@ -150,5 +167,9 @@ int p2p_bench_noise_core_ready(void)
 
 int p2p_bench_noise_selftest(void)
 {
-    return stcp_p2p_noise_selftest();
+    if (!p2p_noise_selftest_cached) {
+        p2p_noise_selftest_result = stcp_p2p_noise_selftest();
+        p2p_noise_selftest_cached = true;
+    }
+    return p2p_noise_selftest_result;
 }

@@ -66,6 +66,11 @@ void stcp_p2p_noise_dialer_free(void *ctx);
 int stcp_p2p_noise_dialer_message1(void *ctx, u8 *out, size_t cap);
 int stcp_p2p_noise_dialer_message2(void *ctx, const u8 *msg2, size_t msg2_len, u8 *out3, size_t cap);
 int stcp_p2p_noise_dialer_complete(void *ctx);
+int stcp_p2p_noise_listener_new(const u8 identity_seed[32], void **out_ctx);
+void stcp_p2p_noise_listener_free(void *ctx);
+int stcp_p2p_noise_listener_message1(void *ctx, const u8 *msg1, size_t msg1_len, u8 *out2, size_t cap);
+int stcp_p2p_noise_listener_message3(void *ctx, const u8 *msg3, size_t msg3_len);
+int stcp_p2p_noise_listener_complete(void *ctx);
 const u8 *stcp_p2p_core_stage_name(u32 stage);
 
 int stcp_rust_carrier_receive(void *ctx, const u8 *data, size_t len);

@@ -294,6 +294,45 @@ pub extern "C" fn stcp_p2p_noise_dialer_complete(ctx:*mut core::ffi::c_void)->c_
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn stcp_p2p_noise_listener_new(identity_seed:*const u8,out_ctx:*mut *mut core::ffi::c_void)->c_int {
+    if identity_seed.is_null() || out_ctx.is_null(){return EINVAL;}
+    let mut seed=[0u8;32];
+    unsafe { core::ptr::copy_nonoverlapping(identity_seed,seed.as_mut_ptr(),32); }
+    match noise::NoiseResponder::from_identity_seed(seed) {
+        Ok(ctx)=>{unsafe{*out_ctx=Box::into_raw(Box::new(ctx)).cast();}0}
+        Err(e)=>e.errno(),
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_p2p_noise_listener_free(ctx:*mut core::ffi::c_void) {
+    if !ctx.is_null(){unsafe{drop(Box::from_raw(ctx.cast::<noise::NoiseResponder>()));}}
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_p2p_noise_listener_message1(ctx:*mut core::ffi::c_void,msg1:*const u8,msg1_len:usize,out2:*mut u8,cap:usize)->c_int {
+    if ctx.is_null() || msg1.is_null(){return EINVAL;}
+    let c=unsafe{&mut *ctx.cast::<noise::NoiseResponder>()};
+    let input=unsafe{core::slice::from_raw_parts(msg1,msg1_len)};
+    match c.read_message1_write_message2(input){Ok(v)=>copy_out(&v,out2,cap),Err(e)=>e.errno()}
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_p2p_noise_listener_message3(ctx:*mut core::ffi::c_void,msg3:*const u8,msg3_len:usize)->c_int {
+    if ctx.is_null() || msg3.is_null(){return EINVAL;}
+    let c=unsafe{&mut *ctx.cast::<noise::NoiseResponder>()};
+    let input=unsafe{core::slice::from_raw_parts(msg3,msg3_len)};
+    match c.read_message3(input){Ok(())=>0,Err(e)=>e.errno()}
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_p2p_noise_listener_complete(ctx:*mut core::ffi::c_void)->c_int {
+    if ctx.is_null(){return 0;}
+    let c=unsafe{&*ctx.cast::<noise::NoiseResponder>()};
+    if c.complete(){1}else{0}
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn stcp_p2p_core_stage_name(stage: u32) -> *const u8 {
     match stage {
         0 => b"init\0".as_ptr(),

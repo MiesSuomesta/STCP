@@ -51,7 +51,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: /usr/bin/bash --noprofile --norc -e {0}
         working-directory: STCPv2/kernel-module
 
     env:
@@ -161,7 +161,7 @@ jobs:
           export PATH="/home/pomo/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
           commands=(
-            bash make python3 ssh scp tar git sha256sum tee
+            /usr/bin/bash make python3 ssh scp tar git sha256sum tee
             perf modinfo rustup cargo rustc
             "${CROSS_COMPILE}gcc"
             "${CROSS_COMPILE}readelf"

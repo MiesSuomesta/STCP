@@ -57,13 +57,13 @@ jobs:
             python3
 
       - name: Check STCPv2 shell syntax
-        shell: bash
+        shell: /usr/bin/bash --noprofile --norc -e {0}
         run: |
           set -Eeuo pipefail
 
           while IFS= read -r -d '' script; do
             echo "bash -n $script"
-            bash -n "$script"
+            /usr/bin/bash -n "$script"
           done < <(
             find STCPv2 \
               -path 'STCPv2/kernel-module/raspberry-kernel-sources' -prune -o \
@@ -76,7 +76,7 @@ jobs:
           )
 
       - name: ShellCheck STCPv2 orchestration scripts
-        shell: bash
+        shell: /usr/bin/bash --noprofile --norc -e {0}
         run: |
           set -Eeuo pipefail
 
@@ -98,7 +98,7 @@ jobs:
           fi
 
       - name: Check STCPv2 Python syntax
-        shell: bash
+        shell: /usr/bin/bash --noprofile --norc -e {0}
         run: |
           set -Eeuo pipefail
 
@@ -123,7 +123,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: /usr/bin/bash --noprofile --norc -e {0}
         working-directory: STCPv2/kernel-module
 
     env:
@@ -233,7 +233,7 @@ jobs:
           STOP_BENCHMARKS="$STOP_BENCHMARKS" \
           CARRIER_DEBUG="$CARRIER_DEBUG" \
           DRY_RUN="$DRY_RUN" \
-            bash ./build-and-deploy.sh build
+            /usr/bin/bash ./build-and-deploy.sh build
 
       - name: Verify produced modules
         id: verify_modules

@@ -47,7 +47,7 @@ jobs:
 
     defaults:
       run:
-        shell: bash
+        shell: /usr/bin/bash --noprofile --norc -e {0}
         working-directory: kernel-module
 
     env:
@@ -97,9 +97,9 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          bash -n benchmark/run-overnight-matrix.sh
-          bash -n build-benchmark-publish.sh
-          bash -n benchmark/run-all-full.sh
+          /usr/bin/bash -n benchmark/run-overnight-matrix.sh
+          /usr/bin/bash -n build-benchmark-publish.sh
+          /usr/bin/bash -n benchmark/run-all-full.sh
 
       - name: Verify Raspberry connectivity
         run: |
@@ -115,7 +115,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          bash benchmark/run-overnight-matrix.sh
+          /usr/bin/bash benchmark/run-overnight-matrix.sh
 
       - name: Resolve result files
         id: results

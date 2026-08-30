@@ -14,11 +14,6 @@ target_sources_ifdef(CONFIG_STCP_BENCH_SHELL app PRIVATE
     src/stcp_ping.c
 )
 
-target_sources_ifdef(CONFIG_STCP_P2P_BENCH app PRIVATE
-    src/p2p_benchmark.c
-    src/p2p_noise_probe.c
-)
-
 target_sources_ifdef(CONFIG_NRF_MODEM_LIB app PRIVATE
     src/stcp_lte_transport.c
 )

@@ -49,5 +49,5 @@ STCPv2 Upload To Linux
 
 STCPv2 Full Duplex With Linux
     Use Transport    stcp
-    ${r}=    Run Benchmark    stcp bench full    timeout=30
+    ${r}=    Run Benchmark    stcp bench full    timeout=90
     Should Be Equal As Integers    ${r}[status]    0

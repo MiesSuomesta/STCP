@@ -94,7 +94,7 @@ static int recv_uvarint(int fd, size_t *value)
 
 static int recv_ms_frame(int fd, uint8_t *out, size_t cap, size_t *out_len)
 {
-    size_t n;
+    size_t n = 0;
     int rc = recv_uvarint(fd, &n);
     if (rc < 0) return rc;
     if (n > cap) return -EMSGSIZE;

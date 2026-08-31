@@ -318,18 +318,32 @@ def command(cmd, needle="p2p>", timeout=8.0):
 
 try:
     ser.reset_input_buffer()
-    ser.write(b"\r\n")
-    ser.flush()
-    end = time.monotonic() + 5.0
+
+    # Synchronize robustly with the Zephyr shell.  Depending on when the serial
+    # device is opened, reset_input_buffer() may discard the last visible prompt.
+    # Keep nudging the shell with CRLF until a fresh p2p> prompt is observed.
+    end = time.monotonic() + 10.0
+    next_enter = 0.0
     data = ""
     while time.monotonic() < end:
+        now = time.monotonic()
+        if now >= next_enter:
+            ser.write(b"\r\n")
+            ser.flush()
+            next_enter = now + 0.5
+
         b = ser.read(4096)
         if b:
             data += b.decode(errors="replace")
             if "p2p>" in data:
                 break
+        else:
+            time.sleep(0.02)
+
     if "p2p>" not in data:
-        raise RuntimeError(f"{label}: shell prompt not found")
+        raise RuntimeError(
+            f"{label}: shell prompt not found; received:\n{data[-12000:]}"
+        )
 
     command(f"stcp p2p host {host}")
     command(f"stcp p2p port {port}")

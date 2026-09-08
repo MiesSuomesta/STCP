@@ -2,14 +2,20 @@ use alloc::vec::Vec;
 
 use crate::error::StcpError;
 
-pub const STCP_MAGIC: [u8; 4] = *b"STCP";
 pub const STCP_VERSION: u8 = 2;
-pub const STCP_HEADER_LEN: usize = 16;
+/* Compact legacy packet header: descriptor + u32 payload length. */
+pub const STCP_HEADER_LEN: usize = 5;
 pub const STCP_PUBLIC_KEY_LEN: usize = 64;
 pub const STCP_NONCE_LEN: usize = 8;
 pub const STCP_AUTH_TAG_LEN: usize = 16;
 pub const STCP_FRAME_PAYLOAD_LEN: usize = 60 * 1024;
 pub const STCP_MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
+
+const TYPE_MASK: u8 = 0x0f;
+const VERSION_MASK: u8 = 0x03;
+const FLAGS_MASK: u8 = 0x03;
+const VERSION_SHIFT: u8 = 4;
+const FLAGS_SHIFT: u8 = 6;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,13 +43,13 @@ impl PacketType {
 #[derive(Debug, Clone, Copy)]
 pub struct Header {
     pub packet_type: PacketType,
-    pub flags: u16,
+    pub flags: u8,
     pub payload_len: usize,
 }
 
 impl Header {
     pub fn new(packet_type: PacketType, payload_len: usize) -> Result<Self, StcpError> {
-        if payload_len > STCP_MAX_PAYLOAD_LEN {
+        if payload_len > STCP_MAX_PAYLOAD_LEN || payload_len > u32::MAX as usize {
             return Err(StcpError::Protocol);
         }
 
@@ -56,12 +62,12 @@ impl Header {
 
     pub fn encode(self) -> [u8; STCP_HEADER_LEN] {
         let mut output = [0u8; STCP_HEADER_LEN];
+        let descriptor = (self.packet_type as u8 & TYPE_MASK)
+            | ((STCP_VERSION & VERSION_MASK) << VERSION_SHIFT)
+            | ((self.flags & FLAGS_MASK) << FLAGS_SHIFT);
 
-        output[0..4].copy_from_slice(&STCP_MAGIC);
-        output[4] = self.packet_type as u8;
-        output[5] = STCP_VERSION;
-        output[6..8].copy_from_slice(&self.flags.to_be_bytes());
-        output[8..16].copy_from_slice(&(self.payload_len as u64).to_be_bytes());
+        output[0] = descriptor;
+        output[1..5].copy_from_slice(&(self.payload_len as u32).to_be_bytes());
 
         output
     }
@@ -71,20 +77,16 @@ impl Header {
             return Err(StcpError::Again);
         }
 
-        if input[0..4] != STCP_MAGIC {
+        let descriptor = input[0];
+        let version = (descriptor >> VERSION_SHIFT) & VERSION_MASK;
+        if version != STCP_VERSION {
             return Err(StcpError::Protocol);
         }
 
-        if input[5] != STCP_VERSION {
-            return Err(StcpError::Protocol);
-        }
-
-        let packet_type = PacketType::from_u8(input[4])?;
-        let flags = u16::from_be_bytes([input[6], input[7]]);
-        let payload_len = u64::from_be_bytes(
-            input[8..16]
-                .try_into()
-                .map_err(|_| StcpError::Protocol)?,
+        let packet_type = PacketType::from_u8(descriptor & TYPE_MASK)?;
+        let flags = (descriptor >> FLAGS_SHIFT) & FLAGS_MASK;
+        let payload_len = u32::from_be_bytes(
+            input[1..5].try_into().map_err(|_| StcpError::Protocol)?,
         ) as usize;
 
         if payload_len > STCP_MAX_PAYLOAD_LEN {
@@ -111,7 +113,6 @@ pub fn encode_frame(
 
     Ok(frame)
 }
-
 
 pub fn encode_encrypted_frame(
     packet_type: PacketType,

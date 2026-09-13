@@ -10,6 +10,7 @@ mod crypto;
 mod error;
 mod ffi;
 mod carrier;
+mod compression;
 mod frame;
 mod kdf;
 mod spinlock;

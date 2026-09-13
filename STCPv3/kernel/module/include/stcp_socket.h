@@ -42,6 +42,10 @@ struct stcp_sock {
 	struct list_head user_node;
 	pid_t owner_tgid;
 	bool user_registered;
+
+	/* Per-socket optional payload compression policy. */
+	bool compression_enabled;
+	u32 compression_threshold;
 };
 
 static inline struct stcp_sock *stcp_sk(struct sock *sk)

@@ -23,6 +23,9 @@ use crate::{
         wake_recv,
     },
     byte_queue::ByteQueue,
+    compression::{
+        self, CompressionMode, FLAG_COMPRESSED, FLAG_COMPRESSION_CAPABLE,
+    },
     error::StcpError,
     frame::{
         encode_control_frame,
@@ -516,11 +519,20 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
         )
     };
 
-    let frame = encode_frame(
+    let mut public_header = Header::with_numbers(
         PacketType::PublicKey,
+        public_key.len(),
+        0,
+        0,
         connection_id(ctx),
-        &public_key,
     )?;
+    public_header.flags |= FLAG_COMPRESSION_CAPABLE;
+    let encoded_header = public_header.encode();
+    let mut frame = Vec::new();
+    frame.try_reserve_exact(STCP_HEADER_LEN + public_key.len())
+        .map_err(|_| StcpError::NoMem)?;
+    frame.extend_from_slice(&encoded_header);
+    frame.extend_from_slice(&public_key);
     crate::carrier::debug_event(303, ctx, frame.len(), connection_id(ctx) as usize);
 
     send_frame(ctx, &shared, side, &frame, 0)?;
@@ -533,7 +545,14 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); crate::crypto::crypto_diag_stage_set(20); received_key=Some(key); }
+        PacketType::PublicKey => {
+            if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);}
+            if frame.header.flags & !(FLAG_COMPRESSION_CAPABLE) != 0 { return Err(StcpError::Protocol); }
+            if frame.header.flags & FLAG_COMPRESSION_CAPABLE != 0 {
+                ctx.inner.lock().peer_compression_capable = true;
+            }
+            let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); crate::crypto::crypto_diag_stage_set(20); received_key=Some(key);
+        }
         PacketType::HandshakeDone => {
             if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
             received_done = true;
@@ -671,6 +690,19 @@ pub fn accept(
         .ok_or(StcpError::Again)
 }
 
+pub fn set_compression(ctx: &StcpContext, enabled: bool) {
+    let mut inner = ctx.inner.lock();
+    inner.compression.mode = if enabled {
+        CompressionMode::Auto
+    } else {
+        CompressionMode::Off
+    };
+}
+
+pub fn set_compression_threshold(ctx: &StcpContext, threshold: usize) {
+    ctx.inner.lock().compression.threshold = threshold;
+}
+
 #[inline]
 fn frame_payload_len(ctx: &StcpContext) -> usize {
     if ctx.proto == 254 {
@@ -773,20 +805,51 @@ pub fn send(
             )
         };
 
-        let encrypted_len = plaintext
+        let (compression_config, peer_compression_capable) = {
+            let inner = ctx.inner.lock();
+            (inner.compression, inner.peer_compression_capable)
+        };
+        let mut compressed_storage = Vec::new();
+        let mut length_prefix = [0u8; 10];
+        let mut wire_plaintext = plaintext;
+        let mut compressed = false;
+
+        if peer_compression_capable && compression_config.should_try(plaintext.len()) {
+            let candidate = compression::compress_block(plaintext)?;
+            let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
+            let candidate_len = prefix_len
+                .checked_add(candidate.len())
+                .ok_or(StcpError::Protocol)?;
+
+            if candidate_len < plaintext.len() {
+                compressed_storage
+                    .try_reserve_exact(candidate_len)
+                    .map_err(|_| StcpError::NoMem)?;
+                compressed_storage.extend_from_slice(&length_prefix[..prefix_len]);
+                compressed_storage.extend_from_slice(&candidate);
+                wire_plaintext = &compressed_storage;
+                compressed = true;
+            }
+        }
+
+        let encrypted_len = wire_plaintext
             .len()
             .checked_add(CHACHA_TAG_LEN)
             .ok_or(StcpError::Protocol)?;
         let payload_len = NONCE_LEN
             .checked_add(encrypted_len)
             .ok_or(StcpError::Protocol)?;
-        let header = Header::with_numbers(
+        let mut header_value = Header::with_numbers(
             packet_type,
             payload_len,
             sequence,
             acknowledgment,
             connection_id,
-        )?.encode();
+        )?;
+        if compressed {
+            header_value.flags |= FLAG_COMPRESSED;
+        }
+        let header = header_value.encode();
         let frame_len = STCP_HEADER_LEN
             .checked_add(NONCE_LEN)
             .and_then(|value| value.checked_add(encrypted_len))
@@ -812,7 +875,7 @@ pub fn send(
         let encrypted_written = crypto.encrypt_into(
             nonce,
             &header,
-            plaintext,
+            wire_plaintext,
             &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
         )?;
         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
@@ -1178,6 +1241,21 @@ fn process_in_order_frame(
     )?;
     frame.ciphertext.truncate(NONCE_LEN + plaintext_len);
 
+    if frame.header.flags & !FLAG_COMPRESSED != 0 {
+        return Err(StcpError::Protocol);
+    }
+
+    let decompressed = if frame.header.flags & FLAG_COMPRESSED != 0 {
+        let plaintext = &frame.ciphertext[NONCE_LEN..];
+        let (original_len, prefix_len) = compression::decode_uvarint(plaintext)?;
+        if original_len > frame_payload_len(ctx) || prefix_len >= plaintext.len() {
+            return Err(StcpError::Protocol);
+        }
+        Some(compression::decompress_block(&plaintext[prefix_len..], original_len)?)
+    } else {
+        None
+    };
+
     let became_readable = {
         let mut inner = ctx.inner.lock();
         if frame.header.sequence != inner.expected_rx_sequence ||
@@ -1195,7 +1273,12 @@ fn process_in_order_frame(
             .checked_add(1)
             .ok_or(StcpError::Protocol)?;
         inner.last_rx_sequence = Some(sequence);
-        if let Err(error) = inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN) {
+        let publish_result = if let Some(data) = decompressed {
+            inner.rx_app_data.push_vec_from(data, 0)
+        } else {
+            inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)
+        };
+        if let Err(error) = publish_result {
             if matches!(error, StcpError::NoMem) {
                 /* NOMEM-9004: decrypted plaintext could not be published
                  * to the application ByteQueue. arg0=sequence, arg1=current

@@ -1,0 +1,10 @@
+case_id	enabled	mode	port	clients	payload_bytes	pipeline	duration_s	direction
+tcp-iot-64-c1-q1	1	tcp	19000	1	64	1	30	echo
+tls-iot-64-c1-q1	1	tls	19001	1	64	1	30	echo
+stcp-iot-64-c1-q1	1	stcp	19002	1	64	1	30	echo
+tcp-edge-4096-c1-q1	1	tcp	19000	1	4096	1	30	echo
+tls-edge-4096-c1-q1	1	tls	19001	1	4096	1	30	echo
+stcp-edge-4096-c1-q1	1	stcp	19002	1	4096	1	30	echo
+tcp-throughput-1m-c8-q8	1	tcp	19000	8	1048576	8	300	echo
+tls-throughput-1m-c8-q8	1	tls	19001	8	1048576	8	300	echo
+stcp-throughput-1m-c8-q8	1	stcp	19002	8	1048576	8	300	echo

@@ -15,6 +15,20 @@ use crate::{
 const EINVAL: c_int = -22;
 
 #[repr(C)]
+pub struct StcpCompressionStats {
+    pub tx_attempts: u64,
+    pub tx_compressed_frames: u64,
+    pub tx_fallback_frames: u64,
+    pub tx_input_bytes: u64,
+    pub tx_wire_bytes: u64,
+    pub tx_errors: u64,
+    pub rx_compressed_frames: u64,
+    pub rx_wire_bytes: u64,
+    pub rx_output_bytes: u64,
+    pub rx_errors: u64,
+}
+
+#[repr(C)]
 pub struct StcpReliabilityStats {
     pub srtt_ms: u32,
     pub rttvar_ms: u32,
@@ -413,6 +427,40 @@ pub extern "C" fn stcp_rust_get_reliability_stats(
                         reordered_frames: stats.reordered_frames,
                         timeout_failures: stats.timeout_failures,
                         rtt_samples: stats.rtt_samples,
+                    },
+                );
+            }
+            0
+        }
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_get_compression_stats(
+    raw: *mut c_void,
+    out_stats: *mut StcpCompressionStats,
+) -> c_int {
+    if out_stats.is_null() {
+        return EINVAL;
+    }
+
+    match with_ctx(raw, session::compression_snapshot) {
+        Ok(stats) => {
+            unsafe {
+                ptr::write(
+                    out_stats,
+                    StcpCompressionStats {
+                        tx_attempts: stats.tx_attempts,
+                        tx_compressed_frames: stats.tx_compressed_frames,
+                        tx_fallback_frames: stats.tx_fallback_frames,
+                        tx_input_bytes: stats.tx_input_bytes,
+                        tx_wire_bytes: stats.tx_wire_bytes,
+                        tx_errors: stats.tx_errors,
+                        rx_compressed_frames: stats.rx_compressed_frames,
+                        rx_wire_bytes: stats.rx_wire_bytes,
+                        rx_output_bytes: stats.rx_output_bytes,
+                        rx_errors: stats.rx_errors,
                     },
                 );
             }

@@ -20,6 +20,21 @@ use crate::{
 };
 
 
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CompressionStats {
+    pub tx_attempts: u64,
+    pub tx_compressed_frames: u64,
+    pub tx_fallback_frames: u64,
+    pub tx_input_bytes: u64,
+    pub tx_wire_bytes: u64,
+    pub tx_errors: u64,
+    pub rx_compressed_frames: u64,
+    pub rx_wire_bytes: u64,
+    pub rx_output_bytes: u64,
+    pub rx_errors: u64,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketState {
     New,
@@ -173,6 +188,7 @@ pub struct ContextInner {
     /* Reused by the TCP fast path; C tx_lock serializes socket sends. */
     pub tx_frame_scratch: Vec<u8>,
     pub compression: CompressionConfig,
+    pub compression_stats: CompressionStats,
     pub peer_compression_capable: bool,
 }
 
@@ -223,6 +239,7 @@ impl StcpContext {
                 udp_peer_port: 0,
                 tx_frame_scratch: Vec::new(),
                 compression: CompressionConfig::default(),
+                compression_stats: CompressionStats::default(),
                 peer_compression_capable: false,
             }),
         })
@@ -276,6 +293,7 @@ impl StcpContext {
                 udp_peer_port: 0,
                 tx_frame_scratch: Vec::new(),
                 compression: CompressionConfig::default(),
+                compression_stats: CompressionStats::default(),
                 peer_compression_capable: false,
             }),
         })

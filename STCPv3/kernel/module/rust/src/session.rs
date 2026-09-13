@@ -815,20 +815,46 @@ pub fn send(
         let mut compressed = false;
 
         if peer_compression_capable && compression_config.should_try(plaintext.len()) {
-            let candidate = compression::compress_block(plaintext)?;
-            let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
-            let candidate_len = prefix_len
-                .checked_add(candidate.len())
-                .ok_or(StcpError::Protocol)?;
+            let mut stats = ctx.inner.lock();
+            stats.compression_stats.tx_attempts += 1;
+            stats.compression_stats.tx_input_bytes += plaintext.len() as u64;
+            drop(stats);
 
-            if candidate_len < plaintext.len() {
-                compressed_storage
-                    .try_reserve_exact(candidate_len)
-                    .map_err(|_| StcpError::NoMem)?;
-                compressed_storage.extend_from_slice(&length_prefix[..prefix_len]);
-                compressed_storage.extend_from_slice(&candidate);
-                wire_plaintext = &compressed_storage;
-                compressed = true;
+            match compression::compress_block(plaintext) {
+                Ok(candidate) => {
+                    let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
+                    let candidate_len = prefix_len
+                        .checked_add(candidate.len())
+                        .ok_or(StcpError::Protocol)?;
+
+                    if candidate_len < plaintext.len() {
+                        match compressed_storage.try_reserve_exact(candidate_len) {
+                            Ok(()) => {
+                                compressed_storage.extend_from_slice(&length_prefix[..prefix_len]);
+                                compressed_storage.extend_from_slice(&candidate);
+                                wire_plaintext = &compressed_storage;
+                                compressed = true;
+                            }
+                            Err(_) => {
+                                let mut stats = ctx.inner.lock();
+                                stats.compression_stats.tx_errors += 1;
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    let mut stats = ctx.inner.lock();
+                    stats.compression_stats.tx_errors += 1;
+                }
+            }
+
+            let mut stats = ctx.inner.lock();
+            if compressed {
+                stats.compression_stats.tx_compressed_frames += 1;
+                stats.compression_stats.tx_wire_bytes += wire_plaintext.len() as u64;
+            } else {
+                stats.compression_stats.tx_fallback_frames += 1;
+                stats.compression_stats.tx_wire_bytes += plaintext.len() as u64;
             }
         }
 
@@ -1247,11 +1273,31 @@ fn process_in_order_frame(
 
     let decompressed = if frame.header.flags & FLAG_COMPRESSED != 0 {
         let plaintext = &frame.ciphertext[NONCE_LEN..];
-        let (original_len, prefix_len) = compression::decode_uvarint(plaintext)?;
+        let wire_len = plaintext.len();
+        let (original_len, prefix_len) = match compression::decode_uvarint(plaintext) {
+            Ok(value) => value,
+            Err(error) => {
+                ctx.inner.lock().compression_stats.rx_errors += 1;
+                return Err(error);
+            }
+        };
         if original_len > frame_payload_len(ctx) || prefix_len >= plaintext.len() {
+            ctx.inner.lock().compression_stats.rx_errors += 1;
             return Err(StcpError::Protocol);
         }
-        Some(compression::decompress_block(&plaintext[prefix_len..], original_len)?)
+        match compression::decompress_block(&plaintext[prefix_len..], original_len) {
+            Ok(data) => {
+                let mut stats = ctx.inner.lock();
+                stats.compression_stats.rx_compressed_frames += 1;
+                stats.compression_stats.rx_wire_bytes += wire_len as u64;
+                stats.compression_stats.rx_output_bytes += original_len as u64;
+                Some(data)
+            }
+            Err(error) => {
+                ctx.inner.lock().compression_stats.rx_errors += 1;
+                return Err(error);
+            }
+        }
     } else {
         None
     };
@@ -1541,6 +1587,12 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     }
 
     Ok(true)
+}
+
+pub fn compression_snapshot(
+    ctx: &StcpContext,
+) -> crate::state::CompressionStats {
+    ctx.inner.lock().compression_stats
 }
 
 pub fn reliability_snapshot(

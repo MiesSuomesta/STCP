@@ -11,6 +11,7 @@
 #include <linux/socket.h>
 #include <linux/sockptr.h>
 #include <linux/uio.h>
+#include <linux/uaccess.h>
 
 #include <net/sock.h>
 
@@ -676,6 +677,17 @@ static int stcp_accept(
 
 	child = stcp_sk(newsk);
 	child->rust_ctx = accepted_ctx;
+	child->compression_enabled = listener->compression_enabled;
+	child->compression_threshold = listener->compression_threshold;
+	ret = stcp_rust_set_compression_threshold(
+		child->rust_ctx, child->compression_threshold);
+	if (!ret)
+		ret = stcp_rust_set_compression(
+			child->rust_ctx, child->compression_enabled ? 1 : 0);
+	if (ret) {
+		stcp_accept_cleanup_child(newsock, newsk, child);
+		return ret;
+	}
 
 	if (stcp_carrier_get_kind(listener->carrier) == STCP_CARRIER_UDP) {
 		ret = stcp_carrier_accept(
@@ -1036,7 +1048,45 @@ static int stcp_setsockopt(
 	unsigned int optlen
 )
 {
-	return -ENOPROTOOPT;
+	struct stcp_sock *ssk;
+	int value;
+	int ret;
+
+	if (!sock || !sock->sk)
+		return -EINVAL;
+	if (level != SOL_STCP)
+		return -ENOPROTOOPT;
+	if (optlen < sizeof(value))
+		return -EINVAL;
+	if (copy_from_sockptr(&value, optval, sizeof(value)))
+		return -EFAULT;
+
+	ssk = stcp_sk(sock->sk);
+	if (!ssk->rust_ctx)
+		return -EINVAL;
+
+	switch (optname) {
+	case STCP_SO_COMPRESSION:
+		if (value != 0 && value != 1)
+			return -EINVAL;
+		ret = stcp_rust_set_compression(ssk->rust_ctx, value);
+		if (ret)
+			return ret;
+		ssk->compression_enabled = value != 0;
+		return 0;
+
+	case STCP_SO_COMPRESSION_THRESHOLD:
+		if (value < 0)
+			return -EINVAL;
+		ret = stcp_rust_set_compression_threshold(ssk->rust_ctx, (u32)value);
+		if (ret)
+			return ret;
+		ssk->compression_threshold = (u32)value;
+		return 0;
+
+	default:
+		return -ENOPROTOOPT;
+	}
 }
 
 static int stcp_getsockopt(
@@ -1047,7 +1097,36 @@ static int stcp_getsockopt(
 	int *optlen
 )
 {
-	return -ENOPROTOOPT;
+	struct stcp_sock *ssk;
+	int value;
+	int len;
+
+	if (!sock || !sock->sk || !optval || !optlen)
+		return -EINVAL;
+	if (level != SOL_STCP)
+		return -ENOPROTOOPT;
+	if (get_user(len, optlen))
+		return -EFAULT;
+	if (len < sizeof(value))
+		return -EINVAL;
+
+	ssk = stcp_sk(sock->sk);
+	switch (optname) {
+	case STCP_SO_COMPRESSION:
+		value = ssk->compression_enabled ? 1 : 0;
+		break;
+	case STCP_SO_COMPRESSION_THRESHOLD:
+		value = (int)ssk->compression_threshold;
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	if (copy_to_user(optval, &value, sizeof(value)))
+		return -EFAULT;
+	if (put_user(sizeof(value), optlen))
+		return -EFAULT;
+	return 0;
 }
 
 const struct proto_ops stcp_proto_ops = {

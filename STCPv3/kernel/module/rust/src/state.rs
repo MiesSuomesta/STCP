@@ -13,6 +13,7 @@ use core::sync::atomic::{
 
 use crate::{
     byte_queue::ByteQueue,
+    compression::CompressionConfig,
     crypto::{CryptoContext, Role},
     frame::Header,
     spinlock::SpinLock,
@@ -171,6 +172,8 @@ pub struct ContextInner {
     pub udp_peer_port: u16,
     /* Reused by the TCP fast path; C tx_lock serializes socket sends. */
     pub tx_frame_scratch: Vec<u8>,
+    pub compression: CompressionConfig,
+    pub peer_compression_capable: bool,
 }
 
 pub struct StcpContext {
@@ -219,6 +222,8 @@ impl StcpContext {
                 udp_peer_addr: 0,
                 udp_peer_port: 0,
                 tx_frame_scratch: Vec::new(),
+                compression: CompressionConfig::default(),
+                peer_compression_capable: false,
             }),
         })
     }
@@ -270,6 +275,8 @@ impl StcpContext {
                 udp_peer_addr: 0,
                 udp_peer_port: 0,
                 tx_frame_scratch: Vec::new(),
+                compression: CompressionConfig::default(),
+                peer_compression_capable: false,
             }),
         })
     }

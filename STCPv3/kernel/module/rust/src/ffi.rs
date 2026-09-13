@@ -247,6 +247,29 @@ pub extern "C" fn stcp_rust_connection_id(raw: *mut c_void) -> u64 {
     }
 }
 
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_set_compression(
+    raw: *mut c_void,
+    enabled: c_int,
+) -> c_int {
+    match with_ctx(raw, |ctx| session::set_compression(ctx, enabled != 0)) {
+        Ok(()) => 0,
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_set_compression_threshold(
+    raw: *mut c_void,
+    threshold: u32,
+) -> c_int {
+    match with_ctx(raw, |ctx| session::set_compression_threshold(ctx, threshold as usize)) {
+        Ok(()) => 0,
+        Err(errno) => errno,
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_send(
     raw: *mut c_void,

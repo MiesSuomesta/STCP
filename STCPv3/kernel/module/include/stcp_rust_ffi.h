@@ -4,6 +4,9 @@
 #include <linux/types.h>
 
 
+struct stcp_compression_stats;
+
+
 struct stcp_reliability_stats {
 	u32 srtt_ms;
 	u32 rttvar_ms;
@@ -55,6 +58,7 @@ ssize_t stcp_rust_recv(void *ctx, u8 *data, size_t len, int flags);
 void stcp_rust_shutdown(void *ctx, int how);
 int stcp_rust_tick(void *ctx);
 int stcp_rust_get_reliability_stats(void *ctx, struct stcp_reliability_stats *out_stats);
+int stcp_rust_get_compression_stats(void *ctx, struct stcp_compression_stats *out_stats);
 int stcp_rust_crypto_selftest(void);
 
 /* Native STCP_P2P shared-core status / wire-codec selftest. */

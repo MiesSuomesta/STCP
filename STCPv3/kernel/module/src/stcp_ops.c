@@ -1098,8 +1098,10 @@ static int stcp_getsockopt(
 )
 {
 	struct stcp_sock *ssk;
+	struct stcp_compression_stats compression_stats;
 	int value;
 	int len;
+	int ret;
 
 	if (!sock || !sock->sk || !optval || !optlen)
 		return -EINVAL;
@@ -1107,10 +1109,24 @@ static int stcp_getsockopt(
 		return -ENOPROTOOPT;
 	if (get_user(len, optlen))
 		return -EFAULT;
+	ssk = stcp_sk(sock->sk);
+
+	if (optname == STCP_SO_COMPRESSION_STATS) {
+		if (len < sizeof(compression_stats))
+			return -EINVAL;
+		ret = stcp_rust_get_compression_stats(ssk->rust_ctx, &compression_stats);
+		if (ret)
+			return ret;
+		if (copy_to_user(optval, &compression_stats, sizeof(compression_stats)))
+			return -EFAULT;
+		if (put_user(sizeof(compression_stats), optlen))
+			return -EFAULT;
+		return 0;
+	}
+
 	if (len < sizeof(value))
 		return -EINVAL;
 
-	ssk = stcp_sk(sock->sk);
 	switch (optname) {
 	case STCP_SO_COMPRESSION:
 		value = ssk->compression_enabled ? 1 : 0;

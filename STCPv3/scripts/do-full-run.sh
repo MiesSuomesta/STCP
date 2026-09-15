@@ -324,6 +324,146 @@ run_host_rpi_tests() {
     fi
 }
 
+
+report_compression_stats() {
+    local sdk_root="$HOME/SDK/v3"
+    local result_root="$sdk_root/robot-results"
+    local latest=""
+    local report=""
+
+    info "Collecting STCPv3 compression statistics..."
+
+    if [[ -L "$result_root/latest" || -d "$result_root/latest" ]]; then
+        latest="$(readlink -f "$result_root/latest" 2>/dev/null || true)"
+    fi
+
+    if [[ -z "$latest" || ! -d "$latest" ]]; then
+        info "Compression statistics unavailable: no Robot latest run under $result_root"
+        return 0
+    fi
+
+    # Parse only endpoint logs produced by the echo Robot suite.  Each endpoint
+    # may print cumulative stats more than once, so only the LAST stats record
+    # in each file is aggregated.
+    if ! report="$(
+        python3 - "$latest" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+run_dir = Path(sys.argv[1])
+
+pattern = re.compile(
+    r"\[STCP-COMPRESSION-STATS\]\s+"
+    r"tx_attempts=(\d+)\s+"
+    r"tx_compressed_frames=(\d+)\s+"
+    r"tx_fallback_frames=(\d+)\s+"
+    r"tx_input_bytes=(\d+)\s+"
+    r"tx_wire_bytes=(\d+)\s+"
+    r"tx_errors=(\d+)\s+"
+    r"rx_compressed_frames=(\d+)\s+"
+    r"rx_wire_bytes=(\d+)\s+"
+    r"rx_output_bytes=(\d+)\s+"
+    r"rx_errors=(\d+)"
+)
+
+keys = (
+    "tx_attempts",
+    "tx_compressed_frames",
+    "tx_fallback_frames",
+    "tx_input_bytes",
+    "tx_wire_bytes",
+    "tx_errors",
+    "rx_compressed_frames",
+    "rx_wire_bytes",
+    "rx_output_bytes",
+    "rx_errors",
+)
+
+totals = {k: 0 for k in keys}
+files_used = 0
+
+# Compression tests produce a stats marker only when compression was enabled.
+# Taking the last marker in each endpoint log prevents cumulative snapshots
+# from one socket from being counted repeatedly.
+logs = sorted(run_dir.rglob("*-client.log")) + sorted(run_dir.rglob("*-server.log"))
+
+for path in logs:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+
+    matches = list(pattern.finditer(text))
+    if not matches:
+        continue
+
+    values = [int(v) for v in matches[-1].groups()]
+    for key, value in zip(keys, values):
+        totals[key] += value
+    files_used += 1
+
+if files_used == 0:
+    print("NO_STATS=1")
+    raise SystemExit(0)
+
+attempts = totals["tx_attempts"]
+compressed = totals["tx_compressed_frames"]
+fallback = totals["tx_fallback_frames"]
+input_bytes = totals["tx_input_bytes"]
+wire_bytes = totals["tx_wire_bytes"]
+
+saved = max(0, input_bytes - wire_bytes)
+hit_rate = (compressed * 100.0 / attempts) if attempts else 0.0
+reduction = (saved * 100.0 / input_bytes) if input_bytes else 0.0
+
+print(f"FILES_USED={files_used}")
+for key in keys:
+    print(f"{key.upper()}={totals[key]}")
+print(f"TX_SAVED_BYTES={saved}")
+print(f"TX_HIT_RATE={hit_rate:.2f}")
+print(f"TX_REDUCTION={reduction:.2f}")
+PY
+    )"; then
+        info "Compression statistics parser failed; continuing without report"
+        return 0
+    fi
+
+    if grep -q '^NO_STATS=1$' <<<"$report"; then
+        info "No compression statistics markers found in: $latest"
+        return 0
+    fi
+
+    # shellcheck disable=SC1090
+    eval "$report"
+
+    echo
+    ok "=================================================="
+    ok " STCPv3 COMPRESSION STATISTICS"
+    ok "=================================================="
+    printf '%s\n' \
+        " Robot endpoint logs      : ${FILES_USED:-0}" \
+        "" \
+        " TX attempts              : ${TX_ATTEMPTS:-0}" \
+        " TX compressed frames     : ${TX_COMPRESSED_FRAMES:-0}" \
+        " TX fallback frames       : ${TX_FALLBACK_FRAMES:-0}" \
+        " TX hit rate              : ${TX_HIT_RATE:-0.00} %" \
+        "" \
+        " TX original payload      : ${TX_INPUT_BYTES:-0} B" \
+        " TX wire payload          : ${TX_WIRE_BYTES:-0} B" \
+        " TX payload bytes saved   : ${TX_SAVED_BYTES:-0} B" \
+        " TX payload reduction     : ${TX_REDUCTION:-0.00} %" \
+        "" \
+        " RX compressed frames     : ${RX_COMPRESSED_FRAMES:-0}" \
+        " RX wire payload          : ${RX_WIRE_BYTES:-0} B" \
+        " RX restored payload      : ${RX_OUTPUT_BYTES:-0} B" \
+        "" \
+        " Compression errors       : ${TX_ERRORS:-0}" \
+        " Decompression errors     : ${RX_ERRORS:-0}"
+    ok "=================================================="
+    echo
+}
+
 run_zephyr_build_flash() {
     local stcp_repo="$HOME/STCP/STCPv3"
     local rust_core="$stcp_repo/kernel/module/rust"
@@ -738,6 +878,10 @@ main() {
         restore_zephyr_golden_image || true
         fail "Stopping full run after P2P application failure rc=$p2p_rc"
     fi
+
+    # Aggregate the compression matrix statistics collected by the
+    # Linux/Raspberry Pi Robot suite.
+    report_compression_stats
 
     # p2p-application is the last firmware flashed above. Always put the
     # normal command-driven test application back on the board.

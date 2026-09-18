@@ -292,7 +292,7 @@ run_host_rpi_build_install() {
     cleanup_stcp_users
 
     info "Building host + Raspberry Pi STCP..."
-    cd ~/STCP/STCPv3
+    cd ~/STCP/STCPv4
 
     bash scripts/build-all.sh host rpi
     bash scripts/install-all.sh host
@@ -309,7 +309,7 @@ run_host_rpi_tests() {
     local rc=0
 
     info "Running Linux/Raspberry Robot regression suite..."
-    cd ~/SDK/v3
+    cd ~/SDK/v4
 
     info "Running Linux/Raspberry robot tests....."
 
@@ -326,12 +326,12 @@ run_host_rpi_tests() {
 
 
 report_compression_stats() {
-    local sdk_root="$HOME/SDK/v3"
+    local sdk_root="$HOME/SDK/v4"
     local result_root="$sdk_root/robot-results"
     local latest=""
     local report=""
 
-    info "Collecting STCPv3 compression statistics..."
+    info "Collecting STCPv4 compression statistics..."
 
     if [[ -L "$result_root/latest" || -d "$result_root/latest" ]]; then
         latest="$(readlink -f "$result_root/latest" 2>/dev/null || true)"
@@ -342,9 +342,6 @@ report_compression_stats() {
         return 0
     fi
 
-    # Parse only endpoint logs produced by the echo Robot suite.  Each endpoint
-    # may print cumulative stats more than once, so only the LAST stats record
-    # in each file is aggregated.
     if ! report="$(
         python3 - "$latest" <<'PY'
 import re
@@ -353,7 +350,7 @@ from pathlib import Path
 
 run_dir = Path(sys.argv[1])
 
-pattern = re.compile(
+pat = re.compile(
     r"\[STCP-COMPRESSION-STATS\]\s+"
     r"tx_attempts=(\d+)\s+"
     r"tx_compressed_frames=(\d+)\s+"
@@ -366,63 +363,58 @@ pattern = re.compile(
     r"rx_output_bytes=(\d+)\s+"
     r"rx_errors=(\d+)"
 )
-
 keys = (
-    "tx_attempts",
-    "tx_compressed_frames",
-    "tx_fallback_frames",
-    "tx_input_bytes",
-    "tx_wire_bytes",
-    "tx_errors",
-    "rx_compressed_frames",
-    "rx_wire_bytes",
-    "rx_output_bytes",
-    "rx_errors",
+    "tx_attempts", "tx_compressed_frames", "tx_fallback_frames",
+    "tx_input_bytes", "tx_wire_bytes", "tx_errors",
+    "rx_compressed_frames", "rx_wire_bytes", "rx_output_bytes", "rx_errors",
 )
 
-totals = {k: 0 for k in keys}
-files_used = 0
+def zero():
+    return {k: 0 for k in keys}
 
-# Compression tests produce a stats marker only when compression was enabled.
-# Taking the last marker in each endpoint log prevents cumulative snapshots
-# from one socket from being counted repeatedly.
+groups = {"compressible": zero(), "incompressible": zero()}
+files = {"compressible": 0, "incompressible": 0}
+
 logs = sorted(run_dir.rglob("*-client.log")) + sorted(run_dir.rglob("*-server.log"))
 
 for path in logs:
     try:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        s = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         continue
-
-    matches = list(pattern.finditer(text))
-    if not matches:
+    ms = list(pat.finditer(s))
+    if not ms:
         continue
 
-    values = [int(v) for v in matches[-1].groups()]
-    for key, value in zip(keys, values):
-        totals[key] += value
-    files_used += 1
+    # New random tests use 193xx ports / random marker in artifact names.
+    name = path.name.lower()
+    mode = "incompressible" if ("random" in name or re.search(r"-193(?:2[1-4]|3[1-4])-", name)) else "compressible"
 
-if files_used == 0:
+    vals = [int(x) for x in ms[-1].groups()]
+    for k, v in zip(keys, vals):
+        groups[mode][k] += v
+    files[mode] += 1
+
+if not sum(files.values()):
     print("NO_STATS=1")
     raise SystemExit(0)
 
-attempts = totals["tx_attempts"]
-compressed = totals["tx_compressed_frames"]
-fallback = totals["tx_fallback_frames"]
-input_bytes = totals["tx_input_bytes"]
-wire_bytes = totals["tx_wire_bytes"]
+def emit(prefix, d, nfiles):
+    saved = max(0, d["tx_input_bytes"] - d["tx_wire_bytes"])
+    reduction = saved * 100.0 / d["tx_input_bytes"] if d["tx_input_bytes"] else 0.0
+    print(f"{prefix}_FILES={nfiles}")
+    for k in keys:
+        print(f"{prefix}_{k.upper()}={d[k]}")
+    print(f"{prefix}_SAVED_BYTES={saved}")
+    print(f"{prefix}_REDUCTION={reduction:.2f}")
 
-saved = max(0, input_bytes - wire_bytes)
-hit_rate = (compressed * 100.0 / attempts) if attempts else 0.0
-reduction = (saved * 100.0 / input_bytes) if input_bytes else 0.0
+emit("COMP", groups["compressible"], files["compressible"])
+emit("RAND", groups["incompressible"], files["incompressible"])
 
-print(f"FILES_USED={files_used}")
-for key in keys:
-    print(f"{key.upper()}={totals[key]}")
-print(f"TX_SAVED_BYTES={saved}")
-print(f"TX_HIT_RATE={hit_rate:.2f}")
-print(f"TX_REDUCTION={reduction:.2f}")
+total = zero()
+for k in keys:
+    total[k] = groups["compressible"][k] + groups["incompressible"][k]
+emit("TOTAL", total, sum(files.values()))
 PY
     )"; then
         info "Compression statistics parser failed; continuing without report"
@@ -434,38 +426,64 @@ PY
         return 0
     fi
 
-    # shellcheck disable=SC1090
     eval "$report"
 
     echo
     ok "=================================================="
-    ok " STCPv3 COMPRESSION STATISTICS"
+    ok " STCPv4 AUTO COMPRESSION FUNCTIONAL TEST"
     ok "=================================================="
+
     printf '%s\n' \
-        " Robot endpoint logs      : ${FILES_USED:-0}" \
+        " COMPRESSIBLE DATA" \
+        " Endpoint logs            : ${COMP_FILES:-0}" \
+        " Attempts                 : ${COMP_TX_ATTEMPTS:-0}" \
+        " Compressed frames        : ${COMP_TX_COMPRESSED_FRAMES:-0}" \
+        " Fallback frames          : ${COMP_TX_FALLBACK_FRAMES:-0}" \
+        " Original payload         : ${COMP_TX_INPUT_BYTES:-0} B" \
+        " Wire payload             : ${COMP_TX_WIRE_BYTES:-0} B" \
+        " Payload bytes saved      : ${COMP_SAVED_BYTES:-0} B" \
+        " Payload reduction        : ${COMP_REDUCTION:-0.00} %" \
         "" \
-        " TX attempts              : ${TX_ATTEMPTS:-0}" \
-        " TX compressed frames     : ${TX_COMPRESSED_FRAMES:-0}" \
-        " TX fallback frames       : ${TX_FALLBACK_FRAMES:-0}" \
-        " TX hit rate              : ${TX_HIT_RATE:-0.00} %" \
+        " INCOMPRESSIBLE / RANDOM DATA (WORST CASE)" \
+        " Endpoint logs            : ${RAND_FILES:-0}" \
+        " Attempts                 : ${RAND_TX_ATTEMPTS:-0}" \
+        " Compressed frames        : ${RAND_TX_COMPRESSED_FRAMES:-0}" \
+        " Fallback frames          : ${RAND_TX_FALLBACK_FRAMES:-0}" \
+        " Original payload         : ${RAND_TX_INPUT_BYTES:-0} B" \
+        " Wire payload             : ${RAND_TX_WIRE_BYTES:-0} B" \
         "" \
-        " TX original payload      : ${TX_INPUT_BYTES:-0} B" \
-        " TX wire payload          : ${TX_WIRE_BYTES:-0} B" \
-        " TX payload bytes saved   : ${TX_SAVED_BYTES:-0} B" \
-        " TX payload reduction     : ${TX_REDUCTION:-0.00} %" \
-        "" \
-        " RX compressed frames     : ${RX_COMPRESSED_FRAMES:-0}" \
-        " RX wire payload          : ${RX_WIRE_BYTES:-0} B" \
-        " RX restored payload      : ${RX_OUTPUT_BYTES:-0} B" \
-        "" \
-        " Compression errors       : ${TX_ERRORS:-0}" \
-        " Decompression errors     : ${RX_ERRORS:-0}"
+        " INTEGRITY / ERRORS" \
+        " RX compressed frames     : ${TOTAL_RX_COMPRESSED_FRAMES:-0}" \
+        " RX restored payload      : ${TOTAL_RX_OUTPUT_BYTES:-0} B" \
+        " Compression errors       : ${TOTAL_TX_ERRORS:-0}" \
+        " Decompression errors     : ${TOTAL_RX_ERRORS:-0}"
+
+    # Functional invariants. These make the report itself useful as a gate.
+    local functional_pass=1
+    (( ${COMP_TX_ATTEMPTS:-0} > 0 )) || functional_pass=0
+    (( ${COMP_TX_COMPRESSED_FRAMES:-0} > 0 )) || functional_pass=0
+    (( ${COMP_TX_FALLBACK_FRAMES:-0} == 0 )) || functional_pass=0
+    (( ${RAND_TX_ATTEMPTS:-0} > 0 )) || functional_pass=0
+    (( ${RAND_TX_COMPRESSED_FRAMES:-0} == 0 )) || functional_pass=0
+    (( ${RAND_TX_FALLBACK_FRAMES:-0} > 0 )) || functional_pass=0
+    (( ${TOTAL_TX_ERRORS:-0} == 0 )) || functional_pass=0
+    (( ${TOTAL_RX_ERRORS:-0} == 0 )) || functional_pass=0
+
+    if (( functional_pass )); then
+        ok " AUTO COMPRESSION RESULT : PASS"
+        ok " Compressible path       : PASS (COMPRESS)"
+        ok " Worst-case random path  : PASS (FALLBACK)"
+    else
+        fail " AUTO COMPRESSION RESULT : FAIL"
+        return 1
+    fi
+
     ok "=================================================="
     echo
 }
 
 run_zephyr_build_flash() {
-    local stcp_repo="$HOME/STCP/STCPv3"
+    local stcp_repo="$HOME/STCP/STCPv4"
     local rust_core="$stcp_repo/kernel/module/rust"
     local rust_target_triple="thumbv8m.main-none-eabi"
     local rust_arm_target="$rust_core/target/$rust_target_triple"
@@ -507,14 +525,14 @@ run_zephyr_build_flash() {
 
     cd "$HOME/zephyr-stcp/stcp/application"
 
-    info "Building Zephyr STCPv3 clean image..."
+    info "Building Zephyr STCPv4 clean image..."
     bash scripts/build-v2-clean.sh
 
     # Verify that the canonical staticlib still exists after the Zephyr build.
     [[ -s "$rust_staticlib" ]] || \
         fail "Canonical Rust ARM staticlib disappeared after Zephyr build: $rust_staticlib"
 
-    info "Flashing Zephyr STCPv3 image..."
+    info "Flashing Zephyr STCPv4 image..."
     bash scripts/flash-v2-clean.sh
 
     ok "Zephyr build + flash complete"
@@ -569,7 +587,7 @@ collect_zephyr_server_logs() {
 
 run_zephyr_tests() {
     local zephyr_root="$HOME/zephyr-stcp/stcp/application"
-    local robot_dir="$zephyr_root/testing/robot-v3"
+    local robot_dir="$zephyr_root/testing/robot-v4"
     local results_dir="$robot_dir/results"
     local run_id=""
     local run_dir=""
@@ -577,7 +595,7 @@ run_zephyr_tests() {
     local suite=""
     local rc=0
 
-    info "Running Zephyr STCPv3 Robot regression suite..."
+    info "Running Zephyr STCPv4 Robot regression suite..."
 
     cleanup_stcp_users
 
@@ -654,7 +672,7 @@ run_zephyr_tests() {
     printf '%s\n' "$run_dir" >"$results_dir/latest-run-path.txt"
 
     info "Zephyr results/latest -> $(readlink -f "$results_dir/latest")"
-    info "Zephyr STCPv3 Robot regression suite done, rc=$rc"
+    info "Zephyr STCPv4 Robot regression suite done, rc=$rc"
 
     return "$rc"
 }
@@ -781,17 +799,17 @@ run_p2p_regression() {
 }
 
 restore_zephyr_golden_image() {
-    info "Restoring normal Zephyr STCPv3 test application..."
+    info "Restoring normal Zephyr STCPv4 test application..."
     cleanup_stcp_users
     run_zephyr_build_flash
     info "Waiting 3 seconds after golden Zephyr restore..."
     sleep 3
-    ok "Normal Zephyr STCPv3 test application restored"
+    ok "Normal Zephyr STCPv4 test application restored"
 }
 
 main() {
     info "=================================================="
-    info " STCPv3 FULL BUILD / DEPLOY / TEST RUN"
+    info " STCPv4 FULL BUILD / DEPLOY / TEST RUN"
     info "=================================================="
     info "Cleanup before host + Raspberry Pi STCP build..."
 
@@ -807,7 +825,7 @@ main() {
     cleanup_stcp_users
 
     info "Setting up netconsole...."
-    bash ~/SDK/v3/scripts/netconsole/enable-netconsole.sh
+    bash ~/SDK/v4/scripts/netconsole/enable-netconsole.sh
 
     if run_host_rpi_tests; then
         :
@@ -832,12 +850,12 @@ main() {
     ssh lja@fuji "echo > /var/log/stcp/netconsole/wire.log" || true
 
     if run_zephyr_tests; then
-        ok "Zephyr STCPv3 Robot regression PASS"
+        ok "Zephyr STCPv4 Robot regression PASS"
     else
         zephyr_rc=$?
         info "Zephyr Robot tests FAIL rc=$zephyr_rc"
         info "Collecting postmortem from finalized Zephyr results/latest..."
-        bash ~/SDK/v3/scripts/stcp-postmortem.sh || true
+        bash ~/SDK/v4/scripts/stcp-postmortem.sh || true
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 
@@ -851,7 +869,7 @@ main() {
     else
         coap_rc=$?
         info "Zephyr CoAP application regression FAIL rc=$coap_rc"
-        # Best effort: leave the board in the normal Robot-v3 firmware even
+        # Best effort: leave the board in the normal Robot-v4 firmware even
         # after an application-suite failure.
         restore_zephyr_golden_image || true
         fail "Stopping full run after CoAP application failure rc=$coap_rc"
@@ -888,7 +906,7 @@ main() {
     restore_zephyr_golden_image
 
     ok "=================================================="
-    ok " FULL STCPv3 RUN PASSED"
+    ok " FULL STCPv4 RUN PASSED"
     ok " Host/RPi build+install : PASS"
     ok " Zephyr build+flash     : PASS"
     ok " Zephyr Robot           : PASS"

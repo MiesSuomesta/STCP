@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-sudo renice -n -20 $$
+#sudo renice -n -20 $$
 
 ts() {
     date +"[%d.%m.%Y %H:%M:%S]"
@@ -807,6 +807,23 @@ restore_zephyr_golden_image() {
     ok "Normal Zephyr STCPv4 test application restored"
 }
 
+publish_stcp_fi_results() {
+    local sdk_root="$HOME/SDK/v4"
+    local publisher="$sdk_root/tools/site-generator/publish-tested-result.sh"
+    local run="$sdk_root/robot-results/latest"
+
+    [[ -f "$publisher" ]] || fail "stcp.fi publisher missing: $publisher"
+    [[ -e "$run" || -L "$run" ]] || fail "STCPv4 result run missing: $run"
+
+    info "Publishing successful STCPv4 full-run results to stcp.fi..."
+
+    # Publication is deliberately opt-in. This explicit flag exists only on
+    # the all-tests-passed path at the end of do-full-run.
+    bash "$publisher" "$run" --publish-stcp-fi
+
+    ok "STCPv4 full-run results published to stcp.fi"
+}
+
 main() {
     info "=================================================="
     info " STCPv4 FULL BUILD / DEPLOY / TEST RUN"
@@ -905,6 +922,10 @@ main() {
     # normal command-driven test application back on the board.
     restore_zephyr_golden_image
 
+    # Every required phase has now passed and the golden image was restored.
+    # Only this success path is allowed to opt in to stcp.fi publication.
+    publish_stcp_fi_results
+
     ok "=================================================="
     ok " FULL STCPv4 RUN PASSED"
     ok " Host/RPi build+install : PASS"
@@ -915,6 +936,7 @@ main() {
     ok " Zephyr MQTT app        : PASS"
     ok " Zephyr P2P 3-node      : PASS"
     ok " Golden Zephyr restore  : PASS"
+    ok " stcp.fi publication    : PASS"
     ok "=================================================="
 }
 

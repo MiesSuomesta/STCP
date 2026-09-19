@@ -4,10 +4,15 @@ set -Eeuo pipefail
 log()  { printf '[INFO] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 
-APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-STCP_ROOT="${STCP_ROOT:-$HOME/zephyr-stcp/stcp}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd -P)"
+STCP_ROOT="${STCP_ROOT:-$REPO_ROOT/zephyr/nordic}"
 MODULE_V2="${STCP_V2_MODULE:-$STCP_ROOT/module-v2}"
-CANONICAL_CORE="${STCP_CANONICAL_CORE:-$HOME/git/github/STCP/STCPv2/kernel/module/rust}"
+CANONICAL_CORE="${STCP_SHARED_RUST_CORE_DIR:-${STCP_CANONICAL_CORE:-$REPO_ROOT/kernel/module/rust}}"
+case "$CANONICAL_CORE" in
+    */STCPv2/*|*/STCPv3/*) fail "Refusing legacy canonical core: $CANONICAL_CORE" ;;
+esac
 BUILD_DIR="${STCP_P2P_BUILD_DIR:-$APP_ROOT/build}"
 BOARD="${STCP_V2_BOARD:-nrf9151dk/nrf9151/ns}"
 SHIELD="${STCP_V2_SHIELD:-seeed_w5500}"

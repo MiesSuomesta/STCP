@@ -16,10 +16,12 @@ set -Eeuo pipefail
 # Kiinteät polut
 # ============================================================
 
-KERNEL_SRC="/home/pomo/git/github/STCP/STCPv2/linux-kernel/kernel-source-tree/rust-enabled-linux"
-VMLINUX="${KERNEL_SRC}/vmlinux"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+STCP_ROOT="${STCP_ROOT:-$(cd "$SCRIPT_DIR/../../.." && pwd -P)}"
+KERNEL_SRC="${KERNEL_SRC:-$STCP_ROOT/kernel/linux}"
+VMLINUX="${VMLINUX:-$KERNEL_SRC/vmlinux}"
 
-STCP_MODULE="${KERNEL_SRC}/../linux-module/stcp.ko"
+STCP_MODULE="${STCP_MODULE:-$STCP_ROOT/kernel/module/stcp.ko}"
 
 FADDR2LINE="${KERNEL_SRC}/scripts/faddr2line"
 DECODE_STACKTRACE="${KERNEL_SRC}/scripts/decode_stacktrace.sh"

@@ -132,6 +132,9 @@ pub(crate) fn transmit(
 }
 
 fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
+    let bench_queue_ctx = crate::protocol_bench::now();
+    /* Value samples: dump total_ns == total bytes, calls == RX chunks, avg_ns == avg chunk bytes. */
+    crate::protocol_bench::value(b"R:RX:CHUNK_BYTES", bytes.len() as u64);
     debug_event(310, ctx, bytes.len(), 0);
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
@@ -191,14 +194,19 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     let was_connected = crate::session::is_ready_snapshot(ctx);
 
     debug_event(312, ctx, was_connected as usize, adopted_connection_id as usize);
+    let bench_progress = crate::protocol_bench::now();
     match crate::session::progress_receive(ctx) {
         Ok(readable) => {
+            crate::protocol_bench::record(b"R:RX:PROGRESS_RECEIVE", bench_progress);
             let became_connected =
                 !was_connected && crate::session::is_ready_snapshot(ctx);
 
             debug_event(313, ctx, readable as usize, became_connected as usize);
             if readable || became_connected || adopted_connection_id {
+                crate::protocol_bench::value(b"R:RX:WAKE_DECISION", 1);
                 wake_recv(owner);
+            } else {
+                crate::protocol_bench::value(b"R:RX:NO_WAKE_CHUNK", 1);
             }
         }
         Err(error) => {
@@ -209,6 +217,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         }
     }
 
+    crate::protocol_bench::record(b"R:RX:QUEUE_TO_CONTEXT", bench_queue_ctx);
     0
 }
 

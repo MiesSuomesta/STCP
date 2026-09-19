@@ -13,6 +13,38 @@ static bool reorder_first_pair;
 static unsigned int drop_percent;
 static unsigned int delay_first_data_ms;
 
+/* Benchmark dump trigger. Writing 1 to the module parameter emits the
+ * accumulated benchmark table to dmesg without unloading STCP. */
+static bool benchmark_dump;
+extern void stcp_kernel_benchmark_check(void);
+
+static int stcp_benchmark_dump_set(const char *val, const struct kernel_param *kp)
+{
+	bool requested;
+	int ret;
+
+	ret = kstrtobool(val, &requested);
+	if (ret)
+		return ret;
+
+	WRITE_ONCE(benchmark_dump, requested);
+	if (requested) {
+		stcp_kernel_benchmark_check();
+		WRITE_ONCE(benchmark_dump, false);
+	}
+
+	return 0;
+}
+
+static const struct kernel_param_ops stcp_benchmark_dump_ops = {
+	.set = stcp_benchmark_dump_set,
+	.get = param_get_bool,
+};
+
+module_param_cb(benchmark_dump, &stcp_benchmark_dump_ops, &benchmark_dump, 0644);
+MODULE_PARM_DESC(benchmark_dump,
+	"Write 1 to dump STCP benchmark accumulators to the kernel log");
+
 static atomic_t drop_budget = ATOMIC_INIT(0);
 static atomic_t duplicate_budget = ATOMIC_INIT(0);
 static atomic_t reorder_budget = ATOMIC_INIT(0);

@@ -27,7 +27,27 @@
 #define STCP_CONNECT_TIMEOUT_MS 5000
 #define STCP_SEND_READY_TIMEOUT_MS 5000
 #define STCP_CLOSE_DRAIN_TIMEOUT_MS 750
+
 #define STCP_CLOSE_FIN_TIMEOUT_MS 1250
+
+/*
+ * Coarse C-side benchmark bracketing for STCP-TCP sendmsg.
+ *
+ * Keep the hot path silent: measurements are accumulated in stcp_memory.c
+ * and dumped only through /sys/module/stcp/parameters/benchmark_dump.
+ */
+extern u64 stcp_kernel_benchmark_now_ns(void);
+extern void stcp_kernel_benchmark_record(const u8 *file, size_t file_len,
+					 u32 line, u32 column, u64 elapsed_ns);
+
+#define STCP_BENCH_START(_var) \
+	u64 _var = stcp_kernel_benchmark_now_ns()
+
+#define STCP_BENCH_STOP(_var, _label) do { \
+	u64 __stcp_bench_stop = stcp_kernel_benchmark_now_ns(); \
+	stcp_kernel_benchmark_record((const u8 *)(_label), sizeof(_label) - 1, \
+				     0, 0, __stcp_bench_stop - (_var)); \
+} while (0)
 
 /*
  * Crash-debug instrumentation for the socket lifetime / LSM recvmsg race.
@@ -837,39 +857,63 @@ static int stcp_sendmsg(
 	if (!ssk->rust_ctx)
 		return -EINVAL;
 
+	/*
+	 * First C-side split:
+	 *   C:SENDMSG:TOTAL        complete blocking sendmsg body
+	 *   C:SENDMSG:TX_LOCK_WAIT time serialized behind another sender
+	 *   C:SENDMSG:BUFFER       tx buffer ensure/grow
+	 *   C:SENDMSG:COPY         userspace iterator -> STCP tx buffer
+	 *   C:SENDMSG:RUST_SEND    one stcp_rust_send() attempt
+	 *   C:SENDMSG:EAGAIN_WAIT  sleep waiting for can_send() after -EAGAIN
+	 */
+	STCP_BENCH_START(bench_sendmsg_total);
+	STCP_BENCH_START(bench_tx_lock);
 	mutex_lock(&ssk->tx_lock);
+	STCP_BENCH_STOP(bench_tx_lock, "C:SENDMSG:TX_LOCK_WAIT");
 
 	while (total < len) {
 		size_t chunk = min_t(size_t, len - total, STCP_IO_BUFFER_MAX);
 		int wait_ret;
 
+		STCP_BENCH_START(bench_buffer);
 		ret = stcp_ensure_io_buffer(
 			&ssk->tx_buffer,
 			&ssk->tx_buffer_size,
 			chunk
 		);
+		STCP_BENCH_STOP(bench_buffer, "C:SENDMSG:BUFFER");
 		if (ret < 0)
 			break;
 		buffer = ssk->tx_buffer;
 
-		if (!copy_from_iter_full(buffer, chunk, &msg->msg_iter)) {
-			ret = total ? (ssize_t)total : -EFAULT;
-			break;
+		{
+			STCP_BENCH_START(bench_copy);
+			bool copied = copy_from_iter_full(buffer, chunk, &msg->msg_iter);
+			STCP_BENCH_STOP(bench_copy, "C:SENDMSG:COPY");
+			if (!copied) {
+				ret = total ? (ssize_t)total : -EFAULT;
+				break;
+			}
 		}
 
-
 		for (;;) {
+			STCP_BENCH_START(bench_rust_send);
 			ret = stcp_rust_send(ssk->rust_ctx, buffer, chunk,
 						 msg->msg_flags);
+			STCP_BENCH_STOP(bench_rust_send, "C:SENDMSG:RUST_SEND");
 			if (ret != -EAGAIN)
 				break;
 			if (msg->msg_flags & MSG_DONTWAIT)
 				break;
-			wait_ret = wait_event_interruptible_timeout(
-				ssk->recv_wq,
-				stcp_rust_can_send(ssk->rust_ctx, chunk) > 0,
-				msecs_to_jiffies(STCP_SEND_READY_TIMEOUT_MS)
-			);
+			{
+				STCP_BENCH_START(bench_eagain_wait);
+				wait_ret = wait_event_interruptible_timeout(
+					ssk->recv_wq,
+					stcp_rust_can_send(ssk->rust_ctx, chunk) > 0,
+					msecs_to_jiffies(STCP_SEND_READY_TIMEOUT_MS)
+				);
+				STCP_BENCH_STOP(bench_eagain_wait, "C:SENDMSG:EAGAIN_WAIT");
+			}
 			if (wait_ret < 0) {
 				ret = wait_ret;
 				break;
@@ -893,6 +937,7 @@ static int stcp_sendmsg(
 	}
 
 	mutex_unlock(&ssk->tx_lock);
+	STCP_BENCH_STOP(bench_sendmsg_total, "C:SENDMSG:TOTAL");
 	return total ? (int)total : (int)ret;
 }
 
@@ -939,12 +984,15 @@ static int stcp_recvmsg(
 		return -EINVAL;
 	}
 
+	STCP_BENCH_START(bench_recvmsg_total);
 	mutex_lock(&ssk->rx_lock);
+	STCP_BENCH_START(bench_recv_buffer);
 	ret = stcp_ensure_io_buffer(
 		&ssk->rx_buffer,
 		&ssk->rx_buffer_size,
 		len
 	);
+	STCP_BENCH_STOP(bench_recv_buffer, "C:RECVMSG:BUFFER");
 	if (ret < 0) {
 		mutex_unlock(&ssk->rx_lock);
 		return ret;
@@ -952,12 +1000,14 @@ static int stcp_recvmsg(
 	buffer = ssk->rx_buffer;
 
 	for (;;) {
+		STCP_BENCH_START(bench_rust_recv);
 		ret = stcp_rust_recv(
 			ssk->rust_ctx,
 			buffer,
 			len,
 			flags
 		);
+		STCP_BENCH_STOP(bench_rust_recv, "C:RECVMSG:RUST_RECV");
 
 
 		if (ret != -EAGAIN)
@@ -967,10 +1017,12 @@ static int stcp_recvmsg(
 			break;
 
 
+		STCP_BENCH_START(bench_wait_data);
 		wait_ret = wait_event_interruptible(
 			ssk->recv_wq,
 			stcp_rust_has_data(ssk->rust_ctx) != 0
 		);
+		STCP_BENCH_STOP(bench_wait_data, "C:RECVMSG:WAIT_DATA");
 
 		if (wait_ret) {
 			ret = wait_ret;
@@ -978,11 +1030,15 @@ static int stcp_recvmsg(
 		}
 	}
 
-	if (ret > 0 &&
-	    copy_to_iter(buffer, ret, &msg->msg_iter) != ret)
-		ret = -EFAULT;
+	if (ret > 0) {
+		STCP_BENCH_START(bench_recv_copy);
+		if (copy_to_iter(buffer, ret, &msg->msg_iter) != ret)
+			ret = -EFAULT;
+		STCP_BENCH_STOP(bench_recv_copy, "C:RECVMSG:COPY");
+	}
 
 	mutex_unlock(&ssk->rx_lock);
+	STCP_BENCH_STOP(bench_recvmsg_total, "C:RECVMSG:TOTAL");
 	pr_err("stcp-debug: recvmsg-exit sock=%px sk=%px ssk=%px ctx=%px carrier=%px "
 	       "ret=%zd len=%zu flags=0x%x pid=%d comm=%s\n",
 	       sock, sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),

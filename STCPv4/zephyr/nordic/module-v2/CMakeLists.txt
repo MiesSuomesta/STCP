@@ -27,11 +27,15 @@ if(CONFIG_STCP_V2)
         set(STCP_V2_RUST_DIR "${STCP_CANONICAL_CORE}")
     else()
         get_filename_component(STCP_V2_RUST_DIR
-            "${CMAKE_CURRENT_LIST_DIR}/../kernel/module/rust" ABSOLUTE)
+            "${CMAKE_CURRENT_LIST_DIR}/../../../kernel/module/rust" ABSOLUTE)
     endif()
 
     get_filename_component(STCP_V2_RUST_DIR
         "${STCP_V2_RUST_DIR}" ABSOLUTE)
+
+    if(STCP_V2_RUST_DIR MATCHES "/STCPv(2|3)/")
+        message(FATAL_ERROR "Refusing legacy STCP Rust core: ${STCP_V2_RUST_DIR}")
+    endif()
 
     message(STATUS "STCPv2 requested canonical Rust core: ${STCP_V2_RUST_DIR}")
 

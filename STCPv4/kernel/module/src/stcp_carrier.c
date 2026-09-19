@@ -102,6 +102,20 @@ extern int stcp_rust_get_udp_peer(
 
 extern void stcp_kernel_wake_recv(void *owner);
 
+/* STCPv4 carrier RX benchmark bracketing. Hot path stays silent. */
+extern u64 stcp_kernel_benchmark_now_ns(void);
+extern void stcp_kernel_benchmark_record(const u8 *file, size_t file_len,
+                                         u32 line, u32 column, u64 elapsed_ns);
+
+#define STCP_CARRIER_BENCH_START(_var) \
+	u64 _var = stcp_kernel_benchmark_now_ns()
+
+#define STCP_CARRIER_BENCH_STOP(_var, _label) do { \
+	u64 __stop = stcp_kernel_benchmark_now_ns(); \
+	stcp_kernel_benchmark_record((const u8 *)(_label), sizeof(_label) - 1, \
+	                             0, 0, __stop - (_var)); \
+} while (0)
+
 static struct stcp_carrier *stcp_carrier_root(
 	struct stcp_carrier *carrier
 )
@@ -217,7 +231,13 @@ static ssize_t stcp_udp_send_one(
 	atomic_inc(&root->active_sends);
 	mutex_unlock(&root->lifecycle_lock);
 
-	ret = kernel_sendmsg(root->socket, &message, &vector, 1, len);
+	{
+		u64 bench_udp_tx_kernel = stcp_kernel_benchmark_now_ns();
+		ret = kernel_sendmsg(root->socket, &message, &vector, 1, len);
+		stcp_kernel_benchmark_record((const u8 *)"C:CARRIER_UDP_TX:KERNEL_SEND",
+			sizeof("C:CARRIER_UDP_TX:KERNEL_SEND") - 1, 0, 0,
+			stcp_kernel_benchmark_now_ns() - bench_udp_tx_kernel);
+	}
 	if (ret >= 0 && (size_t)ret != len)
 		ret = -EIO;
 
@@ -404,6 +424,7 @@ static int stcp_receiver_thread(void *argument)
 			if (trace_recv)
 				pr_emerg("stcp-xconnect: RX03 recv-enter cid=%llu carrier=%px socket=%px\n",
 					 READ_ONCE(carrier->debug_id), carrier, READ_ONCE(carrier->socket));
+		STCP_CARRIER_BENCH_START(bench_kernel_recv);
 		ret = kernel_recvmsg(
 			carrier->socket,
 			&message,
@@ -412,6 +433,10 @@ static int stcp_receiver_thread(void *argument)
 			buffer_size,
 			0
 		);
+		if (carrier->kind == STCP_CARRIER_TCP)
+			STCP_CARRIER_BENCH_STOP(bench_kernel_recv, "C:CARRIER_TCP_RX:KERNEL_RECV");
+		else
+			STCP_CARRIER_BENCH_STOP(bench_kernel_recv, "C:CARRIER_UDP_RX:KERNEL_RECV");
 
 			if (trace_recv)
 				pr_emerg("stcp-xconnect: RX04 recv-exit cid=%llu carrier=%px ret=%d\n",
@@ -485,12 +510,18 @@ static int stcp_receiver_thread(void *argument)
 				       callback_owner, READ_ONCE(carrier->destroy_started),
 				       READ_ONCE(carrier->stopping));
 
-			if (callback_ctx)
+			if (callback_ctx) {
+				STCP_CARRIER_BENCH_START(bench_rust_receive);
 				ret = stcp_rust_carrier_receive_from(
 					callback_ctx, buffer, (size_t)received_len,
 					peer_addr, peer_port);
-			else
+				if (carrier->kind == STCP_CARRIER_TCP)
+					STCP_CARRIER_BENCH_STOP(bench_rust_receive, "C:CARRIER_TCP_RX:RUST_RECEIVE");
+				else
+					STCP_CARRIER_BENCH_STOP(bench_rust_receive, "C:CARRIER_UDP_RX:RUST_RECEIVE");
+			} else {
 				ret = -ESHUTDOWN;
+			}
 
 			active = atomic_dec_return(&carrier->rx_callbacks);
 			pr_err("stcp-lifetime: RX-CB-EXIT cid=%llu carrier=%px ctx_now=%px owner_now=%px active=%d ret=%d pid=%d comm=%s\n",
@@ -1095,13 +1126,19 @@ ssize_t stcp_carrier_send(
 	 */
 	{
 		struct socket *send_socket;
+		u64 bench_tcp_tx_total = stcp_kernel_benchmark_now_ns();
+		u64 bench_tcp_tx_lock;
 		bool trace_send = atomic_dec_if_positive(&carrier->debug_tx_budget) >= 0;
 
 		if (trace_send)
 		pr_emerg("stcp-xconnect: TX01 send-lock-enter cid=%llu carrier=%px len=%zu stopping=%d connected=%d socket=%px\n",
 			 READ_ONCE(carrier->debug_id), carrier, len, READ_ONCE(carrier->stopping),
 			 READ_ONCE(carrier->connected), READ_ONCE(carrier->socket));
+		bench_tcp_tx_lock = stcp_kernel_benchmark_now_ns();
 		mutex_lock(&carrier->lifecycle_lock);
+		stcp_kernel_benchmark_record((const u8 *)"C:CARRIER_TCP_TX:LIFECYCLE_LOCK_WAIT",
+			sizeof("C:CARRIER_TCP_TX:LIFECYCLE_LOCK_WAIT") - 1, 0, 0,
+			stcp_kernel_benchmark_now_ns() - bench_tcp_tx_lock);
 		if (carrier->stopping || !carrier->socket || !carrier->connected) {
 			mutex_unlock(&carrier->lifecycle_lock);
 			return -ESHUTDOWN;
@@ -1122,13 +1159,19 @@ ssize_t stcp_carrier_send(
 		if (trace_send)
 		pr_emerg("stcp-xconnect: TX03 kernel-send-enter cid=%llu carrier=%px socket=%px pos=%zu remain=%zu\n",
 			 READ_ONCE(carrier->debug_id), carrier, send_socket, position, len - position);
-		ret = kernel_sendmsg(
-			send_socket,
-			&message,
-			&vector,
-			1,
-			len - position
-		);
+		{
+			u64 bench_tcp_tx_kernel = stcp_kernel_benchmark_now_ns();
+			ret = kernel_sendmsg(
+				send_socket,
+				&message,
+				&vector,
+				1,
+				len - position
+			);
+			stcp_kernel_benchmark_record((const u8 *)"C:CARRIER_TCP_TX:KERNEL_SEND",
+				sizeof("C:CARRIER_TCP_TX:KERNEL_SEND") - 1, 0, 0,
+				stcp_kernel_benchmark_now_ns() - bench_tcp_tx_kernel);
+		}
 		if (trace_send)
 		pr_emerg("stcp-xconnect: TX04 kernel-send-exit cid=%llu carrier=%px ret=%d pos=%zu\n",
 			 READ_ONCE(carrier->debug_id), carrier, ret, position);
@@ -1149,6 +1192,9 @@ ssize_t stcp_carrier_send(
 		pr_emerg("stcp-xconnect: TX05 send-done cid=%llu carrier=%px result=%zd bytes=%zu active=%d\n",
 			 READ_ONCE(carrier->debug_id), carrier, send_result, position,
 			 atomic_read(&carrier->active_sends));
+		stcp_kernel_benchmark_record((const u8 *)"C:CARRIER_TCP_TX:TOTAL",
+			sizeof("C:CARRIER_TCP_TX:TOTAL") - 1, 0, 0,
+			stcp_kernel_benchmark_now_ns() - bench_tcp_tx_total);
 	}
 
 	if (send_result < 0) {

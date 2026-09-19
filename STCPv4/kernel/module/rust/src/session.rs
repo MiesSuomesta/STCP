@@ -213,6 +213,10 @@ fn send_frame(
 
     /* Frames are encoded with the final connection id. Avoid a full-frame copy. */
     let _ = connection_id;
+    let bench_frame_tx = crate::protocol_bench::now();
+    let bench_packet_type = Header::decode(&frame[..STCP_HEADER_LEN])
+        .ok()
+        .map(|h| h.packet_type);
     crate::carrier::debug_event(306, ctx, carrier_ptr, frame.len());
     let result = crate::carrier::transmit(
         shared,
@@ -221,6 +225,13 @@ fn send_frame(
         frame,
         flags,
     );
+    match bench_packet_type {
+        Some(PacketType::DataChunk) | Some(PacketType::DataChunkEnd) =>
+            crate::protocol_bench::record(b"R:FRAME_TX:DATA", bench_frame_tx),
+        Some(PacketType::Ack) =>
+            crate::protocol_bench::record(b"R:FRAME_TX:ACK", bench_frame_tx),
+        _ => crate::protocol_bench::record(b"R:FRAME_TX:CONTROL", bench_frame_tx),
+    }
     crate::carrier::debug_event(307, ctx, result.is_ok() as usize, frame.len());
     result
 }
@@ -747,6 +758,8 @@ pub fn send(
     ctx: &StcpContext,
     data: &[u8],
 ) -> Result<usize, StcpError> {
+    let bench_total = crate::benchmark::start();
+    let bench_a = crate::benchmark::start();
     debug_event(330, ctx, 0, 0);
     progress_handshake(ctx)?;
 
@@ -766,6 +779,8 @@ pub fn send(
     if shared.peer_closed(side) {
         return Err(StcpError::Closed);
     }
+
+    crate::benchmark::stop(bench_a);
 
     let frame_count = if data.is_empty() {
         0
@@ -811,6 +826,7 @@ pub fn send(
             )
         };
 
+        let bench_b = crate::benchmark::start();
         let (compression_config, peer_compression_capable) = {
             let inner = ctx.inner.lock();
             (inner.compression, inner.peer_compression_capable)
@@ -864,6 +880,9 @@ pub fn send(
             }
         }
 
+        crate::benchmark::stop(bench_b);
+
+        let bench_c = crate::benchmark::start();
         let encrypted_len = wire_plaintext
             .len()
             .checked_add(CHACHA_TAG_LEN)
@@ -936,7 +955,11 @@ pub fn send(
                 inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
             }
             debug_event(337, ctx, 0, 0);
-            send_frame(ctx, &shared, side, &frame, 0)?;
+            crate::benchmark::stop(bench_c);
+            let bench_d = crate::benchmark::start();
+            let send_result = send_frame(ctx, &shared, side, &frame, 0);
+            crate::benchmark::stop(bench_d);
+            send_result?;
         } else {
             {
                 let mut inner = ctx.inner.lock();
@@ -950,13 +973,17 @@ pub fn send(
                 inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
                 inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
             }
+            crate::benchmark::stop(bench_c);
+            let bench_d = crate::benchmark::start();
             let send_result = send_frame(ctx, &shared, side, &frame, 0);
+            crate::benchmark::stop(bench_d);
             ctx.inner.lock().tx_frame_scratch = frame;
             send_result?;
         }
         position = end;
     }
 
+    crate::benchmark::stop(bench_total);
     Ok(data.len())
 }
 
@@ -1244,6 +1271,7 @@ fn process_in_order_frame(
     ctx: &StcpContext,
     mut frame: BufferedFrame,
 ) -> Result<bool, StcpError> {
+    let bench_process_data = crate::protocol_bench::now();
     let packet_type = frame.header.packet_type;
     let sequence = frame.header.sequence;
 
@@ -1372,6 +1400,7 @@ fn process_in_order_frame(
         packet_type == PacketType::DataChunkEnd,
     )?;
 
+    crate::protocol_bench::record(b"R:RX:PROCESS_DATA", bench_process_data);
     Ok(became_readable)
 }
 
@@ -1383,6 +1412,7 @@ fn update_acknowledgment(
     ctx: &StcpContext,
     acknowledgment: u64,
 ) -> Result<(), StcpError> {
+    let bench_ack_update = crate::protocol_bench::now();
     let mut inner = ctx.inner.lock();
 
     if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
@@ -1419,6 +1449,8 @@ fn update_acknowledgment(
         }
     }
 
+    drop(inner);
+    crate::protocol_bench::record(b"R:RX:ACK_UPDATE", bench_ack_update);
     Ok(())
 }
 
@@ -1427,8 +1459,10 @@ fn queue_ack(
     sequence: u64,
     force: bool,
 ) -> Result<(), StcpError> {
+    let bench_queue_ack = crate::protocol_bench::now();
     let carrier_ptr = ctx.inner.lock().carrier;
     if !crate::carrier::reliability_required(carrier_ptr) {
+        crate::protocol_bench::record(b"R:QUEUE_ACK:TCP_BYPASS", bench_queue_ack);
         return Ok(());
     }
 

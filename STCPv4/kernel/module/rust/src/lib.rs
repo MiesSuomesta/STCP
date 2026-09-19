@@ -35,3 +35,5 @@ pub use ffi::{
     stcp_rust_set_carrier,
     stcp_rust_start_handshake,
 };
+
+mod protocol_bench;

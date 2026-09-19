@@ -1,11 +1,23 @@
-#![no_std]
-
-//! Minimal STCP profiling/benchmark helper.
+//! Lightweight STCP kernel hot-path benchmark instrumentation.
 //!
-//! No allocation, std, locks, or global mutable state.
-//! `start()` automatically records its caller location.
+//! `start()` records the Rust caller location automatically. `stop()` records
+//! the elapsed time into a small C-side accumulator. `check()` dumps the
+//! accumulated call-site statistics. No allocation is performed on the hot
+//! path and no printk is emitted by start/stop.
 
 use core::panic::Location;
+
+unsafe extern "C" {
+    fn stcp_kernel_benchmark_now_ns() -> u64;
+    fn stcp_kernel_benchmark_record(
+        file: *const u8,
+        file_len: usize,
+        line: u32,
+        column: u32,
+        elapsed_ns: u64,
+    );
+    fn stcp_kernel_benchmark_check();
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Benchmark {
@@ -27,11 +39,10 @@ pub struct BenchmarkResult {
 
 #[track_caller]
 #[inline(always)]
-pub fn start(now_ns: u64) -> Benchmark {
+pub fn start() -> Benchmark {
     let caller = Location::caller();
-
     Benchmark {
-        start_ns: now_ns,
+        start_ns: unsafe { stcp_kernel_benchmark_now_ns() },
         file: caller.file(),
         line: caller.line(),
         column: caller.column(),
@@ -39,19 +50,32 @@ pub fn start(now_ns: u64) -> Benchmark {
 }
 
 #[inline(always)]
-pub fn stop(benchmark: Benchmark, now_ns: u64) -> BenchmarkResult {
+pub fn stop(benchmark: Benchmark) -> BenchmarkResult {
+    let stop_ns = unsafe { stcp_kernel_benchmark_now_ns() };
+    let elapsed_ns = stop_ns.saturating_sub(benchmark.start_ns);
+
+    unsafe {
+        stcp_kernel_benchmark_record(
+            benchmark.file.as_ptr(),
+            benchmark.file.len(),
+            benchmark.line,
+            benchmark.column,
+            elapsed_ns,
+        );
+    }
+
     BenchmarkResult {
         file: benchmark.file,
         line: benchmark.line,
         column: benchmark.column,
         start_ns: benchmark.start_ns,
-        stop_ns: now_ns,
-        elapsed_ns: now_ns.saturating_sub(benchmark.start_ns),
+        stop_ns,
+        elapsed_ns,
     }
 }
 
-/// Returns true when elapsed time is at least `limit_ns`.
-#[inline(always)]
-pub fn check(result: &BenchmarkResult, limit_ns: u64) -> bool {
-    result.elapsed_ns >= limit_ns
+/// Dump all accumulated benchmark call sites to the kernel log.
+#[inline]
+pub fn check() {
+    unsafe { stcp_kernel_benchmark_check() };
 }

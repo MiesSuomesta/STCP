@@ -1,0 +1,3 @@
+#!/bin/bash
+
+mkZip --exclude=kernel/linux/* --exclude=kernel/raspberry/* --exclude=artifacts/* --exclude=*/target/* --exclude=*/.git/* --exclude=*/.dot.git/* --exclude=*/OLD-FOR-REFERENCE-ONLY/* --exclude=*build*/* --exclude=*.o --exclude=*.cmd --exclude=*.ko --exclude=*.debug --exclude=*.s --exclude=*.mod --exclude=*.gz --exclude=*.xz

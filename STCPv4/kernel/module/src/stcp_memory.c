@@ -82,6 +82,7 @@ void stcp_kernel_debug_event(u32 event, unsigned long ctx,
 	case 311: name = "RX-QUEUE-PUSHED"; break;
 	case 312: name = "RX-PROGRESS-ENTER"; break;
 	case 313: name = "RX-PROGRESS-EXIT"; break;
+	case 314: name = "RX-FRAME"; break;
 	default: return;
 	}
 	pr_err("stcp-demux: %s event=%u ctx=%px arg0=%#lx arg1=%#lx pid=%d comm=%s\n",

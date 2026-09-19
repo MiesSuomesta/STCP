@@ -49,6 +49,9 @@ struct stcp_carrier {
 
 	/* Serializes receiver start/stop and prevents stale task pointers. */
 	struct mutex lifecycle_lock;
+	/* Serializes Rust RX callbacks against socket teardown. */
+	struct mutex rx_gate;
+	bool rx_blocked;
 	struct completion stop_done;
 	bool stopping;
 	bool stopped;
@@ -510,7 +513,8 @@ static int stcp_receiver_thread(void *argument)
 				       callback_owner, READ_ONCE(carrier->destroy_started),
 				       READ_ONCE(carrier->stopping));
 
-			if (callback_ctx) {
+			mutex_lock(&carrier->rx_gate);
+			if (callback_ctx && !READ_ONCE(carrier->rx_blocked)) {
 				STCP_CARRIER_BENCH_START(bench_rust_receive);
 				ret = stcp_rust_carrier_receive_from(
 					callback_ctx, buffer, (size_t)received_len,
@@ -522,6 +526,7 @@ static int stcp_receiver_thread(void *argument)
 			} else {
 				ret = -ESHUTDOWN;
 			}
+			mutex_unlock(&carrier->rx_gate);
 
 			active = atomic_dec_return(&carrier->rx_callbacks);
 			pr_err("stcp-lifetime: RX-CB-EXIT cid=%llu carrier=%px ctx_now=%px owner_now=%px active=%d ret=%d pid=%d comm=%s\n",
@@ -634,6 +639,8 @@ struct stcp_carrier *stcp_carrier_create(
 	carrier->owner = owner;
 	refcount_set(&carrier->refs, 1);
 	mutex_init(&carrier->lifecycle_lock);
+	mutex_init(&carrier->rx_gate);
+	carrier->rx_blocked = false;
 	init_completion(&carrier->stop_done);
 	atomic_set(&carrier->active_sends, 0);
 	init_waitqueue_head(&carrier->send_wait);
@@ -695,6 +702,8 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	}
 	mutex_unlock(&listener->lifecycle_lock);
 	mutex_init(&child->lifecycle_lock);
+	mutex_init(&child->rx_gate);
+	child->rx_blocked = false;
 	init_completion(&child->stop_done);
 	atomic_set(&child->active_sends, 0);
 	init_waitqueue_head(&child->send_wait);
@@ -790,6 +799,22 @@ int stcp_carrier_get_endpoints(
 	*peer_addr = (__force u32)peer4->sin_addr.s_addr;
 	*peer_port = (__force u16)peer4->sin_port;
 	return 0;
+}
+
+void stcp_carrier_quiesce_rx(struct stcp_carrier *carrier)
+{
+	if (!carrier)
+		return;
+
+	/*
+	 * Close the callback gate and wait for an already-running Rust RX
+	 * callback to leave it.  The receiver may keep draining the transport,
+	 * but it can no longer enter Rust with a context that release() is about
+	 * to detach/free.
+	 */
+	mutex_lock(&carrier->rx_gate);
+	WRITE_ONCE(carrier->rx_blocked, true);
+	mutex_unlock(&carrier->rx_gate);
 }
 
 void stcp_carrier_destroy(struct stcp_carrier *carrier)
@@ -946,6 +971,8 @@ int stcp_carrier_accept_unattached(
 	stcp_tune_tcp_socket(child->socket);
 	refcount_set(&child->refs, 1);
 	mutex_init(&child->lifecycle_lock);
+	mutex_init(&child->rx_gate);
+	child->rx_blocked = false;
 	init_completion(&child->stop_done);
 	atomic_set(&child->active_sends, 0);
 	init_waitqueue_head(&child->send_wait);

@@ -172,6 +172,14 @@ static int stcp_release(struct socket *sock)
 	       atomic_read(&ssk->retransmit_callbacks),
 	       delayed_work_pending(&ssk->retransmit_work),
 	       current->pid, current->comm);
+	/*
+	 * Serialize teardown against the carrier RX callback.  Once this returns,
+	 * an in-flight callback has completed and no new callback may enter Rust
+	 * through this carrier while rust_ctx is being shut down/detached.
+	 */
+	if (READ_ONCE(ssk->carrier))
+		stcp_carrier_quiesce_rx(READ_ONCE(ssk->carrier));
+
 	stcp_debug_socket_state("release-before-unregister", sock);
 
 	/* Remove it from /proc/stcp/users before freeing the socket. */

@@ -19,6 +19,10 @@ void stcp_carrier_destroy(
 	struct stcp_carrier *carrier
 );
 
+void stcp_carrier_quiesce_rx(
+	struct stcp_carrier *carrier
+);
+
 struct stcp_carrier *stcp_carrier_create_udp_child(
 	struct stcp_carrier *listener,
 	void *child_rust_ctx,

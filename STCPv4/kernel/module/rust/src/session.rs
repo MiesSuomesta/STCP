@@ -1089,7 +1089,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         extracted += 1;
         let header = frame.header;
         crate::carrier::debug_event(
-            210,
+            314,
             ctx,
             header.packet_type as usize,
             frame.payload.len(),

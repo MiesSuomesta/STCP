@@ -309,7 +309,7 @@ run_host_rpi_tests() {
     local rc=0
 
     info "Running Linux/Raspberry Robot regression suite..."
-    cd ~/SDK/v3
+    cd ~/SDK/version-to-use/
 
     info "Running Linux/Raspberry robot tests....."
 
@@ -326,7 +326,7 @@ run_host_rpi_tests() {
 
 
 report_compression_stats() {
-    local sdk_root="$HOME/SDK/v3"
+    local sdk_root="$HOME/SDK/version-to-use/"
     local result_root="$sdk_root/robot-results"
     local latest=""
     local report=""
@@ -808,7 +808,7 @@ restore_zephyr_golden_image() {
 }
 
 publish_stcp_fi_results() {
-    local sdk_root="$HOME/SDK/v3"
+    local sdk_root="$HOME/SDK/version-to-use/"
     local publisher="$sdk_root/tools/site-generator/publish-tested-result.sh"
     local run="$sdk_root/robot-results/latest"
 
@@ -842,7 +842,7 @@ main() {
     cleanup_stcp_users
 
     info "Setting up netconsole...."
-    bash ~/SDK/v3/scripts/netconsole/enable-netconsole.sh
+    bash ~/SDK/version-to-use/scripts/netconsole/enable-netconsole.sh
 
     if run_host_rpi_tests; then
         :
@@ -872,7 +872,7 @@ main() {
         zephyr_rc=$?
         info "Zephyr Robot tests FAIL rc=$zephyr_rc"
         info "Collecting postmortem from finalized Zephyr results/latest..."
-        bash ~/SDK/v3/scripts/stcp-postmortem.sh || true
+        bash ~/SDK/version-to-use/scripts/stcp-postmortem.sh || true
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 

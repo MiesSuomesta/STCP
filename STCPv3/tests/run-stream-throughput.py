@@ -57,16 +57,21 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bench", type=Path, default=Path("tests/tcp-path/stcp_tcp_path_bench"))
     ap.add_argument("--remote", required=True)
+    ap.add_argument("--transport", choices=("tcp", "stcp"), default="stcp")
     ap.add_argument("--port", type=int, default=19953)
     ap.add_argument("--chunk", type=int, default=128044)
     ap.add_argument("--count", type=int, default=256)
     ap.add_argument("--rounds", type=int, default=3)
     ap.add_argument("--output", type=Path, default=Path("benchmark-results/stream-throughput/latest.json"))
     ap.add_argument("--raw-output", type=Path)
+    ap.add_argument("--benchctl-output", type=Path)
+    ap.add_argument("--clients", type=int, default=1)
+    ap.add_argument("--payload-bytes", type=int)
+    ap.add_argument("--pipeline", type=int, default=1)
     args = ap.parse_args()
     if not args.bench.exists():
         raise SystemExit(f"missing benchmark binary: {args.bench}")
-    cmd = [str(args.bench), "client", args.remote, str(args.port),
+    cmd = [str(args.bench), "client", args.transport, args.remote, str(args.port),
            str(args.chunk), str(args.count), str(args.rounds)]
     wall0 = time.monotonic_ns()
     cp = subprocess.run(cmd, text=True, capture_output=True)
@@ -78,14 +83,46 @@ def main() -> int:
         sys.stderr.write(cp.stdout); sys.stderr.write(cp.stderr); return cp.returncode
     doc = parse_output(cp.stdout)
     doc["command"] = cmd
-    doc["parameters"] = {"remote": args.remote, "port": args.port, "chunk": args.chunk,
+    doc["parameters"] = {"remote": args.remote, "transport": args.transport,
+                         "port": args.port, "chunk": args.chunk,
                          "count": args.count, "bytes_per_round": args.chunk * args.count,
                          "mib_per_round": (args.chunk * args.count) / 1048576.0}
     doc["diagnostics"] = {"client_process_wall_seconds": wall_ns / 1e9,
                           "note": "diagnostic only; excluded from throughput"}
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(doc, indent=2) + "\\n", encoding="utf-8")
-    print(f"STREAM-THROUGHPUT PASS rounds={doc['rounds']}")
+    args.output.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    if args.benchctl_output:
+        tx = doc["summary"]["PEER-RX"]["throughput_mib_s"]["median"]
+        rx = doc["summary"]["CLIENT-RX"]["throughput_mib_s"]["median"]
+        tx_seconds = doc["summary"]["PEER-RX"]["seconds"]["median"]
+        rx_seconds = doc["summary"]["CLIENT-RX"]["seconds"]["median"]
+        elapsed = tx_seconds + rx_seconds
+        operations = args.count * args.rounds * 2
+        raw = {
+            "mode": args.transport,
+            "clients": args.clients,
+            "payload_bytes": args.payload_bytes if args.payload_bytes is not None else args.chunk,
+            "pipeline": args.pipeline,
+            "elapsed_s": elapsed,
+            "operations": operations,
+            "errors": 0,
+            "error_details": [],
+            "tx_mib_s": tx,
+            "rx_mib_s": rx,
+            "combined_mib_s": tx + rx,
+            "operations_s": operations / elapsed if elapsed > 0 else 0.0,
+            "connect_mean_ms": None,
+            "rtt_p50_ms": None,
+            "rtt_p95_ms": None,
+            "rtt_p99_ms": None,
+            "client_cpu_percent": None,
+            "max_rss_kib": 0,
+            "stream_benchmark": doc,
+        }
+        args.benchctl_output.parent.mkdir(parents=True, exist_ok=True)
+        args.benchctl_output.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
+
+    print(f"STREAM-THROUGHPUT PASS transport={args.transport} rounds={doc['rounds']}")
     print(f"TX peer-rx median={doc['summary']['PEER-RX']['throughput_mib_s']['median']:.3f} MiB/s")
     print(f"RX client-rx median={doc['summary']['CLIENT-RX']['throughput_mib_s']['median']:.3f} MiB/s")
     print(f"TX client-send median={doc['summary']['CLIENT-TX-send']['throughput_mib_s']['median']:.3f} MiB/s")

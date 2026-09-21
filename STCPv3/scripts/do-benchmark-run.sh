@@ -12,7 +12,7 @@ for r in $(seq 1 "$ROUNDS"); do
 
         echo "=== ROUND $r START $(date --iso-8601=seconds) ==="
 
-        bash ~/SDK/v4/scripts/netconsole/enable-netconsole.sh
+        bash ~/SDK/version-to-use/scripts/netconsole/enable-netconsole.sh
 
         rc=0
         #echo 0 | sudo tee /sys/module/stcp/parameters/verbose_debug

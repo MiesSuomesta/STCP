@@ -9,8 +9,21 @@ fi
 D=$(cd "$(dirname "$0")" && pwd)
 RUN_DIR=$1 CASE_ID=$2 MODE=$3 HOST=$4 PORT=$5 CLIENTS=$6 PAYLOAD=$7 PIPELINE=$8 DURATION=$9 DIRECTION=${10}
 MAX_ATTEMPTS=${MAX_ATTEMPTS:-5}
-CLIENT=${BENCHMARK_CLIENT:-$D/../raspberrypi/benchmark_client.py}
+CLIENT=${BENCHMARK_CLIENT:-$D/raspberrypi/benchmark_client.py}
+STREAM_RUNNER=${STREAM_RUNNER:-$D/../run-stream-throughput.py}
+STREAM_BENCH=${STREAM_BENCH:-$D/../tcp-path/stcp_tcp_path_bench}
+STREAM_SOURCE=${STREAM_SOURCE:-$D/../tcp-path/stcp_tcp_path_bench.c}
+STREAM_CHUNK=${STREAM_CHUNK:-128044}
+STREAM_COUNT=${STREAM_COUNT:-256}
+STREAM_ROUNDS=${STREAM_ROUNDS:-3}
 RESTART_SERVERS=${RESTART_SERVERS:-:}
+
+build_stream_bench() {
+  if [[ ! -x "$STREAM_BENCH" || "$STREAM_SOURCE" -nt "$STREAM_BENCH" ]]; then
+    echo "building stream benchmark: $STREAM_BENCH"
+    cc -O2 -Wall -Wextra -o "$STREAM_BENCH" "$STREAM_SOURCE"
+  fi
+}
 mkdir -p "$RUN_DIR/logs" "$RUN_DIR/attempts"
 
 for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
@@ -20,10 +33,22 @@ for ((attempt=1; attempt<=MAX_ATTEMPTS; attempt++)); do
     bash -c "$RESTART_SERVERS" >>"$log" 2>&1
   fi
   set +e
-  python3 "$CLIENT" --mode "$MODE" --host "$HOST" --port "$PORT" \
-    --clients "$CLIENTS" --payload "$PAYLOAD" --pipeline "$PIPELINE" \
-    --duration "$DURATION" --verify --output-json "$raw" >>"$log" 2>&1
-  rc=$?
+  if [[ "$DIRECTION" == "stream" && ( "$MODE" == "tcp" || "$MODE" == "stcp" ) ]]; then
+    build_stream_bench >>"$log" 2>&1
+    stream_json="$RUN_DIR/attempts/$CASE_ID.attempt-$attempt.stream.json"
+    python3 "$STREAM_RUNNER" \
+      --bench "$STREAM_BENCH" --transport "$MODE" --remote "$HOST" --port "$PORT" \
+      --chunk "$STREAM_CHUNK" --count "$STREAM_COUNT" --rounds "$STREAM_ROUNDS" \
+      --output "$stream_json" --benchctl-output "$raw" \
+      --clients "$CLIENTS" --payload-bytes "$PAYLOAD" --pipeline "$PIPELINE" \
+      >>"$log" 2>&1
+    rc=$?
+  else
+    python3 "$CLIENT" --mode "$MODE" --host "$HOST" --port "$PORT" \
+      --clients "$CLIENTS" --payload "$PAYLOAD" --pipeline "$PIPELINE" \
+      --duration "$DURATION" --verify --output-json "$raw" >>"$log" 2>&1
+    rc=$?
+  fi
   set -e
   if ((rc == 0)) && python3 "$D/benchctl.py" record-case --raw "$raw" \
       --output "$RUN_DIR/cases/$CASE_ID.json" --case-id "$CASE_ID" \

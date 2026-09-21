@@ -1,0 +1,30 @@
+STCP benchmark-only overlay v3
+
+Scope:
+  tests/benchmark/raspberrypi/benchmark_client.py
+
+Includes v2:
+  - bounded concurrent TX/RX pipeline
+  - synchronized timed start after all clients connect
+  - stop new sends at deadline and drain outstanding replies
+
+Adds v3 diagnostics:
+  --verbose
+  --stats-interval SECONDS
+
+Verbose fields:
+  RUN/CONNECT/DRAIN phase
+  interval TX MiB/s
+  interval RX MiB/s
+  interval ops/s
+  total outstanding requests
+  active clients
+  clients currently draining
+  errors
+
+Example:
+  python3 benchmark_client.py --mode tcp --host 192.168.1.20 --port 19000 \
+    --clients 8 --payload 1048576 --pipeline 8 --duration 10 --verify \
+    --verbose --stats-interval 1
+
+No kernel/STCP core/carrier changes.

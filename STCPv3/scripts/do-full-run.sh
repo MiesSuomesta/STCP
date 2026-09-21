@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-sudo renice -n -20 $$
+#sudo renice -n -20 $$
 
 ts() {
     date +"[%d.%m.%Y %H:%M:%S]"
@@ -342,9 +342,6 @@ report_compression_stats() {
         return 0
     fi
 
-    # Parse only endpoint logs produced by the echo Robot suite.  Each endpoint
-    # may print cumulative stats more than once, so only the LAST stats record
-    # in each file is aggregated.
     if ! report="$(
         python3 - "$latest" <<'PY'
 import re
@@ -353,7 +350,7 @@ from pathlib import Path
 
 run_dir = Path(sys.argv[1])
 
-pattern = re.compile(
+pat = re.compile(
     r"\[STCP-COMPRESSION-STATS\]\s+"
     r"tx_attempts=(\d+)\s+"
     r"tx_compressed_frames=(\d+)\s+"
@@ -366,63 +363,58 @@ pattern = re.compile(
     r"rx_output_bytes=(\d+)\s+"
     r"rx_errors=(\d+)"
 )
-
 keys = (
-    "tx_attempts",
-    "tx_compressed_frames",
-    "tx_fallback_frames",
-    "tx_input_bytes",
-    "tx_wire_bytes",
-    "tx_errors",
-    "rx_compressed_frames",
-    "rx_wire_bytes",
-    "rx_output_bytes",
-    "rx_errors",
+    "tx_attempts", "tx_compressed_frames", "tx_fallback_frames",
+    "tx_input_bytes", "tx_wire_bytes", "tx_errors",
+    "rx_compressed_frames", "rx_wire_bytes", "rx_output_bytes", "rx_errors",
 )
 
-totals = {k: 0 for k in keys}
-files_used = 0
+def zero():
+    return {k: 0 for k in keys}
 
-# Compression tests produce a stats marker only when compression was enabled.
-# Taking the last marker in each endpoint log prevents cumulative snapshots
-# from one socket from being counted repeatedly.
+groups = {"compressible": zero(), "incompressible": zero()}
+files = {"compressible": 0, "incompressible": 0}
+
 logs = sorted(run_dir.rglob("*-client.log")) + sorted(run_dir.rglob("*-server.log"))
 
 for path in logs:
     try:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        s = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         continue
-
-    matches = list(pattern.finditer(text))
-    if not matches:
+    ms = list(pat.finditer(s))
+    if not ms:
         continue
 
-    values = [int(v) for v in matches[-1].groups()]
-    for key, value in zip(keys, values):
-        totals[key] += value
-    files_used += 1
+    # New random tests use 193xx ports / random marker in artifact names.
+    name = path.name.lower()
+    mode = "incompressible" if ("random" in name or re.search(r"-193(?:2[1-4]|3[1-4])-", name)) else "compressible"
 
-if files_used == 0:
+    vals = [int(x) for x in ms[-1].groups()]
+    for k, v in zip(keys, vals):
+        groups[mode][k] += v
+    files[mode] += 1
+
+if not sum(files.values()):
     print("NO_STATS=1")
     raise SystemExit(0)
 
-attempts = totals["tx_attempts"]
-compressed = totals["tx_compressed_frames"]
-fallback = totals["tx_fallback_frames"]
-input_bytes = totals["tx_input_bytes"]
-wire_bytes = totals["tx_wire_bytes"]
+def emit(prefix, d, nfiles):
+    saved = max(0, d["tx_input_bytes"] - d["tx_wire_bytes"])
+    reduction = saved * 100.0 / d["tx_input_bytes"] if d["tx_input_bytes"] else 0.0
+    print(f"{prefix}_FILES={nfiles}")
+    for k in keys:
+        print(f"{prefix}_{k.upper()}={d[k]}")
+    print(f"{prefix}_SAVED_BYTES={saved}")
+    print(f"{prefix}_REDUCTION={reduction:.2f}")
 
-saved = max(0, input_bytes - wire_bytes)
-hit_rate = (compressed * 100.0 / attempts) if attempts else 0.0
-reduction = (saved * 100.0 / input_bytes) if input_bytes else 0.0
+emit("COMP", groups["compressible"], files["compressible"])
+emit("RAND", groups["incompressible"], files["incompressible"])
 
-print(f"FILES_USED={files_used}")
-for key in keys:
-    print(f"{key.upper()}={totals[key]}")
-print(f"TX_SAVED_BYTES={saved}")
-print(f"TX_HIT_RATE={hit_rate:.2f}")
-print(f"TX_REDUCTION={reduction:.2f}")
+total = zero()
+for k in keys:
+    total[k] = groups["compressible"][k] + groups["incompressible"][k]
+emit("TOTAL", total, sum(files.values()))
 PY
     )"; then
         info "Compression statistics parser failed; continuing without report"
@@ -434,32 +426,58 @@ PY
         return 0
     fi
 
-    # shellcheck disable=SC1090
     eval "$report"
 
     echo
     ok "=================================================="
-    ok " STCPv3 COMPRESSION STATISTICS"
+    ok " STCPv3 AUTO COMPRESSION FUNCTIONAL TEST"
     ok "=================================================="
+
     printf '%s\n' \
-        " Robot endpoint logs      : ${FILES_USED:-0}" \
+        " COMPRESSIBLE DATA" \
+        " Endpoint logs            : ${COMP_FILES:-0}" \
+        " Attempts                 : ${COMP_TX_ATTEMPTS:-0}" \
+        " Compressed frames        : ${COMP_TX_COMPRESSED_FRAMES:-0}" \
+        " Fallback frames          : ${COMP_TX_FALLBACK_FRAMES:-0}" \
+        " Original payload         : ${COMP_TX_INPUT_BYTES:-0} B" \
+        " Wire payload             : ${COMP_TX_WIRE_BYTES:-0} B" \
+        " Payload bytes saved      : ${COMP_SAVED_BYTES:-0} B" \
+        " Payload reduction        : ${COMP_REDUCTION:-0.00} %" \
         "" \
-        " TX attempts              : ${TX_ATTEMPTS:-0}" \
-        " TX compressed frames     : ${TX_COMPRESSED_FRAMES:-0}" \
-        " TX fallback frames       : ${TX_FALLBACK_FRAMES:-0}" \
-        " TX hit rate              : ${TX_HIT_RATE:-0.00} %" \
+        " INCOMPRESSIBLE / RANDOM DATA (WORST CASE)" \
+        " Endpoint logs            : ${RAND_FILES:-0}" \
+        " Attempts                 : ${RAND_TX_ATTEMPTS:-0}" \
+        " Compressed frames        : ${RAND_TX_COMPRESSED_FRAMES:-0}" \
+        " Fallback frames          : ${RAND_TX_FALLBACK_FRAMES:-0}" \
+        " Original payload         : ${RAND_TX_INPUT_BYTES:-0} B" \
+        " Wire payload             : ${RAND_TX_WIRE_BYTES:-0} B" \
         "" \
-        " TX original payload      : ${TX_INPUT_BYTES:-0} B" \
-        " TX wire payload          : ${TX_WIRE_BYTES:-0} B" \
-        " TX payload bytes saved   : ${TX_SAVED_BYTES:-0} B" \
-        " TX payload reduction     : ${TX_REDUCTION:-0.00} %" \
-        "" \
-        " RX compressed frames     : ${RX_COMPRESSED_FRAMES:-0}" \
-        " RX wire payload          : ${RX_WIRE_BYTES:-0} B" \
-        " RX restored payload      : ${RX_OUTPUT_BYTES:-0} B" \
-        "" \
-        " Compression errors       : ${TX_ERRORS:-0}" \
-        " Decompression errors     : ${RX_ERRORS:-0}"
+        " INTEGRITY / ERRORS" \
+        " RX compressed frames     : ${TOTAL_RX_COMPRESSED_FRAMES:-0}" \
+        " RX restored payload      : ${TOTAL_RX_OUTPUT_BYTES:-0} B" \
+        " Compression errors       : ${TOTAL_TX_ERRORS:-0}" \
+        " Decompression errors     : ${TOTAL_RX_ERRORS:-0}"
+
+    # Functional invariants. These make the report itself useful as a gate.
+    local functional_pass=1
+    (( ${COMP_TX_ATTEMPTS:-0} > 0 )) || functional_pass=0
+    (( ${COMP_TX_COMPRESSED_FRAMES:-0} > 0 )) || functional_pass=0
+    (( ${COMP_TX_FALLBACK_FRAMES:-0} == 0 )) || functional_pass=0
+    (( ${RAND_TX_ATTEMPTS:-0} > 0 )) || functional_pass=0
+    (( ${RAND_TX_COMPRESSED_FRAMES:-0} == 0 )) || functional_pass=0
+    (( ${RAND_TX_FALLBACK_FRAMES:-0} > 0 )) || functional_pass=0
+    (( ${TOTAL_TX_ERRORS:-0} == 0 )) || functional_pass=0
+    (( ${TOTAL_RX_ERRORS:-0} == 0 )) || functional_pass=0
+
+    if (( functional_pass )); then
+        ok " AUTO COMPRESSION RESULT : PASS"
+        ok " Compressible path       : PASS (COMPRESS)"
+        ok " Worst-case random path  : PASS (FALLBACK)"
+    else
+        fail " AUTO COMPRESSION RESULT : FAIL"
+        return 1
+    fi
+
     ok "=================================================="
     echo
 }
@@ -789,6 +807,23 @@ restore_zephyr_golden_image() {
     ok "Normal Zephyr STCPv3 test application restored"
 }
 
+publish_stcp_fi_results() {
+    local sdk_root="$HOME/SDK/v3"
+    local publisher="$sdk_root/tools/site-generator/publish-tested-result.sh"
+    local run="$sdk_root/robot-results/latest"
+
+    [[ -f "$publisher" ]] || fail "stcp.fi publisher missing: $publisher"
+    [[ -e "$run" || -L "$run" ]] || fail "STCPv3 result run missing: $run"
+
+    info "Publishing successful STCPv3 full-run results to stcp.fi..."
+
+    # Publication is deliberately opt-in. This explicit flag exists only on
+    # the all-tests-passed path at the end of do-full-run.
+    bash "$publisher" "$run" --publish-stcp-fi
+
+    ok "STCPv3 full-run results published to stcp.fi"
+}
+
 main() {
     info "=================================================="
     info " STCPv3 FULL BUILD / DEPLOY / TEST RUN"
@@ -887,6 +922,10 @@ main() {
     # normal command-driven test application back on the board.
     restore_zephyr_golden_image
 
+    # Every required phase has now passed and the golden image was restored.
+    # Only this success path is allowed to opt in to stcp.fi publication.
+    publish_stcp_fi_results
+
     ok "=================================================="
     ok " FULL STCPv3 RUN PASSED"
     ok " Host/RPi build+install : PASS"
@@ -897,6 +936,7 @@ main() {
     ok " Zephyr MQTT app        : PASS"
     ok " Zephyr P2P 3-node      : PASS"
     ok " Golden Zephyr restore  : PASS"
+    ok " stcp.fi publication    : PASS"
     ok "=================================================="
 }
 

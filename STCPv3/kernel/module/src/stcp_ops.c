@@ -679,8 +679,12 @@ static int stcp_accept(
 	child->rust_ctx = accepted_ctx;
 	child->compression_enabled = listener->compression_enabled;
 	child->compression_threshold = listener->compression_threshold;
+	child->compression_level = listener->compression_level;
 	ret = stcp_rust_set_compression_threshold(
 		child->rust_ctx, child->compression_threshold);
+	if (!ret)
+		ret = stcp_rust_set_compression_level(
+			child->rust_ctx, child->compression_level);
 	if (!ret)
 		ret = stcp_rust_set_compression(
 			child->rust_ctx, child->compression_enabled ? 1 : 0);
@@ -1084,6 +1088,16 @@ static int stcp_setsockopt(
 		ssk->compression_threshold = (u32)value;
 		return 0;
 
+	case STCP_SO_COMPRESSION_LEVEL:
+		if (value < STCP_COMPRESSION_LEVEL_VERY_FAST ||
+		    value > STCP_COMPRESSION_LEVEL_VERY_HIGH)
+			return -EINVAL;
+		ret = stcp_rust_set_compression_level(ssk->rust_ctx, (u32)value);
+		if (ret)
+			return ret;
+		ssk->compression_level = (u32)value;
+		return 0;
+
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -1133,6 +1147,9 @@ static int stcp_getsockopt(
 		break;
 	case STCP_SO_COMPRESSION_THRESHOLD:
 		value = (int)ssk->compression_threshold;
+		break;
+	case STCP_SO_COMPRESSION_LEVEL:
+		value = (int)ssk->compression_level;
 		break;
 	default:
 		return -ENOPROTOOPT;

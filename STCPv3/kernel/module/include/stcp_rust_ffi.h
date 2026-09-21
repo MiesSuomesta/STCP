@@ -32,6 +32,7 @@ void stcp_rust_set_carrier(void *ctx, void *carrier);
 void *stcp_rust_get_carrier(void *ctx);
 int stcp_rust_set_compression(void *ctx, int enabled);
 int stcp_rust_set_compression_threshold(void *ctx, u32 threshold);
+int stcp_rust_set_compression_level(void *ctx, u32 level);
 
 int stcp_rust_has_data(void *ctx);
 int stcp_rust_is_connected(void *ctx);

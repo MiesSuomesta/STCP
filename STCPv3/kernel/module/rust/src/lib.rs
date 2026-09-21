@@ -5,6 +5,7 @@ extern crate alloc;
 #[cfg(not(feature = "userspace"))]
 mod allocator;
 
+pub mod benchmark;
 mod byte_queue;
 mod crypto;
 mod error;

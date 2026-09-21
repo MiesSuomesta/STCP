@@ -46,6 +46,7 @@ struct stcp_sock {
 	/* Per-socket optional payload compression policy. */
 	bool compression_enabled;
 	u32 compression_threshold;
+	u32 compression_level;
 };
 
 static inline struct stcp_sock *stcp_sk(struct sock *sk)

@@ -15,10 +15,34 @@ pub enum CompressionMode {
     Auto,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum CompressionLevel {
+    VeryFast = 1,
+    Fast = 2,
+    Default = 3,
+    High = 4,
+    VeryHigh = 5,
+}
+
+impl CompressionLevel {
+    pub fn from_u32(level: u32) -> Option<Self> {
+        match level {
+            1 => Some(Self::VeryFast),
+            2 => Some(Self::Fast),
+            3 => Some(Self::Default),
+            4 => Some(Self::High),
+            5 => Some(Self::VeryHigh),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct CompressionConfig {
     pub mode: CompressionMode,
     pub threshold: usize,
+    pub level: CompressionLevel,
 }
 
 impl Default for CompressionConfig {
@@ -26,6 +50,7 @@ impl Default for CompressionConfig {
         Self {
             mode: CompressionMode::Off,
             threshold: DEFAULT_COMPRESSION_THRESHOLD,
+            level: CompressionLevel::Default,
         }
     }
 }
@@ -94,7 +119,17 @@ fn emit_last_literals(out: &mut Vec<u8>, literals: &[u8]) -> Result<(), StcpErro
 
 /// Small no_std LZ4 block encoder. The output is a raw LZ4 block with no frame
 /// wrapper; STCP carries the original length separately in a compact varint.
-pub fn compress_block(src: &[u8]) -> Result<Vec<u8>, StcpError> {
+pub fn compress_block(src: &[u8], level: CompressionLevel) -> Result<Vec<u8>, StcpError> {
+    match level {
+        CompressionLevel::Default => compress_block_default(src),
+        CompressionLevel::VeryFast => compress_block_fast(src, 4),
+        CompressionLevel::Fast => compress_block_fast(src, 2),
+        CompressionLevel::High => compress_block_deep(src, 4),
+        CompressionLevel::VeryHigh => compress_block_deep(src, 16),
+    }
+}
+
+fn compress_block_default(src: &[u8]) -> Result<Vec<u8>, StcpError> {
     if src.is_empty() {
         return Ok(Vec::new());
     }
@@ -138,6 +173,91 @@ pub fn compress_block(src: &[u8]) -> Result<Vec<u8>, StcpError> {
         pos += 1;
     }
 
+    emit_last_literals(&mut out, &src[anchor..])?;
+    Ok(out)
+}
+
+fn compress_block_fast(src: &[u8], skip: usize) -> Result<Vec<u8>, StcpError> {
+    if src.is_empty() { return Ok(Vec::new()); }
+    let mut table = Vec::new();
+    table.try_reserve_exact(HASH_SIZE).map_err(|_| StcpError::NoMem)?;
+    table.resize(HASH_SIZE, 0u32);
+    let mut out = Vec::new();
+    out.try_reserve_exact(src.len()).map_err(|_| StcpError::NoMem)?;
+    let mut anchor = 0usize;
+    let mut pos = 0usize;
+
+    while pos + MIN_MATCH <= src.len() {
+        let h = hash4(src, pos);
+        let stored = table[h];
+        table[h] = (pos as u32).saturating_add(1);
+        if stored != 0 {
+            let candidate = stored as usize - 1;
+            let distance = pos - candidate;
+            if distance <= u16::MAX as usize &&
+               src[candidate..candidate + MIN_MATCH] == src[pos..pos + MIN_MATCH] {
+                let mut match_len = MIN_MATCH;
+                while pos + match_len < src.len() &&
+                      src[candidate + match_len] == src[pos + match_len] { match_len += 1; }
+                emit_sequence(&mut out, &src[anchor..pos], distance, match_len)?;
+                pos += match_len;
+                anchor = pos;
+                continue;
+            }
+        }
+        pos = pos.saturating_add(skip);
+    }
+    emit_last_literals(&mut out, &src[anchor..])?;
+    Ok(out)
+}
+
+fn compress_block_deep(src: &[u8], max_candidates: usize) -> Result<Vec<u8>, StcpError> {
+    if src.is_empty() { return Ok(Vec::new()); }
+    let mut head = Vec::new();
+    head.try_reserve_exact(HASH_SIZE).map_err(|_| StcpError::NoMem)?;
+    head.resize(HASH_SIZE, 0u32);
+    let mut prev = Vec::new();
+    prev.try_reserve_exact(src.len()).map_err(|_| StcpError::NoMem)?;
+    prev.resize(src.len(), 0u32);
+    let mut out = Vec::new();
+    out.try_reserve_exact(src.len()).map_err(|_| StcpError::NoMem)?;
+    let mut anchor = 0usize;
+    let mut pos = 0usize;
+
+    while pos + MIN_MATCH <= src.len() {
+        let h = hash4(src, pos);
+        let mut stored = head[h];
+        prev[pos] = stored;
+        head[h] = (pos as u32).saturating_add(1);
+        let mut best_candidate = 0usize;
+        let mut best_len = 0usize;
+        let mut checked = 0usize;
+        while stored != 0 && checked < max_candidates {
+            let candidate = stored as usize - 1;
+            if candidate >= pos { break; }
+            let distance = pos - candidate;
+            if distance > u16::MAX as usize { break; }
+            if candidate + MIN_MATCH <= src.len() &&
+               src[candidate..candidate + MIN_MATCH] == src[pos..pos + MIN_MATCH] {
+                let mut match_len = MIN_MATCH;
+                while pos + match_len < src.len() &&
+                      src[candidate + match_len] == src[pos + match_len] { match_len += 1; }
+                if match_len > best_len {
+                    best_len = match_len;
+                    best_candidate = candidate;
+                }
+            }
+            stored = prev[candidate];
+            checked += 1;
+        }
+        if best_len >= MIN_MATCH {
+            emit_sequence(&mut out, &src[anchor..pos], pos - best_candidate, best_len)?;
+            pos += best_len;
+            anchor = pos;
+            continue;
+        }
+        pos += 1;
+    }
     emit_last_literals(&mut out, &src[anchor..])?;
     Ok(out)
 }

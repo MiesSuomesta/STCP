@@ -154,7 +154,6 @@ def main() -> int:
 
         while not reporter_stop.wait(args.stats_interval):
             now = time.perf_counter()
-
             with live_lock:
                 snap = dict(live)
 
@@ -209,7 +208,6 @@ def main() -> int:
         rx_thread: threading.Thread | None = None
         connected_live = False
 
-        # Per-connection bounded pipeline state.
         state_cv = threading.Condition()
         outstanding: deque[float] = deque()
         sending_done = False
@@ -217,7 +215,6 @@ def main() -> int:
 
         def receiver() -> None:
             nonlocal receiver_error
-
             try:
                 while True:
                     with state_cv:
@@ -241,7 +238,6 @@ def main() -> int:
                             raise RuntimeError("received reply with no outstanding request")
 
                         sent_at = outstanding.popleft()
-
                         result["ops"] = int(result["ops"]) + 1
                         result["rx"] = int(result["rx"]) + len(echoed)
                         live_add("ops", 1)
@@ -266,14 +262,11 @@ def main() -> int:
             live_add("active", 1)
             connected_live = True
 
-            # All clients connect before the timed section starts.
             barrier_index = start_barrier.wait()
-
             if barrier_index == 0:
                 start_time = time.perf_counter()
                 deadline = start_time + args.duration
 
-            # Ensure every worker sees the initialized common deadline.
             start_barrier.wait()
 
             rx_thread = threading.Thread(
@@ -286,7 +279,10 @@ def main() -> int:
             while True:
                 with state_cv:
                     while len(outstanding) >= args.pipeline and receiver_error is None:
-                        state_cv.wait()
+                        remaining = deadline - time.perf_counter()
+                        if remaining <= 0:
+                            break
+                        state_cv.wait(timeout=remaining)
 
                     if receiver_error is not None:
                         raise receiver_error
@@ -294,11 +290,10 @@ def main() -> int:
                     if time.perf_counter() >= deadline:
                         break
 
-                    # Reserve one pipeline slot before sendall(), so RX can
-                    # safely match an immediate reply to this request.
                     sent_at = time.perf_counter()
                     outstanding.append(sent_at)
                     live_add("outstanding", 1)
+                    state_cv.notify_all()
 
                 try:
                     conn.sendall(frame)
@@ -313,15 +308,21 @@ def main() -> int:
                 result["tx"] = int(result["tx"]) + len(payload)
                 live_add("tx", len(payload))
 
-            # Stop creating new requests, but drain every request already sent.
             live_add("draining", 1)
             try:
+                drain_deadline = time.perf_counter() + args.timeout
+
                 with state_cv:
                     sending_done = True
                     state_cv.notify_all()
 
                     while outstanding and receiver_error is None:
-                        state_cv.wait()
+                        remaining = drain_deadline - time.perf_counter()
+                        if remaining <= 0:
+                            raise TimeoutError(
+                                f"drain timeout with {len(outstanding)} request(s) outstanding"
+                            )
+                        state_cv.wait(timeout=remaining)
 
                     if receiver_error is not None:
                         raise receiver_error

@@ -11,9 +11,9 @@ Start the TCP, TLS 1.3 and STCP servers on the target using the existing
 
 ```bash
 RUN_DIR="$PWD/results/run-$(date -u +%Y%m%dT%H%M%SZ)" \
-BENCHMARK_HOST=192.168.1.199 \
-RESTART_SERVERS='ssh pi@192.168.1.199 /home/pi/benchmark/start-servers.sh' \
-TARGET_SSH=pi@192.168.1.199 \
+BENCHMARK_HOST=raspi \
+RESTART_SERVERS='ssh pi@raspi /home/pi/benchmark/start-servers.sh' \
+TARGET_SSH=pi@raspi \
 ./run-all.sh
 ```
 

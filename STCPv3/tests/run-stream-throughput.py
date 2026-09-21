@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, re, statistics, subprocess, sys, time
+import argparse, json, re, socket, statistics, subprocess, sys, time
 from pathlib import Path
 
 STAT_RE = re.compile(
@@ -71,7 +71,11 @@ def main() -> int:
     args = ap.parse_args()
     if not args.bench.exists():
         raise SystemExit(f"missing benchmark binary: {args.bench}")
-    cmd = [str(args.bench), "client", args.transport, args.remote, str(args.port),
+    try:
+        remote_ip = socket.gethostbyname(args.remote)
+    except socket.gaierror as e:
+        raise SystemExit(f"cannot resolve remote host {args.remote!r}: {e}")
+    cmd = [str(args.bench), "client", args.transport, remote_ip, str(args.port),
            str(args.chunk), str(args.count), str(args.rounds)]
     wall0 = time.monotonic_ns()
     cp = subprocess.run(cmd, text=True, capture_output=True)
@@ -83,7 +87,7 @@ def main() -> int:
         sys.stderr.write(cp.stdout); sys.stderr.write(cp.stderr); return cp.returncode
     doc = parse_output(cp.stdout)
     doc["command"] = cmd
-    doc["parameters"] = {"remote": args.remote, "transport": args.transport,
+    doc["parameters"] = {"remote": args.remote, "remote_ip": remote_ip, "transport": args.transport,
                          "port": args.port, "chunk": args.chunk,
                          "count": args.count, "bytes_per_round": args.chunk * args.count,
                          "mib_per_round": (args.chunk * args.count) / 1048576.0}

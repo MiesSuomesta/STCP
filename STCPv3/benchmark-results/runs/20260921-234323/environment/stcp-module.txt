@@ -1,0 +1,1 @@
+/srv/stcp-project/STCP/version-to-use/tests/benchmark/collect-environment.sh: line 10: modinfo: command not found

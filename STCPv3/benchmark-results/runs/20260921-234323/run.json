@@ -1,0 +1,19 @@
+{
+  "controller": {
+    "hostname": "devaus",
+    "kernel": "7.2.0-rc6-next-20260804-perggules-20260820-114925-87972723c",
+    "platform": "Linux-7.2.0-rc6-next-20260804-perggules-20260820-114925-87972723c-x86_64-with-glibc2.41",
+    "python": "3.13.5"
+  },
+  "matrix_sha256": "b11488473e2f19652c20719039007beffa7e90f86a4cd3fdc88d74d92b260daf",
+  "run_id": "20260921-234323",
+  "schema_version": 1,
+  "source": {
+    "git_commit": null,
+    "git_describe": null,
+    "git_dirty": false
+  },
+  "started_utc": "2026-09-21T20:43:23.521405+00:00",
+  "state": "running",
+  "suite": "stcp-v2"
+}

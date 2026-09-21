@@ -34,7 +34,6 @@ temp/
 *.xz
 *.gz
 *.sha256
-*.deb
 
 # --- Rust / Cargo -------------------------------------------------
 target/
@@ -53,6 +52,7 @@ venv/
 # --- Robot Framework ----------------------------------------------
 robot-results/
 **/robot-results/
+**/results/
 
 output.xml
 log.html
@@ -79,7 +79,7 @@ artifacts/tmp/
 *.mod.c
 *.mod.o
 *.symvers
-*.lds.S
+
 Module.symvers
 modules.order
 
@@ -102,9 +102,6 @@ RaspberryPI/build-rpi.log
 # Unified/current build staging
 artifacts/build/kernel-host/
 artifacts/build/kernel-rpi/
-
-# Kernel source tree
-**/kernel/linux/**
 
 # --- Zephyr --------------------------------------------------------
 zephyr/**/build/
@@ -135,11 +132,3 @@ support-bundle-*
 .env.local
 .env.*
 !.env.example
-
-/STCPv2/kernel/linux/
-/STCPv2/kernel/raspberry/
-STCPv2/kernel/linux-upstream_*.buildinfo
-STCPv2/kernel/linux-upstream_*.changes
-STCPv2/kernel/module/*.patch
-STCPv2/kernel/module/include/*.patch
-STCPv2/kernel/module/src/*.before-*

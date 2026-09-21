@@ -40,7 +40,8 @@ def native_error(operation: str) -> None:
 
 
 def stcp_address(host: str, port: int) -> SockAddrIn:
-    packed = socket.inet_aton(host)
+    ipv4 = socket.gethostbyname(host)
+    packed = socket.inet_aton(ipv4)
     return SockAddrIn(
         sin_family=socket.AF_INET,
         sin_port=socket.htons(port),
@@ -84,6 +85,9 @@ def open_connection(args: argparse.Namespace) -> tuple[socket.socket, float]:
         raw.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         raw.settimeout(args.timeout)
         raw.connect((args.host, args.port))
+        # Timeout protects connect only. Benchmark I/O itself stays blocking;
+        # duration/drain deadlines are enforced by the benchmark logic.
+        raw.settimeout(None)
         if args.mode == "tls":
             context = ssl.create_default_context()
             context.check_hostname = False

@@ -3,20 +3,6 @@ set -euo pipefail
 
 #sudo renice -n -20 $$
 
-SKIP_COMPILE=0
-
-usage() {
-    echo "Usage: $0 [--skip-compile]"
-}
-
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --skip-compile) SKIP_COMPILE=1; shift ;;
-        -h|--help) usage; exit 0 ;;
-        *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
-    esac
-done
-
 ts() {
     date +"[%d.%m.%Y %H:%M:%S]"
 }
@@ -305,14 +291,10 @@ run_host_rpi_build_install() {
 
     cleanup_stcp_users
 
-    cd /srv/stcp-project/STCP/version-to-use
+    info "Building host + Raspberry Pi STCP..."
+    cd ~/STCP/STCPv3
 
-    if (( SKIP_COMPILE )); then
-        info "--skip-compile: using existing host + Raspberry Pi build artifacts"
-    else
-        info "Building host + Raspberry Pi STCP..."
-        bash scripts/build-all.sh host rpi
-    fi
+    bash scripts/build-all.sh host rpi
     bash scripts/install-all.sh host
     bash scripts/install-all.sh rpi
 
@@ -327,7 +309,7 @@ run_host_rpi_tests() {
     local rc=0
 
     info "Running Linux/Raspberry Robot regression suite..."
-    cd /srv/stcp-project/SDK/version-to-use
+    cd ~/SDK/v3
 
     info "Running Linux/Raspberry robot tests....."
 
@@ -344,12 +326,12 @@ run_host_rpi_tests() {
 
 
 report_compression_stats() {
-    local sdk_root="$HOME/SDK/version-to-use"
+    local sdk_root="$HOME/SDK/v3"
     local result_root="$sdk_root/robot-results"
     local latest=""
     local report=""
 
-    info "Collecting STCPv4 compression statistics..."
+    info "Collecting STCPv3 compression statistics..."
 
     if [[ -L "$result_root/latest" || -d "$result_root/latest" ]]; then
         latest="$(readlink -f "$result_root/latest" 2>/dev/null || true)"
@@ -448,7 +430,7 @@ PY
 
     echo
     ok "=================================================="
-    ok " STCPv4 AUTO COMPRESSION FUNCTIONAL TEST"
+    ok " STCPv3 AUTO COMPRESSION FUNCTIONAL TEST"
     ok "=================================================="
 
     printf '%s\n' \
@@ -501,7 +483,7 @@ PY
 }
 
 run_zephyr_build_flash() {
-    local stcp_repo="$HOME/STCP/STCPv4"
+    local stcp_repo="$HOME/STCP/STCPv3"
     local rust_core="$stcp_repo/kernel/module/rust"
     local rust_target_triple="thumbv8m.main-none-eabi"
     local rust_arm_target="$rust_core/target/$rust_target_triple"
@@ -510,53 +492,47 @@ run_zephyr_build_flash() {
     info "Loading Zephyr environment..."
     zephyr-env
 
-    if (( SKIP_COMPILE )); then
-        info "--skip-compile: using existing canonical Rust ARM + Zephyr image"
-        [[ -s "$rust_staticlib" ]] || fail "Existing canonical Rust ARM staticlib missing: $rust_staticlib"
+    # Zephyr links the canonical shared Rust core directly from:
+    #   kernel/module/rust/target/thumbv8m.main-none-eabi/release/libstcp_kernel_core.a
+    #
+    # Build it explicitly here. Do not rely on the Zephyr application build
+    # to create this artifact as a side effect.
+    [[ -f "$rust_core/Cargo.toml" ]] || \
+        fail "Canonical Rust core not found: $rust_core/Cargo.toml"
+
+    command -v cargo >/dev/null 2>&1 || \
+        fail "cargo not found after Zephyr environment activation"
+
+    if [[ -e "$rust_arm_target" ]]; then
+        info "Cleaning canonical Rust ARM target: $rust_arm_target"
+        rm -rf -- "$rust_arm_target"
+        ok "Canonical Rust ARM target cleaned"
     else
-        # Zephyr links the canonical shared Rust core directly from:
-        #   kernel/module/rust/target/thumbv8m.main-none-eabi/release/libstcp_kernel_core.a
-        #
-        # Build it explicitly here. Do not rely on the Zephyr application build
-        # to create this artifact as a side effect.
-        [[ -f "$rust_core/Cargo.toml" ]] || \
-            fail "Canonical Rust core not found: $rust_core/Cargo.toml"
-
-        command -v cargo >/dev/null 2>&1 || \
-            fail "cargo not found after Zephyr environment activation"
-
-        if [[ -e "$rust_arm_target" ]]; then
-            info "Cleaning canonical Rust ARM target: $rust_arm_target"
-            rm -rf -- "$rust_arm_target"
-            ok "Canonical Rust ARM target cleaned"
-        else
-            info "Canonical Rust ARM target already clean: $rust_arm_target"
-        fi
-
-        info "Building canonical Rust ARM staticlib for $rust_target_triple..."
-        (
-            cd "$rust_core"
-            cargo build --release --target "$rust_target_triple"
-        ) || fail "Canonical Rust ARM build failed for target $rust_target_triple"
-
-        [[ -s "$rust_staticlib" ]] || \
-            fail "Canonical Rust ARM staticlib missing after cargo build: $rust_staticlib"
-
-        ok "Canonical Rust ARM staticlib rebuilt"
-        ls -lh "$rust_staticlib"
-
-        cd "$HOME/zephyr-stcp/stcp/application"
-
-        info "Building Zephyr STCPv4 clean image..."
-        bash scripts/build-v2-clean.sh
-
-        # Verify that the canonical staticlib still exists after the Zephyr build.
-        [[ -s "$rust_staticlib" ]] || \
-            fail "Canonical Rust ARM staticlib disappeared after Zephyr build: $rust_staticlib"
-
+        info "Canonical Rust ARM target already clean: $rust_arm_target"
     fi
 
-    info "Flashing Zephyr STCPv4 image..."
+    info "Building canonical Rust ARM staticlib for $rust_target_triple..."
+    (
+        cd "$rust_core"
+        cargo build --release --target "$rust_target_triple"
+    ) || fail "Canonical Rust ARM build failed for target $rust_target_triple"
+
+    [[ -s "$rust_staticlib" ]] || \
+        fail "Canonical Rust ARM staticlib missing after cargo build: $rust_staticlib"
+
+    ok "Canonical Rust ARM staticlib rebuilt"
+    ls -lh "$rust_staticlib"
+
+    cd "$HOME/zephyr-stcp/stcp/application"
+
+    info "Building Zephyr STCPv3 clean image..."
+    bash scripts/build-v2-clean.sh
+
+    # Verify that the canonical staticlib still exists after the Zephyr build.
+    [[ -s "$rust_staticlib" ]] || \
+        fail "Canonical Rust ARM staticlib disappeared after Zephyr build: $rust_staticlib"
+
+    info "Flashing Zephyr STCPv3 image..."
     bash scripts/flash-v2-clean.sh
 
     ok "Zephyr build + flash complete"
@@ -611,7 +587,7 @@ collect_zephyr_server_logs() {
 
 run_zephyr_tests() {
     local zephyr_root="$HOME/zephyr-stcp/stcp/application"
-    local robot_dir="$zephyr_root/testing/robot-v4"
+    local robot_dir="$zephyr_root/testing/robot-v3"
     local results_dir="$robot_dir/results"
     local run_id=""
     local run_dir=""
@@ -619,7 +595,7 @@ run_zephyr_tests() {
     local suite=""
     local rc=0
 
-    info "Running Zephyr STCPv4 Robot regression suite..."
+    info "Running Zephyr STCPv3 Robot regression suite..."
 
     cleanup_stcp_users
 
@@ -696,7 +672,7 @@ run_zephyr_tests() {
     printf '%s\n' "$run_dir" >"$results_dir/latest-run-path.txt"
 
     info "Zephyr results/latest -> $(readlink -f "$results_dir/latest")"
-    info "Zephyr STCPv4 Robot regression suite done, rc=$rc"
+    info "Zephyr STCPv3 Robot regression suite done, rc=$rc"
 
     return "$rc"
 }
@@ -707,20 +683,14 @@ run_zephyr_app_build_flash() {
     local app_root="$HOME/zephyr-stcp/stcp/$app_name"
 
     [[ -d "$app_root" ]] || fail "Zephyr application missing: $app_root"
-    if (( ! SKIP_COMPILE )); then
-        [[ -x "$app_root/scripts/build-v2-clean.sh" || -f "$app_root/scripts/build-v2-clean.sh" ]] || \
-            fail "Build script missing: $app_root/scripts/build-v2-clean.sh"
-    fi
+    [[ -x "$app_root/scripts/build-v2-clean.sh" || -f "$app_root/scripts/build-v2-clean.sh" ]] || \
+        fail "Build script missing: $app_root/scripts/build-v2-clean.sh"
     [[ -x "$app_root/scripts/flash-v2-clean.sh" || -f "$app_root/scripts/flash-v2-clean.sh" ]] || \
         fail "Flash script missing: $app_root/scripts/flash-v2-clean.sh"
 
+    info "Building Zephyr application: $app_name"
     cd "$app_root"
-    if (( SKIP_COMPILE )); then
-        info "--skip-compile: using existing Zephyr application image: $app_name"
-    else
-        info "Building Zephyr application: $app_name"
-        bash scripts/build-v2-clean.sh
-    fi
+    bash scripts/build-v2-clean.sh
 
     info "Flashing Zephyr application: $app_name"
     bash scripts/flash-v2-clean.sh
@@ -791,9 +761,7 @@ run_p2p_regression() {
     local rc=0
 
     [[ -d "$p2p_root" ]] || fail "P2P application missing: $p2p_root"
-    if (( ! SKIP_COMPILE )); then
-        [[ -f "$p2p_root/scripts/build.sh" ]] || fail "P2P build script missing: $p2p_root/scripts/build.sh"
-    fi
+    [[ -f "$p2p_root/scripts/build.sh" ]] || fail "P2P build script missing: $p2p_root/scripts/build.sh"
     [[ -f "$p2p_root/scripts/flash.sh" ]] || fail "P2P flash script missing: $p2p_root/scripts/flash.sh"
     [[ -f "$p2p_runner" ]] || fail "P2P three-node runner missing: $p2p_runner"
     [[ -e "$serial_dev" ]] || fail "Zephyr serial device missing: $serial_dev"
@@ -805,12 +773,8 @@ run_p2p_regression() {
 
     cd "$p2p_root"
 
-    if (( SKIP_COMPILE )); then
-        info "--skip-compile: using existing standalone P2P image"
-    else
-        info "Building standalone P2P application..."
-        bash scripts/build.sh
-    fi
+    info "Building standalone P2P application..."
+    bash scripts/build.sh
 
     info "Flashing standalone P2P application..."
     bash scripts/flash.sh
@@ -835,35 +799,34 @@ run_p2p_regression() {
 }
 
 restore_zephyr_golden_image() {
-    info "Restoring normal Zephyr STCPv4 test application..."
+    info "Restoring normal Zephyr STCPv3 test application..."
     cleanup_stcp_users
     run_zephyr_build_flash
     info "Waiting 3 seconds after golden Zephyr restore..."
     sleep 3
-    ok "Normal Zephyr STCPv4 test application restored"
+    ok "Normal Zephyr STCPv3 test application restored"
 }
 
 publish_stcp_fi_results() {
-    local sdk_root="$HOME/SDK/version-to-use"
+    local sdk_root="$HOME/SDK/v3"
     local publisher="$sdk_root/tools/site-generator/publish-tested-result.sh"
     local run="$sdk_root/robot-results/latest"
 
     [[ -f "$publisher" ]] || fail "stcp.fi publisher missing: $publisher"
-    [[ -e "$run" || -L "$run" ]] || fail "STCPv4 result run missing: $run"
+    [[ -e "$run" || -L "$run" ]] || fail "STCPv3 result run missing: $run"
 
-    info "Publishing successful STCPv4 full-run results to stcp.fi..."
+    info "Publishing successful STCPv3 full-run results to stcp.fi..."
 
     # Publication is deliberately opt-in. This explicit flag exists only on
     # the all-tests-passed path at the end of do-full-run.
     bash "$publisher" "$run" --publish-stcp-fi
 
-    ok "STCPv4 full-run results published to stcp.fi"
+    ok "STCPv3 full-run results published to stcp.fi"
 }
 
 main() {
     info "=================================================="
-    info " STCPv4 FULL BUILD / DEPLOY / TEST RUN"
-    (( SKIP_COMPILE )) && info " Compile mode: SKIP (existing artifacts)"
+    info " STCPv3 FULL BUILD / DEPLOY / TEST RUN"
     info "=================================================="
     info "Cleanup before host + Raspberry Pi STCP build..."
 
@@ -879,7 +842,7 @@ main() {
     cleanup_stcp_users
 
     info "Setting up netconsole...."
-    bash /srv/stcp-project/SDK/version-to-use/scripts/netconsole/enable-netconsole.sh
+    bash ~/SDK/v3/scripts/netconsole/enable-netconsole.sh
 
     if run_host_rpi_tests; then
         :
@@ -904,12 +867,12 @@ main() {
     ssh lja@fuji "echo > /var/log/stcp/netconsole/wire.log" || true
 
     if run_zephyr_tests; then
-        ok "Zephyr STCPv4 Robot regression PASS"
+        ok "Zephyr STCPv3 Robot regression PASS"
     else
         zephyr_rc=$?
         info "Zephyr Robot tests FAIL rc=$zephyr_rc"
         info "Collecting postmortem from finalized Zephyr results/latest..."
-        bash /srv/stcp-project/SDK/version-to-use/scripts/stcp-postmortem.sh || true
+        bash ~/SDK/v3/scripts/stcp-postmortem.sh || true
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 
@@ -923,7 +886,7 @@ main() {
     else
         coap_rc=$?
         info "Zephyr CoAP application regression FAIL rc=$coap_rc"
-        # Best effort: leave the board in the normal Robot-v4 firmware even
+        # Best effort: leave the board in the normal Robot-v3 firmware even
         # after an application-suite failure.
         restore_zephyr_golden_image || true
         fail "Stopping full run after CoAP application failure rc=$coap_rc"
@@ -964,7 +927,7 @@ main() {
     publish_stcp_fi_results
 
     ok "=================================================="
-    ok " FULL STCPv4 RUN PASSED"
+    ok " FULL STCPv3 RUN PASSED"
     ok " Host/RPi build+install : PASS"
     ok " Zephyr build+flash     : PASS"
     ok " Zephyr Robot           : PASS"

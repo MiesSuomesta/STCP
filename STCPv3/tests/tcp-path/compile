@@ -1,0 +1,1 @@
+gcc -O2 -Wall -Wextra stcp_transport_path_bench.c -o stcp_tcp_path_bench -lssl -lcrypto

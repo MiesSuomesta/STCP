@@ -1,0 +1,4 @@
+#!/bin/bash
+NAME=$(basename $PWD)
+out=$(date +"${NAME}-%d%m%Y_%H%M%S.zip")
+zip -r $* $out .

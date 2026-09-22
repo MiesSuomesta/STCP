@@ -1,0 +1,82 @@
+menuconfig STCP_V2
+    bool "STCPv2 clean AF_STCP provider"
+    depends on NET_SOCKETS
+    default n
+    help
+      Clean Zephyr adapter for the canonical shared STCPv2 Rust core.
+      This deliberately does NOT select NET_SOCKETS_OFFLOAD. AF_STCP is
+      registered as its own socket family with NET_SOCKET_REGISTER so normal
+      AF_INET sockets continue to use the native Ethernet/LTE stack.
+
+if STCP_V2
+config STCP_V2_SOCKET_PRIORITY
+    int "AF_STCP socket provider priority"
+    default 20
+
+config STCP_V2_MAX_SOCKETS
+    int "Maximum STCPv2 sockets"
+    default 8
+    range 2 16
+
+config STCP_V2_CONNECT_TIMEOUT_MS
+    int "STCPv2 handshake timeout"
+    default 60000
+    range 1000 300000
+
+config STCP_V2_LOG_LEVEL
+    int "STCPv2 adapter log level"
+    default 3
+    range 0 4
+
+config STCP_V2_RUST_TOOLCHAIN
+    string "Rustup toolchain"
+    default "nightly"
+
+config STCP_V2_RX_STACK_SIZE
+    int "Per-socket native carrier RX thread stack"
+    default 4096
+    range 2048 32768
+
+config STCP_V2_RX_PRIORITY
+    int "Native carrier RX thread priority"
+    default 7
+
+config STCP_V2_RX_BUFFER_SIZE
+    int "Native carrier RX buffer"
+    default 2048
+    range 512 8192
+
+config STCP_V2_HEXDUMP_BYTES
+    int "Maximum wire trace bytes"
+    default 96
+    range 16 512
+
+config STCP_V2_TRACE_WIRE
+    bool "Trace STCPv2 wire frames"
+    default n
+
+config STCP_V2_TRACE_EVENTS
+    bool "Trace shared-core events"
+    default n
+
+config STCP_V2_TRACE_ALLOC
+    bool "Trace shared-core allocations"
+    default n
+
+config STCP_V2_TRACE_CRYPTO
+    bool "Trace crypto backend"
+    default n
+
+config STCP_V2_X25519_SOFTWARE
+    bool "Use bundled RFC7748 X25519 keypair backend"
+    default y
+    select MBEDTLS_PSA_CRYPTO_C
+    select PSA_WANT_ALG_SHA_256
+    select PSA_WANT_ALG_HMAC
+    select PSA_WANT_KEY_TYPE_HMAC
+    select PSA_WANT_ALG_ECDH
+    select PSA_WANT_ECC_MONTGOMERY_255
+    select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_IMPORT
+    select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_DERIVE
+
+endif

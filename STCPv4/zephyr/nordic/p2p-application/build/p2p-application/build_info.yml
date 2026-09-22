@@ -1,0 +1,65 @@
+cmake:
+  application:
+    configuration-dir: '/home/pomo/zephyr-stcp/stcp/p2p-application'
+    source-dir: '/home/pomo/zephyr-stcp/stcp/p2p-application'
+  board:
+    name: 'nrf9151dk'
+    path:
+     - '/home/pomo/zephyr-stcp/zephyr/boards/nordic/nrf9151dk'
+    qualifiers: 'nrf9151/ns'
+    revision: ''
+  devicetree:
+    bindings-dirs:
+     - '/home/pomo/zephyr-stcp/nrf/dts/bindings'
+     - '/home/pomo/zephyr-stcp/zephyr/boards/nordic/nrf9151dk/dts/bindings'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/bindings'
+    files:
+     - '/home/pomo/zephyr-stcp/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns.dts'
+     - '/home/pomo/zephyr-stcp/zephyr/boards/shields/seeed_w5500/seeed_w5500.overlay'
+     - '/home/pomo/zephyr-stcp/stcp/p2p-application/boards/nrf9151dk_nrf9151_ns.overlay'
+    include-dirs:
+     - '/home/pomo/zephyr-stcp/nrf/include'
+     - '/home/pomo/zephyr-stcp/nrf/dts/common'
+     - '/home/pomo/zephyr-stcp/nrf/dts/riscv'
+     - '/home/pomo/zephyr-stcp/nrf/dts/arm'
+     - '/home/pomo/zephyr-stcp/nrf/dts'
+     - '/home/pomo/zephyr-stcp/zephyr/boards/nordic/nrf9151dk/dts'
+     - '/home/pomo/zephyr-stcp/zephyr/include'
+     - '/home/pomo/zephyr-stcp/zephyr/include/zephyr'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/common'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/vendor'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/rx'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/x86'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/xtensa'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/sparc'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/riscv'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/posix'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/arm64'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/arm'
+     - '/home/pomo/zephyr-stcp/zephyr/dts/arc'
+     - '/home/pomo/zephyr-stcp/zephyr/dts'
+    user-files:
+     - '/home/pomo/zephyr-stcp/stcp/p2p-application/boards/nrf9151dk_nrf9151_ns.overlay'
+  images:
+   - name: 'tfm'
+     source-dir: '/home/pomo/zephyr-stcp/modules/tee/tf-m/trusted-firmware-m'
+  kconfig:
+    extra-user-files:
+     - '/srv/stcp-project/STCP/STCPv3/zephyr/nordic/p2p-application/ethernet-p2p.conf'
+    files:
+     - '/home/pomo/zephyr-stcp/zephyr/boards/nordic/nrf9151dk/nrf9151dk_nrf9151_ns_defconfig'
+     - '/home/pomo/zephyr-stcp/stcp/p2p-application/prj.conf'
+     - '/srv/stcp-project/STCP/STCPv3/zephyr/nordic/p2p-application/ethernet-p2p.conf'
+     - '/home/pomo/zephyr-stcp/stcp/p2p-application/build/p2p-application/zephyr/.config.sysbuild'
+    user-files:
+     - '/home/pomo/zephyr-stcp/stcp/p2p-application/prj.conf'
+  toolchain:
+    name: 'zephyr'
+    path: '/home/pomo/zephyr-sdk-0.16.8'
+  vendor-specific:
+    nordic:
+      svdfile: '/home/pomo/zephyr-stcp/modules/hal/nordic/nrfx/bsp/stable/mdk/nrf9120.svd'
+  zephyr:
+    version: '4.3.99'
+    zephyr-base: '/home/pomo/zephyr-stcp/zephyr'
+version: '0.1.0'

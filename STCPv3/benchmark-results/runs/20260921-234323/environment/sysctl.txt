@@ -1,1 +1,0 @@
-/srv/stcp-project/STCP/version-to-use/tests/benchmark/collect-environment.sh: line 10: sysctl: command not found

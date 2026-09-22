@@ -1,5 +1,0 @@
-#!/bin/bash
-TS=$(date +"%d%m%Y_%H%M%S")
-NAME=${1:-$TS}
-out="${NAME}-${TS}.zip"
-zip -r $out $*

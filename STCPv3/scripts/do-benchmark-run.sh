@@ -1,35 +1,51 @@
 #!/bin/bash
-set -e
+set -uo pipefail
 
-ROUNDS=1
-SKIP_COMPILE=0
 
-usage() {
-    echo "Usage: $0 [ROUNDS] [--skip-compile]"
-}
+ROUNDS=${1:-1}
 
-for arg in "$@"; do
-    case "$arg" in
-        --skip-compile) SKIP_COMPILE=1 ;;
-        -h|--help) usage; exit 0 ;;
-        ''|*[!0-9]*) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
-        *) ROUNDS="$arg" ;;
-    esac
-done
-
-FULL_RUN_ARGS=()
-(( SKIP_COMPILE )) && FULL_RUN_ARGS+=(--skip-compile)
-
-for r in $(seq 1 "$ROUNDS")
-do
+for r in $(seq 1 "$ROUNDS"); do
     (
-        tmp=/tmp/stcp-bench.round.$r
+        tmp="/tmp/stcp-bench.round.$r"
         mkdir -p "$tmp"
-
         cd "$tmp"
-        bash /srv/stcp-project/SDK/v4/scripts/netconsole/enable-netconsole.sh
-        bash /srv/stcp-project/do-full-run.sh "${FULL_RUN_ARGS[@]}"
-        bash /srv/stcp-project/SDK/v4/scripts/stcp-postmortem.sh
-        cp -v ./*.zip /srv/stcp-project/
+
+        echo "=== ROUND $r START $(date --iso-8601=seconds) ==="
+
+        bash ~/SDK/v4/scripts/netconsole/enable-netconsole.sh
+
+        rc=0
+        #echo 0 | sudo tee /sys/module/stcp/parameters/verbose_debug
+        #STCP_TEST_VERBOSE_DEBUG=0 bash ~/do-full-run.sh || rc=$?
+        bash ~/do-full-run.sh || rc=$?
+	#echo -n "Debug verbose: "
+        #cat /sys/module/stcp/parameters/verbose_debug
+
+        echo "=== do-full-run.sh rc=$rc ==="
+        echo "=== COLLECTING POSTMORTEM ==="
+
+        mortem_rc=0
+        bash ~/SDK/v3/scripts/stcp-postmortem.sh || mortem_rc=$?
+
+        echo "=== postmortem rc=$mortem_rc ==="
+
+        shopt -s nullglob
+        zips=(*.zip)
+        if ((${#zips[@]})); then
+            cp -v "${zips[@]}" ~/
+        else
+            echo "WARNING: no postmortem ZIP found in $tmp"
+        fi
+
+        echo "=== ROUND $r END $(date --iso-8601=seconds) ==="
+
+        exit "$rc"
     ) |& ts "[Benchmark round $r / $ROUNDS :: %Y-%m-%d %H:%M:%S] "
+
+    rc=${PIPESTATUS[0]}
+
+    if (( rc != 0 )); then
+        echo "[ Benchmark ] round $r FAILED rc=$rc"
+        exit "$rc"
+    fi
 done

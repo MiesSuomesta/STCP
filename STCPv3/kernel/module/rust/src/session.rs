@@ -24,7 +24,7 @@ use crate::{
     },
     byte_queue::ByteQueue,
     compression::{
-        self, CompressionLevel, CompressionMode, FLAG_COMPRESSED, FLAG_COMPRESSION_CAPABLE,
+        self, CompressionMode, FLAG_COMPRESSED, FLAG_COMPRESSION_CAPABLE,
     },
     error::StcpError,
     frame::{
@@ -703,12 +703,6 @@ pub fn set_compression_threshold(ctx: &StcpContext, threshold: usize) {
     ctx.inner.lock().compression.threshold = threshold;
 }
 
-pub fn set_compression_level(ctx: &StcpContext, level: u32) -> Result<(), StcpError> {
-    let level = CompressionLevel::from_u32(level).ok_or(StcpError::InvalidState)?;
-    ctx.inner.lock().compression.level = level;
-    Ok(())
-}
-
 #[inline]
 fn frame_payload_len(ctx: &StcpContext) -> usize {
     if ctx.proto == 254 {
@@ -826,7 +820,7 @@ pub fn send(
             stats.compression_stats.tx_input_bytes += plaintext.len() as u64;
             drop(stats);
 
-            match compression::compress_block(plaintext, compression_config.level) {
+            match compression::compress_block(plaintext) {
                 Ok(candidate) => {
                     let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
                     let candidate_len = prefix_len

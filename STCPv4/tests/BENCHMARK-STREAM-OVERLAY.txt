@@ -1,0 +1,28 @@
+STCP benchmark-only stream overlay v4
+
+Only tests/ benchmark code is changed.
+
+Design:
+- echo/q1 remains the latency/request-response measurement.
+- TCP and STCP throughput use the same persistent bidirectional stream benchmark.
+- TLS q8 throughput is disabled because it is a different echo measurement and is not
+  comparable to the persistent stream figures.
+
+Updated peer binary is required because the tcp-path benchmark now accepts:
+  server tcp|stcp ...
+  client tcp|stcp ...
+
+Peer build:
+  cc -O2 -Wall -Wextra -o stcp_tcp_path_bench stcp_tcp_path_bench.c
+
+Peer servers:
+  ./stcp_tcp_path_bench server stcp 0.0.0.0 19953
+  ./stcp_tcp_path_bench server tcp  0.0.0.0 19954
+
+Direct client checks:
+  ./stcp_tcp_path_bench client tcp  192.168.1.20 19954
+  ./stcp_tcp_path_bench client stcp 192.168.1.20 19953
+
+run-case.sh auto-builds the local benchmark client binary if needed.
+
+No kernel/core/carrier/SDK/protocol changes.

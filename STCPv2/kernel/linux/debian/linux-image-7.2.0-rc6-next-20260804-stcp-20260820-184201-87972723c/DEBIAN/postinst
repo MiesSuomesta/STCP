@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -e
+
+# Pass maintainer script parameters to hook scripts
+export DEB_MAINT_PARAMS="$*"
+
+# Tell initramfs builder whether it's wanted
+export INITRD=Yes
+
+# run-parts will error out if one of its directory arguments does not
+# exist, so filter the list of hook directories accordingly.
+hookdirs=
+for dir in /etc/kernel /usr/share/kernel; do
+test -d "$dir/postinst.d" || continue
+hookdirs="$hookdirs $dir/postinst.d"
+done
+hookdirs="${hookdirs# }"
+test -n "$hookdirs" && run-parts --arg="7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c" --arg="/boot/vmlinuz-7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c" $hookdirs
+exit 0

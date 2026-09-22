@@ -5,11 +5,7 @@ use alloc::{
     vec::Vec,
 };
 
-use core::{
-    ffi::{c_int, c_void},
-    hint::spin_loop,
-    sync::atomic::Ordering,
-};
+use core::ffi::{c_int, c_void};
 
 use crate::{
     byte_queue::ByteQueue,
@@ -216,37 +212,17 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     0
 }
 
-struct UdpSessionGuard {
-    entry: UdpSessionEntry,
-}
-
-impl Drop for UdpSessionGuard {
-    fn drop(&mut self) {
-        /* The matching release path cannot free child until this reaches 0. */
-        let child = unsafe { &*(self.entry.child as *const StcpContext) };
-        child.udp_demux_refs.fetch_sub(1, Ordering::Release);
-    }
-}
-
-fn acquire_udp_child(
+fn find_udp_child(
     listener: usize,
     connection_id: u64,
-) -> Option<UdpSessionGuard> {
-    /* The registry lock closes the lookup-vs-unregister race: unregister
-     * cannot remove/free this child between finding it and taking the ref. */
-    let sessions = UDP_SESSIONS.lock();
-    let entry = sessions
+) -> Option<UdpSessionEntry> {
+    UDP_SESSIONS
+        .lock()
         .iter()
         .find(|entry| {
             entry.listener == listener && entry.connection_id == connection_id
         })
-        .copied()?;
-
-    let child = unsafe { &*(entry.child as *const StcpContext) };
-    child.udp_demux_refs.fetch_add(1, Ordering::Acquire);
-    drop(sessions);
-
-    Some(UdpSessionGuard { entry })
+        .copied()
 }
 
 fn create_udp_child(
@@ -340,45 +316,11 @@ fn create_udp_child(
 
 pub(crate) fn unregister_context(ctx: &StcpContext) {
     let ptr = ctx as *const StcpContext as usize;
-
-    /* Remove first so no new RX path can acquire a raw child pointer. Keep
-     * the removed child addresses while the registry lock still guarantees
-     * that their contexts are alive. */
-    let removed_children = {
-        let mut sessions = UDP_SESSIONS.lock();
-        let before = sessions.len();
-        unsafe { stcp_kernel_debug_event(210, ptr, before, 0); }
-
-        let mut removed = Vec::new();
-        sessions.retain(|entry| {
-            let remove = entry.child == ptr || entry.listener == ptr;
-            if remove && !removed.contains(&entry.child) {
-                removed.push(entry.child);
-            }
-            !remove
-        });
-
-        unsafe { stcp_kernel_debug_event(211, ptr, before, sessions.len()); }
-        removed
-    };
-
-    /* stcp_rust_release() frees a context only after session::release()
-     * returns. Listener release likewise drains/drops queued children only
-     * after this function returns. Therefore every removed child stays alive
-     * while we wait for already-acquired demux readers to finish. */
-    for child_ptr in removed_children {
-        let child = unsafe { &*(child_ptr as *const StcpContext) };
-        while child.udp_demux_refs.load(Ordering::Acquire) != 0 {
-            spin_loop();
-        }
-    }
-
-    /* Another unregister (notably listener teardown) may have removed this
-     * child entry first. A context must therefore always drain its own RX
-     * references before its Box can be freed. */
-    while ctx.udp_demux_refs.load(Ordering::Acquire) != 0 {
-        spin_loop();
-    }
+    let mut sessions = UDP_SESSIONS.lock();
+    let before = sessions.len();
+    unsafe { stcp_kernel_debug_event(210, ptr, before, 0); }
+    sessions.retain(|entry| entry.child != ptr && entry.listener != ptr);
+    unsafe { stcp_kernel_debug_event(211, ptr, before, sessions.len()); }
 }
 
 #[unsafe(no_mangle)]
@@ -437,10 +379,10 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
 
     let listener_ptr = ctx as *const StcpContext as usize;
     unsafe { stcp_kernel_debug_event(220, listener_ptr, header.connection_id as usize, header.packet_type as usize); }
-    let guard = match acquire_udp_child(listener_ptr, header.connection_id) {
-        Some(guard) => {
-            unsafe { stcp_kernel_debug_event(221, listener_ptr, header.connection_id as usize, guard.entry.child); }
-            guard
+    let entry = match find_udp_child(listener_ptr, header.connection_id) {
+        Some(entry) => {
+            unsafe { stcp_kernel_debug_event(221, listener_ptr, header.connection_id as usize, entry.child); }
+            entry
         },
         None => {
             unsafe { stcp_kernel_debug_event(222, listener_ptr, header.connection_id as usize, 0); }
@@ -455,16 +397,18 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
                 peer_addr,
                 peer_port,
             ) {
-                Ok(_) => match acquire_udp_child(listener_ptr, header.connection_id) {
-                    Some(guard) => guard,
-                    None => return -107,
+                Ok(child) => UdpSessionEntry {
+                    listener: listener_ptr,
+                    connection_id: header.connection_id,
+                    child,
+                    peer_addr,
+                    peer_port,
                 },
                 Err(error) => return error.errno(),
             }
         }
     };
 
-    let entry = guard.entry;
     if entry.peer_addr != peer_addr || entry.peer_port != peer_port {
         return 0;
     }

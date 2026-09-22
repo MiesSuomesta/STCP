@@ -1,14 +1,20 @@
-STCP benchmark TLS blocking-I/O overlay
+STCPv2 benchmark-v2 phase 1.5: per-transport port split
 
-Replaces only:
-  tests/benchmark/raspberrypi/benchmark_client.py
+Complete replacement file:
+  zephyr/nordic/application/testing/benchmark-v2/run_benchmark.py
 
-Includes all previous benchmark-client fixes:
-  - hard duration/drain deadlines
-  - sender state_cv.notify_all()
-  - STCP hostname resolution (e.g. --host raspi)
-  - TCP/TLS socket timeout is used only for connect; benchmark I/O is blocking
+Changes only the host-runner configuration:
+  TCP      uses --port      (default 19000)
+  STCP-TCP uses --stcp-port (default 19010)
 
-Install from STCP repository root:
-  unzip -o stcp-benchmark-tls-blocking-overlay.zip -d .
-  python3 -m py_compile tests/benchmark/raspberrypi/benchmark_client.py
+Before each transport the runner configures the matching Zephyr port and
+starts only its own benchmark server on that port. Existing unrelated STCP
+listeners on 19000 therefore no longer collide with the STCP benchmark.
+
+No firmware, BEN2 wire protocol, workload, stream logic, or host server code
+is changed by this overlay.
+
+Example:
+  bash run-benchmark.sh --serial /dev/ttyACM0 --host 192.168.1.20 \
+    --total 1048576 --chunk 8192 --warmups 1 --runs 5 \
+    --port 19000 --stcp-port 19010

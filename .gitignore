@@ -1,5 +1,5 @@
 # ============================================================
-# STCPv4
+# STCPv2
 # ============================================================
 
 # --- Editors / OS ------------------------------------------------
@@ -65,28 +65,6 @@ report.html
 # --- STCP generated artifacts -------------------------------------
 artifacts/build/
 artifacts/tmp/
-
-**/build/
-
-**/build-*/
-
-**/target/
-
-**/*.o
-
-**/*.ko
-
-**/*.cmd
-
-**/*.mod
-
-**/*.mod.c
-
-**/Module.symvers
-
-**/modules.order
-
-**/.tmp_versions/
 
 # Kernel modules / binaries
 *.ko

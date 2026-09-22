@@ -1,0 +1,7 @@
+default: application
+build_dir: /home/pomo/zephyr-stcp/stcp/application/build-v2-clean
+domains:
+  - name: application
+    build_dir: /home/pomo/zephyr-stcp/stcp/application/build-v2-clean/application
+flash_order:
+  - application

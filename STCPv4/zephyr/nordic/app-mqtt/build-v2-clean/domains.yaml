@@ -1,0 +1,7 @@
+default: app-mqtt
+build_dir: /home/pomo/zephyr-stcp/stcp/app-mqtt/build-v2-clean
+domains:
+  - name: app-mqtt
+    build_dir: /home/pomo/zephyr-stcp/stcp/app-mqtt/build-v2-clean/app-mqtt
+flash_order:
+  - app-mqtt

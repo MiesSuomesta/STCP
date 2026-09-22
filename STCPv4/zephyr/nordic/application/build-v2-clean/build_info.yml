@@ -1,0 +1,25 @@
+cmake:
+  application:
+    source-dir: '/home/pomo/zephyr-stcp/zephyr/share/sysbuild'
+  board:
+    name: 'nrf9151dk'
+    path:
+     - '/home/pomo/zephyr-stcp/zephyr/boards/nordic/nrf9151dk'
+    qualifiers: 'nrf9151/ns'
+    revision: ''
+  images:
+   - name: 'application'
+     source-dir: '/home/pomo/zephyr-stcp/stcp/application'
+     type: 'MAIN'
+  kconfig:
+    files:
+     - '/home/pomo/zephyr-stcp/stcp/application/build-v2-clean/_sysbuild/empty.conf'
+     - '/home/pomo/zephyr-stcp/stcp/application/build-v2-clean/_sysbuild/empty.conf'
+    user-files:
+     - '/home/pomo/zephyr-stcp/stcp/application/build-v2-clean/_sysbuild/empty.conf'
+  sysbuild: 'true'
+version: '0.1.0'
+west:
+  command: '/home/pomo/zephyr-stcp/.venv/bin/west build -p always -d /home/pomo/zephyr-stcp/stcp/application/build-v2-clean -b nrf9151dk/nrf9151/ns --shield seeed_w5500 /home/pomo/zephyr-stcp/stcp/application -- -DZEPHYR_EXTRA_MODULES=/home/pomo/zephyr-stcp/stcp/module-v2 -DSTCP_SHARED_RUST_CORE_DIR=/home/pomo/git/github/STCP/STCPv2/kernel/module/rust -DSTCP_CANONICAL_CORE=/home/pomo/git/github/STCP/STCPv2/kernel/module/rust -DEXTRA_CONF_FILE=/home/pomo/zephyr-stcp/stcp/application/ethernet-v2.conf'
+  topdir: '/home/pomo/zephyr-stcp'
+  version: '1.5.0'

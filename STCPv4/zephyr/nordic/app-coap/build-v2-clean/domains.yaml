@@ -1,0 +1,7 @@
+default: app-coap
+build_dir: /home/pomo/zephyr-stcp/stcp/app-coap/build-v2-clean
+domains:
+  - name: app-coap
+    build_dir: /home/pomo/zephyr-stcp/stcp/app-coap/build-v2-clean/app-coap
+flash_order:
+  - app-coap

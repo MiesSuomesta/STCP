@@ -1,0 +1,12 @@
+[package]
+name = "stcp-v2-mqtt-gateway"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

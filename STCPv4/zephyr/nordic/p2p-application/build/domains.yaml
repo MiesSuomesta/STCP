@@ -1,0 +1,7 @@
+default: p2p-application
+build_dir: /home/pomo/zephyr-stcp/stcp/p2p-application/build
+domains:
+  - name: p2p-application
+    build_dir: /home/pomo/zephyr-stcp/stcp/p2p-application/build/p2p-application
+flash_order:
+  - p2p-application

@@ -1,2 +1,0 @@
-"nrf":"/home/pomo/zephyr-stcp/nrf":"/home/pomo/zephyr-stcp/nrf/sysbuild"
-"mcuboot":"/home/pomo/zephyr-stcp/bootloader/mcuboot":"/home/pomo/zephyr-stcp/bootloader/mcuboot/boot/zephyr/sysbuild"

@@ -271,7 +271,6 @@ static int stcp_create(
 	ssk->rx_buffer_size = 0;
 	ssk->compression_enabled = false;
 	ssk->compression_threshold = STCP_COMPRESSION_DEFAULT_THRESHOLD;
-	ssk->compression_level = STCP_COMPRESSION_DEFAULT_LEVEL;
 
 	ret = stcp_rust_create(
 		(u8)protocol,
@@ -376,7 +375,6 @@ struct sock *stcp_alloc_child_sock(
 	ssk->rx_buffer_size = 0;
 	ssk->compression_enabled = false;
 	ssk->compression_threshold = STCP_COMPRESSION_DEFAULT_THRESHOLD;
-	ssk->compression_level = STCP_COMPRESSION_DEFAULT_LEVEL;
 
 	return newsk;
 }

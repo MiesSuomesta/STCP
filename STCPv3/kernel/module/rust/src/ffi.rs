@@ -285,18 +285,6 @@ pub extern "C" fn stcp_rust_set_compression_threshold(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn stcp_rust_set_compression_level(
-    raw: *mut c_void,
-    level: u32,
-) -> c_int {
-    match with_ctx(raw, |ctx| session::set_compression_level(ctx, level)) {
-        Ok(Ok(())) => 0,
-        Ok(Err(error)) => error.errno(),
-        Err(errno) => errno,
-    }
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_send(
     raw: *mut c_void,
     buffer: *const u8,

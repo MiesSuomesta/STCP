@@ -19,7 +19,6 @@ OUT_JSON="$STCP/benchmark-matrix.json"
 BULK="$SDK/benchmark-results/bulk/latest.json"
 
 if [ ! -x "$GEN" ]; then
-    echo "[benchmark-matrix] WARN: generator missing: $GEN" >&2
     exit 0
 fi
 

@@ -1,0 +1,57 @@
+#!/bin/sh
+set +x
+MSG_FILE="$1"
+GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+
+# Benchmark matrix is attached only when explicitly requested.
+if [ "${COMMIT_WITH_MATRIX:-0}" != "1" ]
+then
+    {
+        echo "#"
+        echo "# STCP benchmark metrics are not included in this commit message."
+        echo "# To include the latest benchmark matrix and metrics, run:"
+        echo "#"
+        echo "#   COMMIT_WITH_MATRIX=1 git commit"
+        echo "#"
+    } >> "$MSG_FILE"
+    exit 0
+fi
+
+SDK="${STCP_SDK_ROOT:-$GIT_ROOT/SDK/version-to-use}"
+STCP="${STCP_ROOT:-$GIT_ROOT/STCP/version-to-use}"
+
+GEN="$SDK/tools/benchmark-matrix.py"
+RESULTS="$SDK/robot-results"
+OUT_MD="$STCP/BENCHMARK-MATRIX.md"
+OUT_TXT="$STCP/BENCHMARK-MATRIX.txt"
+OUT_JSON="$STCP/benchmark-matrix.json"
+BULK="$SDK/benchmark-results/bulk/latest.json"
+
+if [ ! -x "$GEN" ]; then
+    echo "[benchmark-matrix] WARN: generator not executable: $GEN" >&2
+    exit 0
+fi
+
+if [ -f "$BULK" ]; then
+    "$GEN" --results "$RESULTS" --output-md "$OUT_MD" --output-txt "$OUT_TXT" --output-json "$OUT_JSON" --bulk "$BULK" || {
+        echo "[benchmark-matrix] WARN: generation failed" >&2
+        exit 0
+    }
+else
+    "$GEN" --results "$RESULTS" --output-md "$OUT_MD" --output-txt "$OUT_TXT" --output-json "$OUT_JSON" || {
+        echo "[benchmark-matrix] WARN: generation failed" >&2
+        exit 0
+    }
+fi
+
+if [ -s "$OUT_TXT" ]; then
+    {
+        printf '\n\n'
+        printf '%s\n' '--- STCP BENCHMARK MATRIX ---'
+        cat "$OUT_TXT"
+        printf '%s\n' '--- END STCP BENCHMARK MATRIX ---'
+    } >> "$MSG_FILE"
+    echo "[benchmark-matrix] added to commit message"
+fi
+
+exit 0

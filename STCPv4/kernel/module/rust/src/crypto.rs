@@ -28,7 +28,7 @@ pub extern "C" fn stcp_rust_crypto_diag_stage_get() -> usize {
     STCP_CRYPTO_DIAG_STAGE.load(Ordering::Relaxed)
 }
 
-pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const CHACHA_KEY_LEN:usize=32; pub const CHACHA_TAG_LEN:usize=16; pub const NONCE_LEN:usize=8;
+pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const AES256_KEY_LEN:usize=32; pub const AES_GCM_TAG_LEN:usize=16; pub const NONCE_LEN:usize=8;
 #[derive(Clone,Copy,PartialEq,Eq)] pub enum Role{Client,Server}
 unsafe extern "C" {
  fn stcp_kernel_x25519_keypair(secret:*mut u8,public_key:*mut u8)->c_int;
@@ -40,9 +40,9 @@ unsafe extern "C" {
   client_to_server:*mut u8,
   server_to_client:*mut u8
  )->c_int;
- fn stcp_kernel_chacha_encrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,plain:*const u8,plain_len:usize,out:*mut u8,out_len:usize)->c_int;
- fn stcp_kernel_chacha_decrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*const u8,cipher_len:usize,out:*mut u8,out_len:usize)->c_int;
- fn stcp_kernel_chacha_decrypt_in_place(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*mut u8,cipher_len:usize)->c_int;
+ fn stcp_kernel_aes256_gcm_encrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,plain:*const u8,plain_len:usize,out:*mut u8,out_len:usize)->c_int;
+ fn stcp_kernel_aes256_gcm_decrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*const u8,cipher_len:usize,out:*mut u8,out_len:usize)->c_int;
+ fn stcp_kernel_aes256_gcm_decrypt_in_place(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*mut u8,cipher_len:usize)->c_int;
 }
 #[derive(Clone)] pub struct CryptoContext{secret_key:[u8;32],public_key:[u8;64],tx_key:Option<[u8;32]>,rx_key:Option<[u8;32]>}
 impl CryptoContext{
@@ -101,34 +101,34 @@ impl CryptoContext{
  }
  pub const fn ready(&self)->bool{self.tx_key.is_some()&&self.rx_key.is_some()}
  pub fn encrypt_into(&self,nonce:u64,aad:&[u8],plain:&[u8],out:&mut[u8])->Result<usize,StcpError>{
-  let required=plain.len().checked_add(CHACHA_TAG_LEN).ok_or(StcpError::NoMem)?;
+  let required=plain.len().checked_add(AES_GCM_TAG_LEN).ok_or(StcpError::NoMem)?;
   if out.len()<required{return Err(StcpError::NoMem);}
   let key=self.tx_key.as_ref().ok_or(StcpError::InvalidState)?;
-  let r=unsafe{stcp_kernel_chacha_encrypt(key.as_ptr(),nonce,nc(aad),aad.len(),nc(plain),plain.len(),out.as_mut_ptr(),out.len())};
+  let r=unsafe{stcp_kernel_aes256_gcm_encrypt(key.as_ptr(),nonce,nc(aad),aad.len(),nc(plain),plain.len(),out.as_mut_ptr(),out.len())};
   if r!=0{out[..required].fill(0);return Err(StcpError::Kernel(r));}
   Ok(required)
  }
  pub fn decrypt_into(&self,nonce:u64,aad:&[u8],cipher:&[u8],out:&mut[u8])->Result<usize,StcpError>{
-  if cipher.len()<CHACHA_TAG_LEN{return Err(StcpError::Crypto);}
-  let required=cipher.len()-CHACHA_TAG_LEN;
+  if cipher.len()<AES_GCM_TAG_LEN{return Err(StcpError::Crypto);}
+  let required=cipher.len()-AES_GCM_TAG_LEN;
   if out.len()<required{return Err(StcpError::NoMem);}
   let key=self.rx_key.as_ref().ok_or(StcpError::InvalidState)?;
-  let r=unsafe{stcp_kernel_chacha_decrypt(key.as_ptr(),nonce,nc(aad),aad.len(),cipher.as_ptr(),cipher.len(),out.as_mut_ptr(),out.len())};
+  let r=unsafe{stcp_kernel_aes256_gcm_decrypt(key.as_ptr(),nonce,nc(aad),aad.len(),cipher.as_ptr(),cipher.len(),out.as_mut_ptr(),out.len())};
   if r!=0{out[..required].fill(0);return Err(StcpError::Kernel(r));}
   Ok(required)
  }
  pub fn decrypt_in_place(&self,nonce:u64,aad:&[u8],cipher_and_tag:&mut[u8])->Result<usize,StcpError>{
-  if cipher_and_tag.len()<CHACHA_TAG_LEN{return Err(StcpError::Crypto);}
-  let required=cipher_and_tag.len()-CHACHA_TAG_LEN;
+  if cipher_and_tag.len()<AES_GCM_TAG_LEN{return Err(StcpError::Crypto);}
+  let required=cipher_and_tag.len()-AES_GCM_TAG_LEN;
   let key=self.rx_key.as_ref().ok_or(StcpError::InvalidState)?;
-  let r=unsafe{stcp_kernel_chacha_decrypt_in_place(key.as_ptr(),nonce,nc(aad),aad.len(),cipher_and_tag.as_mut_ptr(),cipher_and_tag.len())};
+  let r=unsafe{stcp_kernel_aes256_gcm_decrypt_in_place(key.as_ptr(),nonce,nc(aad),aad.len(),cipher_and_tag.as_mut_ptr(),cipher_and_tag.len())};
   if r!=0{cipher_and_tag[..required].fill(0);return Err(StcpError::Kernel(r));}
   Ok(required)
  }
- pub fn encrypt(&self,nonce:u64,aad:&[u8],plain:&[u8])->Result<Vec<u8>,StcpError>{let mut out=Vec::new();out.try_reserve_exact(plain.len()+CHACHA_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(plain.len()+CHACHA_TAG_LEN,0);let n=self.encrypt_into(nonce,aad,plain,&mut out)?;out.truncate(n);Ok(out)}
- pub fn decrypt(&self,nonce:u64,aad:&[u8],cipher:&[u8])->Result<Vec<u8>,StcpError>{if cipher.len()<CHACHA_TAG_LEN{return Err(StcpError::Crypto);}let mut out=Vec::new();out.try_reserve_exact(cipher.len()-CHACHA_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(cipher.len()-CHACHA_TAG_LEN,0);let n=self.decrypt_into(nonce,aad,cipher,&mut out)?;out.truncate(n);Ok(out)}
+ pub fn encrypt(&self,nonce:u64,aad:&[u8],plain:&[u8])->Result<Vec<u8>,StcpError>{let mut out=Vec::new();out.try_reserve_exact(plain.len()+AES_GCM_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(plain.len()+AES_GCM_TAG_LEN,0);let n=self.encrypt_into(nonce,aad,plain,&mut out)?;out.truncate(n);Ok(out)}
+ pub fn decrypt(&self,nonce:u64,aad:&[u8],cipher:&[u8])->Result<Vec<u8>,StcpError>{if cipher.len()<AES_GCM_TAG_LEN{return Err(StcpError::Crypto);}let mut out=Vec::new();out.try_reserve_exact(cipher.len()-AES_GCM_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(cipher.len()-AES_GCM_TAG_LEN,0);let n=self.decrypt_into(nonce,aad,cipher,&mut out)?;out.truncate(n);Ok(out)}
 }
 impl Drop for CryptoContext{fn drop(&mut self){self.secret_key.fill(0);if let Some(k)=&mut self.tx_key{k.fill(0)}if let Some(k)=&mut self.rx_key{k.fill(0)}}}
 fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut u8{if x.is_empty(){core::ptr::null_mut()}else{x.as_mut_ptr()}}
 
-pub fn selftest()->Result<(),StcpError>{let mut c=CryptoContext::new()?;let mut s=CryptoContext::new()?;let cp=c.public_key();let sp=s.public_key();c.derive_session_keys(&sp,Role::Client)?;s.derive_session_keys(&cp,Role::Server)?;let aad=b"STCP-selftest";let plain=b"directional session keys";let enc=c.encrypt(0,aad,plain)?;let dec=s.decrypt(0,aad,&enc)?;if dec.as_slice()!=plain{return Err(StcpError::Crypto);}let mut in_place=enc.clone();let n=s.decrypt_in_place(0,aad,&mut in_place)?;in_place.truncate(n);if in_place.as_slice()!=plain{return Err(StcpError::Crypto);}let mut bad=enc.clone();if let Some(x)=bad.last_mut(){*x^=1;}if s.decrypt(0,aad,&bad).is_ok(){return Err(StcpError::Crypto);}if c.decrypt(0,aad,&enc).is_ok(){return Err(StcpError::Crypto);}Ok(())}
+pub fn selftest()->Result<(),StcpError>{let mut c=CryptoContext::new()?;let mut s=CryptoContext::new()?;let cp=c.public_key();let sp=s.public_key();c.derive_session_keys(&sp,Role::Client)?;s.derive_session_keys(&cp,Role::Server)?;let aad=b"STCP-selftest";let plain=b"directional session keys";let enc=c.encrypt(0,aad,plain)?;let dec=s.decrypt(0,aad,&enc)?;if dec.as_slice()!=plain{return Err(StcpError::Crypto);}let mut in_place=enc.clone();let n=s.decrypt_in_place(0,aad,&mut in_place)?;in_place.truncate(n);if in_place.as_slice()!=plain{return Err(StcpError::Crypto);}let mut bad=enc.clone();if let Some(x)=bad.last_mut(){*x^=1;}if s.decrypt(0,aad,&bad).is_ok(){return Err(StcpError::Crypto);}if s.decrypt(0,b"wrong-AAD",&enc).is_ok(){return Err(StcpError::Crypto);}if s.decrypt(1,aad,&enc).is_ok(){return Err(StcpError::Crypto);}let mut bad_in_place=bad.clone();if s.decrypt_in_place(0,aad,&mut bad_in_place).is_ok(){return Err(StcpError::Crypto);}if c.decrypt(0,aad,&enc).is_ok(){return Err(StcpError::Crypto);}Ok(())}

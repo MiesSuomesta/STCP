@@ -12,7 +12,7 @@ use core::{
 
 use crate::{
     crypto::{
-        CHACHA_TAG_LEN,
+        AES_GCM_TAG_LEN,
         NONCE_LEN,
         PUBLIC_KEY_WIRE_LEN,
     },
@@ -388,7 +388,7 @@ pub fn send(
 
             let encrypted_len = plaintext
                 .len()
-                .checked_add(CHACHA_TAG_LEN)
+                .checked_add(AES_GCM_TAG_LEN)
                 .ok_or(StcpError::Protocol)?;
 
             let payload_len = NONCE_LEN
@@ -488,7 +488,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
 
         match header.packet_type {
             PacketType::DataChunk | PacketType::DataChunkEnd => {
-                if header.payload_len < NONCE_LEN + CHACHA_TAG_LEN {
+                if header.payload_len < NONCE_LEN + AES_GCM_TAG_LEN {
                     return protocol_error(ctx);
                 }
 

@@ -1,16 +1,25 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <crypto/chacha20poly1305.h>
+#if __has_include(<crypto/aes-gcm.h>)
+#include <crypto/aes-gcm.h>
+#define STCP_NEW_AES_GCM 1
+#else
+#include <crypto/gcm.h>
+#define STCP_NEW_AES_GCM 0
+#endif
 #include <crypto/curve25519.h>
 #include <crypto/hash.h>
 
 #include <linux/errno.h>
+#include <linux/limits.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
 
 #include "stcp_crypto.h"
+#include "stcp_aes256_gcm.h"
 
 
 #define STCP_KDF_SHA256_LEN 32
@@ -105,9 +114,9 @@ int stcp_kernel_derive_session_keys(
 	u8 server_to_client[STCP_AEAD_KEY_LEN]
 )
 {
-	static const u8 domain[] = "STCPv2-HKDF-SHA256";
-	static const u8 client_label[] = "STCPv2 client to server key";
-	static const u8 server_label[] = "STCPv2 server to client key";
+	static const u8 domain[] = "STCPv4-AES256-GCM-HKDF-SHA256";
+	static const u8 client_label[] = "STCPv4 AES256-GCM client to server key";
+	static const u8 server_label[] = "STCPv4 AES256-GCM server to client key";
 	static const u8 counter = 1;
 	u8 salt[STCP_KDF_SHA256_LEN];
 	u8 prk[STCP_KDF_SHA256_LEN];
@@ -306,4 +315,107 @@ int stcp_kernel_chacha_decrypt_in_place(
 	}
 
 	return 0;
+}
+
+/* STCP transport uses AES-256-GCM.  The 8-byte wire nonce is extended to
+ * the 12-byte GCM nonce with a fixed zero prefix; direction-separated keys
+ * make (key, nonce) pairs unique across the two traffic directions. */
+#if STCP_NEW_AES_GCM
+#define stcp_gcm_key aes_gcm_key
+#define stcp_gcm_prepare aes_gcm_preparekey
+#else
+#define stcp_gcm_key aesgcm_ctx
+#define stcp_gcm_prepare aesgcm_expandkey
+#endif
+
+static void stcp_aes_gcm_nonce(u8 iv[12], u64 nonce)
+{
+	unsigned int i;
+
+	memset(iv, 0, 4);
+	for (i = 0; i < 8; i++)
+		iv[4 + i] = (u8)(nonce >> (56 - 8 * i));
+}
+
+int stcp_kernel_aes256_gcm_encrypt(
+	const u8 key[STCP_AEAD_KEY_LEN], u64 nonce,
+	const u8 *aad, size_t aad_len, const u8 *plain, size_t plain_len,
+	u8 *out, size_t out_len)
+{
+	struct stcp_gcm_key prepared;
+	u8 iv[12];
+	int rc;
+
+	if (!key || !out || (plain_len && !plain) || (aad_len && !aad))
+		return -EINVAL;
+	if (plain_len > SIZE_MAX - STCP_AEAD_TAG_LEN)
+		return -EOVERFLOW;
+	if (out_len < plain_len + STCP_AEAD_TAG_LEN)
+		return -ENOSPC;
+#if !STCP_NEW_AES_GCM
+	if (plain_len > INT_MAX || aad_len > INT_MAX)
+		return -EOVERFLOW;
+#endif
+	rc = stcp_gcm_prepare(&prepared, key, 32, STCP_AEAD_TAG_LEN);
+	if (rc)
+		return rc;
+	stcp_aes_gcm_nonce(iv, nonce);
+#if STCP_NEW_AES_GCM
+	aes_gcm_encrypt(out, plain, plain_len, out + plain_len,
+			 aad, aad_len, iv, &prepared);
+#else
+	aesgcm_encrypt(&prepared, out, plain, plain_len, aad, aad_len,
+			iv, out + plain_len);
+#endif
+	memzero_explicit(&prepared, sizeof(prepared));
+	return 0;
+}
+
+int stcp_kernel_aes256_gcm_decrypt(
+	const u8 key[STCP_AEAD_KEY_LEN], u64 nonce,
+	const u8 *aad, size_t aad_len, const u8 *cipher, size_t cipher_len,
+	u8 *out, size_t out_len)
+{
+	struct stcp_gcm_key prepared;
+	size_t plain_len;
+	u8 iv[12];
+	int rc;
+
+	if (!key || !cipher || !out || (aad_len && !aad))
+		return -EINVAL;
+	if (cipher_len < STCP_AEAD_TAG_LEN)
+		return -EBADMSG;
+	plain_len = cipher_len - STCP_AEAD_TAG_LEN;
+	if (out_len < plain_len)
+		return -ENOSPC;
+#if !STCP_NEW_AES_GCM
+	if (plain_len > INT_MAX || aad_len > INT_MAX)
+		return -EOVERFLOW;
+#endif
+	rc = stcp_gcm_prepare(&prepared, key, 32, STCP_AEAD_TAG_LEN);
+	if (rc)
+		return rc;
+	stcp_aes_gcm_nonce(iv, nonce);
+#if STCP_NEW_AES_GCM
+	rc = aes_gcm_decrypt(out, cipher, plain_len, cipher + plain_len,
+			     aad, aad_len, iv, &prepared);
+#else
+	rc = aesgcm_decrypt(&prepared, out, cipher, plain_len, aad, aad_len,
+			    iv, cipher + plain_len) ? 0 : -EBADMSG;
+#endif
+	memzero_explicit(&prepared, sizeof(prepared));
+	if (rc && plain_len)
+		memzero_explicit(out, plain_len);
+	return rc;
+}
+
+int stcp_kernel_aes256_gcm_decrypt_in_place(
+	const u8 key[STCP_AEAD_KEY_LEN], u64 nonce,
+	const u8 *aad, size_t aad_len, u8 *cipher, size_t cipher_len)
+{
+	if (cipher_len < STCP_AEAD_TAG_LEN)
+		return -EBADMSG;
+	return stcp_kernel_aes256_gcm_decrypt(key, nonce, aad, aad_len,
+			cipher, cipher_len, cipher,
+			cipher_len - STCP_AEAD_TAG_LEN);
 }

@@ -414,11 +414,17 @@ build_rpi() {
     echo "[INFO] Restoring known-good Raspberry Pi config: $rpi_config"
     install -m 0644 "$rpi_config" "$kdir/.config"
 
+    echo "[INFO] Preparing Raspberry PI: Enabling AES.."
+    bash "$kdir/../scripts/prepare-rpi-kernel.sh"
+
     echo "[INFO] Normalizing Raspberry Pi config with ARCH=arm64"
+    cp "$kdir/.config" /tmp/rpi-before-normalize.config
     if ! pnc_run "STCPv2/Raspberry Pi olddefconfig" make -C "$kdir" LOCALVERSION="$LOCALVERSION" ARCH=arm64 CROSS_COMPILE="$cross" olddefconfig; then
+        cp "$kdir/.config" /tmp/rpi-after-normalize-fail.config
         echo "[FAIL] rpi: ARCH=arm64 olddefconfig failed" >&2
         return 1
     fi
+    cp "$kdir/.config" /tmp/rpi-after-normalize-ok.config
 
     check_rpi_boot_config "$kdir/.config" "$target" || return 1
 

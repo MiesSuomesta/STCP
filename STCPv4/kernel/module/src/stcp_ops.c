@@ -983,6 +983,7 @@ static int stcp_recvmsg(
 		ret = -EFAULT;
 
 	mutex_unlock(&ssk->rx_lock);
+	if (READ_ONCE(stcp_verbose_debug))
 	pr_err("stcp-debug: recvmsg-exit sock=%px sk=%px ssk=%px ctx=%px carrier=%px "
 	       "ret=%zd len=%zu flags=0x%x pid=%d comm=%s\n",
 	       sock, sk, ssk, READ_ONCE(ssk->rust_ctx), READ_ONCE(ssk->carrier),

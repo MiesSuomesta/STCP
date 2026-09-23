@@ -7,6 +7,7 @@
 #include <linux/in.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include <linux/net.h>
 #include <linux/refcount.h>
 #include <linux/slab.h>
@@ -27,6 +28,10 @@
 #define STCP_CARRIER_UDP_RX_BUFFER_SIZE (64 * 1024)
 #define STCP_TCP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
 #define STCP_UDP_SOCKET_BUFFER_SIZE (16 * 1024 * 1024)
+
+bool stcp_verbose_debug;
+module_param_named(verbose_debug, stcp_verbose_debug, bool, 0644);
+MODULE_PARM_DESC(verbose_debug, "Enable verbose STCP hot-path RX/TX diagnostics (default: false)");
 
 static atomic64_t stcp_tcp_close_started = ATOMIC64_INIT(0);
 static atomic64_t stcp_tcp_close_drained = ATOMIC64_INIT(0);
@@ -399,7 +404,8 @@ static int stcp_receiver_thread(void *argument)
 
 		memset(&peer, 0, sizeof(peer));
 		{
-			bool trace_recv = atomic_dec_if_positive(&carrier->debug_rx_budget) >= 0;
+			bool trace_recv = READ_ONCE(stcp_verbose_debug) &&
+				 atomic_dec_if_positive(&carrier->debug_rx_budget) >= 0;
 
 			if (trace_recv)
 				pr_emerg("stcp-xconnect: RX03 recv-enter cid=%llu carrier=%px socket=%px\n",
@@ -473,6 +479,7 @@ static int stcp_receiver_thread(void *argument)
 			void *callback_owner = READ_ONCE(carrier->owner);
 			int active = atomic_inc_return(&carrier->rx_callbacks);
 
+			if (READ_ONCE(stcp_verbose_debug))
 			pr_err("stcp-lifetime: RX-CB-ENTER cid=%llu carrier=%px ctx=%px owner=%px stopped=%d stopping=%d destroy=%d active=%d len=%zd pid=%d comm=%s\n",
 			       READ_ONCE(carrier->debug_id), carrier, callback_ctx,
 			       callback_owner, READ_ONCE(carrier->stopped),
@@ -493,6 +500,7 @@ static int stcp_receiver_thread(void *argument)
 				ret = -ESHUTDOWN;
 
 			active = atomic_dec_return(&carrier->rx_callbacks);
+			if (READ_ONCE(stcp_verbose_debug))
 			pr_err("stcp-lifetime: RX-CB-EXIT cid=%llu carrier=%px ctx_now=%px owner_now=%px active=%d ret=%d pid=%d comm=%s\n",
 			       READ_ONCE(carrier->debug_id), carrier,
 			       READ_ONCE(carrier->rust_ctx), READ_ONCE(carrier->owner),
@@ -1095,7 +1103,8 @@ ssize_t stcp_carrier_send(
 	 */
 	{
 		struct socket *send_socket;
-		bool trace_send = atomic_dec_if_positive(&carrier->debug_tx_budget) >= 0;
+		bool trace_send = READ_ONCE(stcp_verbose_debug) &&
+			     atomic_dec_if_positive(&carrier->debug_tx_budget) >= 0;
 
 		if (trace_send)
 		pr_emerg("stcp-xconnect: TX01 send-lock-enter cid=%llu carrier=%px len=%zu stopping=%d connected=%d socket=%px\n",
@@ -1158,6 +1167,7 @@ ssize_t stcp_carrier_send(
 			 atomic_read(&carrier->terminal_error), READ_ONCE(carrier->connected));
 		return send_result;
 	}
+	if (READ_ONCE(stcp_verbose_debug))
 	pr_emerg("stcp-xconnect: TX06 send-return-ok cid=%llu carrier=%px bytes=%zu\n",
 		 READ_ONCE(carrier->debug_id), carrier, position);
 	return (ssize_t)position;

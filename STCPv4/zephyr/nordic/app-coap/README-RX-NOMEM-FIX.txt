@@ -1,4 +1,4 @@
-STCPv2 Zephyr RX -ENOMEM fix overlay
+STCP Zephyr RX -ENOMEM fix overlay
 =====================================
 
 Carries forward the previous client-first handshake + RX-memory fixes.

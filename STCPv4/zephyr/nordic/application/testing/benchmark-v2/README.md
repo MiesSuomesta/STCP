@@ -1,4 +1,4 @@
-# STCPv2 benchmark-v2 — phase 1
+# STCP benchmark-v2 — phase 1
 
 Clean benchmark harness for the current golden Zephyr application.
 

@@ -1,4 +1,4 @@
-STCPv2 BEN2 debug server overlay - 2026-08-26
+STCP BEN2 debug server overlay - 2026-08-26
 
 Extract this ZIP in zephyr/nordic/application/testing/robot-v2 so that:
   server/stcp_v2_bench_server.c

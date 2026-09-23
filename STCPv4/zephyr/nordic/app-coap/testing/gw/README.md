@@ -1,4 +1,4 @@
-STCPv2 CoAP Gateway
+STCP CoAP Gateway
 ===================
 
 Ported directly from the known-working MQTT gateway structure.

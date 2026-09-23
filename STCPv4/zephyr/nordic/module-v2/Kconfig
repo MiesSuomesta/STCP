@@ -1,9 +1,9 @@
 menuconfig STCP_V2
-    bool "STCPv2 clean AF_STCP provider"
+    bool "STCP clean AF_STCP provider"
     depends on NET_SOCKETS
     default n
     help
-      Clean Zephyr adapter for the canonical shared STCPv2 Rust core.
+      Clean Zephyr adapter for the canonical shared STCP Rust core.
       This deliberately does NOT select NET_SOCKETS_OFFLOAD. AF_STCP is
       registered as its own socket family with NET_SOCKET_REGISTER so normal
       AF_INET sockets continue to use the native Ethernet/LTE stack.
@@ -14,17 +14,17 @@ config STCP_V2_SOCKET_PRIORITY
     default 20
 
 config STCP_V2_MAX_SOCKETS
-    int "Maximum STCPv2 sockets"
+    int "Maximum STCP sockets"
     default 8
     range 2 16
 
 config STCP_V2_CONNECT_TIMEOUT_MS
-    int "STCPv2 handshake timeout"
+    int "STCP handshake timeout"
     default 60000
     range 1000 300000
 
 config STCP_V2_LOG_LEVEL
-    int "STCPv2 adapter log level"
+    int "STCP adapter log level"
     default 3
     range 0 4
 
@@ -52,7 +52,7 @@ config STCP_V2_HEXDUMP_BYTES
     range 16 512
 
 config STCP_V2_TRACE_WIRE
-    bool "Trace STCPv2 wire frames"
+    bool "Trace STCP wire frames"
     default n
 
 config STCP_V2_TRACE_EVENTS

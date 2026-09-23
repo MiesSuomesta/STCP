@@ -22,7 +22,7 @@ JSON_PART_RE = re.compile(r"STCP_BENCH_JSON_PART\s+(.*)")
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="STCPv2 Zephyr benchmark-v2 runner")
+    p = argparse.ArgumentParser(description="STCP Zephyr benchmark-v2 runner")
     p.add_argument("--serial", default=os.getenv("STCP_BENCH_SERIAL", "/dev/ttyACM0"))
     p.add_argument("--baud", type=int, default=int(os.getenv("STCP_BENCH_BAUD", "115200")))
     p.add_argument("--host", default=os.getenv("STCP_BENCH_HOST", "192.168.1.20"),
@@ -363,7 +363,7 @@ def main():
 
         (result_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
         with (result_dir / "summary.txt").open("w") as f:
-            f.write("STCPv2 benchmark-v2 summary\n")
+            f.write("STCP benchmark-v2 summary\n")
             f.write("transport direction runs median_MiB/s min_MiB/s max_MiB/s server_CPU%\n")
             for s in summary:
                 cpu = "n/a" if s["median_server_cpu_percent"] is None else f"{s['median_server_cpu_percent']:.1f}"
@@ -372,7 +372,7 @@ def main():
                         f"{s['max_mib_s']:9.3f} {cpu:>10}\n")
                 f.write(line)
 
-        print("\nSTCPv2 benchmark-v2 summary")
+        print("\nSTCP benchmark-v2 summary")
         print("transport direction runs median MiB/s    min    max  server CPU%")
         for s in summary:
             cpu = "n/a" if s["median_server_cpu_percent"] is None else f"{s['median_server_cpu_percent']:.1f}"

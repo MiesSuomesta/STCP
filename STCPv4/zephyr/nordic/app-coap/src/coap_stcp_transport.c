@@ -47,7 +47,7 @@ int coap_stcp_connect(void)
             IPPROTO_STCP_UDP);
 
     /*
-     * Canonical STCPv2 public ABI, matching Linux/SDK:
+     * Canonical STCP public ABI, matching Linux/SDK:
      *   SOCK_STREAM + 253 -> STCP-TCP
      *   SOCK_STREAM + 254 -> STCP-UDP
      *

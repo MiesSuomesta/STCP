@@ -1,4 +1,4 @@
-STCPv2 Nordic application-protocol regression overlay
+STCP Nordic application-protocol regression overlay
 ======================================================
 
 Based on nordic-28082026_145147.zip.

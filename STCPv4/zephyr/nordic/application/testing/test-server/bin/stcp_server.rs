@@ -489,7 +489,7 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
             hs_iter += 1;
             if Instant::now() >= deadline {
                 trace(format!("HANDSHAKE timeout iter={hs_iter} connected={}", stcp_rust_is_connected(ctx)));
-                return Err("STCPv2 handshake timeout".into());
+                return Err("STCP handshake timeout".into());
             }
             trace(format!("HANDSHAKE read wait iter={hs_iter}"));
             match stream.read(&mut wire) {
@@ -522,7 +522,7 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
         }
 
         trace(format!("HANDSHAKE CONNECTED ctx={ctx:p} peer={peer} iterations={hs_iter}"));
-        println!("[server] STCPv2 connected: {peer}");
+        println!("[server] STCP connected: {peer}");
 
         loop {
             loop {
@@ -602,7 +602,7 @@ fn main() -> Result<(), String> {
     let listener_ctx = create_listener(socket_addr.port())?;
     trace(format!("MAIN STCP listener ctx={listener_ctx:p}"));
 
-    println!("STCPv2 shared-core echo server");
+    println!("STCP shared-core echo server");
     println!("  listen : {listen}");
     println!("  core   : kernel/module/rust");
     println!("  model  : one TCP connection at a time");

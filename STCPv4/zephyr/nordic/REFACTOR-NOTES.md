@@ -2,7 +2,7 @@
 
 Bundle layout:
 
-- `application/` — normal STCPv2 regression application, P2P removed.
+- `application/` — normal STCP regression application, P2P removed.
 - `p2p-application/` — dedicated native P2P + Noise Zephyr application.
 
 No Noise protocol behavior was changed. The existing `p2p_benchmark.c` and

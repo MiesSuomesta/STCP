@@ -9,7 +9,7 @@ LOG_MODULE_REGISTER(p2p_main, LOG_LEVEL_INF);
 
 int main(void)
 {
-    LOG_INF("STCPv2 native P2P application starting");
+    LOG_INF("STCP native P2P application starting");
 
 #if defined(CONFIG_ETH_W5500)
     k_sleep(K_MSEC(1200));

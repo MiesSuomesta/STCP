@@ -1,4 +1,4 @@
-STCPv2 MQTT gateway bind fix
+STCP MQTT gateway bind fix
 
 Fix:
 - socket() remains: AF_STCP / SOCK_STREAM / protocol 253

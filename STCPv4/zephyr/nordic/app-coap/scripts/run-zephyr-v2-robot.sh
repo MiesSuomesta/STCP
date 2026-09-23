@@ -40,8 +40,8 @@ cp -f server.stdout.log server.stderr.log "$RUN_DIR/" 2>/dev/null || true
 ln -sfn "$RUN_DIR" "$RESULT_ROOT/latest"
 
 if (( rc == 0 )); then
-    echo "[OK] Zephyr STCPv2 Robot PASS"
+    echo "[OK] Zephyr STCP Robot PASS"
 else
-    echo "[FAIL] Zephyr STCPv2 Robot failed rc=$rc" >&2
+    echo "[FAIL] Zephyr STCP Robot failed rc=$rc" >&2
 fi
 exit "$rc"

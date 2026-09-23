@@ -1,4 +1,4 @@
-message(STATUS "Loading clean STCPv2 Zephyr adapter from ${CMAKE_CURRENT_LIST_DIR}")
+message(STATUS "Loading clean STCP Zephyr adapter from ${CMAKE_CURRENT_LIST_DIR}")
 
 zephyr_include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
 zephyr_library_named(stcp_v2)
@@ -33,11 +33,11 @@ if(CONFIG_STCP_V2)
     get_filename_component(STCP_V2_RUST_DIR
         "${STCP_V2_RUST_DIR}" ABSOLUTE)
 
-    message(STATUS "STCPv2 requested canonical Rust core: ${STCP_V2_RUST_DIR}")
+    message(STATUS "STCP requested canonical Rust core: ${STCP_V2_RUST_DIR}")
 
     if(NOT EXISTS "${STCP_V2_RUST_DIR}/Cargo.toml")
         message(FATAL_ERROR
-            "Canonical STCPv2 Rust core not found: ${STCP_V2_RUST_DIR}. "
+            "Canonical STCP Rust core not found: ${STCP_V2_RUST_DIR}. "
             "Set STCP_SHARED_RUST_CORE_DIR if the repository layout differs.")
     endif()
 
@@ -63,12 +63,12 @@ if(CONFIG_STCP_V2)
             ${STCP_V2_RUST_DIR}/src/carrier.rs
             ${STCP_V2_RUST_DIR}/src/crypto.rs
         WORKING_DIRECTORY ${STCP_V2_RUST_DIR}
-        COMMENT "Building canonical shared STCPv2 Rust core for Zephyr"
+        COMMENT "Building canonical shared STCP Rust core for Zephyr"
         VERBATIM
     )
 
     add_custom_target(stcp_v2_rust_core_build DEPENDS ${STCP_V2_RUST_LIB})
     add_dependencies(stcp_v2 stcp_v2_rust_core_build)
     zephyr_link_libraries(${STCP_V2_RUST_LIB})
-    message(STATUS "STCPv2 canonical Rust core: ${STCP_V2_RUST_DIR}")
+    message(STATUS "STCP canonical Rust core: ${STCP_V2_RUST_DIR}")
 endif()

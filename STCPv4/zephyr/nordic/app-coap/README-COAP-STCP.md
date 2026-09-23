@@ -1,4 +1,4 @@
-# Zephyr CoAP over STCPv2
+# Zephyr CoAP over STCP
 
 This project keeps the working MQTT/STCP baseline infrastructure and replaces
 only the application protocol with Zephyr's CoAP library.

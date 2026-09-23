@@ -1,4 +1,4 @@
-STCPv2 BEN2 debug server + AF_STCP accept retry
+STCP BEN2 debug server + AF_STCP accept retry
 ================================================
 
 Combined server build:

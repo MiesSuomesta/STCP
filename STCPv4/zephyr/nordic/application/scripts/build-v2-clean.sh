@@ -8,7 +8,7 @@ STCP_ROOT="${STCP_ROOT:-$HOME/zephyr-stcp/stcp}"
 APP_ROOT="${STCP_V2_APP_ROOT:-$STCP_ROOT/application}"
 MODULE_V2="${STCP_V2_MODULE:-$STCP_ROOT/module-v2}"
 
-CANONICAL_CORE="${STCP_CANONICAL_CORE:-$HOME/git/github/STCP/STCPv2/kernel/module/rust}"
+CANONICAL_CORE="${STCP_CANONICAL_CORE:-$(readlink -f "/srv/stcp-project/STCP/version-to-use")/kernel/module/rust}"
 
 BUILD_DIR="${STCP_V2_BUILD_DIR:-$APP_ROOT/build-v2-clean}"
 BOARD="${STCP_V2_BOARD:-nrf9151dk/nrf9151/ns}"

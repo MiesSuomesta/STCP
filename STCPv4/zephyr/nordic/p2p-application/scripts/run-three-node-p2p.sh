@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# STCPv2 three-node P2P regression
+# STCP three-node P2P regression
 #
 # Current promoted matrix:
 #   Linux -> RPi     full rust-libp2p: STCP + multistream + Noise XX + Yamux + ping

@@ -1,4 +1,4 @@
-STCPv2 Zephyr clean-v2 — reconstructed last state, 2026-08-23
+STCP Zephyr clean-v2 — reconstructed last state, 2026-08-23
 
 This is the latest reconstructed ~/zephyr-stcp/stcp/ clean-v2 tree from
 the artifacts created during this bring-up.
@@ -7,7 +7,7 @@ IMPORTANT:
 The canonical shared Rust core is external and is NOT overwritten by this ZIP.
 
 Expected canonical core:
-  /home/pomo/git/github/STCP/STCPv2/kernel/module/rust
+  /home/pomo/git/github/STCP/STCP/kernel/module/rust
 
 The temporary session.rs replacement used while debugging AtomicU64 was stale.
 DO NOT restore it. After the user's git reset, the Git version of the canonical

@@ -1,4 +1,4 @@
-STCPv2 Zephyr RX stack fix
+STCP Zephyr RX stack fix
 
 Changes:
 - CONFIG_STCP_V2_RX_BUFFER_SIZE is allocated with k_malloc() per socket.

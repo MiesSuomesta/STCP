@@ -1,4 +1,4 @@
-STCPv2 Zephyr protocol-254 UDP RX fix
+STCP Zephyr protocol-254 UDP RX fix
 
 Fix:
 - RX thread selects datagram handling from carrier->socket_type, not the

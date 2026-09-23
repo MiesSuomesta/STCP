@@ -401,7 +401,7 @@ int main(int argc, char **argv)
         return 2;
     }
     DBG("MAIN LISTEN OK fd=%d backlog=8", s);
-    fprintf(stderr, "[server] STCPv2 BEN2 debug listening %s:%d\n", bind_ip, port);
+    fprintf(stderr, "[server] STCP BEN2 debug listening %s:%d\n", bind_ip, port);
 
     while (!stop_flag) {
         int c;

@@ -1,9 +1,9 @@
-STCPv2 native P2P phase 2 - exact libp2p Noise XX probe
+STCP native P2P phase 2 - exact libp2p Noise XX probe
 ========================================================
 
 Apply as an overlay over the SAME trees used for phase 1:
 
-  module/*      -> STCPv2/kernel/module/
+  module/*      -> STCP/kernel/module/
   application/* -> Zephyr application root
 
 What is added

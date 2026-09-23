@@ -1,9 +1,9 @@
-STCPv2 Zephyr protocol-254 UDP ABI fix
+STCP Zephyr protocol-254 UDP ABI fix
 ======================================
 
 Goal
 ----
-Make Zephyr expose the same public STCPv2 socket ABI as Linux/SDK without
+Make Zephyr expose the same public STCP socket ABI as Linux/SDK without
 changing the known-good TCP/253 path.
 
 Canonical public ABI after this overlay:

@@ -237,7 +237,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         parse_args().map_err(io::Error::other)?;
 
     eprintln!("==================================================");
-    eprintln!(" STCPv2 CoAP Gateway");
+    eprintln!(" STCP CoAP Gateway");
     eprintln!(
         " STCP listen : {}:{} AF_STCP={} SOCK_DGRAM proto={}",
         listen_ip, listen_port, AF_STCP, IPPROTO_STCP_UDP

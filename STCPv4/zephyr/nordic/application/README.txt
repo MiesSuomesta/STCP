@@ -1,4 +1,4 @@
-STCPv2 Zephyr RX-ready regression fix
+STCP Zephyr RX-ready regression fix
 =====================================
 
 Restores the RX startup barrier described by the source bundle's

@@ -286,7 +286,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         parse_args().map_err(io::Error::other)?;
 
     eprintln!("==================================================");
-    eprintln!(" STCPv2 MQTT Gateway");
+    eprintln!(" STCP MQTT Gateway");
     eprintln!(
         " STCP listen : {}:{}  AF_STCP={} proto={}",
         listen_ip,

@@ -1,8 +1,8 @@
 *** Settings ***
 Library          libraries/ZephyrSerial.py
 Library          Process
-Suite Setup      Start STCPv2 Matrix
-Suite Teardown   Stop STCPv2 Matrix
+Suite Setup      Start STCP Matrix
+Suite Teardown   Stop STCP Matrix
 
 *** Variables ***
 ${SERIAL}        %{STCP_ZEPHYR_SERIAL=/dev/ttyACM0}
@@ -14,7 +14,7 @@ ${CHUNK}         %{STCP_ZEPHYR_CHUNK=4096}
 ${SERVER_BIN}    %{STCP_ZEPHYR_SERVER_BIN=./server/stcp-v2-bench-server}
 
 *** Keywords ***
-Start STCPv2 Matrix
+Start STCP Matrix
     Start Process    ${SERVER_BIN}    0.0.0.0    ${SERVER_PORT}    alias=stcp_server    stdout=server.stdout.log    stderr=server.stderr.log
     Sleep    1s
     Open Zephyr Serial    ${SERIAL}    ${BAUD}
@@ -23,7 +23,7 @@ Start STCPv2 Matrix
     Run Shell Command    stcp config total ${TOTAL}
     Run Shell Command    stcp config chunk ${CHUNK}
 
-Stop STCPv2 Matrix
+Stop STCP Matrix
     Close Zephyr Serial
     Terminate Process    stcp_server    kill=True
 
@@ -37,17 +37,17 @@ Native Network Is Alive
     ${out}=    Run Shell Command    net ping ${SERVER_HOST}    timeout=8
     Should Contain    ${out}    bytes from
 
-STCPv2 Download From Linux
+STCP Download From Linux
     Use Transport    stcp
     ${r}=    Run Benchmark    stcp bench download    timeout=30
     Should Be Equal As Integers    ${r}[status]    0
 
-STCPv2 Upload To Linux
+STCP Upload To Linux
     Use Transport    stcp
     ${r}=    Run Benchmark    stcp bench upload    timeout=30
     Should Be Equal As Integers    ${r}[status]    0
 
-STCPv2 Full Duplex With Linux
+STCP Full Duplex With Linux
     Use Transport    stcp
     ${r}=    Run Benchmark    stcp bench full    timeout=30
     Should Be Equal As Integers    ${r}[status]    0

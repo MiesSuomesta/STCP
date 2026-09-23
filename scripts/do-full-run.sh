@@ -1,7 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
-sudo renice -n -20 $$
+#sudo renice -n -20 $$
+
+SKIP_COMPILE=0
+
+usage() {
+    echo "Usage: $0 [--skip-compile]"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-compile) SKIP_COMPILE=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
 
 ts() {
     date +"[%d.%m.%Y %H:%M:%S]"
@@ -238,19 +252,29 @@ cleanup_stcp_users() {
     sleep 1
 
     if [[ -r /sys/module/stcp/refcnt ]]; then
-        refcnt="$(cat /sys/module/stcp/refcnt)"
+        # close()/release() may complete slightly after the userspace process
+        # has exited. Do not race install-all.sh against the old module.
+        for _ in $(seq 1 20); do
+            refcnt="$(cat /sys/module/stcp/refcnt 2>/dev/null || echo 0)"
+            [[ "$refcnt" == "0" ]] && break
+            info "Waiting for STCP module refcnt to reach 0 (now $refcnt)..."
+            sleep 0.25
+        done
+
+        refcnt="$(cat /sys/module/stcp/refcnt 2>/dev/null || echo 0)"
         if [[ "$refcnt" != "0" ]]; then
-            echo "$(ts) [WARN] STCP module refcnt is still $refcnt after cleanup." >&2
-            echo "$(ts) [WARN] Some process/socket may still hold the module." >&2
+            echo "$(ts) [FAIL] STCP module refcnt is still $refcnt after cleanup." >&2
+            echo "$(ts) [FAIL] Refusing to replace an in-use STCP module." >&2
 
             # Best-effort process hints. Custom AF_STCP sockets are not
             # necessarily identifiable by generic fuser/lsof tooling.
             ps -eo pid,ppid,user,comm,args \
                 | grep -E '[s]tcp|[e]cho-(server|client)|[b]ench-server' \
                 || true
-        else
-            ok "STCP module refcnt is 0"
+            return 1
         fi
+
+        ok "STCP module refcnt is 0"
     else
         info "STCP module is not currently loaded; no refcnt to verify"
     fi
@@ -291,10 +315,14 @@ run_host_rpi_build_install() {
 
     cleanup_stcp_users
 
-    info "Building host + Raspberry Pi STCP..."
-    cd ~/STCP/STCPv2
+    cd /srv/stcp-project/STCP/version-to-use
 
-    bash scripts/build-all.sh host rpi
+    if (( SKIP_COMPILE )); then
+        info "--skip-compile: using existing host + Raspberry Pi build artifacts"
+    else
+        info "Building host + Raspberry Pi STCP..."
+        bash scripts/build-all.sh host rpi
+    fi
     bash scripts/install-all.sh host
     bash scripts/install-all.sh rpi
 
@@ -309,7 +337,7 @@ run_host_rpi_tests() {
     local rc=0
 
     info "Running Linux/Raspberry Robot regression suite..."
-    cd ~/SDK/v2
+    cd /srv/stcp-project/SDK/version-to-use
 
     info "Running Linux/Raspberry robot tests....."
 
@@ -324,42 +352,221 @@ run_host_rpi_tests() {
     fi
 }
 
+
+report_compression_stats() {
+    local sdk_root="$HOME/SDK/version-to-use"
+    local result_root="$sdk_root/robot-results"
+    local latest=""
+    local report=""
+
+    info "Collecting STCPv4 compression statistics..."
+
+    if [[ -L "$result_root/latest" || -d "$result_root/latest" ]]; then
+        latest="$(readlink -f "$result_root/latest" 2>/dev/null || true)"
+    fi
+
+    if [[ -z "$latest" || ! -d "$latest" ]]; then
+        info "Compression statistics unavailable: no Robot latest run under $result_root"
+        return 0
+    fi
+
+    if ! report="$(
+        python3 - "$latest" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+run_dir = Path(sys.argv[1])
+
+pat = re.compile(
+    r"\[STCP-COMPRESSION-STATS\]\s+"
+    r"tx_attempts=(\d+)\s+"
+    r"tx_compressed_frames=(\d+)\s+"
+    r"tx_fallback_frames=(\d+)\s+"
+    r"tx_input_bytes=(\d+)\s+"
+    r"tx_wire_bytes=(\d+)\s+"
+    r"tx_errors=(\d+)\s+"
+    r"rx_compressed_frames=(\d+)\s+"
+    r"rx_wire_bytes=(\d+)\s+"
+    r"rx_output_bytes=(\d+)\s+"
+    r"rx_errors=(\d+)"
+)
+keys = (
+    "tx_attempts", "tx_compressed_frames", "tx_fallback_frames",
+    "tx_input_bytes", "tx_wire_bytes", "tx_errors",
+    "rx_compressed_frames", "rx_wire_bytes", "rx_output_bytes", "rx_errors",
+)
+
+def zero():
+    return {k: 0 for k in keys}
+
+groups = {"compressible": zero(), "incompressible": zero()}
+files = {"compressible": 0, "incompressible": 0}
+
+logs = sorted(run_dir.rglob("*-client.log")) + sorted(run_dir.rglob("*-server.log"))
+
+for path in logs:
+    try:
+        s = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        continue
+    ms = list(pat.finditer(s))
+    if not ms:
+        continue
+
+    # New random tests use 193xx ports / random marker in artifact names.
+    name = path.name.lower()
+    mode = "incompressible" if ("random" in name or re.search(r"-193(?:2[1-4]|3[1-4])-", name)) else "compressible"
+
+    vals = [int(x) for x in ms[-1].groups()]
+    for k, v in zip(keys, vals):
+        groups[mode][k] += v
+    files[mode] += 1
+
+if not sum(files.values()):
+    print("NO_STATS=1")
+    raise SystemExit(0)
+
+def emit(prefix, d, nfiles):
+    saved = max(0, d["tx_input_bytes"] - d["tx_wire_bytes"])
+    reduction = saved * 100.0 / d["tx_input_bytes"] if d["tx_input_bytes"] else 0.0
+    print(f"{prefix}_FILES={nfiles}")
+    for k in keys:
+        print(f"{prefix}_{k.upper()}={d[k]}")
+    print(f"{prefix}_SAVED_BYTES={saved}")
+    print(f"{prefix}_REDUCTION={reduction:.2f}")
+
+emit("COMP", groups["compressible"], files["compressible"])
+emit("RAND", groups["incompressible"], files["incompressible"])
+
+total = zero()
+for k in keys:
+    total[k] = groups["compressible"][k] + groups["incompressible"][k]
+emit("TOTAL", total, sum(files.values()))
+PY
+    )"; then
+        info "Compression statistics parser failed; continuing without report"
+        return 0
+    fi
+
+    if grep -q '^NO_STATS=1$' <<<"$report"; then
+        info "No compression statistics markers found in: $latest"
+        return 0
+    fi
+
+    eval "$report"
+
+    echo
+    ok "=================================================="
+    ok " STCPv4 AUTO COMPRESSION FUNCTIONAL TEST"
+    ok "=================================================="
+
+    printf '%s\n' \
+        " COMPRESSIBLE DATA" \
+        " Endpoint logs            : ${COMP_FILES:-0}" \
+        " Attempts                 : ${COMP_TX_ATTEMPTS:-0}" \
+        " Compressed frames        : ${COMP_TX_COMPRESSED_FRAMES:-0}" \
+        " Fallback frames          : ${COMP_TX_FALLBACK_FRAMES:-0}" \
+        " Original payload         : ${COMP_TX_INPUT_BYTES:-0} B" \
+        " Wire payload             : ${COMP_TX_WIRE_BYTES:-0} B" \
+        " Payload bytes saved      : ${COMP_SAVED_BYTES:-0} B" \
+        " Payload reduction        : ${COMP_REDUCTION:-0.00} %" \
+        "" \
+        " INCOMPRESSIBLE / RANDOM DATA (WORST CASE)" \
+        " Endpoint logs            : ${RAND_FILES:-0}" \
+        " Attempts                 : ${RAND_TX_ATTEMPTS:-0}" \
+        " Compressed frames        : ${RAND_TX_COMPRESSED_FRAMES:-0}" \
+        " Fallback frames          : ${RAND_TX_FALLBACK_FRAMES:-0}" \
+        " Original payload         : ${RAND_TX_INPUT_BYTES:-0} B" \
+        " Wire payload             : ${RAND_TX_WIRE_BYTES:-0} B" \
+        "" \
+        " INTEGRITY / ERRORS" \
+        " RX compressed frames     : ${TOTAL_RX_COMPRESSED_FRAMES:-0}" \
+        " RX restored payload      : ${TOTAL_RX_OUTPUT_BYTES:-0} B" \
+        " Compression errors       : ${TOTAL_TX_ERRORS:-0}" \
+        " Decompression errors     : ${TOTAL_RX_ERRORS:-0}"
+
+    # Functional invariants. These make the report itself useful as a gate.
+    local functional_pass=1
+    (( ${COMP_TX_ATTEMPTS:-0} > 0 )) || functional_pass=0
+    (( ${COMP_TX_COMPRESSED_FRAMES:-0} > 0 )) || functional_pass=0
+    (( ${COMP_TX_FALLBACK_FRAMES:-0} == 0 )) || functional_pass=0
+    (( ${RAND_TX_ATTEMPTS:-0} > 0 )) || functional_pass=0
+    (( ${RAND_TX_COMPRESSED_FRAMES:-0} == 0 )) || functional_pass=0
+    (( ${RAND_TX_FALLBACK_FRAMES:-0} > 0 )) || functional_pass=0
+    (( ${TOTAL_TX_ERRORS:-0} == 0 )) || functional_pass=0
+    (( ${TOTAL_RX_ERRORS:-0} == 0 )) || functional_pass=0
+
+    if (( functional_pass )); then
+        ok " AUTO COMPRESSION RESULT : PASS"
+        ok " Compressible path       : PASS (COMPRESS)"
+        ok " Worst-case random path  : PASS (FALLBACK)"
+    else
+        fail " AUTO COMPRESSION RESULT : FAIL"
+        return 1
+    fi
+
+    ok "=================================================="
+    echo
+}
+
 run_zephyr_build_flash() {
-    local stcp_repo="$HOME/STCP/STCPv2"
+    local stcp_repo="$(readlink -f "$HOME/STCP/version-to-use")"
     local rust_core="$stcp_repo/kernel/module/rust"
-    local rust_arm_target="$rust_core/target/thumbv8m.main-none-eabi"
+    local rust_target_triple="thumbv8m.main-none-eabi"
+    local rust_arm_target="$rust_core/target/$rust_target_triple"
+    local rust_staticlib="$rust_arm_target/release/libstcp_kernel_core.a"
 
     info "Loading Zephyr environment..."
     zephyr-env
 
-    # Zephyr links the canonical shared Rust core directly from:
-    #   kernel/module/rust/target/thumbv8m.main-none-eabi/release/libstcp_kernel_core.a
-    #
-    # Always remove the ARM target tree before the Zephyr clean build so a
-    # stale staticlib can never survive source/overlay changes.
-    [[ -f "$rust_core/Cargo.toml" ]] ||         fail "Canonical Rust core not found: $rust_core/Cargo.toml"
-
-    if [[ -e "$rust_arm_target" ]]; then
-        info "Cleaning canonical Rust ARM target: $rust_arm_target"
-        rm -rf -- "$rust_arm_target"
-        ok "Canonical Rust ARM target cleaned"
+    if (( SKIP_COMPILE )); then
+        info "--skip-compile: using existing canonical Rust ARM + Zephyr image"
+        [[ -s "$rust_staticlib" ]] || fail "Existing canonical Rust ARM staticlib missing: $rust_staticlib"
     else
-        info "Canonical Rust ARM target already clean: $rust_arm_target"
+        # Zephyr links the canonical shared Rust core directly from:
+        #   kernel/module/rust/target/thumbv8m.main-none-eabi/release/libstcp_kernel_core.a
+        #
+        # Build it explicitly here. Do not rely on the Zephyr application build
+        # to create this artifact as a side effect.
+        [[ -f "$rust_core/Cargo.toml" ]] || \
+            fail "Canonical Rust core not found: $rust_core/Cargo.toml"
+
+        command -v cargo >/dev/null 2>&1 || \
+            fail "cargo not found after Zephyr environment activation"
+
+        if [[ -e "$rust_arm_target" ]]; then
+            info "Cleaning canonical Rust ARM target: $rust_arm_target"
+            rm -rf -- "$rust_arm_target"
+            ok "Canonical Rust ARM target cleaned"
+        else
+            info "Canonical Rust ARM target already clean: $rust_arm_target"
+        fi
+
+        info "Building canonical Rust ARM staticlib for $rust_target_triple..."
+        (
+            cd "$rust_core"
+            cargo build --release --target "$rust_target_triple"
+        ) || fail "Canonical Rust ARM build failed for target $rust_target_triple"
+
+        [[ -s "$rust_staticlib" ]] || \
+            fail "Canonical Rust ARM staticlib missing after cargo build: $rust_staticlib"
+
+        ok "Canonical Rust ARM staticlib rebuilt"
+        ls -lh "$rust_staticlib"
+
+        cd "$HOME/zephyr-stcp/stcp/application"
+
+        info "Building Zephyr STCPv4 clean image..."
+        bash scripts/build-v2-clean.sh
+
+        # Verify that the canonical staticlib still exists after the Zephyr build.
+        [[ -s "$rust_staticlib" ]] || \
+            fail "Canonical Rust ARM staticlib disappeared after Zephyr build: $rust_staticlib"
+
     fi
 
-    cd ~/zephyr-stcp/stcp/application
-
-    info "Building Zephyr STCPv2 clean image..."
-    bash scripts/build-v2-clean.sh
-
-    # Verify that the canonical ARM staticlib was rebuilt by this build.
-    local rust_staticlib="$rust_core/target/thumbv8m.main-none-eabi/release/libstcp_kernel_core.a"
-    [[ -s "$rust_staticlib" ]] ||         fail "Canonical Rust ARM staticlib missing after build: $rust_staticlib"
-
-    info "Rust ARM staticlib rebuilt:"
-    ls -lh "$rust_staticlib"
-
-    info "Flashing Zephyr STCPv2 image..."
+    info "Flashing Zephyr STCPv4 image..."
     bash scripts/flash-v2-clean.sh
 
     ok "Zephyr build + flash complete"
@@ -414,7 +621,7 @@ collect_zephyr_server_logs() {
 
 run_zephyr_tests() {
     local zephyr_root="$HOME/zephyr-stcp/stcp/application"
-    local robot_dir="$zephyr_root/testing/robot-v2"
+    local robot_dir="$zephyr_root/testing/robot-v4"
     local results_dir="$robot_dir/results"
     local run_id=""
     local run_dir=""
@@ -422,7 +629,7 @@ run_zephyr_tests() {
     local suite=""
     local rc=0
 
-    info "Running Zephyr STCPv2 Robot regression suite..."
+    info "Running Zephyr STCPv4 Robot regression suite..."
 
     cleanup_stcp_users
 
@@ -499,7 +706,7 @@ run_zephyr_tests() {
     printf '%s\n' "$run_dir" >"$results_dir/latest-run-path.txt"
 
     info "Zephyr results/latest -> $(readlink -f "$results_dir/latest")"
-    info "Zephyr STCPv2 Robot regression suite done, rc=$rc"
+    info "Zephyr STCPv4 Robot regression suite done, rc=$rc"
 
     return "$rc"
 }
@@ -510,14 +717,20 @@ run_zephyr_app_build_flash() {
     local app_root="$HOME/zephyr-stcp/stcp/$app_name"
 
     [[ -d "$app_root" ]] || fail "Zephyr application missing: $app_root"
-    [[ -x "$app_root/scripts/build-v2-clean.sh" || -f "$app_root/scripts/build-v2-clean.sh" ]] || \
-        fail "Build script missing: $app_root/scripts/build-v2-clean.sh"
+    if (( ! SKIP_COMPILE )); then
+        [[ -x "$app_root/scripts/build-v2-clean.sh" || -f "$app_root/scripts/build-v2-clean.sh" ]] || \
+            fail "Build script missing: $app_root/scripts/build-v2-clean.sh"
+    fi
     [[ -x "$app_root/scripts/flash-v2-clean.sh" || -f "$app_root/scripts/flash-v2-clean.sh" ]] || \
         fail "Flash script missing: $app_root/scripts/flash-v2-clean.sh"
 
-    info "Building Zephyr application: $app_name"
     cd "$app_root"
-    bash scripts/build-v2-clean.sh
+    if (( SKIP_COMPILE )); then
+        info "--skip-compile: using existing Zephyr application image: $app_name"
+    else
+        info "Building Zephyr application: $app_name"
+        bash scripts/build-v2-clean.sh
+    fi
 
     info "Flashing Zephyr application: $app_name"
     bash scripts/flash-v2-clean.sh
@@ -583,27 +796,31 @@ run_mqtt_regression() {
 
 run_p2p_regression() {
     local p2p_root="$HOME/zephyr-stcp/stcp/p2p-application"
-    local p2p_server="$HOME/SDK/v2/target/release/stcp-libp2p"
-    local p2p_log=""
-    local p2p_pid=""
+    local p2p_runner="$p2p_root/testing/run-three-node-p2p.sh"
     local serial_dev="${STCP_ZEPHYR_SERIAL:-/dev/ttyACM0}"
     local rc=0
 
     [[ -d "$p2p_root" ]] || fail "P2P application missing: $p2p_root"
-    [[ -f "$p2p_root/scripts/build.sh" ]] || fail "P2P build script missing: $p2p_root/scripts/build.sh"
+    if (( ! SKIP_COMPILE )); then
+        [[ -f "$p2p_root/scripts/build.sh" ]] || fail "P2P build script missing: $p2p_root/scripts/build.sh"
+    fi
     [[ -f "$p2p_root/scripts/flash.sh" ]] || fail "P2P flash script missing: $p2p_root/scripts/flash.sh"
-    [[ -x "$p2p_server" ]] || fail "Golden rust-libp2p server missing/not executable: $p2p_server"
+    [[ -f "$p2p_runner" ]] || fail "P2P three-node runner missing: $p2p_runner"
     [[ -e "$serial_dev" ]] || fail "Zephyr serial device missing: $serial_dev"
 
-    info "Running standalone Zephyr P2P/Noise regression..."
+    info "Running standalone Zephyr P2P three-node regression..."
 
     cleanup_stcp_users
     zephyr-env
 
     cd "$p2p_root"
 
-    info "Building standalone P2P application..."
-    bash scripts/build.sh
+    if (( SKIP_COMPILE )); then
+        info "--skip-compile: using existing standalone P2P image"
+    else
+        info "Building standalone P2P application..."
+        bash scripts/build.sh
+    fi
 
     info "Flashing standalone P2P application..."
     bash scripts/flash.sh
@@ -613,141 +830,51 @@ run_p2p_regression() {
 
     cleanup_stcp_users
 
-    mkdir -p "$p2p_root/testing/results"
-    p2p_log="$p2p_root/testing/results/p2p-server-$(date +%Y%m%d-%H%M%S).log"
+    info "Running P2P three-node matrix..."
+    info "Runner builds Linux + Raspberry Pi rust-libp2p peers and deploys the RPi binary."
 
-    info "Starting golden rust-libp2p STCP server: $p2p_server"
-    "$p2p_server" --listen /ip4/0.0.0.0/tcp/19010 >"$p2p_log" 2>&1 &
-    p2p_pid=$!
-
-    # Always reap the P2P server before returning from this function.
-    for _ in $(seq 1 50); do
-        if ! kill -0 "$p2p_pid" 2>/dev/null; then
-            info "Golden rust-libp2p server exited during startup"
-            cat "$p2p_log" || true
-            wait "$p2p_pid" 2>/dev/null || true
-            return 1
-        fi
-
-        if grep -q 'libp2p listener ready:' "$p2p_log" 2>/dev/null; then
-            break
-        fi
-        sleep 0.1
-    done
-
-    if ! grep -q 'libp2p listener ready:' "$p2p_log" 2>/dev/null; then
-        info "Golden rust-libp2p server did not become ready"
-        cat "$p2p_log" || true
-        kill -TERM "$p2p_pid" 2>/dev/null || true
-        wait "$p2p_pid" 2>/dev/null || true
-        return 1
-    fi
-
-    ok "Golden rust-libp2p server ready"
-
-    # This is deliberately the interoperability regression only:
-    # multistream-select + Noise XX + libp2p identity over AF_STCP.
-    # Native Yamux/ping/throughput are not promoted to the full-run gate
-    # until their backend is declared ready by the P2P application.
-    info "Running Zephyr P2P Noise/libp2p interoperability probe..."
-
-    if python - "$serial_dev" <<'PY'
-import sys
-import time
-import serial
-
-device = sys.argv[1]
-baud = 115200
-timeout = 30.0
-
-ser = serial.Serial(device, baud, timeout=0.1)
-
-def read_until(needle, seconds):
-    end = time.monotonic() + seconds
-    data = ""
-    while time.monotonic() < end:
-        chunk = ser.read(4096)
-        if chunk:
-            data += chunk.decode("utf-8", errors="replace")
-            if needle in data:
-                return data
-        else:
-            time.sleep(0.02)
-    raise RuntimeError(
-        f"timeout waiting for {needle!r}; received:\n{data[-12000:]}"
-    )
-
-try:
-    ser.reset_input_buffer()
-    ser.write(b"\r\n")
-    ser.flush()
-    read_until("stcp>", 5.0)
-
-    ser.write(b"stcp p2p show\r\n")
-    ser.flush()
-    show = read_until("stcp>", 5.0)
-    print(show, end="")
-    if "Noise core  : XX+identity linked selftest=PASS (0)" not in show:
-        raise RuntimeError("P2P Noise core selftest did not report PASS")
-
-    ser.write(b"stcp p2p noise\r\n")
-    ser.flush()
-    noise = read_until("stcp>", timeout)
-    print(noise, end="")
-
-    required = (
-        "multistream : PASS",
-        "/noise      : PASS",
-        "Noise XX + libp2p identity: PASS",
-    )
-    missing = [item for item in required if item not in noise]
-    if missing:
-        raise RuntimeError("P2P Noise regression missing: " + ", ".join(missing))
-finally:
-    ser.close()
-PY
-    then
+    if STCP_ZEPHYR_SERIAL="$serial_dev" bash "$p2p_runner"; then
         rc=0
-        ok "Zephyr P2P Noise/libp2p interoperability PASS"
+        ok "Zephyr standalone P2P three-node regression PASS"
     else
         rc=$?
-        info "Zephyr P2P Noise/libp2p interoperability FAIL rc=$rc"
+        info "Zephyr standalone P2P three-node regression FAIL rc=$rc"
     fi
-
-    info "P2P server log: $p2p_log"
-    tail -n 100 "$p2p_log" || true
-
-    kill -TERM "$p2p_pid" 2>/dev/null || true
-    for _ in $(seq 1 20); do
-        if ! kill -0 "$p2p_pid" 2>/dev/null; then
-            break
-        fi
-        sleep 0.1
-    done
-    kill -KILL "$p2p_pid" 2>/dev/null || true
-    wait "$p2p_pid" 2>/dev/null || true
 
     return "$rc"
 }
 
 restore_zephyr_golden_image() {
-    info "Restoring normal Zephyr STCPv2 test application..."
+    info "Restoring normal Zephyr STCPv4 test application..."
     cleanup_stcp_users
     run_zephyr_build_flash
     info "Waiting 3 seconds after golden Zephyr restore..."
     sleep 3
-    ok "Normal Zephyr STCPv2 test application restored"
+    ok "Normal Zephyr STCPv4 test application restored"
+}
+
+publish_stcp_fi_results() {
+    local sdk_root="$HOME/SDK/version-to-use"
+    local publisher="$sdk_root/tools/site-generator/publish-tested-result.sh"
+    local run="$sdk_root/robot-results/latest"
+
+    [[ -f "$publisher" ]] || fail "stcp.fi publisher missing: $publisher"
+    [[ -e "$run" || -L "$run" ]] || fail "STCPv4 result run missing: $run"
+
+    info "Publishing successful STCPv4 full-run results to stcp.fi..."
+
+    # Publication is deliberately opt-in. This explicit flag exists only on
+    # the all-tests-passed path at the end of do-full-run.
+    bash "$publisher" "$run" --publish-stcp-fi
+
+    ok "STCPv4 full-run results published to stcp.fi"
 }
 
 main() {
     info "=================================================="
-    info " STCPv2 FULL BUILD / DEPLOY / TEST RUN"
+    info " STCPv4 FULL BUILD / DEPLOY / TEST RUN"
+    (( SKIP_COMPILE )) && info " Compile mode: SKIP (existing artifacts)"
     info "=================================================="
-    info "Cleanup before host + Raspberry Pi STCP build..."
-
-    cleanup_stcp_users
-
-
     run_host_rpi_build_install
 
     # Allow USB/J-Link/console/network endpoints to settle after flash.
@@ -757,7 +884,7 @@ main() {
     cleanup_stcp_users
 
     info "Setting up netconsole...."
-    bash ~/SDK/v2/scripts/netconsole/enable-netconsole.sh
+    bash /srv/stcp-project/SDK/version-to-use/scripts/netconsole/enable-netconsole.sh
 
     if run_host_rpi_tests; then
         :
@@ -782,12 +909,12 @@ main() {
     ssh lja@fuji "echo > /var/log/stcp/netconsole/wire.log" || true
 
     if run_zephyr_tests; then
-        ok "Zephyr STCPv2 Robot regression PASS"
+        ok "Zephyr STCPv4 Robot regression PASS"
     else
         zephyr_rc=$?
         info "Zephyr Robot tests FAIL rc=$zephyr_rc"
         info "Collecting postmortem from finalized Zephyr results/latest..."
-        bash ~/SDK/v2/scripts/stcp-postmortem.sh || true
+        bash /srv/stcp-project/SDK/version-to-use/scripts/stcp-postmortem.sh || true
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 
@@ -801,7 +928,7 @@ main() {
     else
         coap_rc=$?
         info "Zephyr CoAP application regression FAIL rc=$coap_rc"
-        # Best effort: leave the board in the normal Robot-v2 firmware even
+        # Best effort: leave the board in the normal Robot-v4 firmware even
         # after an application-suite failure.
         restore_zephyr_golden_image || true
         fail "Stopping full run after CoAP application failure rc=$coap_rc"
@@ -829,20 +956,29 @@ main() {
         fail "Stopping full run after P2P application failure rc=$p2p_rc"
     fi
 
+    # Aggregate the compression matrix statistics collected by the
+    # Linux/Raspberry Pi Robot suite.
+    report_compression_stats
+
     # p2p-application is the last firmware flashed above. Always put the
     # normal command-driven test application back on the board.
     restore_zephyr_golden_image
 
+    # Every required phase has now passed and the golden image was restored.
+    # Only this success path is allowed to opt in to stcp.fi publication.
+    publish_stcp_fi_results
+
     ok "=================================================="
-    ok " FULL STCPv2 RUN PASSED"
+    ok " FULL STCPv4 RUN PASSED"
     ok " Host/RPi build+install : PASS"
     ok " Zephyr build+flash     : PASS"
     ok " Zephyr Robot           : PASS"
     ok " Host/RPi Robot         : PASS"
     ok " Zephyr CoAP app        : PASS"
     ok " Zephyr MQTT app        : PASS"
-    ok " Zephyr P2P app         : PASS"
+    ok " Zephyr P2P 3-node      : PASS"
     ok " Golden Zephyr restore  : PASS"
+    ok " stcp.fi publication    : PASS"
     ok "=================================================="
 }
 

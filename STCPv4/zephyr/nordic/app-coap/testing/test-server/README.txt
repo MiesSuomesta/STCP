@@ -1,4 +1,4 @@
-STCPv2 userspace test-server overlay
+STCP userspace test-server overlay
 ====================================
 
 This overlay changes only:

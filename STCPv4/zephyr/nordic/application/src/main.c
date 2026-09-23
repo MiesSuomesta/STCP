@@ -15,7 +15,7 @@ int main(void)
 {
     int ret;
 
-    LOG_INF("STCPv2 transport benchmark starting");
+    LOG_INF("STCP transport benchmark starting");
 
 #if defined(CONFIG_NRF_MODEM_LIB)
     ret = stcp_lte_transport_init();

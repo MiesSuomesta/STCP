@@ -3,7 +3,7 @@ Zephyr CoAP STCP-UDP socket contract fix
 Changes only:
   src/coap_stcp_transport.c
 
-Correct Zephyr STCPv2 socket signature:
+Correct Zephyr STCP socket signature:
   socket(AF_STCP, SOCK_DGRAM, IPPROTO_STCP)
 
 The Zephyr adapter itself maps:

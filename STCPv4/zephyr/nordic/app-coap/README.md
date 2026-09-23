@@ -1,6 +1,6 @@
-# STCPv2 CoAP UDP Gateway
+# STCP CoAP UDP Gateway
 
-Datagram-model gateway for CoAP over STCPv2.
+Datagram-model gateway for CoAP over STCP.
 
 Linux STCP socket:
   AF_STCP
@@ -13,7 +13,7 @@ Flow:
 
 Zephyr CoAP
   -> AF_STCP / SOCK_DGRAM / IPPROTO_STCP
-  -> Linux STCPv2 gateway :56830
+  -> Linux STCP gateway :56830
   -> UDP 127.0.0.1:5683
   -> libcoap server
 

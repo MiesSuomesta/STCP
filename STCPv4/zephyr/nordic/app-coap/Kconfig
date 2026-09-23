@@ -244,7 +244,7 @@ config STCP_COAP_ENABLE
     default y
     select COAP
     help
-      Enable the Zephyr CoAP library. STCPv2 provides the transport.
+      Enable the Zephyr CoAP library. STCP provides the transport.
 
 config STCP_COAP_SERVER_IPV4
     string "CoAP server IPv4 address"

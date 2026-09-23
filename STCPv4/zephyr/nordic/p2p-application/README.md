@@ -1,6 +1,6 @@
-# STCPv2 native P2P Zephyr application
+# STCP native P2P Zephyr application
 
-This project is the P2P/Noise application split out of the normal STCPv2
+This project is the P2P/Noise application split out of the normal STCP
 transport regression application. It intentionally keeps the existing P2P
 wire behavior and command structure; the refactor only moves ownership.
 

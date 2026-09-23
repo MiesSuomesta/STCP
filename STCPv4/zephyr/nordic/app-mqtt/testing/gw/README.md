@@ -1,11 +1,11 @@
-# STCPv2 MQTT Gateway
+# STCP MQTT Gateway
 
 This is the v2 replacement for the old v1 gateway/proxy code.
 
 The v1 server manually instantiated the old Rust `ProtoSession`, performed the
 STCP handshake in userspace, decrypted frames and forwarded them to TCP.
 
-STCPv2 already provides that transport through the Linux kernel AF_STCP socket
+STCP already provides that transport through the Linux kernel AF_STCP socket
 API, so the gateway is intentionally much smaller:
 
 ```text
@@ -13,7 +13,7 @@ Zephyr MQTT library
     |
     | AF_STCP / SOCK_STREAM / proto 253
     v
-Linux STCPv2 kernel module
+Linux STCP kernel module
     |
     | plaintext byte stream
     v
@@ -26,7 +26,7 @@ Mosquitto :1883
 
 ## Requirements
 
-The tested STCPv2 Linux kernel module must already be loaded.
+The tested STCP Linux kernel module must already be loaded.
 
 Verify:
 
@@ -83,7 +83,7 @@ mosquitto_sub -h 127.0.0.1 -p 1883 -t 'stcp/demo' -v
 No v1 STCP Rust core dependency remains.
 
 No crypto or handshake is implemented in this process. The kernel's known-good
-STCPv2 implementation owns handshake, encryption, retransmission and stream
+STCP implementation owns handshake, encryption, retransmission and stream
 semantics.
 
 The gateway only performs:

@@ -1,4 +1,4 @@
-STCPv2 Zephyr standalone overlay
+STCP Zephyr standalone overlay
 
 application/CMakeLists.txt
 application/Kconfig

@@ -10,11 +10,12 @@ DEFAULT_APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 APP_ROOT="${STCP_V2_APP_ROOT:-$DEFAULT_APP_ROOT}"
 
 if GIT_TOP="$(git -C "$APP_ROOT" rev-parse --show-toplevel 2>/dev/null)"; then
-    DEFAULT_STCP_ROOT="$GIT_TOP/STCPv2/zephyr/nordic"
-    DEFAULT_CANONICAL_CORE="$GIT_TOP/STCPv2/kernel/module/rust"
+    VERSION_TO_USE="$(readlink -f "$GIT_TOP/version-to-use")"
+    DEFAULT_STCP_ROOT="$VERSION_TO_USE/zephyr/nordic"
+    DEFAULT_CANONICAL_CORE="$VERSION_TO_USE/kernel/module/rust"
 else
     DEFAULT_STCP_ROOT="$(cd "$APP_ROOT/.." && pwd -P)"
-    DEFAULT_CANONICAL_CORE="$HOME/git/github/STCP/STCPv2/kernel/module/rust"
+    DEFAULT_CANONICAL_CORE="$(readlink -f "/srv/stcp-project/STCP/version-to-use")/kernel/module/rust"
 fi
 
 STCP_ROOT="${STCP_ROOT:-$DEFAULT_STCP_ROOT}"

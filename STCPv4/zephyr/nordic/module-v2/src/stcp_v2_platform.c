@@ -1064,7 +1064,7 @@ ssize_t stcp_carrier_send(void *carrier, const uint8_t *data,
 
     if (IS_ENABLED(CONFIG_STCP_V2_TRACE_WIRE)) {
         LOG_HEXDUMP_DBG(data, MIN(len, (size_t)CONFIG_STCP_V2_HEXDUMP_BYTES),
-                        "STCPv2 wire TX");
+                        "STCP wire TX");
     }
 
     /*

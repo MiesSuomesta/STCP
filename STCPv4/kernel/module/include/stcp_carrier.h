@@ -110,3 +110,6 @@ void stcp_carrier_shutdown(
 	struct stcp_carrier *carrier,
 	int how
 );
+
+/* Hot-path diagnostics are disabled by default to avoid printk/netconsole backpressure. */
+extern bool stcp_verbose_debug;

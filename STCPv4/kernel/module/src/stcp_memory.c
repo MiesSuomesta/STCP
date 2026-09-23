@@ -1,4 +1,5 @@
 #include "stcp_socket.h"
+#include "stcp_carrier.h"
 
 #include <linux/gfp.h>
 #include <linux/printk.h>
@@ -69,8 +70,9 @@ void stcp_kernel_debug_event(u32 event, unsigned long ctx,
 	case 313: name = "RX-PROGRESS-EXIT"; break;
 	default: return;
 	}
+	if (READ_ONCE(stcp_verbose_debug))
 	pr_err("stcp-demux: %s event=%u ctx=%px arg0=%#lx arg1=%#lx pid=%d comm=%s\n",
 	       name, event, (void *)ctx, arg0, arg1, current->pid, current->comm);
-	if (event == 223)
+	if (READ_ONCE(stcp_verbose_debug) && event == 223)
 		dump_stack();
 }

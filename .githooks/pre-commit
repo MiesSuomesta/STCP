@@ -1,0 +1,34 @@
+#!/bin/bash
+
+LIMIT_MB=17
+LIMIT=$((LIMIT_MB * 1024 * 1024))
+
+# Explicit override: allow commit regardless of file size.
+if [ "${GIT_COMMIT_AS_I_SAY:-0}" = "1" ]; then
+    echo "[pre-commit] GIT_COMMIT_AS_I_SAY=1 -- size limit overridden"
+    exit 0
+fi
+
+rc=0
+
+echo "# Staged files check, max size is $LIMIT_MB MiB..."
+
+while IFS= read -r -d '' file; do
+    size=$(git cat-file -s ":$file" 2>/dev/null) || continue
+
+    if (( size >= LIMIT )); then
+        echo "#     $file ... OVER LIMIT ($size bytes)"
+        rc=1
+    else
+        echo "#     $file ... OK ($size bytes)"
+    fi
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+if (( rc != 0 )); then
+    echo "[pre-commit] Set GIT_COMMIT_AS_I_SAY=1 to allow this BIG commit." >&2
+    echo "[pre-commit] Commit aborted: staged file >= $LIMIT_MB MiB." >&2
+    exit "$rc"
+fi
+
+echo "[pre-commit] Commit gated, no files >= $LIMIT_MB MiB." >&2
+exit 0

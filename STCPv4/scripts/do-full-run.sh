@@ -252,19 +252,29 @@ cleanup_stcp_users() {
     sleep 1
 
     if [[ -r /sys/module/stcp/refcnt ]]; then
-        refcnt="$(cat /sys/module/stcp/refcnt)"
+        # close()/release() may complete slightly after the userspace process
+        # has exited. Do not race install-all.sh against the old module.
+        for _ in $(seq 1 20); do
+            refcnt="$(cat /sys/module/stcp/refcnt 2>/dev/null || echo 0)"
+            [[ "$refcnt" == "0" ]] && break
+            info "Waiting for STCP module refcnt to reach 0 (now $refcnt)..."
+            sleep 0.25
+        done
+
+        refcnt="$(cat /sys/module/stcp/refcnt 2>/dev/null || echo 0)"
         if [[ "$refcnt" != "0" ]]; then
-            echo "$(ts) [WARN] STCP module refcnt is still $refcnt after cleanup." >&2
-            echo "$(ts) [WARN] Some process/socket may still hold the module." >&2
+            echo "$(ts) [FAIL] STCP module refcnt is still $refcnt after cleanup." >&2
+            echo "$(ts) [FAIL] Refusing to replace an in-use STCP module." >&2
 
             # Best-effort process hints. Custom AF_STCP sockets are not
             # necessarily identifiable by generic fuser/lsof tooling.
             ps -eo pid,ppid,user,comm,args \
                 | grep -E '[s]tcp|[e]cho-(server|client)|[b]ench-server' \
                 || true
-        else
-            ok "STCP module refcnt is 0"
+            return 1
         fi
+
+        ok "STCP module refcnt is 0"
     else
         info "STCP module is not currently loaded; no refcnt to verify"
     fi
@@ -501,7 +511,7 @@ PY
 }
 
 run_zephyr_build_flash() {
-    local stcp_repo="$HOME/STCP/STCPv4"
+    local stcp_repo="$(readlink -f "$HOME/STCP/version-to-use")"
     local rust_core="$stcp_repo/kernel/module/rust"
     local rust_target_triple="thumbv8m.main-none-eabi"
     local rust_arm_target="$rust_core/target/$rust_target_triple"
@@ -865,11 +875,6 @@ main() {
     info " STCPv4 FULL BUILD / DEPLOY / TEST RUN"
     (( SKIP_COMPILE )) && info " Compile mode: SKIP (existing artifacts)"
     info "=================================================="
-    info "Cleanup before host + Raspberry Pi STCP build..."
-
-    cleanup_stcp_users
-
-
     run_host_rpi_build_install
 
     # Allow USB/J-Link/console/network endpoints to settle after flash.

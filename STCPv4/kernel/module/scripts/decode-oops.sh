@@ -16,7 +16,8 @@ set -Eeuo pipefail
 # Kiinteät polut
 # ============================================================
 
-KERNEL_SRC="/home/pomo/git/github/STCP/STCPv2/linux-kernel/kernel-source-tree/rust-enabled-linux"
+STCP_VERSION_ROOT="${STCP_VERSION_ROOT:-$(readlink -f "$HOME/git/github/STCP/version-to-use")}"
+KERNEL_SRC="${KERNEL_SRC:-$STCP_VERSION_ROOT/linux-kernel/kernel-source-tree/rust-enabled-linux}"
 VMLINUX="${KERNEL_SRC}/vmlinux"
 
 STCP_MODULE="${KERNEL_SRC}/../linux-module/stcp.ko"

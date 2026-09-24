@@ -1,82 +1,124 @@
-menuconfig STCP_V2
-    bool "STCP clean AF_STCP provider"
+menuconfig STCP
+    bool "STCP2 socket offload"
     depends on NET_SOCKETS
+    select NET_SOCKETS_OFFLOAD
     default n
-    help
-      Clean Zephyr adapter for the canonical shared STCP Rust core.
-      This deliberately does NOT select NET_SOCKETS_OFFLOAD. AF_STCP is
-      registered as its own socket family with NET_SOCKET_REGISTER so normal
-      AF_INET sockets continue to use the native Ethernet/LTE stack.
 
-if STCP_V2
-config STCP_V2_SOCKET_PRIORITY
-    int "AF_STCP socket provider priority"
+if STCP
+config STCP_SOCKET_PRIORITY
+    int "Socket provider priority"
     default 20
-
-config STCP_V2_MAX_SOCKETS
+config STCP_MAX_SOCKETS
     int "Maximum STCP sockets"
     default 8
-    range 2 16
-
-config STCP_V2_CONNECT_TIMEOUT_MS
-    int "STCP handshake timeout"
+    range 1 16
+config STCP_CONNECT_TIMEOUT_MS
+    int "Carrier and Rust handshake connect timeout"
     default 60000
     range 1000 300000
-
-config STCP_V2_LOG_LEVEL
-    int "STCP adapter log level"
+config STCP_LOG_LEVEL
+    int "STCP log level"
     default 3
     range 0 4
 
-config STCP_V2_RUST_TOOLCHAIN
-    string "Rustup toolchain"
-    default "nightly"
-
-config STCP_V2_RX_STACK_SIZE
-    int "Per-socket native carrier RX thread stack"
-    default 4096
-    range 2048 32768
-
-config STCP_V2_RX_PRIORITY
-    int "Native carrier RX thread priority"
-    default 7
-
-config STCP_V2_RX_BUFFER_SIZE
-    int "Native carrier RX buffer"
-    default 2048
-    range 512 8192
-
-config STCP_V2_HEXDUMP_BYTES
-    int "Maximum wire trace bytes"
-    default 96
-    range 16 512
-
-config STCP_V2_TRACE_WIRE
-    bool "Trace STCP wire frames"
+menuconfig STCP_DEBUG
+    bool "Compile STCP debug diagnostics"
     default n
+    help
+      Master switch for verbose STCP diagnostics. When disabled, all category
+      macros compile out completely. Functional LOG_ERR messages remain.
 
-config STCP_V2_TRACE_EVENTS
-    bool "Trace shared-core events"
+if STCP_DEBUG
+config STCP_DEBUG_POLL
+    bool "Poll and fdtable diagnostics"
     default n
-
-config STCP_V2_TRACE_ALLOC
-    bool "Trace shared-core allocations"
+config STCP_DEBUG_RX
+    bool "Receive path and wire-frame diagnostics"
     default n
-
-config STCP_V2_TRACE_CRYPTO
-    bool "Trace crypto backend"
+config STCP_DEBUG_TX
+    bool "Transmit path diagnostics"
     default n
+config STCP_DEBUG_CARRIER
+    bool "Carrier socket diagnostics"
+    default n
+config STCP_DEBUG_SOCKET
+    bool "AF_STCP socket lifecycle diagnostics"
+    default n
+config STCP_DEBUG_HANDSHAKE
+    bool "Handshake state diagnostics"
+    default n
+config STCP_DEBUG_CRYPTO
+    bool "Crypto and X25519 diagnostics"
+    default n
+config STCP_DEBUG_MQTT
+    bool "MQTT client and generator diagnostics"
+    default n
+config STCP_DEBUG_W5500
+    bool "W5500 driver diagnostics"
+    default n
+    help
+      Reserved for the W5500 driver patch. The driver should wrap verbose IRQ,
+      SPI and polling fallback messages with this option.
+endif
 
-config STCP_V2_X25519_SOFTWARE
-    bool "Use bundled RFC7748 X25519 keypair backend"
+config STCP_POLL_TRACE
+    bool
+    default STCP_DEBUG_POLL
+    help
+      Compatibility symbol for older poll-debug code. New code should use
+      CONFIG_STCP_DEBUG_POLL and the macros in stcp_debug.h.
+
+menuconfig STCP_RUST_CORE
+    bool "Use shared Raspberry Pi Rust STCP protocol core"
     default y
     select MBEDTLS_PSA_CRYPTO_C
-    select PSA_WANT_ALG_SHA_256
-    select PSA_WANT_ALG_HMAC
-    select PSA_WANT_KEY_TYPE_HMAC
-    select PSA_WANT_ALG_ECDH
-    select PSA_WANT_ECC_MONTGOMERY_255
-    select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_IMPORT
-    select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_DERIVE
+    help
+      Builds the no_std Rust STCP core as a static library and links it into
+      Zephyr. C remains only the BSD socket and native carrier adapter.
 
+if STCP_RUST_CORE
+config STCP_RUST_TOOLCHAIN
+    string "Rustup toolchain used by Cargo"
+    default "nightly"
+config STCP_RUST_RX_STACK_SIZE
+    int "Per-socket Rust carrier RX thread stack"
+    default 8192
+    range 4096 12288
+    help
+      Stack for the per-socket Rust carrier RX thread. The software RFC 7748
+      X25519 backend and Rust handshake processing run in this thread, so the
+      stack must also cover the RX buffer and crypto call chain. Use 8192
+      bytes on nRF9151 software-X25519 builds to balance safety and RAM use.
+config STCP_RUST_RX_PRIORITY
+    int "Rust carrier RX thread priority"
+    default 7
+config STCP_RUST_RX_BUFFER_SIZE
+    int "Rust carrier RX buffer"
+    default 512
+    range 512 8192
+config STCP_RUST_HEXDUMP_BYTES
+    int "Maximum bytes in Rust wire hexdumps"
+    default 96
+    range 16 512
+config STCP_RUST_TRACE_WIRE
+    bool "Trace Rust STCP wire frames (legacy compatibility)"
+    default n
+config STCP_RUST_TRACE_EVENTS
+    bool "Trace numeric Rust core events"
+    default n
+config STCP_RUST_TRACE_ALLOC
+    bool "Trace Rust allocations"
+    default n
+config STCP_RUST_TRACE_CRYPTO
+    bool "Trace Rust STCP crypto backend and PSA operations (legacy compatibility)"
+    default n
+config STCP_RUST_X25519_SOFTWARE
+    bool "Use bundled software X25519 backend"
+    default y
+    help
+      Use the bundled constant-time RFC 7748 X25519 implementation. PSA is
+      used only as the cryptographic random-number generator. This is needed
+      on NCS 3.3.0 targets whose PSA/TF-M backend does not expose Montgomery
+      key generation, import, or ECDH.
+endif
 endif

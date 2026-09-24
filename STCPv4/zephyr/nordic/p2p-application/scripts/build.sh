@@ -4,10 +4,13 @@ set -Eeuo pipefail
 log()  { printf '[INFO] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 
-APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-STCP_ROOT="${STCP_ROOT:-$HOME/zephyr-stcp/stcp}"
+GIT_TOP="$(git rev-parse --show-toplevel)" || fail "Run this inside the STCP Git repository"
+VERSION_TO_USE="$(readlink -f "$GIT_TOP/version-to-use")"
+[[ -d "$VERSION_TO_USE" ]] || fail "Missing $GIT_TOP/version-to-use"
+STCP_ROOT="${STCP_ROOT:-$VERSION_TO_USE/zephyr/nordic}"
+APP_ROOT="${STCP_V2_APP_ROOT:-$STCP_ROOT/p2p-application}"
 MODULE_V2="${STCP_V2_MODULE:-$STCP_ROOT/module-v2}"
-CANONICAL_CORE="${STCP_CANONICAL_CORE:-$(readlink -f "$HOME/git/github/STCP/version-to-use")/kernel/module/rust}"
+CANONICAL_CORE="${STCP_SHARED_RUST_CORE_DIR:-${STCP_CANONICAL_CORE:-$VERSION_TO_USE/kernel/module/rust}}"
 BUILD_DIR="${STCP_P2P_BUILD_DIR:-$APP_ROOT/build}"
 BOARD="${STCP_V2_BOARD:-nrf9151dk/nrf9151/ns}"
 SHIELD="${STCP_V2_SHIELD:-seeed_w5500}"

@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+source /srv/stcp-project/settings.sh
+VERSION_TO_USE="$(readlink -f "$STCP_ROOT")"
+
 log()  { printf '[INFO] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 
-STCP_ROOT="${STCP_ROOT:-$HOME/zephyr-stcp/stcp}"
+[[ -d "$VERSION_TO_USE" ]] || fail "Missing $GIT_TOP/version-to-use"
+STCP_ROOT="${STCP_ROOT:-$VERSION_TO_USE/zephyr/nordic}"
 APP_ROOT="${STCP_V2_APP_ROOT:-$STCP_ROOT/application}"
 MODULE_V2="${STCP_V2_MODULE:-$STCP_ROOT/module-v2}"
-
-CANONICAL_CORE="${STCP_CANONICAL_CORE:-$(readlink -f "/srv/stcp-project/STCP/version-to-use")/kernel/module/rust}"
+CANONICAL_CORE="${STCP_SHARED_RUST_CORE_DIR:-${STCP_CANONICAL_CORE:-$VERSION_TO_USE/kernel/module/rust}}"
 
 BUILD_DIR="${STCP_V2_BUILD_DIR:-$APP_ROOT/build-v2-clean}"
 BOARD="${STCP_V2_BOARD:-nrf9151dk/nrf9151/ns}"

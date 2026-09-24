@@ -7,14 +7,46 @@
  * the secret scalar and has no heap or platform dependencies.
  */
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <stcp/stcp_debug.h>
 #include <zephyr/sys/util.h>
+#include <zephyr/sys/printk.h>
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <stcp/stcp_x25519_soft.h>
 
+LOG_MODULE_REGISTER(stcp_x25519_soft, CONFIG_STCP_LOG_LEVEL);
+
+static void x25519_log_stack(const char *stage)
+{
+#if defined(CONFIG_THREAD_STACK_INFO)
+    size_t unused = 0;
+    int rc = k_thread_stack_space_get(k_current_get(), &unused);
+    if (rc == 0) {
+        LOG_ERR("X25519 stage=%s stack_unused=%zu thread=%s", stage, unused,
+                k_thread_name_get(k_current_get()));
+    } else {
+        LOG_ERR("X25519 stage=%s stack measurement failed rc=%d", stage, rc);
+    }
+#else
+    ARG_UNUSED(stage);
+#endif
+}
+
 typedef int64_t gf[16];
+
+struct stcp_x25519_workspace {
+    uint8_t z[32];
+    gf x;
+    gf a;
+    gf b;
+    gf c;
+    gf d;
+    gf e;
+    gf f;
+};
 
 static const gf gf_121665 = {0xdb41, 1};
 
@@ -149,65 +181,72 @@ static void inv25519(gf out, const gf in)
 int stcp_x25519_soft(uint8_t out[32], const uint8_t scalar[32],
                      const uint8_t point[32])
 {
-    uint8_t z[32];
+    struct stcp_x25519_workspace *ws;
     int i;
-    gf x, a, b, c, d, e, f;
+    int rc = 0;
 
     if (out == NULL || scalar == NULL || point == NULL) {
         return -EINVAL;
     }
 
-    /*
-     * Keep the current explicit byte copy.  The previous diagnostic build
-     * replaced memcpy() so an unaligned scalar cannot make libc/compiler
-     * choose wider loads here.
-     */
-    for (i = 0; i < 32; ++i) {
-        z[i] = scalar[i];
+    STCP_CRYPTO_PRINTK("X25-1\n");
+    ws = k_malloc(sizeof(*ws));
+    if (ws == NULL) {
+        STCP_CRYPTO_PRINTK("X25-A\n");
+        return -ENOMEM;
     }
+    STCP_CRYPTO_PRINTK("X25-2\n");
 
-    z[31] = (uint8_t)((z[31] & 127U) | 64U);
-    z[0] &= 248U;
-    unpack25519(x, point);
+    memcpy(ws->z, scalar, sizeof(ws->z));
+    ws->z[31] = (uint8_t)((ws->z[31] & 127U) | 64U);
+    ws->z[0] &= 248U;
+    unpack25519(ws->x, point);
 
     for (i = 0; i < 16; ++i) {
-        b[i] = x[i];
-        d[i] = a[i] = c[i] = 0;
+        ws->b[i] = ws->x[i];
+        ws->d[i] = ws->a[i] = ws->c[i] = 0;
     }
-    a[0] = d[0] = 1;
+    ws->a[0] = ws->d[0] = 1;
 
+    STCP_CRYPTO_PRINTK("X25-3\n");
     for (i = 254; i >= 0; --i) {
-        const int r = (z[i >> 3] >> (i & 7)) & 1;
-
-        sel25519(a, b, r);
-        sel25519(c, d, r);
-        add(e, a, c);
-        sub(a, a, c);
-        add(c, b, d);
-        sub(b, b, d);
-        square(d, e);
-        square(f, a);
-        mul(a, c, a);
-        mul(c, b, e);
-        add(e, a, c);
-        sub(a, a, c);
-        square(b, a);
-        sub(c, d, f);
-        mul(a, c, gf_121665);
-        add(a, a, d);
-        mul(c, c, a);
-        mul(a, d, f);
-        mul(d, b, x);
-        square(b, e);
-        sel25519(a, b, r);
-        sel25519(c, d, r);
+        const int r = (ws->z[i >> 3] >> (i & 7)) & 1;
+        sel25519(ws->a, ws->b, r);
+        sel25519(ws->c, ws->d, r);
+        add(ws->e, ws->a, ws->c);
+        sub(ws->a, ws->a, ws->c);
+        add(ws->c, ws->b, ws->d);
+        sub(ws->b, ws->b, ws->d);
+        square(ws->d, ws->e);
+        square(ws->f, ws->a);
+        mul(ws->a, ws->c, ws->a);
+        mul(ws->c, ws->b, ws->e);
+        add(ws->e, ws->a, ws->c);
+        sub(ws->a, ws->a, ws->c);
+        square(ws->b, ws->a);
+        sub(ws->c, ws->d, ws->f);
+        mul(ws->a, ws->c, gf_121665);
+        add(ws->a, ws->a, ws->d);
+        mul(ws->c, ws->c, ws->a);
+        mul(ws->a, ws->d, ws->f);
+        mul(ws->d, ws->b, ws->x);
+        square(ws->b, ws->e);
+        sel25519(ws->a, ws->b, r);
+        sel25519(ws->c, ws->d, r);
     }
 
-    inv25519(c, c);
-    mul(a, a, c);
-    pack25519(out, a);
-    memset(z, 0, sizeof(z));
-    return 0;
+    STCP_CRYPTO_PRINTK("X25-4\n");
+    inv25519(ws->c, ws->c);
+    STCP_CRYPTO_PRINTK("X25-5\n");
+    mul(ws->a, ws->a, ws->c);
+    STCP_CRYPTO_PRINTK("X25-6\n");
+    pack25519(out, ws->a);
+    STCP_CRYPTO_PRINTK("X25-7\n");
+
+    memset(ws, 0, sizeof(*ws));
+    k_free(ws);
+    STCP_CRYPTO_PRINTK("X25-8\n");
+    return rc;
 }
 
 int stcp_x25519_soft_public(uint8_t public_key[32], const uint8_t secret[32])

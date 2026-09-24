@@ -1,5 +1,5 @@
-#ifndef STCP_V2_RUST_FFI_H
-#define STCP_V2_RUST_FFI_H
+#ifndef STCP_RUST_FFI_ZEPHYR_H
+#define STCP_RUST_FFI_ZEPHYR_H
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -36,7 +36,6 @@ int stcp_rust_crypto_selftest(void);
 int stcp_rust_carrier_receive(void *ctx, const uint8_t *data, size_t len);
 int stcp_rust_carrier_receive_from(void *ctx, const uint8_t *data, size_t len,
                                    uint32_t peer_addr, uint16_t peer_port);
-int stcp_rust_get_udp_peer(void *ctx, uint32_t *out_addr, uint16_t *out_port);
 #ifdef __cplusplus
 }
 #endif

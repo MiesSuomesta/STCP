@@ -9,7 +9,6 @@ GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 STCP_ROOT="$GIT_ROOT/version-to-use"
 
 RPI_KERNEL="$STCP_ROOT/kernel/raspberry"
-PATCH="$STCP_ROOT/kernel/patches/raspberry/0001-enable-crypto-lib-aesgcm.patch"
 CONFIG="$RPI_KERNEL/.config"
 
 echo "[INFO] Git root:   $GIT_ROOT"
@@ -26,19 +25,34 @@ echo "[INFO] RPi kernel: $RPI_KERNEL"
 }
 
 # Patch Kconfig only if the AESGCM option is still promptless.
-if ! grep -q 'tristate "AES-GCM library support"' \
-        "$RPI_KERNEL/lib/crypto/Kconfig"; then
+echo "[INFO] Ensuring AES-GCM Kconfig option is user-selectable..."
 
-    [[ -f "$PATCH" ]] || {
-        echo "[FAIL] Patch not found: $PATCH"
-        exit 1
-    }
+python3 - "$RPI_KERNEL/lib/crypto/Kconfig" <<'PY'
+from pathlib import Path
+import sys
 
-    echo "[INFO] Applying AES-GCM Kconfig patch..."
-    patch -d "$RPI_KERNEL" -p1 < "$PATCH"
-else
-    echo "[OK] AES-GCM Kconfig patch already present"
-fi
+p = Path(sys.argv[1])
+s = p.read_text()
+
+block = """config CRYPTO_LIB_AESGCM
+\ttristate
+"""
+
+patched = """config CRYPTO_LIB_AESGCM
+\ttristate
+\tprompt "AES-GCM library"
+"""
+
+if patched in s:
+    print("[OK] AES-GCM Kconfig prompt already present")
+elif block in s:
+    p.write_text(s.replace(block, patched, 1))
+    print("[OK] AES-GCM Kconfig prompt added")
+else:
+    raise SystemExit(
+        "[FAIL] Unexpected CRYPTO_LIB_AESGCM Kconfig layout"
+    )
+PY
 
 echo "[INFO] Pre-oldconfig: Verifying Raspberry Pi ARM64 config..."
 

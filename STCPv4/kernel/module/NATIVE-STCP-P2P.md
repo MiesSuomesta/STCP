@@ -15,8 +15,10 @@ Implemented now:
 
 Compatibility boundary:
 
-- STCP remains the byte-stream transport.
-- Noise is NOT removed or substituted by STCP crypto.
+- STCP-TCP remains the byte-stream transport. P2P hands plaintext bytes to the STCP-TCP socket API.
+- Every P2P byte sent through STCP-TCP traverses the normal STCP AES-256-GCM DATA path before the TCP carrier.
+- Noise is NOT removed or substituted by STCP crypto; its ChaChaPoly primitive is internal to the libp2p Noise layer only.
+- Noise/ChaChaPoly is not an STCP crypto mode or fallback and does not bypass STCP AES-256-GCM.
 - `/noise` stays the security protocol negotiated above STCP.
 - `/yamux/1.0.0` stays the stream multiplexer.
 - `/ipfs/ping/1.0.0` is the first behaviour protocol target.

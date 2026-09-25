@@ -57,3 +57,13 @@ wire encoding or C ABI logic.
 
 The C `proto_ops`, FFI symbol names, Makefile targets, and user-space tests are
 unchanged. The refactor should therefore preserve all existing behavior.
+
+## Crypto boundary (STCPv4)
+
+STCP-TCP application data uses AES-256-GCM only. P2P/libp2p bytes are plaintext
+at the P2P-to-STCP socket boundary and therefore pass through the same STCP-TCP
+AES-256-GCM data path before reaching the TCP carrier.
+
+libp2p Noise XX remains an inner P2P protocol and uses its specified
+ChaChaPoly primitive for libp2p interoperability. It is not an STCP AEAD mode,
+not an STCP fallback, and cannot bypass STCP-TCP AES-256-GCM.

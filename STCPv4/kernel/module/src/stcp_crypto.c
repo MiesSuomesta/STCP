@@ -204,7 +204,7 @@ int stcp_kernel_x25519_shared(
 	return 0;
 }
 
-int stcp_kernel_chacha_encrypt(
+int stcp_p2p_noise_chacha_encrypt(
 	const u8 key[STCP_AEAD_KEY_LEN],
 	u64 nonce,
 	const u8 *associated_data,
@@ -238,7 +238,7 @@ int stcp_kernel_chacha_encrypt(
 	return 0;
 }
 
-int stcp_kernel_chacha_decrypt(
+int stcp_p2p_noise_chacha_decrypt(
 	const u8 key[STCP_AEAD_KEY_LEN],
 	u64 nonce,
 	const u8 *associated_data,
@@ -278,44 +278,6 @@ int stcp_kernel_chacha_decrypt(
 	return 0;
 }
 
-int stcp_kernel_chacha_decrypt_in_place(
-	const u8 key[STCP_AEAD_KEY_LEN],
-	u64 nonce,
-	const u8 *associated_data,
-	size_t associated_data_len,
-	u8 *ciphertext_and_tag,
-	size_t ciphertext_and_tag_len
-)
-{
-	size_t plaintext_len;
-
-	if (!key || !ciphertext_and_tag)
-		return -EINVAL;
-	if (associated_data_len && !associated_data)
-		return -EINVAL;
-	if (ciphertext_and_tag_len < STCP_AEAD_TAG_LEN)
-		return -EBADMSG;
-
-	plaintext_len = ciphertext_and_tag_len - STCP_AEAD_TAG_LEN;
-
-	/* The kernel ChaCha20-Poly1305 helper supports dst == src.  Keeping
-	 * ciphertext and plaintext in the same owned frame buffer removes one
-	 * multi-megabyte allocation and one full payload copy per RX frame. */
-	if (!chacha20poly1305_decrypt(
-		ciphertext_and_tag,
-		ciphertext_and_tag,
-		ciphertext_and_tag_len,
-		associated_data,
-		associated_data_len,
-		nonce,
-		key)) {
-		if (plaintext_len)
-			memzero_explicit(ciphertext_and_tag, plaintext_len);
-		return -EBADMSG;
-	}
-
-	return 0;
-}
 
 /* STCP transport uses AES-256-GCM.  The 8-byte wire nonce is extended to
  * the 12-byte GCM nonce with a fixed zero prefix; direction-separated keys

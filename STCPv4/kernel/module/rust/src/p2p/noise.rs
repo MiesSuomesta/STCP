@@ -17,7 +17,7 @@ const KEY_LEN: usize = 32;
 unsafe extern "C" {
     fn stcp_kernel_x25519_keypair(secret: *mut u8, public_key: *mut u8) -> c_int;
     fn stcp_kernel_x25519_shared(shared: *mut u8, secret: *const u8, peer: *const u8) -> c_int;
-    fn stcp_kernel_chacha_encrypt(
+    fn stcp_p2p_noise_chacha_encrypt(
         key: *const u8,
         nonce: u64,
         aad: *const u8,
@@ -27,7 +27,7 @@ unsafe extern "C" {
         out: *mut u8,
         out_len: usize,
     ) -> c_int;
-    fn stcp_kernel_chacha_decrypt(
+    fn stcp_p2p_noise_chacha_decrypt(
         key: *const u8,
         nonce: u64,
         aad: *const u8,
@@ -58,7 +58,7 @@ impl CipherState {
         out.try_reserve_exact(plain.len() + TAG_LEN).map_err(|_| StcpError::NoMem)?;
         out.resize(plain.len() + TAG_LEN, 0);
         let rc = unsafe {
-            stcp_kernel_chacha_encrypt(
+            stcp_p2p_noise_chacha_encrypt(
                 key.as_ptr(), self.nonce,
                 if ad.is_empty() { core::ptr::null() } else { ad.as_ptr() }, ad.len(),
                 if plain.is_empty() { core::ptr::null() } else { plain.as_ptr() }, plain.len(),
@@ -77,7 +77,7 @@ impl CipherState {
         out.try_reserve_exact(cipher.len() - TAG_LEN).map_err(|_| StcpError::NoMem)?;
         out.resize(cipher.len() - TAG_LEN, 0);
         let rc = unsafe {
-            stcp_kernel_chacha_decrypt(
+            stcp_p2p_noise_chacha_decrypt(
                 key.as_ptr(), self.nonce,
                 if ad.is_empty() { core::ptr::null() } else { ad.as_ptr() }, ad.len(),
                 cipher.as_ptr(), cipher.len(), out.as_mut_ptr(), out.len())

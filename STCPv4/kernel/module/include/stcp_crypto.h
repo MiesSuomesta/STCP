@@ -25,7 +25,7 @@ int stcp_kernel_derive_session_keys(
 	u8 server_to_client[STCP_AEAD_KEY_LEN]
 );
 
-int stcp_kernel_chacha_encrypt(
+int stcp_p2p_noise_chacha_encrypt(
 	const u8 key[STCP_AEAD_KEY_LEN],
 	u64 nonce,
 	const u8 *associated_data,
@@ -36,7 +36,7 @@ int stcp_kernel_chacha_encrypt(
 	size_t ciphertext_capacity
 );
 
-int stcp_kernel_chacha_decrypt(
+int stcp_p2p_noise_chacha_decrypt(
 	const u8 key[STCP_AEAD_KEY_LEN],
 	u64 nonce,
 	const u8 *associated_data,
@@ -47,11 +47,4 @@ int stcp_kernel_chacha_decrypt(
 	size_t plaintext_capacity
 );
 
-int stcp_kernel_chacha_decrypt_in_place(
-	const u8 key[STCP_AEAD_KEY_LEN],
-	u64 nonce,
-	const u8 *associated_data,
-	size_t associated_data_len,
-	u8 *ciphertext_and_tag,
-	size_t ciphertext_and_tag_len
-);
+

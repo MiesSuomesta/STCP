@@ -6,23 +6,14 @@ die() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 APP_NAME="$1"
 case "$APP_NAME" in application|app-coap|app-mqtt|p2p-application) ;; *) die "Unknown application: $APP_NAME" ;; esac
 
-GIT_TOP="$(git rev-parse --show-toplevel)" || die "Run inside the STCP Git repository"
-if [[ -d "$GIT_TOP/stcp/common-scripts" ]]; then
-    STCP_ZEPHYR_ROOT="$GIT_TOP/stcp"
-    WEST_ROOT="$GIT_TOP"
-elif [[ -e "$GIT_TOP/STCP/version-to-use" || -e "$GIT_TOP/version-to-use" ]]; then
-    if [[ -e "$GIT_TOP/STCP/version-to-use" ]]; then
-        VERSION="$(readlink -f "$GIT_TOP/STCP/version-to-use")"
-        PROJECT_ROOT="$GIT_TOP"
-    else
-        VERSION="$(readlink -f "$GIT_TOP/STCP/version-to-use")"
-        PROJECT_ROOT="$GIT_TOP/.."
-    fi
-    STCP_ZEPHYR_ROOT="$VERSION/zephyr/nordic"
-    WEST_ROOT="${ZEPHYR_WORKSPACE:-$PROJECT_ROOT/zephyr-stcp}"
-else
-    die "Cannot find stcp/ or STCP/version-to-use under $GIT_TOP"
-fi
+source /srv/stcp-project/settings.sh
+
+VERSION="$(readlink -f "$STCP_ROOT")"
+[[ -n "$VERSION" && -d "$VERSION" ]] || \
+    die "Invalid STCP_ROOT: $STCP_ROOT"
+
+STCP_ZEPHYR_ROOT="$VERSION/zephyr/nordic"
+WEST_ROOT="${ZEPHYR_WORKSPACE:-/srv/stcp-project/zephyr-stcp}"
 
 APP_DIR="$STCP_ZEPHYR_ROOT/$APP_NAME"
 MODULE_DIR="${STCP_V2_MODULE:-$STCP_ZEPHYR_ROOT/module-v2}"
@@ -32,6 +23,7 @@ PYTHON="${WEST_PYTHON:-$WEST_ROOT/.venv/bin/python}"
 SDK_DIR="${ZEPHYR_SDK_INSTALL_DIR:-$WEST_ROOT/../zephyr-sdk-0.16.8}"
 BOARD="${STCP_V2_BOARD:-nrf9151dk/nrf9151/ns}"
 SHIELD="${STCP_V2_SHIELD:-seeed_w5500}"
+DTC_OVERLAY_FILE="$APP_DIR/boards/nrf9151dk_nrf9151_ns_w5500.overlay"
 
 [[ -f "$APP_DIR/CMakeLists.txt" ]] || die "Missing application: $APP_DIR"
 [[ -f "$CONF_FILE" ]] || die "Missing config: $CONF_FILE"
@@ -42,8 +34,10 @@ SHIELD="${STCP_V2_SHIELD:-seeed_w5500}"
 printf '[INFO] Building %s: %s\n' "$APP_NAME" "$BUILD_DIR"
 unset PYTHONHOME PYTHONPATH
 cd "$WEST_ROOT"
+
 exec "$PYTHON" -m west build --sysbuild -p always -d "$BUILD_DIR" -b "$BOARD" \
     --shield "$SHIELD" "$APP_DIR" -- \
     "-DZEPHYR_EXTRA_MODULES=$MODULE_DIR" \
     "-DEXTRA_CONF_FILE=$CONF_FILE" \
+    "-DDTC_OVERLAY_FILE=$DTC_OVERLAY_FILE" \
     "-DZEPHYR_SDK_INSTALL_DIR=$SDK_DIR"

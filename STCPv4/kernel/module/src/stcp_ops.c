@@ -79,6 +79,74 @@ static void stcp_debug_socket_state(const char *where, struct socket *sock)
            current->comm);
 }
 
+static int stcp_getname(
+	struct socket *sock,
+	struct sockaddr *uaddr,
+	int peer
+)
+{
+	struct stcp_sock *ssk;
+	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
+	u32 local_addr = 0, peer_addr = 0;
+	u16 local_port = 0, peer_port = 0;
+	int ret;
+
+	if (!sock || !sock->sk || !uaddr)
+		return -EINVAL;
+
+	ssk = stcp_sk(sock->sk);
+
+	memset(sin, 0, sizeof(*sin));
+	sin->sin_family = AF_INET;
+
+	/*
+	 * Connected sockets have a carrier with the real transport
+	 * endpoints.  STCP userspace address ABI is sockaddr_in/AF_INET
+	 * even though the socket itself is PF_STCP.
+	 */
+	if (ssk->carrier) {
+		ret = stcp_carrier_get_endpoints(
+			ssk->carrier,
+			&local_addr, &local_port,
+			&peer_addr, &peer_port
+		);
+		if (!ret) {
+			if (peer) {
+				sin->sin_addr.s_addr = peer_addr;
+				sin->sin_port = peer_port;
+			} else {
+				sin->sin_addr.s_addr = local_addr;
+				sin->sin_port = local_port;
+			}
+
+			pr_debug(
+				"stcp: getname peer=%d addr=%pI4 port=%u\n",
+				peer,
+				&sin->sin_addr.s_addr,
+				ntohs(sin->sin_port)
+			);
+			return sizeof(*sin);
+		}
+
+		/*
+		 * getpeername() requires a connected endpoint.  Do not
+		 * manufacture a peer address if the carrier has none.
+		 */
+		if (peer)
+			return ret;
+	}
+
+	/*
+	 * Listener/unconnected local endpoint.
+	 *
+	 * If the Rust context owns the bound address instead of the carrier,
+	 * use the existing bound-address accessor here. Do not invent one.
+	 */
+	if (peer)
+		return -ENOTCONN;
+
+	return -ENOTCONN;
+}
 
 /*
  * Multi-megabyte kmalloc() allocations require physically contiguous pages
@@ -1171,7 +1239,7 @@ const struct proto_ops stcp_proto_ops = {
 	.connect       = stcp_connect,
 	.socketpair    = sock_no_socketpair,
 	.accept        = stcp_accept,
-	.getname       = sock_no_getname,
+	.getname       = stcp_getname,
 	.poll          = stcp_poll,
 	.ioctl         = sock_no_ioctl,
 	.gettstamp     = sock_gettstamp,

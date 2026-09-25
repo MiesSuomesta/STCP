@@ -794,7 +794,7 @@ pub fn send(
 
         /*
          * Snapshot immutable crypto/state under the short socket lock. The C
-         * tx_lock serializes sends for this socket, so allocation and ChaCha
+         * tx_lock serializes sends for this socket, so allocation and AES-GCM
          * can run without holding the Rust spinlock for several milliseconds.
          */
         let (sequence, nonce, acknowledgment, connection_id, crypto) = {
@@ -1250,7 +1250,7 @@ fn process_in_order_frame(
     /*
      * Parser serialization guarantees a single RX committer. Snapshot the
      * crypto context and validate sequence/nonce under the lock, then perform
-     * allocation and ChaCha decryption outside it.
+     * allocation and AES-GCM decryption outside it.
      */
     let crypto = {
         let inner = ctx.inner.lock();

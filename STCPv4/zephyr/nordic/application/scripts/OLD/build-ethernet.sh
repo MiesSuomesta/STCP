@@ -12,4 +12,4 @@ else
     exit 1
 fi
 [[ -f "$COMMON/build-ethernet.sh" ]] || { echo "[FAIL] Missing $COMMON/build-ethernet.sh" >&2; exit 1; }
-exec bash "$COMMON/build-ethernet.sh" app-mqtt "$@"
+exec bash "$COMMON/build-ethernet.sh" application "$@"

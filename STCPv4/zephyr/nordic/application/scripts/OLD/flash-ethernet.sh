@@ -11,5 +11,5 @@ else
     echo "[FAIL] version-to-use missing under $GIT_TOP/STCP and $GIT_TOP" >&2
     exit 1
 fi
-[[ -f "$COMMON/build-ethernet.sh" ]] || { echo "[FAIL] Missing $COMMON/build-ethernet.sh" >&2; exit 1; }
-exec bash "$COMMON/build-ethernet.sh" app-mqtt "$@"
+[[ -f "$COMMON/flash-application.sh" ]] || { echo "[FAIL] Missing $COMMON/flash-application.sh" >&2; exit 1; }
+exec bash "$COMMON/flash-application.sh" application "$@"

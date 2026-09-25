@@ -1,0 +1,16 @@
+STCP Zephyr standalone overlay
+
+application/CMakeLists.txt
+application/Kconfig
+application/boards/nrf9151dk_nrf9151_ns.overlay
+application/src/*
+application/ethernet-v2.conf
+application/stcp-v2-clean.conf
+application/scripts/build-v2-clean.sh
+application/scripts/flash-v2-clean.sh
+application/scripts/run-zephyr-v2-robot.sh
+application/scripts/patch-w5500-driver.py
+application/testing/robot-v2/*
+module-v2/*
+kernel/module/rust/.cargo/config.toml   (build flags only; no Rust source replacement)
+README-STCP-ZEPHYR-V2-STANDALONE.md

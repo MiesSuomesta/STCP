@@ -1,0 +1,135 @@
+# ============================================================
+# STCPv2
+# ============================================================
+
+# --- Editors / OS ------------------------------------------------
+*~
+*.swp
+*.swo
+*.bak
+*.orig
+*.rej
+.DS_Store
+.vscode/
+.idea/
+
+# --- Logs / temporary files --------------------------------------
+*.log
+*.tmp
+*.temp
+*.pid
+*.core
+core
+core.*
+*.dump
+
+/tmp/
+temp/
+
+# --- Archives / generated bundles --------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.xz
+*.gz
+*.sha256
+
+# --- Rust / Cargo -------------------------------------------------
+target/
+**/target/
+
+# Keep Cargo.lock for reproducible builds.
+# Cargo.lock
+
+# --- Python -------------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# --- Robot Framework ----------------------------------------------
+robot-results/
+**/robot-results/
+**/results/
+
+output.xml
+log.html
+report.html
+
+# Generated Robot artifacts
+**/artifacts/*.strace
+**/artifacts/*.log
+
+# --- STCP generated artifacts -------------------------------------
+artifacts/build/
+artifacts/tmp/
+
+# Kernel modules / binaries
+*.ko
+*.ko.*
+*.o
+*.o.*
+*.a
+*.so
+*.so.*
+*.cmd
+*.mod
+*.mod.c
+*.mod.o
+*.symvers
+
+Module.symvers
+modules.order
+
+# --- Linux kernel generated files ---------------------------------
+.config.old
+.tmp_versions/
+Module.markers
+modules.builtin
+modules.builtin.modinfo
+
+# Kbuild generated directories/files
+**/.tmp_versions/
+**/.*.cmd
+
+# --- Raspberry Pi build outputs -----------------------------------
+RaspberryPI/generated-rpi-modules/
+RaspberryPI/packages/
+RaspberryPI/build-rpi.log
+
+# Unified/current build staging
+artifacts/build/kernel-host/
+artifacts/build/kernel-rpi/
+
+# --- Zephyr --------------------------------------------------------
+zephyr/**/build/
+zephyr/**/build-*/
+zephyr/**/.west/
+
+# --- CMake ---------------------------------------------------------
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile.cmake
+compile_commands.json
+
+# --- Coverage / profiling ------------------------------------------
+*.gcda
+*.gcno
+*.gcov
+coverage/
+.profraw
+.profdata
+
+# --- Crash / postmortem bundles -----------------------------------
+stcp-postmortem-*
+support-bundle-*
+
+# --- Local environment ---------------------------------------------
+.env
+.env.local
+.env.*
+!.env.example
+

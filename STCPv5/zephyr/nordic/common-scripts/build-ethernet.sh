@@ -19,7 +19,7 @@ BOARD="nrf9151dk/nrf9151/ns"
 SHIELD="seeed_w5500"
 OVERLAY="$APP_DIR/boards/nrf9151dk_nrf9151_ns_w5500.overlay"
 COMMON_CONF="$NORDIC_ROOT/common.conf"
-TRANSPORT_CONF="$NORDIC_ROOT/lte.conf"
+TRANSPORT_CONF="$APP_DIR/ethernet.conf"
 
 west build --sysbuild -p always -d "$BUILD_DIR" -b "$BOARD" \
     --shield "$SHIELD" "$APP_DIR" -- \

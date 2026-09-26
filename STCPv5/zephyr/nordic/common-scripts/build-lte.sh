@@ -76,7 +76,6 @@ west build \
     2>&1 | tee "$BUILD_LOG"
 
 rc=${PIPESTATUS[0]}
-(( rc == 0 )) || exit "$rc"
 
 grep -A4 '^Memory region' "$BUILD_LOG" > "$MEMORY_FILE" || true
 
@@ -107,3 +106,5 @@ grep -q '^CONFIG_STCP=y' "$CONFIG_FILE" ||
     fail "CONFIG_STCP=y missing"
 
 log "DONE"
+
+exit "$rc"

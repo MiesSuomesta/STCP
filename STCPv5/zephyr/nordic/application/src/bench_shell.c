@@ -7,7 +7,9 @@
 #include <zephyr/sys/util.h>
 
 #include "echo_benchmark.h"
+#if defined(CONFIG_NET_NATIVE)
 #include "stcp_ping.h"
+#endif
 #if defined(CONFIG_ETH_W5500)
 #include "ethernet_status.h"
 #endif
@@ -16,10 +18,12 @@
 #endif
 
 
+#if defined(CONFIG_NET_NATIVE)
 static int cmd_stcp_ping(const struct shell *sh, size_t argc, char **argv)
 {
     return stcp_ping_run(sh, argc, argv);
 }
+#endif
 
 static struct bench_config shell_cfg;
 static bool shell_cfg_ready;
@@ -430,8 +434,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(modem_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
     SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
+#if defined(CONFIG_NET_NATIVE)
     SHELL_CMD_ARG(ping, NULL, "Ping IPv4 host: stcp ping <ip|name> [count] [timeout_ms]",
                   cmd_stcp_ping, 2, 2),
+#endif
     SHELL_CMD(modem, &modem_cmds, "nRF modem status and radio diagnostics", NULL),
     SHELL_SUBCMD_SET_END
 );
@@ -440,8 +446,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
 SHELL_STATIC_SUBCMD_SET_CREATE(stcp_cmds,
     SHELL_CMD(config, &config_cmds, "Runtime benchmark configuration", NULL),
     SHELL_CMD(bench, &bench_cmds, "Transport benchmarks", NULL),
+#if defined(CONFIG_NET_NATIVE)
     SHELL_CMD_ARG(ping, NULL, "Ping IPv4 host: stcp ping <ip|name> [count] [timeout_ms]",
                   cmd_stcp_ping, 2, 2),
+#endif
 #if defined(CONFIG_ETH_W5500)
     SHELL_CMD(net, &net_cmds, "Ethernet status and diagnostics", NULL),
 #endif

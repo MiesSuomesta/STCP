@@ -10,6 +10,9 @@ CONF_FILE="$NORDIC_ROOT/lte.conf"
 BUILD_DIR="$APP_ROOT/build-lte"
 BOARD="nrf9151dk/nrf9151/ns"
 
+log()  { printf '[INFO] %s\n' "$*"; }
+fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
+
 [[ -d "$VERSION_TO_USE" ]] ||
     fail "Missing STCP version: $VERSION_TO_USE"
 

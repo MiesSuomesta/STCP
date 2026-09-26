@@ -558,7 +558,7 @@ run_zephyr_build_flash() {
         cd "$HOME/zephyr-stcp/stcp/application"
 
         info "Building Zephyr STCPv4 clean image..."
-        bash scripts/build-v2-clean.sh
+        bash scripts/build-lte.sh
 
         # Verify that the canonical staticlib still exists after the Zephyr build.
         [[ -s "$rust_staticlib" ]] || \
@@ -567,7 +567,7 @@ run_zephyr_build_flash() {
     fi
 
     info "Flashing Zephyr STCPv4 image..."
-    bash scripts/flash-v2-clean.sh
+    bash scripts/flash-lte.sh
 
     ok "Zephyr build + flash complete"
 }
@@ -718,22 +718,22 @@ run_zephyr_app_build_flash() {
 
     [[ -d "$app_root" ]] || fail "Zephyr application missing: $app_root"
     if (( ! SKIP_COMPILE )); then
-        [[ -x "$app_root/scripts/build-v2-clean.sh" || -f "$app_root/scripts/build-v2-clean.sh" ]] || \
-            fail "Build script missing: $app_root/scripts/build-v2-clean.sh"
+        [[ -x "$app_root/scripts/build-lte.sh" || -f "$app_root/scripts/build-lte.sh" ]] || \
+            fail "Build script missing: $app_root/scripts/build-lte.sh"
     fi
-    [[ -x "$app_root/scripts/flash-v2-clean.sh" || -f "$app_root/scripts/flash-v2-clean.sh" ]] || \
-        fail "Flash script missing: $app_root/scripts/flash-v2-clean.sh"
+    [[ -x "$app_root/scripts/flash-lte.sh" || -f "$app_root/scripts/flash-lte.sh" ]] || \
+        fail "Flash script missing: $app_root/scripts/flash-lte.sh"
 
     cd "$app_root"
     if (( SKIP_COMPILE )); then
         info "--skip-compile: using existing Zephyr application image: $app_name"
     else
         info "Building Zephyr application: $app_name"
-        bash scripts/build-v2-clean.sh
+        bash scripts/build-lte.sh
     fi
 
     info "Flashing Zephyr application: $app_name"
-    bash scripts/flash-v2-clean.sh
+    bash scripts/flash-lte.sh
 
     info "Waiting 3 seconds after $app_name flash..."
     sleep 3

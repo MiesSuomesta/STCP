@@ -13,7 +13,9 @@ NORDIC_ROOT="${NORDIC_ROOT:-$VERSION_TO_USE/zephyr/nordic}"
 APP_ROOT="${STCP_V2_APP_ROOT:-$NORDIC_ROOT/application}"
 MODULE_V2="${STCP_V2_MODULE:-$NORDIC_ROOT/module-v2}"
 CANONICAL_CORE="${STCP_SHARED_RUST_CORE_DIR:-$VERSION_TO_USE/kernel/module/rust}"
-CONF_FILE="${STCP_V2_CONF:-$NORDIC_ROOT/lte.conf}"
+COMMON_CONF="$NORDIC_ROOT/common.conf"
+LTE_CONF="${STCP_V2_CONF:-$NORDIC_ROOT/lte.conf}"
+EXTRA_CONF_FILE="$COMMON_CONF;$LTE_CONF"
 MEMORY_DIR="$STCP_PROJECT_ROOT/artifacts/zephyr-memory"
 
 BUILD_DIR="$APP_ROOT/build-lte"
@@ -30,8 +32,8 @@ fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
     fail "Missing: $APP_ROOT/CMakeLists.txt"
 [[ -f "$APP_ROOT/prj.conf" ]] ||
     fail "Missing: $APP_ROOT/prj.conf"
-[[ -f "$CONF_FILE" ]] ||
-    fail "Missing LTE config: $CONF_FILE"
+[[ -f "$COMMON_CONF" ]] || fail "Missing common config: $COMMON_CONF"
+[[ -f "$LTE_CONF" ]] || fail "Missing LTE config: $LTE_CONF"
 [[ -f "$MODULE_V2/CMakeLists.txt" ]] ||
     fail "Missing: $MODULE_V2/CMakeLists.txt"
 [[ -f "$MODULE_V2/zephyr/module.yml" ]] ||
@@ -50,7 +52,8 @@ log "NORDIC root     : $NORDIC_ROOT"
 log "Application     : $APP_ROOT"
 log "Module-v2       : $MODULE_V2"
 log "Canonical core  : $CANONICAL_CORE"
-log "LTE config      : $CONF_FILE"
+log "Common config   : $COMMON_CONF"
+log "LTE config      : $LTE_CONF"
 log "Build directory : $BUILD_DIR"
 log "Board           : $BOARD"
 log "Memory dir      : $MEMORY_DIR"
@@ -66,7 +69,7 @@ west build \
     "$APP_ROOT" \
     -- \
     "-DZEPHYR_EXTRA_MODULES=$MODULE_V2" \
-    "-DEXTRA_CONF_FILE=$CONF_FILE" \
+    "-DEXTRA_CONF_FILE=$EXTRA_CONF_FILE" \
     "-DSTCP_SHARED_RUST_CORE_DIR=$CANONICAL_CORE" \
     "-DSTCP_CANONICAL_CORE=$CANONICAL_CORE" \
     "-DZEPHYR_SDK_INSTALL_DIR=$ZEPHYR_SDK_INSTALL_DIR" \

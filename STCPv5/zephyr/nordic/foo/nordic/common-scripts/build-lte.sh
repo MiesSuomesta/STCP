@@ -1,27 +1,21 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source /srv/stcp-project/settings.sh
-log()  { printf '[INFO] %s\n' "$*"; }
+log() { printf '[INFO] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 
-APP_NAME="${1:-application}"
-case "$APP_NAME" in
-    application|app-coap|app-mqtt|p2p-application) ;;
-    *) fail "Unknown application: $APP_NAME" ;;
-esac
-
-VERSION="$(readlink -f "$STCP_ROOT")"
-NORDIC_ROOT="$VERSION/zephyr/nordic"
-APP_DIR="$NORDIC_ROOT/$APP_NAME"
-MODULE_DIR="$NORDIC_ROOT/module-v2"
-CANONICAL_CORE="$VERSION/kernel/module/rust"
+VERSION_TO_USE="$(readlink -f "$STCP_ROOT")"
+NORDIC_ROOT="$VERSION_TO_USE/zephyr/nordic"
+APP_ROOT="$NORDIC_ROOT/application"
+MODULE_V2="$NORDIC_ROOT/module-v2"
+CANONICAL_CORE="$VERSION_TO_USE/kernel/module/rust"
 COMMON_CONF="$NORDIC_ROOT/common.conf"
 TRANSPORT_CONF="$NORDIC_ROOT/lte.conf"
-BUILD_DIR="$APP_DIR/build-lte"
+BUILD_DIR="$APP_ROOT/build-lte"
 BOARD="nrf9151dk/nrf9151/ns"
 
-for f in "$APP_DIR/CMakeLists.txt" "$APP_DIR/prj.conf" "$COMMON_CONF" "$TRANSPORT_CONF" \
-         "$MODULE_DIR/zephyr/module.yml" "$CANONICAL_CORE/Cargo.toml"; do
+for f in "$APP_ROOT/CMakeLists.txt" "$APP_ROOT/prj.conf" "$COMMON_CONF" "$TRANSPORT_CONF" \
+         "$MODULE_V2/zephyr/module.yml" "$CANONICAL_CORE/Cargo.toml"; do
     [[ -e "$f" ]] || fail "Missing: $f"
 done
 
@@ -29,13 +23,13 @@ export STCP_SHARED_RUST_CORE_DIR="$CANONICAL_CORE"
 export STCP_CANONICAL_CORE="$CANONICAL_CORE"
 export ZEPHYR_SDK_INSTALL_DIR
 
-log "Application : $APP_NAME"
+log "Application : $APP_ROOT"
 log "Common conf : $COMMON_CONF"
 log "LTE conf    : $TRANSPORT_CONF"
 log "Build dir   : $BUILD_DIR"
 
-west build --sysbuild -p always -d "$BUILD_DIR" -b "$BOARD" "$APP_DIR" -- \
-    "-DZEPHYR_EXTRA_MODULES=$MODULE_DIR" \
+west build -p always -d "$BUILD_DIR" -b "$BOARD" "$APP_ROOT" -- \
+    "-DZEPHYR_EXTRA_MODULES=$MODULE_V2" \
     "-DEXTRA_CONF_FILE=$COMMON_CONF;$TRANSPORT_CONF" \
     "-DSTCP_SHARED_RUST_CORE_DIR=$CANONICAL_CORE" \
     "-DSTCP_CANONICAL_CORE=$CANONICAL_CORE" \

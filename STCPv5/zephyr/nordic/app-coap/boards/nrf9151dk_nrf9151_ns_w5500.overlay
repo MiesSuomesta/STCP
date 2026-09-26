@@ -1,0 +1,4 @@
+&eth_w5500 {
+    spi-max-frequency = <8000000>;
+    local-mac-address = [02 00 00 00 91 51];
+};

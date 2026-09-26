@@ -1,43 +1,33 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-
-die() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
-(( $# == 1 )) || die "Usage: $0 {application|app-coap|app-mqtt|p2p-application}"
-APP_NAME="$1"
-case "$APP_NAME" in application|app-coap|app-mqtt|p2p-application) ;; *) die "Unknown application: $APP_NAME" ;; esac
-
 source /srv/stcp-project/settings.sh
+fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
+
+APP_NAME="${1:-application}"
+case "$APP_NAME" in
+    application|app-coap|app-mqtt|p2p-application) ;;
+    *) fail "Unknown application: $APP_NAME" ;;
+esac
 
 VERSION="$(readlink -f "$STCP_ROOT")"
-[[ -n "$VERSION" && -d "$VERSION" ]] || \
-    die "Invalid STCP_ROOT: $STCP_ROOT"
+NORDIC_ROOT="$VERSION/zephyr/nordic"
+APP_DIR="$NORDIC_ROOT/$APP_NAME"
+MODULE_DIR="$NORDIC_ROOT/module-v2"
+COMMON_CONF="$NORDIC_ROOT/common.conf"
+TRANSPORT_CONF="$NORDIC_ROOT/ethernet.conf"
+BUILD_DIR="$APP_DIR/build-ethernet"
+BOARD="nrf9151dk/nrf9151/ns"
+SHIELD="seeed_w5500"
+OVERLAY="$APP_DIR/boards/nrf9151dk_nrf9151_ns_w5500.overlay"
 
-STCP_ZEPHYR_ROOT="$VERSION/zephyr/nordic"
-WEST_ROOT="${ZEPHYR_WORKSPACE:-/srv/stcp-project/zephyr-stcp}"
+for f in "$APP_DIR/CMakeLists.txt" "$APP_DIR/prj.conf" "$COMMON_CONF" "$TRANSPORT_CONF" \
+         "$MODULE_DIR/zephyr/module.yml" "$OVERLAY"; do
+    [[ -e "$f" ]] || fail "Missing: $f"
+done
 
-APP_DIR="$STCP_ZEPHYR_ROOT/$APP_NAME"
-MODULE_DIR="${STCP_V2_MODULE:-$STCP_ZEPHYR_ROOT/module-v2}"
-BUILD_DIR="${STCP_V2_BUILD_DIR:-$APP_DIR/build-ethernet}"
-CONF_FILE="${STCP_V2_CONF:-$APP_DIR/ethernet.conf}"
-PYTHON="${WEST_PYTHON:-$WEST_ROOT/.venv/bin/python}"
-SDK_DIR="${ZEPHYR_SDK_INSTALL_DIR:-$WEST_ROOT/../zephyr-sdk-0.16.8}"
-BOARD="${STCP_V2_BOARD:-nrf9151dk/nrf9151/ns}"
-SHIELD="${STCP_V2_SHIELD:-seeed_w5500}"
-DTC_OVERLAY_FILE="$APP_DIR/boards/nrf9151dk_nrf9151_ns_w5500.overlay"
-
-[[ -f "$APP_DIR/CMakeLists.txt" ]] || die "Missing application: $APP_DIR"
-[[ -f "$CONF_FILE" ]] || die "Missing config: $CONF_FILE"
-[[ -f "$MODULE_DIR/zephyr/module.yml" ]] || die "Missing STCP module: $MODULE_DIR"
-[[ -x "$PYTHON" ]] || die "Missing west Python: $PYTHON"
-[[ -d "$SDK_DIR" ]] || die "Missing Zephyr SDK: $SDK_DIR"
-
-printf '[INFO] Building %s: %s\n' "$APP_NAME" "$BUILD_DIR"
-unset PYTHONHOME PYTHONPATH
-cd "$WEST_ROOT"
-
-exec "$PYTHON" -m west build --sysbuild -p always -d "$BUILD_DIR" -b "$BOARD" \
+west build --sysbuild -p always -d "$BUILD_DIR" -b "$BOARD" \
     --shield "$SHIELD" "$APP_DIR" -- \
     "-DZEPHYR_EXTRA_MODULES=$MODULE_DIR" \
-    "-DEXTRA_CONF_FILE=$CONF_FILE" \
-    "-DDTC_OVERLAY_FILE=$DTC_OVERLAY_FILE" \
-    "-DZEPHYR_SDK_INSTALL_DIR=$SDK_DIR"
+    "-DEXTRA_CONF_FILE=$COMMON_CONF;$TRANSPORT_CONF" \
+    "-DDTC_OVERLAY_FILE=$OVERLAY" \
+    "-DZEPHYR_SDK_INSTALL_DIR=$ZEPHYR_SDK_INSTALL_DIR"

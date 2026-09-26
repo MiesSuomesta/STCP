@@ -1,18 +1,23 @@
-STCP Zephyr protocol-254 UDP RX fix
+STCPv5 Zephyr all-app config overlay
 
-Fix:
-- RX thread selects datagram handling from carrier->socket_type, not the
-  public AF_STCP socket_type.
-- Public ABI is SOCK_STREAM/254 while the native/effective carrier is
-  SOCK_DGRAM. Using sock->socket_type incorrectly sent protocol-254 RX
-  through the stream recv()/stcp_rust_carrier_receive() branch.
-- UDP now uses recvfrom() + stcp_rust_carrier_receive_from() and logs peer.
+Layout:
+  nordic/common.conf                 shared Zephyr/STCP base
+  nordic/lte.conf                    LTE transport only
+  nordic/ethernet.conf               W5500 transport only
+  nordic/<app>/prj.conf              application-only settings
+  nordic/<app>/boards/*_w5500.overlay Ethernet-only devicetree overlay
+  nordic/common-scripts/build-*.sh   shared builders, optional app name argument
 
-Extract this overlay at zephyr/nordic/ so it replaces:
-  module-v2/src/stcp_v2_rx.c
+Examples:
+  common-scripts/build-ethernet.sh application
+  common-scripts/build-ethernet.sh app-coap
+  common-scripts/build-ethernet.sh app-mqtt
+  common-scripts/build-ethernet.sh p2p-application
 
-Expected CoAP handshake:
-  RXPROBE ... type=dgram public_type=1 carrier_type=2
-  RXDIAG UDP CORE ENTER ...
-  RXDIAG UDP CORE RETURN ...
-and connect should leave handshake wait.
+  common-scripts/build-lte.sh application
+  common-scripts/build-lte.sh app-coap
+  common-scripts/build-lte.sh app-mqtt
+  common-scripts/build-lte.sh p2p-application
+
+Old per-app ethernet.conf / stcp-v2-clean.conf files are intentionally not deleted by this overlay.
+Remove them only after all builds/tests are green.

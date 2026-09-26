@@ -1,35 +1,29 @@
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-source /srv/stcp-project/settings.sh
-
-log()  { printf '[INFO] %s\n' "$*"; }
-fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
-
 VERSION_TO_USE="$(readlink -f "$STCP_ROOT")"
-[[ -d "$VERSION_TO_USE" ]] || fail "Missing STCP version: $STCP_ROOT"
+NORDIC_ROOT="$VERSION_TO_USE/zephyr/nordic"
+APP_ROOT="$NORDIC_ROOT/application"
+MODULE_V2="$NORDIC_ROOT/module-v2"
+CANONICAL_CORE="$VERSION_TO_USE/kernel/module/rust"
 
-NORDIC_ROOT="${NORDIC_ROOT:-$VERSION_TO_USE/zephyr/nordic}"
-APP_ROOT="${STCP_V2_APP_ROOT:-$NORDIC_ROOT/application}"
-MODULE_V2="${STCP_V2_MODULE:-$NORDIC_ROOT/module-v2}"
-CANONICAL_CORE="${STCP_SHARED_RUST_CORE_DIR:-$VERSION_TO_USE/kernel/module/rust}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+CONF_FILE="$NORDIC_ROOT/lte.conf"
 
-BUILD_DIR="${STCP_V2_BUILD_DIR:-$APP_ROOT/build-lte}"
-BOARD="${STCP_V2_BOARD:-nrf9151dk/nrf9151/ns}"
-CONF_FILE="${STCP_APP_CONF:-$APP_ROOT/nrf9151.conf}"
+BUILD_DIR="$APP_ROOT/build-lte"
+BOARD="nrf9151dk/nrf9151/ns"
+
+[[ -d "$VERSION_TO_USE" ]] ||
+    fail "Missing STCP version: $VERSION_TO_USE"
 
 [[ -f "$APP_ROOT/CMakeLists.txt" ]] ||
-    fail "Missing: $APP_ROOT/CMakeLists.txt"
-[[ -f "$APP_ROOT/prj.conf" ]] ||
-    fail "Missing: $APP_ROOT/prj.conf"
+    fail "Missing application: $APP_ROOT"
+
 [[ -f "$CONF_FILE" ]] ||
     fail "Missing LTE config: $CONF_FILE"
-[[ -f "$MODULE_V2/CMakeLists.txt" ]] ||
-    fail "Missing: $MODULE_V2/CMakeLists.txt"
+
 [[ -f "$MODULE_V2/zephyr/module.yml" ]] ||
-    fail "Missing: $MODULE_V2/zephyr/module.yml"
+    fail "Missing STCP Zephyr module: $MODULE_V2"
+
 [[ -f "$CANONICAL_CORE/Cargo.toml" ]] ||
-    fail "Missing canonical core: $CANONICAL_CORE/Cargo.toml"
+    fail "Missing canonical Rust core: $CANONICAL_CORE"
 
 export STCP_SHARED_RUST_CORE_DIR="$CANONICAL_CORE"
 export STCP_CANONICAL_CORE="$CANONICAL_CORE"

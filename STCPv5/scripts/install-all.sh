@@ -42,19 +42,19 @@ pnc_run() {
 
 usage() {
     cat <<USAGE
-Usage: $(basename "$0") [host|rpi|kernel|zephyr-nrf9151|zephyr-ethernet|all]
+Usage: $(basename "$0") [host|rpi|kernel|zephyr-lte|zephyr-eth|all]
 
 Default: host
 
   host               Install staged host kernel module on this machine
   rpi                Install staged Raspberry Pi kernel + module tree over SSH
   kernel             Backwards-compatible alias for 'host'
-  zephyr-nrf9151     Flash the already-built nRF9151/LTE firmware
-  zephyr-ethernet    Flash the already-built nRF9151 + W5500 firmware
+  zephyr-lte         Flash the already-built nRF9151/LTE firmware
+  zephyr-eth         Flash the already-built nRF9151 + W5500 firmware
   all                Install local kernel module and flash ZEPHYR_VARIANT
 
 Environment:
-  ZEPHYR_VARIANT=nrf9151|ethernet   Used by 'all' (default: nrf9151)
+  ZEPHYR_VARIANT=lte|ethernet   Used by 'all' (default: lte)
   NCS_DIR=PATH                      Nordic Connect SDK tree
   SUDO=command                      local sudo command (default: sudo)
   RPI_HOST=host                     Raspberry Pi SSH host (default: raspi)
@@ -69,6 +69,14 @@ Environment:
 Run scripts/build-all.sh first. Zephyr variants are intentionally not both
 flashed in sequence because the second flash would simply replace the first.
 USAGE
+}
+
+cleanup_module_users() {
+	sudo systemctl stop apache2
+}
+
+restart_module_users() {
+	sudo systemctl start apache2
 }
 
 install_host() {
@@ -91,6 +99,8 @@ install_host() {
     fi
 
     echo "[INFO] Installing host module for kernel $release"
+    pnc_note "STCP host install" "Stopping apache2"
+    cleanup_module_users
     pnc_note "STCP host install" "Installing STCP module for kernel $release"
     if grep -q '^stcp ' /proc/modules 2>/dev/null; then
         "$SUDO" modprobe -r stcp
@@ -100,6 +110,7 @@ install_host() {
     "$SUDO" install -D -m 0644 "$src" "/lib/modules/$release/extra/stcp.ko"
     "$SUDO" depmod -a "$release"
     "$SUDO" modprobe stcp
+    restart_module_users
 
     local installed="/lib/modules/$release/extra/stcp.ko"
     if [[ "$(sha256sum "$src" | awk '{print $1}')" != "$(sha256sum "$installed" | awk '{print $1}')" ]]; then
@@ -376,9 +387,9 @@ REMOTE_INSTALL
 flash_zephyr() {
     local variant="$1" builddir script ncs
     case "$variant" in
-        nrf9151)
-            builddir="$ZAPP/build-nrf9151"
-            script="$ZAPP/scripts/flash.sh"
+        lte)
+            builddir="$ZAPP/build-lte"
+            script="$ZAPP/scripts/flash-lte.sh"
             ;;
         ethernet)
             builddir="$ZAPP/build-ethernet"
@@ -411,11 +422,11 @@ case "$cmd" in
     host) install_host ;;
     rpi) install_rpi ;;
     kernel) install_host ;;
-    zephyr-nrf9151) flash_zephyr nrf9151 ;;
+    zephyr-lte) flash_zephyr lte ;;
     zephyr-ethernet) flash_zephyr ethernet ;;
     all)
         install_host
-        flash_zephyr "${ZEPHYR_VARIANT:-nrf9151}"
+        flash_zephyr "${ZEPHYR_VARIANT:-lte}"
         ;;
     -h|--help) usage ;;
     *) echo "[FAIL] Unknown action: $cmd" >&2; usage >&2; exit 2 ;;

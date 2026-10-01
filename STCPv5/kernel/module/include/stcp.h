@@ -1,5 +1,7 @@
 #pragma once
 
+#include <linux/types.h>
+
 #define AF_STCP 45
 #define PF_STCP AF_STCP
 
@@ -20,6 +22,9 @@
 #define STCP_COMPRESSION_LEVEL_DEFAULT   3
 #define STCP_COMPRESSION_LEVEL_HIGH      4
 #define STCP_COMPRESSION_LEVEL_VERY_HIGH 5
+
+/* Runtime policy used by sockets that keep the compression level on default. */
+u32 stcp_compression_get_default_compression_level(void);
 
 struct stcp_compression_stats {
     unsigned long long tx_attempts;

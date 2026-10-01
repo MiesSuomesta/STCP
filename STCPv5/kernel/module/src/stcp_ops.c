@@ -29,6 +29,26 @@
 #define STCP_CLOSE_DRAIN_TIMEOUT_MS 750
 #define STCP_CLOSE_FIN_TIMEOUT_MS 1250
 
+static int stcp_refresh_auto_compression_level(struct stcp_sock *ssk)
+{
+	u32 level;
+	int ret;
+
+	if (!ssk->compression_level_is_default)
+		return 0;
+
+	level = stcp_compression_get_default_compression_level();
+	if (level == ssk->compression_level)
+		return 0;
+
+	ret = stcp_rust_set_compression_level(ssk->rust_ctx, level);
+	if (ret)
+		return ret;
+
+	ssk->compression_level = level;
+	return 0;
+}
+
 /*
  * Crash-debug instrumentation for the socket lifetime / LSM recvmsg race.
  *
@@ -747,7 +767,10 @@ static int stcp_accept(
 	child->rust_ctx = accepted_ctx;
 	child->compression_enabled = listener->compression_enabled;
 	child->compression_threshold = listener->compression_threshold;
-	child->compression_level = listener->compression_level;
+	child->compression_level_is_default = listener->compression_level_is_default;
+	child->compression_level = child->compression_level_is_default
+		? stcp_compression_get_default_compression_level()
+		: listener->compression_level;
 	ret = stcp_rust_set_compression_threshold(
 		child->rust_ctx, child->compression_threshold);
 	if (!ret)
@@ -906,6 +929,12 @@ static int stcp_sendmsg(
 		return -EINVAL;
 
 	mutex_lock(&ssk->tx_lock);
+
+	ret = stcp_refresh_auto_compression_level(ssk);
+	if (ret) {
+		mutex_unlock(&ssk->tx_lock);
+		return ret;
+	}
 
 	while (total < len) {
 		size_t chunk = min_t(size_t, len - total, STCP_IO_BUFFER_MAX);
@@ -1164,6 +1193,7 @@ static int stcp_setsockopt(
 		ret = stcp_rust_set_compression_level(ssk->rust_ctx, (u32)value);
 		if (ret)
 			return ret;
+		ssk->compression_level_is_default = false;
 		ssk->compression_level = (u32)value;
 		return 0;
 

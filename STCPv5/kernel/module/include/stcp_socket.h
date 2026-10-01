@@ -46,6 +46,8 @@ struct stcp_sock {
 	/* Per-socket optional payload compression policy. */
 	bool compression_enabled;
 	u32 compression_threshold;
+	/* default sockets follow /sys/module/stcp/parameters/default_compression_level. */
+	bool compression_level_is_default;
 	u32 compression_level;
 };
 

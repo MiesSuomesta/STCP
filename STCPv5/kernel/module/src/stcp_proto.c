@@ -271,7 +271,8 @@ static int stcp_create(
 	ssk->rx_buffer_size = 0;
 	ssk->compression_enabled = false;
 	ssk->compression_threshold = STCP_COMPRESSION_DEFAULT_THRESHOLD;
-	ssk->compression_level = STCP_COMPRESSION_DEFAULT_LEVEL;
+	ssk->compression_level_is_default = true;
+	ssk->compression_level = stcp_compression_get_default_compression_level();
 
 	ret = stcp_rust_create(
 		(u8)protocol,
@@ -281,6 +282,11 @@ static int stcp_create(
 		goto error_release_sock;
 
 	ssk->rust_ctx = rust_ctx;
+
+	ret = stcp_rust_set_compression_level(
+		ssk->rust_ctx, ssk->compression_level);
+	if (ret)
+		goto error_release_rust;
 
 	ssk->carrier = stcp_carrier_create(
 		carrier_kind,
@@ -376,7 +382,8 @@ struct sock *stcp_alloc_child_sock(
 	ssk->rx_buffer_size = 0;
 	ssk->compression_enabled = false;
 	ssk->compression_threshold = STCP_COMPRESSION_DEFAULT_THRESHOLD;
-	ssk->compression_level = STCP_COMPRESSION_DEFAULT_LEVEL;
+	ssk->compression_level_is_default = true;
+	ssk->compression_level = stcp_compression_get_default_compression_level();
 
 	return newsk;
 }

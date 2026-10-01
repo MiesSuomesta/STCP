@@ -1,7 +1,9 @@
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/atomic.h>
 
+#include "stcp.h"
 #include "stcp_proto.h"
 #include "stcp_rust_ffi.h"
 #include "stcp_test.h"
@@ -12,6 +14,38 @@ static bool duplicate_first_data;
 static bool reorder_first_pair;
 static unsigned int drop_percent;
 static unsigned int delay_first_data_ms;
+
+static unsigned int compression_default_compression_level = STCP_COMPRESSION_DEFAULT_LEVEL;
+
+static int stcp_param_set_default_compression_level(const char *val, const struct kernel_param *kp)
+{
+	unsigned int level;
+	int ret;
+
+	ret = kstrtouint(val, 0, &level);
+	if (ret)
+		return ret;
+	if (level < STCP_COMPRESSION_LEVEL_VERY_FAST ||
+	    level > STCP_COMPRESSION_LEVEL_VERY_HIGH)
+		return -EINVAL;
+
+	WRITE_ONCE(*(unsigned int *)kp->arg, level);
+	return 0;
+}
+
+static const struct kernel_param_ops stcp_default_compression_level_ops = {
+	.set = stcp_param_set_default_compression_level,
+	.get = param_get_uint,
+};
+
+module_param_cb(default_compression_level, &stcp_default_compression_level_ops, &compression_default_compression_level, 0644);
+MODULE_PARM_DESC(default_compression_level,
+	"Compression level used by default sockets (1..5, default 3)");
+
+u32 stcp_compression_get_default_compression_level(void)
+{
+	return (u32)READ_ONCE(compression_default_compression_level);
+}
 
 static atomic_t drop_budget = ATOMIC_INIT(0);
 static atomic_t duplicate_budget = ATOMIC_INIT(0);

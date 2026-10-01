@@ -1,0 +1,651 @@
+       Fresh core v0.0.0 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)
+       Fresh compiler_builtins v0.1.160 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+       Fresh alloc v0.0.0 (/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+       Fresh version_check v0.9.5
+       Fresh typenum v1.19.0
+       Fresh generic-array v0.14.7
+warning: unexpected `cfg` condition name: `relaxed_coherence`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/impls.rs:136:19
+    |
+136 |               #[cfg(relaxed_coherence)]
+    |                     ^^^^^^^^^^^^^^^^^
+...
+183 | / impl_from! {
+184 | |     1  => ::typenum::U1,
+185 | |     2  => ::typenum::U2,
+186 | |     3  => ::typenum::U3,
+...   |
+215 | |     32 => ::typenum::U32
+216 | | }
+    | |_- in this macro invocation
+    |
+    = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(relaxed_coherence)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(relaxed_coherence)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+    = note: this warning originates in the macro `impl_from` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `relaxed_coherence`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/impls.rs:158:23
+    |
+158 |               #[cfg(not(relaxed_coherence))]
+    |                         ^^^^^^^^^^^^^^^^^
+...
+183 | / impl_from! {
+184 | |     1  => ::typenum::U1,
+185 | |     2  => ::typenum::U2,
+186 | |     3  => ::typenum::U3,
+...   |
+215 | |     32 => ::typenum::U32
+216 | | }
+    | |_- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(relaxed_coherence)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(relaxed_coherence)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `impl_from` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `relaxed_coherence`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/impls.rs:136:19
+    |
+136 |               #[cfg(relaxed_coherence)]
+    |                     ^^^^^^^^^^^^^^^^^
+...
+219 | / impl_from! {
+220 | |     33 => ::typenum::U33,
+221 | |     34 => ::typenum::U34,
+222 | |     35 => ::typenum::U35,
+...   |
+268 | |     1024 => ::typenum::U1024
+269 | | }
+    | |_- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(relaxed_coherence)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(relaxed_coherence)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `impl_from` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unexpected `cfg` condition name: `relaxed_coherence`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/impls.rs:158:23
+    |
+158 |               #[cfg(not(relaxed_coherence))]
+    |                         ^^^^^^^^^^^^^^^^^
+...
+219 | / impl_from! {
+220 | |     33 => ::typenum::U33,
+221 | |     34 => ::typenum::U34,
+222 | |     35 => ::typenum::U35,
+...   |
+268 | |     1024 => ::typenum::U1024
+269 | | }
+    | |_- in this macro invocation
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(relaxed_coherence)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(relaxed_coherence)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: this warning originates in the macro `impl_from` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/lib.rs:235:33
+    |
+235 |     pub unsafe fn iter_position(&mut self) -> (slice::IterMut<T>, &mut usize) {
+    |                                 ^^^^^^^^^      ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^ the same lifetime is elided here
+    |                                 |              |
+    |                                 |              the same lifetime is hidden here
+    |                                 the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+    = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+    |
+235 |     pub unsafe fn iter_position(&mut self) -> (slice::IterMut<'_, T>, &mut usize) {
+    |                                                               +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/generic-array-0.14.7/src/lib.rs:290:33
+    |
+290 |     pub unsafe fn iter_position(&mut self) -> (slice::Iter<T>, &mut usize) {
+    |                                 ^^^^^^^^^      ^^^^^^^^^^^^^^  ^^^^^^^^^^ the same lifetime is elided here
+    |                                 |              |
+    |                                 |              the same lifetime is hidden here
+    |                                 the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+290 |     pub unsafe fn iter_position(&mut self) -> (slice::Iter<'_, T>, &mut usize) {
+    |                                                            +++
+
+warning: `generic-array` (lib) generated 6 warnings
+       Fresh crypto-common v0.1.7
+       Fresh subtle v2.6.1
+       Fresh cpufeatures v0.2.17
+       Fresh cfg-if v1.0.4
+       Fresh inout v0.1.4
+       Fresh block-buffer v0.10.4
+       Fresh universal-hash v0.5.1
+       Fresh opaque-debug v0.3.1
+       Fresh digest v0.10.7
+       Fresh cipher v0.4.4
+       Fresh polyval v0.6.2
+warning: unexpected `cfg` condition name: `polyval_armv8`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend.rs:10:43
+   |
+10 |     if #[cfg(all(target_arch = "aarch64", polyval_armv8, not(polyval_force_soft)))] {
+   |                                           ^^^^^^^^^^^^^
+   |
+   = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(polyval_armv8)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(polyval_armv8)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+   = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition name: `polyval_force_soft`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend.rs:10:62
+   |
+10 |     if #[cfg(all(target_arch = "aarch64", polyval_armv8, not(polyval_force_soft)))] {
+   |                                                              ^^^^^^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(polyval_force_soft)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(polyval_force_soft)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `polyval_force_soft`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend.rs:16:13
+   |
+16 |         not(polyval_force_soft)
+   |             ^^^^^^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(polyval_force_soft)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(polyval_force_soft)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `polyval_armv8`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/autodetect.rs:12:36
+   |
+12 | #[cfg(all(target_arch = "aarch64", polyval_armv8))]
+   |                                    ^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(polyval_armv8)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(polyval_armv8)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `polyval_armv8`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/polyval-0.6.2/src/backend/autodetect.rs:18:36
+   |
+18 | #[cfg(all(target_arch = "aarch64", polyval_armv8))]
+   |                                    ^^^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(polyval_armv8)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(polyval_armv8)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+       Fresh aead v0.5.2
+warning: `polyval` (lib) generated 5 warnings
+       Fresh ctr v0.9.2
+       Fresh ghash v0.5.1
+       Fresh aes v0.8.4
+warning: unexpected `cfg` condition name: `aes_armv8`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/lib.rs:134:43
+    |
+134 |     if #[cfg(all(target_arch = "aarch64", aes_armv8, not(aes_force_soft)))] {
+    |                                           ^^^^^^^^^
+    |
+    = help: expected names are: `docsrs`, `feature`, and `test` and 31 more
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_armv8)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_armv8)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition name: `aes_force_soft`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/lib.rs:134:58
+    |
+134 |     if #[cfg(all(target_arch = "aarch64", aes_armv8, not(aes_force_soft)))] {
+    |                                                          ^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_force_soft)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_force_soft)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_force_soft`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/lib.rs:140:13
+    |
+140 |         not(aes_force_soft)
+    |             ^^^^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_force_soft)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_force_soft)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+    --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:1098:11
+     |
+1098 | #[cfg(not(aes_compact))]
+     |           ^^^^^^^^^^^
+     |
+     = help: consider using a Cargo feature instead
+     = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+              [lints.rust]
+              unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+     = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+    --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:1106:11
+     |
+1106 | #[cfg(not(aes_compact))]
+     |           ^^^^^^^^^^^
+     |
+     = help: consider using a Cargo feature instead
+     = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+              [lints.rust]
+              unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+     = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+    --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:1128:15
+     |
+1128 | #[cfg(any(not(aes_compact), feature = "hazmat"))]
+     |               ^^^^^^^^^^^
+     |
+     = help: consider using a Cargo feature instead
+     = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+              [lints.rust]
+              unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+     = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+    --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:1167:11
+     |
+1167 | #[cfg(not(aes_compact))]
+     |           ^^^^^^^^^^^
+     |
+     = help: consider using a Cargo feature instead
+     = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+              [lints.rust]
+              unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+     = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+    --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:1401:11
+     |
+1401 | #[cfg(not(aes_compact))]
+     |           ^^^^^^^^^^^
+     |
+     = help: consider using a Cargo feature instead
+     = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+              [lints.rust]
+              unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+     = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+    --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:1409:11
+     |
+1409 | #[cfg(not(aes_compact))]
+     |           ^^^^^^^^^^^
+     |
+     = help: consider using a Cargo feature instead
+     = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+              [lints.rust]
+              unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+     = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+     = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:65:11
+   |
+65 |     #[cfg(aes_compact)]
+   |           ^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:71:15
+   |
+71 |     #[cfg(not(aes_compact))]
+   |               ^^^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:171:11
+    |
+171 |     #[cfg(aes_compact)]
+    |           ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:177:15
+    |
+177 |     #[cfg(not(aes_compact))]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:241:11
+    |
+241 |     #[cfg(aes_compact)]
+    |           ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:247:15
+    |
+247 |     #[cfg(not(aes_compact))]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:276:15
+    |
+276 |     #[cfg(not(aes_compact))]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:283:15
+    |
+283 |         #[cfg(aes_compact)]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:302:19
+    |
+302 |         #[cfg(not(aes_compact))]
+    |                   ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:366:15
+    |
+366 |     #[cfg(not(aes_compact))]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:338:15
+    |
+338 |         #[cfg(aes_compact)]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:347:19
+    |
+347 |         #[cfg(not(aes_compact))]
+    |                   ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:390:15
+    |
+390 |         #[cfg(aes_compact)]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:394:19
+    |
+394 |         #[cfg(not(aes_compact))]
+    |                   ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:444:15
+    |
+444 |         #[cfg(aes_compact)]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:448:19
+    |
+448 |         #[cfg(not(aes_compact))]
+    |                   ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:488:15
+    |
+488 |     #[cfg(not(aes_compact))]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:495:15
+    |
+495 |         #[cfg(aes_compact)]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:514:19
+    |
+514 |         #[cfg(not(aes_compact))]
+    |                   ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:578:15
+    |
+578 |     #[cfg(not(aes_compact))]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:550:15
+    |
+550 |         #[cfg(aes_compact)]
+    |               ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_compact`
+   --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/soft/fixslice64.rs:559:19
+    |
+559 |         #[cfg(not(aes_compact))]
+    |                   ^^^^^^^^^^^
+    |
+    = help: consider using a Cargo feature instead
+    = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+             [lints.rust]
+             unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_compact)'] }
+    = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_compact)");` to the top of the `build.rs`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition name: `aes_armv8`
+  --> /home/pomo/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/aes-0.8.4/src/autodetect.rs:13:36
+   |
+13 | #[cfg(all(target_arch = "aarch64", aes_armv8))]
+   |                                    ^^^^^^^^^
+   |
+   = help: consider using a Cargo feature instead
+   = help: or consider adding in `Cargo.toml` the `check-cfg` lint config for the lint:
+            [lints.rust]
+            unexpected_cfgs = { level = "warn", check-cfg = ['cfg(aes_armv8)'] }
+   = help: or consider adding `println!("cargo::rustc-check-cfg=cfg(aes_armv8)");` to the top of the `build.rs`
+   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+       Fresh hmac v0.12.1
+warning: `aes` (lib) generated 32 warnings
+       Fresh hkdf v0.12.4
+       Fresh aes-gcm v0.10.3
+       Fresh sha2 v0.10.9
+       Fresh byteorder v1.5.0
+   Compiling the_stcp_kernel_module v0.1.0 (/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust)
+     Running `CARGO=/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/cargo CARGO_CRATE_NAME=the_stcp_kernel_module CARGO_MANIFEST_DIR=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust CARGO_MANIFEST_PATH=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/Cargo.toml CARGO_PKG_AUTHORS='' CARGO_PKG_DESCRIPTION='' CARGO_PKG_HOMEPAGE='' CARGO_PKG_LICENSE='' CARGO_PKG_LICENSE_FILE='' CARGO_PKG_NAME=the_stcp_kernel_module CARGO_PKG_README='' CARGO_PKG_REPOSITORY='' CARGO_PKG_RUST_VERSION='' CARGO_PKG_VERSION=0.1.0 CARGO_PKG_VERSION_MAJOR=0 CARGO_PKG_VERSION_MINOR=1 CARGO_PKG_VERSION_PATCH=0 CARGO_PKG_VERSION_PRE='' CARGO_PRIMARY_PACKAGE=1 LD_LIBRARY_PATH='/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/release/deps:/home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib' /home/pomo/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rustc --crate-name the_stcp_kernel_module --edition=2024 src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type staticlib --crate-type rlib --emit=dep-info,link -C opt-level=1 -C panic=abort -C codegen-units=1 --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values("stcp_debug"))' -C metadata=9ff50f11a1e603ee -C extra-filename=-d5a86b8c2d281b58 --out-dir /home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps --target /home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/mun.json -C strip=debuginfo -L dependency=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps -L dependency=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/release/deps --extern aes_gcm=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps/libaes_gcm-b735507d2be153dc.rlib --extern 'noprelude:alloc=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps/liballoc-cd67cb6c5d8c7081.rlib' --extern byteorder=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps/libbyteorder-71e8ce4b81b4198d.rlib --extern 'noprelude:compiler_builtins=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps/libcompiler_builtins-c82c3a7639f496f9.rlib' --extern 'noprelude:core=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps/libcore-d435f081849a201a.rlib' --extern hkdf=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps/libhkdf-c78fc9697533e023.rlib --extern sha2=/home/pomo/zephyrproject/the-app/stcp-zephyr-app/rust/target/mun/release/deps/libsha2-3dde34a57b7f2dbb.rlib -Z unstable-options`
+warning: unused import: `Write`
+ --> src/debug.rs:6:23
+  |
+6 | use core::fmt::{self, Write};
+  |                       ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `the_stcp_kernel_module` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 1.14s

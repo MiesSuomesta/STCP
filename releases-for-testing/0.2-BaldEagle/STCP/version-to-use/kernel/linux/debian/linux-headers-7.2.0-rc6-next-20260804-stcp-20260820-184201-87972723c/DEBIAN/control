@@ -1,0 +1,13 @@
+Package: linux-headers-7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c
+Source: linux-upstream
+Version: 7.2.0~rc6-8
+Architecture: amd64
+Maintainer: pomo <pomo@devaus.sokeavartija.org>
+Installed-Size: 58916
+Section: kernel
+Priority: optional
+Homepage: https://www.kernel.org/
+Description: Linux kernel headers for 7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c on amd64
+ This package provides kernel header files for 7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c on amd64
+ .
+ This is useful for people who need to build external modules

@@ -1,0 +1,115 @@
+#pragma once
+
+#include <linux/types.h>
+
+struct stcp_carrier;
+
+enum stcp_carrier_kind {
+	STCP_CARRIER_TCP = 1,
+	STCP_CARRIER_UDP = 2,
+};
+
+struct stcp_carrier *stcp_carrier_create(
+	enum stcp_carrier_kind kind,
+	void *rust_ctx,
+	void *owner
+);
+
+void stcp_carrier_destroy(
+	struct stcp_carrier *carrier
+);
+
+struct stcp_carrier *stcp_carrier_create_udp_child(
+	struct stcp_carrier *listener,
+	void *child_rust_ctx,
+	u32 peer_addr,
+	u16 peer_port
+);
+
+void stcp_carrier_set_owner(
+	struct stcp_carrier *carrier,
+	void *owner
+);
+
+enum stcp_carrier_kind stcp_carrier_get_kind(
+	const struct stcp_carrier *carrier
+);
+
+int stcp_carrier_last_error(
+	const struct stcp_carrier *carrier
+);
+
+int stcp_carrier_get_endpoints(
+	struct stcp_carrier *carrier,
+	u32 *local_addr,
+	u16 *local_port,
+	u32 *peer_addr,
+	u16 *peer_port
+);
+
+bool stcp_carrier_needs_reliability(
+	const struct stcp_carrier *carrier
+);
+
+int stcp_carrier_bind(
+	struct stcp_carrier *carrier,
+	u32 address,
+	u16 port
+);
+
+int stcp_carrier_listen(
+	struct stcp_carrier *carrier,
+	int backlog
+);
+
+int stcp_carrier_connect(
+	struct stcp_carrier *carrier,
+	u32 address,
+	u16 port,
+	int flags
+);
+
+int stcp_carrier_accept_unattached(
+	struct stcp_carrier *listener,
+	struct stcp_carrier **out_child,
+	int flags
+);
+
+void stcp_carrier_attach(
+	struct stcp_carrier *carrier,
+	void *rust_ctx,
+	void *owner
+);
+
+int stcp_carrier_accept(
+	struct stcp_carrier *listener,
+	void *child_rust_ctx,
+	void *child_owner,
+	struct stcp_carrier **out_child,
+	int flags
+);
+
+int stcp_carrier_start_receiver_thread(
+	struct stcp_carrier *carrier
+);
+
+ssize_t stcp_carrier_send(
+	struct stcp_carrier *carrier,
+	const u8 *data,
+	size_t len,
+	int flags
+);
+
+int stcp_carrier_graceful_close(
+	struct stcp_carrier *carrier,
+	unsigned int drain_timeout_ms,
+	unsigned int fin_timeout_ms
+);
+
+void stcp_carrier_shutdown(
+	struct stcp_carrier *carrier,
+	int how
+);
+
+/* Hot-path diagnostics are disabled by default to avoid printk/netconsole backpressure. */
+extern bool stcp_verbose_debug;

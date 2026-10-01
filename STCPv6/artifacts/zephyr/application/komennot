@@ -1,0 +1,8 @@
+stcp ping 192.168.1.20
+
+stcp config transport stcp
+stcp config host 192.168.1.20
+stcp config port 19002
+stcp config chunk 4096
+stcp config total 65536
+stcp bench upload

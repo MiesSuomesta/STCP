@@ -1,0 +1,12 @@
+Package: linux-image-7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c
+Source: linux-upstream
+Version: 7.2.0~rc6-8
+Architecture: amd64
+Maintainer: pomo <pomo@devaus.sokeavartija.org>
+Installed-Size: 181148
+Section: kernel
+Priority: optional
+Homepage: https://www.kernel.org/
+Description: Linux kernel, version 7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c
+ This package contains the Linux kernel, modules and corresponding other
+ files, version: 7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c.

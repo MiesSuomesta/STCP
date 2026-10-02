@@ -1,0 +1,14 @@
+#define ZO__data 0x00000000018ad000
+#define ZO__edata 0x00000000018ae000
+#define ZO__ehead 0x00000000000002cc
+#define ZO__end 0x0000000001918000
+#define ZO__text 0x0000000001872c40
+#define ZO_efi32_pe_entry 0x00000000018a1060
+#define ZO_efi32_stub_entry 0x00000000018a0ee0
+#define ZO_efi64_stub_entry 0x00000000018a10e0
+#define ZO_efi_pe_entry 0x000000000189f8e0
+#define ZO_input_data 0x00000000000002cc
+#define ZO_kernel_info 0x00000000018aa1e0
+#define ZO_startup_32 0x0000000000000000
+#define ZO_z_input_len 0x0000000001872950
+#define ZO_z_output_len 0x000000000605118c

@@ -1,0 +1,59 @@
+--- a/src/stcp_carrier.c
++++ b/src/stcp_carrier.c
+@@ -1235,12 +1235,17 @@
+ 			atomic_read(&carrier->active_sends)
+ 		);
+ 
++	/* TCP socket callbacks wake TASK_INTERRUPTIBLE waiters. */
+ 	/* Then wait for the TCP write queue to be acknowledged before FIN. */
+-	drained = wait_event_timeout(
++	drained = wait_event_interruptible_timeout(
+ 		*sk_sleep(sk),
+ 		stcp_tcp_tx_drained(sk),
+ 		msecs_to_jiffies(max_t(unsigned int, drain_timeout_ms, 1))
+ 	);
++	if (drained < 0) {
++		return (int)drained;
++	}
++
+ 	if (drained) {
+ 		atomic64_inc(&stcp_tcp_close_drained);
+ 	} else {
+@@ -1258,11 +1263,16 @@
+ 		pr_debug("stcp: TCP SHUT_WR returned %d\n", shutdown_ret);
+ 
+ 	/* Wait only for FIN acknowledgement. FIN-WAIT-2 is acceptable here. */
+-	fin_acked = wait_event_timeout(
++	fin_acked = wait_event_interruptible_timeout(
+ 		*sk_sleep(sk),
+ 		stcp_tcp_fin_acknowledged(sk),
+ 		msecs_to_jiffies(max_t(unsigned int, fin_timeout_ms, 1))
+ 	);
++	if (fin_acked < 0) {
++		kernel_sock_shutdown(socket, SHUT_RDWR);
++		return (int)fin_acked;
++	}
++
+ 	if (fin_acked) {
+ 		atomic64_inc(&stcp_tcp_close_fin_acked);
+ 	} else {
+--- a/src/stcp_ops.c
++++ b/src/stcp_ops.c
+@@ -702,11 +702,16 @@
+ 
+ 		if (stcp_rust_has_accept(listener->rust_ctx) <= 0 &&
+ 		    !(flags & O_NONBLOCK)) {
+-			wait_event_timeout(
++			/* Match stcp_kernel_wake_accept() interruptible wakeups. */
++			ret = wait_event_interruptible_timeout(
+ 				listener->accept_wq,
+ 				stcp_rust_has_accept(listener->rust_ctx) > 0,
+ 				msecs_to_jiffies(100)
+ 			);
++			if (ret < 0) {
++				stcp_carrier_destroy(accepted_carrier);
++				return ret;
++			}
+ 		}
+ 
+ 		ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, O_NONBLOCK);

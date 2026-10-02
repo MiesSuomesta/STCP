@@ -702,11 +702,16 @@ static int stcp_accept(
 
 		if (stcp_rust_has_accept(listener->rust_ctx) <= 0 &&
 		    !(flags & O_NONBLOCK)) {
-			wait_event_timeout(
+			/* Match stcp_kernel_wake_accept() interruptible wakeups. */
+			ret = wait_event_interruptible_timeout(
 				listener->accept_wq,
 				stcp_rust_has_accept(listener->rust_ctx) > 0,
 				msecs_to_jiffies(100)
 			);
+			if (ret < 0) {
+				stcp_carrier_destroy(accepted_carrier);
+				return ret;
+			}
 		}
 
 		ret = stcp_rust_accept(listener->rust_ctx, &accepted_ctx, O_NONBLOCK);

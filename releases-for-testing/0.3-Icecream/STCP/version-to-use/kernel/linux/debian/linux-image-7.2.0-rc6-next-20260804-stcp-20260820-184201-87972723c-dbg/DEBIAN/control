@@ -1,0 +1,12 @@
+Package: linux-image-7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c-dbg
+Source: linux-upstream
+Version: 7.2.0~rc6-8
+Architecture: amd64
+Maintainer: pomo <pomo@devaus.sokeavartija.org>
+Installed-Size: 5336371
+Section: debug
+Priority: optional
+Homepage: https://www.kernel.org/
+Description: Linux kernel debugging symbols for 7.2.0-rc6-next-20260804-stcp-20260820-184201-87972723c
+ This package will come in handy if you need to debug the kernel. It provides
+ all the necessary debug symbols for the kernel and its modules.

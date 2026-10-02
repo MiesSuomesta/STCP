@@ -1,0 +1,30 @@
+# Add to the kernel module Makefile if desired.
+
+PYTHON ?= python3
+PY_STRESS := $(PWD)/testing/stcp_stress.py
+
+.PHONY: stress-python stress-python-short stress-python-churn
+
+stress-python:
+	$(PYTHON) "$(PY_STRESS)" \
+		--mode throughput \
+		--clients 16 \
+		--payload 262144 \
+		--duration 180 \
+		--report-every 5
+
+stress-python-short:
+	$(PYTHON) "$(PY_STRESS)" \
+		--mode mixed \
+		--clients 8 \
+		--payload 65536 \
+		--duration 30 \
+		--report-every 5
+
+stress-python-churn:
+	$(PYTHON) "$(PY_STRESS)" \
+		--mode churn \
+		--clients 16 \
+		--payload 4096 \
+		--duration 60 \
+		--report-every 5

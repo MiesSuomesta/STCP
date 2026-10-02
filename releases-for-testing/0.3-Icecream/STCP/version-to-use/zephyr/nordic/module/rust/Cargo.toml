@@ -1,0 +1,25 @@
+[package]
+name = "stcp-kernel-core"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "stcp_kernel_core"
+path = "src/lib.rs"
+crate-type = ["staticlib", "rlib"]
+
+[profile.release]
+panic = "abort"
+opt-level = 3
+lto = false
+codegen-units = 1
+debug = true
+strip = false
+
+[dependencies]
+ed25519-compact = { version = "2.3.1", default-features = false }
+
+[features]
+default = []
+userspace = []

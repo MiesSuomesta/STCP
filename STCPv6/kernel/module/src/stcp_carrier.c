@@ -1235,12 +1235,17 @@ int stcp_carrier_graceful_close(
 			atomic_read(&carrier->active_sends)
 		);
 
+	/* TCP socket callbacks wake TASK_INTERRUPTIBLE waiters. */
 	/* Then wait for the TCP write queue to be acknowledged before FIN. */
-	drained = wait_event_timeout(
+	drained = wait_event_interruptible_timeout(
 		*sk_sleep(sk),
 		stcp_tcp_tx_drained(sk),
 		msecs_to_jiffies(max_t(unsigned int, drain_timeout_ms, 1))
 	);
+	if (drained < 0) {
+		return (int)drained;
+	}
+
 	if (drained) {
 		atomic64_inc(&stcp_tcp_close_drained);
 	} else {
@@ -1258,11 +1263,16 @@ int stcp_carrier_graceful_close(
 		pr_debug("stcp: TCP SHUT_WR returned %d\n", shutdown_ret);
 
 	/* Wait only for FIN acknowledgement. FIN-WAIT-2 is acceptable here. */
-	fin_acked = wait_event_timeout(
+	fin_acked = wait_event_interruptible_timeout(
 		*sk_sleep(sk),
 		stcp_tcp_fin_acknowledged(sk),
 		msecs_to_jiffies(max_t(unsigned int, fin_timeout_ms, 1))
 	);
+	if (fin_acked < 0) {
+		kernel_sock_shutdown(socket, SHUT_RDWR);
+		return (int)fin_acked;
+	}
+
 	if (fin_acked) {
 		atomic64_inc(&stcp_tcp_close_fin_acked);
 	} else {

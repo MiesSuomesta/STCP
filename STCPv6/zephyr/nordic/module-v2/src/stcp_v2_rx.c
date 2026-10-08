@@ -99,7 +99,13 @@ static void rx_thread(void *p1, void *p2, void *p3)
             saved_errno = errno;
 
             if (n > 0) {
+                LOG_ERR("TCP RX RECV RUST_ENTER sock=%p fd=%d ctx=%p",
+                        sock, sock->carrier->fd, sock->rust_ctx);
+
                 rc = stcp_rust_carrier_receive(sock->rust_ctx, buffer, (size_t)n);
+
+                LOG_ERR("TCP RX RECV RUST_EXIT sock=%p fd=%d ctx=%p",
+                        sock, sock->carrier->fd, sock->rust_ctx);
             }
         }
 

@@ -515,13 +515,22 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
     if let Some(key)=received_key {
+
+        let (role, mut crypto) = {
+            let inner = ctx.inner.lock();
+            let role = inner.role;
+            crate::carrier::debug_event(264, ctx, role as usize, 0);
+            (role, inner.crypto.clone())
+        };
+
+        crypto.derive_session_keys(&key, role)?;
+
         {
-            let mut inner=ctx.inner.lock();
-            let role=inner.role;
-            crate::carrier::debug_event(264,ctx,role as usize,0);
-            inner.crypto.derive_session_keys(&key,role)?;
-            crate::carrier::debug_event(265,ctx,role as usize,0);
+            let mut inner = ctx.inner.lock();
+            inner.crypto = crypto;
+            crate::carrier::debug_event(265, ctx, role as usize, 0);
         }
+
         let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?;
         crate::carrier::debug_event(266,ctx,done.len(),0);
         send_frame(ctx,&shared,side,&done,0)?;

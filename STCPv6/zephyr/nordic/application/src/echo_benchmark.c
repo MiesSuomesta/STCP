@@ -231,7 +231,8 @@ static int connect_server(const struct bench_config *cfg)
 
     (void)configure_socket_timeouts(fd, active_cfg->timeout_ms);
 
-#if defined(CONFIG_NRF_MODEM_LIB)
+#if defined(CONFIG_STCP_LTE_CUSTOM_PDN) && \
+    defined(CONFIG_LTE_LINK_CONTROL)
     if (cfg->transport == BENCH_TRANSPORT_TCP ||
         cfg->transport == BENCH_TRANSPORT_STCP) {
         rc = stcp_lte_transport_bind_socket(fd);

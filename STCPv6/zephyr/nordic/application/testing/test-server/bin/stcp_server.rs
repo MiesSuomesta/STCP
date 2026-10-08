@@ -1,3 +1,6 @@
+#[path = "stcp_aes_gcm_userspace.rs"]
+mod stcp_aes_gcm_userspace;
+
 use std::{
     ffi::c_void,
     io::Read,

@@ -496,7 +496,8 @@ int stcp_lte_transport_pdn_id(void)
 
 int stcp_lte_transport_bind_socket(int fd)
 {
-#if defined(CONFIG_STCP_LTE_CUSTOM_PDN)
+#if defined(CONFIG_STCP_LTE_CUSTOM_PDN) && \
+    !defined(CONFIG_STCP_TRANSPORT_ETHERNET)
     int pdn_id = active_pdn_id;
 
     if (!atomic_get(&custom_pdn_active) || pdn_id < 0) {

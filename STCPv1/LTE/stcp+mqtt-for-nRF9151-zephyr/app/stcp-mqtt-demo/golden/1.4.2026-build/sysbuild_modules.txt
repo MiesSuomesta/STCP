@@ -1,2 +1,0 @@
-"nrf":"/home/pomo/ncs/nrf":"/home/pomo/ncs/nrf/sysbuild"
-"mcuboot":"/home/pomo/ncs/bootloader/mcuboot":"/home/pomo/ncs/bootloader/mcuboot/boot/zephyr/sysbuild"

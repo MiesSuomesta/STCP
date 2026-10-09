@@ -1,1 +1,0 @@
-../../common-scripts/flash-ethernet.sh

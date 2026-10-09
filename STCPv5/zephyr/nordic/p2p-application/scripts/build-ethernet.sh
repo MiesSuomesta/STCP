@@ -1,1 +1,0 @@
-../../common-scripts/build-ethernet.sh

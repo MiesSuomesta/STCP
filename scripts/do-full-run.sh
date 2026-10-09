@@ -315,7 +315,7 @@ run_host_rpi_build_install() {
 
     cleanup_stcp_users
 
-    cd /srv/stcp-project/STCP/version-to-use
+    cd /srv/stcp-project/STCP
 
     if (( SKIP_COMPILE )); then
         info "--skip-compile: using existing host + Raspberry Pi build artifacts"
@@ -337,7 +337,7 @@ run_host_rpi_tests() {
     local rc=0
 
     info "Running Linux/Raspberry Robot regression suite..."
-    cd /srv/stcp-project/SDK/version-to-use
+    cd /srv/stcp-project/SDK
 
     info "Running Linux/Raspberry robot tests....."
 
@@ -354,7 +354,7 @@ run_host_rpi_tests() {
 
 
 report_compression_stats() {
-    local sdk_root="$HOME/SDK/version-to-use"
+    local sdk_root="$HOME/SDK"
     local result_root="$sdk_root/robot-results"
     local latest=""
     local report=""
@@ -511,7 +511,7 @@ PY
 }
 
 run_zephyr_build_flash() {
-    local stcp_repo="$(readlink -f "$HOME/STCP/version-to-use")"
+    local stcp_repo="$(readlink -f "$HOME/STCP")"
     local rust_core="$stcp_repo/kernel/module/rust"
     local rust_target_triple="thumbv8m.main-none-eabi"
     local rust_arm_target="$rust_core/target/$rust_target_triple"
@@ -558,7 +558,7 @@ run_zephyr_build_flash() {
         cd "$HOME/zephyr-stcp/stcp/application"
 
         info "Building Zephyr STCPv4 clean image..."
-        bash scripts/build-v2-clean.sh
+        bash scripts/build-lte.sh
 
         # Verify that the canonical staticlib still exists after the Zephyr build.
         [[ -s "$rust_staticlib" ]] || \
@@ -567,7 +567,7 @@ run_zephyr_build_flash() {
     fi
 
     info "Flashing Zephyr STCPv4 image..."
-    bash scripts/flash-v2-clean.sh
+    bash scripts/flash-lte.sh
 
     ok "Zephyr build + flash complete"
 }
@@ -718,22 +718,22 @@ run_zephyr_app_build_flash() {
 
     [[ -d "$app_root" ]] || fail "Zephyr application missing: $app_root"
     if (( ! SKIP_COMPILE )); then
-        [[ -x "$app_root/scripts/build-v2-clean.sh" || -f "$app_root/scripts/build-v2-clean.sh" ]] || \
-            fail "Build script missing: $app_root/scripts/build-v2-clean.sh"
+        [[ -x "$app_root/scripts/build-lte.sh" || -f "$app_root/scripts/build-lte.sh" ]] || \
+            fail "Build script missing: $app_root/scripts/build-lte.sh"
     fi
-    [[ -x "$app_root/scripts/flash-v2-clean.sh" || -f "$app_root/scripts/flash-v2-clean.sh" ]] || \
-        fail "Flash script missing: $app_root/scripts/flash-v2-clean.sh"
+    [[ -x "$app_root/scripts/flash-lte.sh" || -f "$app_root/scripts/flash-lte.sh" ]] || \
+        fail "Flash script missing: $app_root/scripts/flash-lte.sh"
 
     cd "$app_root"
     if (( SKIP_COMPILE )); then
         info "--skip-compile: using existing Zephyr application image: $app_name"
     else
         info "Building Zephyr application: $app_name"
-        bash scripts/build-v2-clean.sh
+        bash scripts/build-lte.sh
     fi
 
     info "Flashing Zephyr application: $app_name"
-    bash scripts/flash-v2-clean.sh
+    bash scripts/flash-lte.sh
 
     info "Waiting 3 seconds after $app_name flash..."
     sleep 3
@@ -854,7 +854,7 @@ restore_zephyr_golden_image() {
 }
 
 publish_stcp_fi_results() {
-    local sdk_root="$HOME/SDK/version-to-use"
+    local sdk_root="$HOME/SDK"
     local publisher="$sdk_root/tools/site-generator/publish-tested-result.sh"
     local run="$sdk_root/robot-results/latest"
 
@@ -884,7 +884,7 @@ main() {
     cleanup_stcp_users
 
     info "Setting up netconsole...."
-    bash /srv/stcp-project/SDK/version-to-use/scripts/netconsole/enable-netconsole.sh
+    bash /srv/stcp-project/SDK/scripts/netconsole/enable-netconsole.sh
 
     if run_host_rpi_tests; then
         :
@@ -914,7 +914,7 @@ main() {
         zephyr_rc=$?
         info "Zephyr Robot tests FAIL rc=$zephyr_rc"
         info "Collecting postmortem from finalized Zephyr results/latest..."
-        bash /srv/stcp-project/SDK/version-to-use/scripts/stcp-postmortem.sh || true
+        bash /srv/stcp-project/SDK/scripts/stcp-postmortem.sh || true
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 

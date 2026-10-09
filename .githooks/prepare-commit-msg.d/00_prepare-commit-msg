@@ -17,8 +17,8 @@ then
     exit 0
 fi
 
-SDK="${STCP_SDK_ROOT:-$GIT_ROOT/SDK/version-to-use}"
-STCP="${STCP_ROOT:-$GIT_ROOT/STCP/version-to-use}"
+SDK="${STCP_SDK_ROOT:-$GIT_ROOT/SDK}"
+STCP="${STCP_ROOT:-$GIT_ROOT/STCP}"
 
 GEN="$SDK/tools/benchmark-matrix.py"
 RESULTS="$SDK/robot-results"

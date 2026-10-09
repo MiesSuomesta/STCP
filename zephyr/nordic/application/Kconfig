@@ -144,7 +144,16 @@ config STCP_BENCH_AUTORUN
 
 endmenu
 
-menu "LTE transport initialization"
+menu "LTE/ETH transport initialization"
+
+config STCP_TRANSPORT_ETHERNET
+    bool "STCP over Ethernet (via W5500-shield)"
+    default y
+    help
+      Select Ethernet as the physical STCP transport with
+      a W5500-ethernet-shield.
+
+      Disable LTE-specific initialization and PDN binding.
 
 config STCP_LTE_REG_TIMEOUT_SECONDS
     int "LTE registration timeout in seconds"

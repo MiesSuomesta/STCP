@@ -446,26 +446,70 @@ fn create_listener(port: u16) -> Result<*mut c_void, String> {
     Ok(ctx)
 }
 
-// The TCP carrier is a byte stream. Feed only complete STCP frames to the core.
-// STCPv6 wire header: 40 bytes; payload length is u64 big-endian at [8..16].
+// STCP wire v2: 17-byte compact header, descriptor + u32 BE payload length.
+// TCP is a byte stream: frames can arrive fragmented or coalesced.
+const STCP_WIRE_VERSION: u8 = 2;
+const STCP_WIRE_HEADER_LEN: usize = 17;
+const STCP_WIRE_MAX_PAYLOAD: usize = 2 * 1024 * 1024;
+
+fn wire_frame_len(header: &[u8]) -> Result<usize, String> {
+    if header.len() < STCP_WIRE_HEADER_LEN {
+        return Err("incomplete STCP wire v2 header".into());
+    }
+    let descriptor = header[0];
+    let version = (descriptor >> 4) & 0x03;
+    let packet_type = descriptor & 0x0f;
+    if version != STCP_WIRE_VERSION || !(1..=9).contains(&packet_type) {
+        return Err(format!("invalid STCP wire v2 descriptor: 0x{descriptor:02x}"));
+    }
+    let payload_len = u32::from_be_bytes(header[1..5].try_into().unwrap()) as usize;
+    if payload_len > STCP_WIRE_MAX_PAYLOAD {
+        return Err(format!("STCP wire v2 frame too large: {payload_len}"));
+    }
+    STCP_WIRE_HEADER_LEN.checked_add(payload_len)
+        .ok_or_else(|| "STCP wire v2 frame length overflow".into())
+}
+
 struct FrameBuffer { pending: Vec<u8> }
 impl FrameBuffer {
     fn new() -> Self { Self { pending: Vec::new() } }
     fn feed(&mut self, bytes: &[u8], ctx: *mut c_void) -> Result<(), String> {
         self.pending.extend_from_slice(bytes);
         loop {
-            if self.pending.len() < 40 { return Ok(()); }
-            if &self.pending[..4] != b"STCP" || self.pending[5] != 2 {
-                return Err("invalid STCP TCP frame header".into());
-            }
-            let payload_len = u64::from_be_bytes(self.pending[8..16].try_into().unwrap());
-            if payload_len > 2 * 1024 * 1024 { return Err(format!("STCP frame too large: {payload_len}")); }
-            let frame_len = 40 + payload_len as usize;
+            if self.pending.len() < STCP_WIRE_HEADER_LEN { return Ok(()); }
+            let frame_len = wire_frame_len(&self.pending[..STCP_WIRE_HEADER_LEN])?;
             if self.pending.len() < frame_len { return Ok(()); }
-            let rc = unsafe { stcp_rust_carrier_receive_from(ctx, self.pending.as_ptr(), frame_len, 0, 0) };
+            let rc = unsafe {
+                stcp_rust_carrier_receive_from(ctx, self.pending.as_ptr(), frame_len, 0, 0)
+            };
             if rc < 0 { return Err(format!("stcp_rust_carrier_receive_from rc={rc}")); }
             self.pending.drain(..frame_len);
         }
+    }
+}
+
+#[cfg(test)]
+mod wire_v2_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_public_key_with_or_without_capability_flag() {
+        for descriptor in [0x21, 0xa1] {
+            let mut header = [0u8; STCP_WIRE_HEADER_LEN];
+            header[0] = descriptor;
+            header[1..5].copy_from_slice(&64u32.to_be_bytes());
+            assert_eq!(wire_frame_len(&header).unwrap(), 81);
+        }
+    }
+
+    #[test]
+    fn rejects_old_header_and_invalid_length() {
+        let mut header = [0u8; STCP_WIRE_HEADER_LEN];
+        header[..4].copy_from_slice(b"STCP");
+        assert!(wire_frame_len(&header).is_err());
+        header[0] = 0x21;
+        header[1..5].copy_from_slice(&(STCP_WIRE_MAX_PAYLOAD as u32 + 1).to_be_bytes());
+        assert!(wire_frame_len(&header).is_err());
     }
 }
 
@@ -634,6 +678,7 @@ fn main() -> Result<(), String> {
     println!("STCP shared-core BEN2 / echo server");
     println!("  listen : {listen}");
     println!("  core   : kernel/module/rust");
+    println!("  wire   : v{}, header={}B", STCP_WIRE_VERSION, STCP_WIRE_HEADER_LEN);
     println!("  model  : one TCP connection at a time");
 
     trace("MAIN entering accept loop");

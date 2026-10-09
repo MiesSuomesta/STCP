@@ -5,7 +5,7 @@ use alloc::{
 
 use crate::error::StcpError;
 
-pub const BYTE_QUEUE_CHUNK_SIZE: usize = (1024 * 1024) + 64;
+pub const BYTE_QUEUE_CHUNK_SIZE: usize = 4096;
 
 pub struct ByteChunk {
     data: Vec<u8>,

@@ -373,3 +373,8 @@ pub extern "C" fn stcp_rust_shutdown(
 pub extern "C" fn stcp_rust_crypto_selftest() -> c_int {
     match crate::crypto::selftest() { Ok(()) => 0, Err(e) => e.errno() }
 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_wire_header_len() -> usize {
+    crate::frame::STCP_HEADER_LEN
+}

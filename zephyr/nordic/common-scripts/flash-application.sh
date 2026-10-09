@@ -9,7 +9,7 @@ GIT_TOP="$(git rev-parse --show-toplevel)" || die "Run inside the STCP Git repos
 if [[ -d "$GIT_TOP/stcp/common-scripts" ]]; then
     STCP_ZEPHYR_ROOT="$GIT_TOP/stcp"
     WEST_ROOT="$GIT_TOP"
-elif [[ -e "$GIT_TOP/STCP" || -e "$GIT_TOP/version-to-use" ]]; then
+elif [[ -e "$GIT_TOP/STCP" || -e "$GIT_TOP" ]]; then
     if [[ -e "$GIT_TOP/STCP" ]]; then
         VERSION="$(readlink -f "$GIT_TOP/STCP")"
         PROJECT_ROOT="$GIT_TOP"

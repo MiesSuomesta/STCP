@@ -6,7 +6,7 @@ GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
     exit 1
 }
 
-STCP_ROOT="$GIT_ROOT/version-to-use"
+STCP_ROOT="$GIT_ROOT"
 
 RPI_KERNEL="$STCP_ROOT/kernel/raspberry"
 CONFIG="$RPI_KERNEL/.config"

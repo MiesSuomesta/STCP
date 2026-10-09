@@ -11,6 +11,8 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+extern size_t stcp_rust_wire_header_len(void);
+
 int main(void)
 {
     int ret;
@@ -45,6 +47,9 @@ int main(void)
 #if defined(CONFIG_STCP_BENCH_SHELL)
     LOG_INF("Benchmark shell ready; type: stcp config show");
 #endif
+
+    LOG_INF("STCP wire header: %u bytes",
+        (unsigned int)stcp_rust_wire_header_len());
 
     return 0;
 }

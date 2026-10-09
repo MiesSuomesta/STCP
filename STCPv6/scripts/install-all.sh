@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+set -x 
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/artifacts/build"
@@ -72,11 +73,11 @@ USAGE
 }
 
 cleanup_module_users() {
-	sudo systemctl stop apache2
+	echo "[NOP] Cleaning module users...."
 }
 
 restart_module_users() {
-	sudo systemctl start apache2
+	echo "[NOP] Restart module users...."
 }
 
 install_host() {
@@ -99,7 +100,6 @@ install_host() {
     fi
 
     echo "[INFO] Installing host module for kernel $release"
-    pnc_note "STCP host install" "Stopping apache2"
     cleanup_module_users
     pnc_note "STCP host install" "Installing STCP module for kernel $release"
     if grep -q '^stcp ' /proc/modules 2>/dev/null; then

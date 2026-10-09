@@ -12,6 +12,7 @@
 #include <stcp/stcp_debug.h>
 
 #include <stcp/stcp_x25519_soft.h>
+#include "stcp_chachapoly_soft.h"
 
 LOG_MODULE_REGISTER(stcp_rust_platform, CONFIG_STCP_LOG_LEVEL);
 
@@ -446,7 +447,7 @@ int stcp_kernel_chacha_encrypt(const uint8_t *key, uint64_t nonce,
     psa_status_t status = PSA_ERROR_GENERIC_ERROR;
     int rc = stcp_crypto_ensure_ready();
     if (rc != 0) return rc;
-    if (!key || (!plain && plain_len != 0U) || !out || out_len < plain_len + 16U)
+    if (!key || (!plain && plain_len != 0U) || (aad_len != 0U && !aad) || !out || plain_len > SIZE_MAX - 16U || out_len < plain_len + 16U)
         return -EINVAL;
     nonce_to_bytes(nonce, nonce_bytes);
     psa_set_key_type(&attr, PSA_KEY_TYPE_CHACHA20);
@@ -480,6 +481,13 @@ int stcp_kernel_chacha_encrypt(const uint8_t *key, uint64_t nonce,
     }
     if (key_id != 0) (void)psa_destroy_key(key_id);
     psa_reset_key_attributes(&attr);
+    if (status == PSA_ERROR_NOT_SUPPORTED) {
+        /* PSA streaming unsupported: use the same RFC 8439 fallback as v2.
+         * PSA operation was aborted and the key destroyed above. */
+        LOG_INF("ChaCha20-Poly1305 stream unsupported; using RFC8439 software fallback");
+        return stcp_soft_chachapoly_encrypt(key, nonce_bytes, aad, aad_len,
+                                            plain, plain_len, out);
+    }
     if (status != PSA_SUCCESS || written != plain_len + 16U) {
         LOG_ERR("ChaCha20-Poly1305 stream encrypt failed: status=%d (%s) written=%u expected=%u",
                 (int)status, psa_status_name(status), (unsigned)written,
@@ -501,7 +509,7 @@ int stcp_kernel_chacha_decrypt(const uint8_t *key, uint64_t nonce,
     psa_status_t status = PSA_ERROR_GENERIC_ERROR;
     int rc = stcp_crypto_ensure_ready();
     if (rc != 0) return rc;
-    if (!key || !cipher || !out || cipher_len < 16U || out_len < cipher_len - 16U)
+    if (!key || !cipher || !out || (aad_len != 0U && !aad) || cipher_len < 16U || out_len < cipher_len - 16U)
         return -EINVAL;
     nonce_to_bytes(nonce, nonce_bytes);
     psa_set_key_type(&attr, PSA_KEY_TYPE_CHACHA20);
@@ -535,7 +543,15 @@ int stcp_kernel_chacha_decrypt(const uint8_t *key, uint64_t nonce,
     }
     if (key_id != 0) (void)psa_destroy_key(key_id);
     psa_reset_key_attributes(&attr);
+    if (status == PSA_ERROR_NOT_SUPPORTED) {
+        /* Never expose partial plaintext from a failed PSA attempt. */
+        memset(out, 0, cipher_len - 16U);
+        LOG_INF("ChaCha20-Poly1305 stream unsupported; using RFC8439 software fallback");
+        return stcp_soft_chachapoly_decrypt(key, nonce_bytes, aad, aad_len,
+                                            cipher, cipher_len, out);
+    }
     if (status != PSA_SUCCESS || written != cipher_len - 16U) {
+        memset(out, 0, cipher_len - 16U);
         LOG_ERR("ChaCha20-Poly1305 stream decrypt failed: status=%d (%s) written=%u expected=%u",
                 (int)status, psa_status_name(status), (unsigned)written,
                 (unsigned)(cipher_len - 16U));

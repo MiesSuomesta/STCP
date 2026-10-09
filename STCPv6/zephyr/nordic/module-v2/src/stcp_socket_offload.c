@@ -106,7 +106,12 @@ static ssize_t stcp_send_common(struct stcp_ctx *ctx, const void *buf,
             return rc;
         }
         if (rc != -EAGAIN) {
-            errno = (int)-rc;
+            int err = (int)-rc;
+            LOG_ERR("STCP_SOCKET_SEND_FAIL ctx=%p carrier_fd=%d len=%u "
+                    "flags=0x%x rust_rc=%d errno=%d nonblocking=%d",
+                    (void *)ctx, ctx->carrier_fd, (unsigned int)len,
+                    (unsigned int)flags, (int)rc, err, (int)nonblocking);
+            errno = err;
             return -1;
         }
         if (nonblocking) {

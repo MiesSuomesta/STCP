@@ -61,9 +61,25 @@ static int wait_socket_ready(int fd, short events, int64_t deadline_ms)
             return -errno;
         }
         if (rc == 0) return -ETIMEDOUT;
+
+        if (pfd.revents & (ZSOCK_POLLERR | ZSOCK_POLLHUP | ZSOCK_POLLNVAL)) {
+            int so_error = 0;
+            socklen_t optlen = sizeof(so_error);
+
+            int opt_rc = zsock_getsockopt(
+                fd, SOL_SOCKET, SO_ERROR, &so_error, &optlen);
+
+            int opt_errno = (opt_rc < 0) ? errno : 0;
+            LOG_ERR("STCP_POLL_DIAG fd=%d events=0x%x revents=0x%x "
+                    "poll_rc=%d so_error=%d getsockopt_rc=%d errno=%d",
+                    fd, (unsigned int)events,
+                    (unsigned int)pfd.revents,
+                    rc, so_error, opt_rc, opt_errno);
+        }
         if (pfd.revents & ZSOCK_POLLNVAL) return -EBADF;
         if (pfd.revents & ZSOCK_POLLERR) return -EIO;
-        if (pfd.revents & (events | ZSOCK_POLLHUP)) return 0;
+        if (pfd.revents & ZSOCK_POLLHUP) return -ECONNRESET;
+        if (pfd.revents & events) return 0;
     }
 }
 
@@ -497,6 +513,8 @@ static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_s
             }
 
             ssize_t n = zsock_send(fd, tx_buf + chunk_off, send_len, 0);
+            /* errno must be captured before logging or other socket calls. */
+            int send_errno = (n < 0) ? errno : 0;
             send_calls++;
 
             if (n > 0) {
@@ -523,8 +541,8 @@ static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_s
                 continue;
             }
             if (n == 0) return -ECONNRESET;
-            if (errno == EINTR) continue;
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            if (send_errno == EINTR) continue;
+            if (send_errno == EAGAIN || send_errno == EWOULDBLOCK) {
                 int rc;
 
                 int64_t poll_started_ms;
@@ -549,7 +567,15 @@ static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_s
                 }
                 continue;
             }
-            return -errno;
+            int err = send_errno;
+            LOG_ERR("BENCH_TX_SEND_FAIL fd=%d off=%u/%u "
+                    "chunk_off=%u send_len=%u n=%d errno=%d "
+                    "calls=%u partial=%u eagain=%u polls=%u",
+                    fd, off, total,
+                    (unsigned int)chunk_off, (unsigned int)send_len,
+                    (int)n, err, send_calls, partial_calls,
+                    eagain_calls, poll_calls);
+            return err ? -err : -EIO;
         }
     }
 

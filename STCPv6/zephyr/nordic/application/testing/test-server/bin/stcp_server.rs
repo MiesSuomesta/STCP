@@ -1,3 +1,5 @@
+mod bench_protocol;
+
 #[path = "stcp_aes_gcm_userspace.rs"]
 mod stcp_aes_gcm_userspace;
 
@@ -274,7 +276,7 @@ pub extern "C" fn stcp_kernel_derive_session_keys(
      * s2c  = HMAC-SHA256(prk, "STCPv2 server to client key" || 0x01)
      */
     let mut hasher = Sha256::new();
-    hasher.update(b"STCPv2-HKDF-SHA256");
+    hasher.update(b"STCPv4-AES256-GCM-HKDF-SHA256");
     hasher.update(client_pub);
     hasher.update(server_pub);
     let salt = hasher.finalize();
@@ -292,7 +294,7 @@ pub extern "C" fn stcp_kernel_derive_session_keys(
         Ok(v) => v,
         Err(_) => return -libc::EIO,
     };
-    c2s_mac.update(b"STCPv2 client to server key");
+    c2s_mac.update(b"STCPv4 AES256-GCM client to server key");
     c2s_mac.update(&[1u8]);
     let c2s = c2s_mac.finalize().into_bytes();
 
@@ -300,7 +302,7 @@ pub extern "C" fn stcp_kernel_derive_session_keys(
         Ok(v) => v,
         Err(_) => return -libc::EIO,
     };
-    s2c_mac.update(b"STCPv2 server to client key");
+    s2c_mac.update(b"STCPv4 AES256-GCM server to client key");
     s2c_mac.update(&[1u8]);
     let s2c = s2c_mac.finalize().into_bytes();
 
@@ -444,6 +446,39 @@ fn create_listener(port: u16) -> Result<*mut c_void, String> {
     Ok(ctx)
 }
 
+// The TCP carrier is a byte stream. Feed only complete STCP frames to the core.
+// STCPv6 wire header: 40 bytes; payload length is u64 big-endian at [8..16].
+struct FrameBuffer { pending: Vec<u8> }
+impl FrameBuffer {
+    fn new() -> Self { Self { pending: Vec::new() } }
+    fn feed(&mut self, bytes: &[u8], ctx: *mut c_void) -> Result<(), String> {
+        self.pending.extend_from_slice(bytes);
+        loop {
+            if self.pending.len() < 40 { return Ok(()); }
+            if &self.pending[..4] != b"STCP" || self.pending[5] != 2 {
+                return Err("invalid STCP TCP frame header".into());
+            }
+            let payload_len = u64::from_be_bytes(self.pending[8..16].try_into().unwrap());
+            if payload_len > 2 * 1024 * 1024 { return Err(format!("STCP frame too large: {payload_len}")); }
+            let frame_len = 40 + payload_len as usize;
+            if self.pending.len() < frame_len { return Ok(()); }
+            let rc = unsafe { stcp_rust_carrier_receive_from(ctx, self.pending.as_ptr(), frame_len, 0, 0) };
+            if rc < 0 { return Err(format!("stcp_rust_carrier_receive_from rc={rc}")); }
+            self.pending.drain(..frame_len);
+        }
+    }
+}
+
+fn send_plain(ctx: *mut c_void, data: &[u8]) -> Result<(), String> {
+    let mut offset = 0;
+    while offset < data.len() {
+        let sent = stcp_rust_send(ctx, data[offset..].as_ptr(), data.len() - offset, 0);
+        if sent <= 0 { return Err(format!("stcp_rust_send rc={sent}")); }
+        offset += sent as usize;
+    }
+    Ok(())
+}
+
 fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<(), String> {
     let local = stream.local_addr().map_err(|e| e.to_string())?;
     let peer = stream.peer_addr().map_err(|e| e.to_string())?;
@@ -486,6 +521,8 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
         let deadline = Instant::now() + HANDSHAKE_TIMEOUT;
         let mut wire = [0u8; 16384];
         let mut plain = [0u8; 16384];
+        let mut frames = FrameBuffer::new();
+        let mut protocol = bench_protocol::Protocol::new();
 
         let mut hs_iter: u64 = 0;
         while stcp_rust_is_connected(ctx) != 1 {
@@ -503,11 +540,8 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
                 Ok(n) => {
                     trace(format!("HANDSHAKE TCP RX n={n} [{}]", hex_preview(&wire[..n])));
                     trace(format!("HANDSHAKE core_receive enter ctx={ctx:p} n={n}"));
-                    let rc = unsafe { stcp_rust_carrier_receive_from(ctx, wire.as_ptr(), n, 0, 0) };
-                    trace(format!("HANDSHAKE core_receive exit rc={rc} connected={}", stcp_rust_is_connected(ctx)));
-                    if rc < 0 {
-                        return Err(format!("stcp_rust_carrier_receive_from rc={rc}"));
-                    }
+                    frames.feed(&wire[..n], ctx)?;
+                    trace(format!("HANDSHAKE core_receive exit connected={}", stcp_rust_is_connected(ctx)));
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {
                     trace("HANDSHAKE TCP read EINTR");
@@ -535,15 +569,7 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
                 if n > 0 {
                     let n = n as usize;
                     trace(format!("DATA plaintext RX n={n} [{}]", hex_preview(&plain[..n])));
-                    trace(format!("DATA core_send echo enter n={n}"));
-                    let sent = stcp_rust_send(ctx, plain.as_ptr(), n, 0);
-                    trace(format!("DATA core_send echo exit sent={sent}"));
-                    if sent < 0 {
-                        return Err(format!("stcp_rust_send rc={sent}"));
-                    }
-                    if sent as usize != n {
-                        return Err(format!("short STCP send: {sent}/{n}"));
-                    }
+                    protocol.on_plain(&plain[..n], &mut |data| send_plain(ctx, data))?;
                     continue;
                 }
                 if n == -(libc::EAGAIN as isize) {
@@ -555,6 +581,9 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
                 break;
             }
 
+            // One bounded outgoing BEN2 chunk per iteration; FULL must keep reading.
+            protocol.pump_download(&mut |data| send_plain(ctx, data))?;
+
             trace("DATA TCP read wait");
             match stream.read(&mut wire) {
                 Ok(0) => {
@@ -564,11 +593,8 @@ fn run_connection(listener_ctx: *mut c_void, mut stream: TcpStream) -> Result<()
                 Ok(n) => {
                     trace(format!("DATA TCP RX n={n} [{}]", hex_preview(&wire[..n])));
                     trace(format!("DATA core_receive enter ctx={ctx:p} n={n}"));
-                    let rc = unsafe { stcp_rust_carrier_receive_from(ctx, wire.as_ptr(), n, 0, 0) };
-                    trace(format!("DATA core_receive exit rc={rc} connected={}", stcp_rust_is_connected(ctx)));
-                    if rc < 0 {
-                        return Err(format!("stcp_rust_carrier_receive_from rc={rc}"));
-                    }
+                    frames.feed(&wire[..n], ctx)?;
+                    trace(format!("DATA core_receive exit connected={}", stcp_rust_is_connected(ctx)));
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {
                     trace("DATA TCP read EINTR");
@@ -605,7 +631,7 @@ fn main() -> Result<(), String> {
     let listener_ctx = create_listener(socket_addr.port())?;
     trace(format!("MAIN STCP listener ctx={listener_ctx:p}"));
 
-    println!("STCP shared-core echo server");
+    println!("STCP shared-core BEN2 / echo server");
     println!("  listen : {listen}");
     println!("  core   : kernel/module/rust");
     println!("  model  : one TCP connection at a time");

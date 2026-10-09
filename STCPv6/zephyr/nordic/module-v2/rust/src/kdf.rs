@@ -37,9 +37,9 @@ fn hash(parts:&[&[u8]])->[u8;32]{let mut s=Sha256::new();for p in parts{s.update
 fn hmac_parts(key:&[u8], parts:&[&[u8]])->[u8;32]{let mut k=[0u8;BLOCK];if key.len()>BLOCK{k[..OUT].copy_from_slice(&hash(&[key]));}else{k[..key.len()].copy_from_slice(key);}let mut ipad=[0x36u8;BLOCK];let mut opad=[0x5cu8;BLOCK];for i in 0..BLOCK{ipad[i]^=k[i];opad[i]^=k[i];}let mut inner=Sha256::new();inner.update(&ipad);for p in parts{inner.update(p);}let ih=inner.finish();let mut outer=Sha256::new();outer.update(&opad);outer.update(&ih);outer.finish()}
 
 pub fn derive_directional_keys(shared:&[u8;32], client_pub:&[u8;32], server_pub:&[u8;32])->Result<([u8;32],[u8;32]),StcpError>{
-    let salt=hash(&[b"STCPv2-HKDF-SHA256",client_pub,server_pub]); let prk=hmac_parts(&salt,&[shared]);
-    let client=hmac_parts(&prk,&[b"STCPv2 client to server key", &[1]]);
-    let server=hmac_parts(&prk,&[b"STCPv2 server to client key", &[1]]);
+    let salt=hash(&[b"STCPv4-AES256-GCM-HKDF-SHA256",client_pub,server_pub]); let prk=hmac_parts(&salt,&[shared]);
+    let client=hmac_parts(&prk,&[b"STCPv4 AES256-GCM client to server key", &[1]]);
+    let server=hmac_parts(&prk,&[b"STCPv4 AES256-GCM server to client key", &[1]]);
     if client==server { return Err(StcpError::Crypto); }
     Ok((client,server))
 }

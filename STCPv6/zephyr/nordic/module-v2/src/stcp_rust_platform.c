@@ -151,7 +151,7 @@ static void log_crypto_stack(const char *where)
 static void nonce_to_bytes(uint64_t nonce, uint8_t out[12])
 {
     memset(out, 0, 12);
-    sys_put_le64(nonce, &out[4]);
+    sys_put_be64(nonce, &out[4]);
 }
 
 static void x25519_clamp(uint8_t secret[32])
@@ -600,13 +600,43 @@ ssize_t stcp_carrier_send(void *carrier, const uint8_t *data,
                           size_t len, int flags)
 {
     struct stcp_ctx *ctx = carrier;
-    ssize_t rc;
-    if (!ctx || ctx->carrier_fd < 0) return -ENOTCONN;
+    size_t done = 0;
+
+    if (!ctx || ctx->carrier_fd < 0)
+        return -ENOTCONN;
+
+    if (!data && len)
+        return -EINVAL;
+
     if (IS_ENABLED(CONFIG_STCP_RUST_TRACE_WIRE)) {
-        STCP_TX_HEXDUMP(data, MIN(len, (size_t)CONFIG_STCP_RUST_HEXDUMP_BYTES),
+        STCP_TX_HEXDUMP(data,
+                        MIN(len, (size_t)CONFIG_STCP_RUST_HEXDUMP_BYTES),
                         "Rust STCP TX");
     }
-    rc = zsock_send(ctx->carrier_fd, data, len, flags);
-    if (rc < 0) return -errno;
-    return rc;
+
+    while (done < len) {
+        ssize_t rc = zsock_send(ctx->carrier_fd,
+                                data + done,
+                                len - done,
+                                flags);
+        int saved_errno = rc < 0 ? errno : 0;
+
+        if (rc > 0) {
+            done += (size_t)rc;
+            continue;
+        }
+
+        if (rc == 0)
+            return -EPIPE;
+
+        if (saved_errno == EINTR)
+            continue;
+
+        LOG_ERR("STCP_CARRIER_TX_FAIL fd=%d progress=%zu/%zu errno=%d",
+                ctx->carrier_fd, done, len, saved_errno);
+
+        return -saved_errno;
+    }
+
+    return (ssize_t)done;
 }

@@ -18,7 +18,7 @@ use core::sync::atomic::AtomicU32;
 
 use crate::{
     crypto::{
-        CHACHA_TAG_LEN,
+        AES_GCM_TAG_LEN,
         NONCE_LEN,
         PUBLIC_KEY_WIRE_LEN,
     },
@@ -691,7 +691,7 @@ pub fn send(
 
         let encrypted_len = plaintext
             .len()
-            .checked_add(CHACHA_TAG_LEN)
+            .checked_add(AES_GCM_TAG_LEN)
             .ok_or(StcpError::Protocol)?;
         let payload_len = NONCE_LEN
             .checked_add(encrypted_len)
@@ -849,7 +849,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
       if extracted >= MAX_RX_BATCH_FRAMES { break; }
       let Some(frame)=extract_next_wire_frame(ctx,queue)? else {break;};
       extracted += 1; let header=frame.header; crate::carrier::debug_event(210,ctx,header.packet_type as usize,frame.payload.len()); match header.packet_type {
-      PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+CHACHA_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext:frame.payload}); }
+      PacketType::DataChunk|PacketType::DataChunkEnd => { if frame.payload.len()<NONCE_LEN+AES_GCM_TAG_LEN{return protocol_error(ctx);} let mut nb=[0u8;NONCE_LEN]; nb.copy_from_slice(&frame.payload[..NONCE_LEN]); let nonce=u64::from_be_bytes(nb); received_frames.try_reserve(1).map_err(|_|StcpError::NoMem)?; received_frames.push(BufferedFrame{header,nonce,ciphertext:frame.payload}); }
       PacketType::Ack => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_acks.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_acks.push(header.acknowledgment); }
       PacketType::Ping => { if !frame.payload.is_empty(){return protocol_error(ctx);} deferred_pongs.try_reserve(1).map_err(|_|StcpError::NoMem)?; deferred_pongs.push(header.sequence); }
       PacketType::Pong => { if !frame.payload.is_empty(){return protocol_error(ctx);} }

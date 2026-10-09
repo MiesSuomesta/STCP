@@ -114,20 +114,29 @@ pub(crate) fn transmit(
         return Ok(());
     }
 
-    let ret = unsafe {
-        stcp_carrier_send(
-            carrier as *mut c_void,
-            bytes.as_ptr(),
-            bytes.len(),
-            flags,
-        )
-    };
-
-    if ret < 0 {
-        return Err(StcpError::Kernel(ret as i32));
-    }
-    if ret as usize != bytes.len() {
-        return Err(StcpError::Kernel(-5));
+    // UDP datagrams must remain atomic; TCP streams can return short writes.
+    let datagram = reliability_required(carrier);
+    let mut offset = 0usize;
+    while offset < bytes.len() {
+        let remaining = &bytes[offset..];
+        let ret = unsafe {
+            stcp_carrier_send(
+                carrier as *mut c_void,
+                remaining.as_ptr(),
+                remaining.len(),
+                flags,
+            )
+        };
+        if ret < 0 {
+            return Err(StcpError::Kernel(ret as i32));
+        }
+        if ret == 0 || ret as usize > remaining.len() {
+            return Err(StcpError::Kernel(-5));
+        }
+        if datagram && ret as usize != remaining.len() {
+            return Err(StcpError::Kernel(-5));
+        }
+        offset += ret as usize;
     }
     Ok(())
 }

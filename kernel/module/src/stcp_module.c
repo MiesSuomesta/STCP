@@ -9,6 +9,9 @@
 #include "stcp_test.h"
 #include "stcp_users.h"
 
+extern size_t stcp_rust_wire_header_len(void);
+
+
 static bool drop_first_data;
 static bool duplicate_first_data;
 static bool reorder_first_pair;
@@ -145,6 +148,10 @@ static int __init stcp_module_init(void)
 		stcp_rust_exit();
 		return ret;
 	}
+
+	/* STCP Rust-coren alustuksen jälkeen */
+	pr_info("STCP wire header: %u bytes",
+	        (unsigned int)stcp_rust_wire_header_len());
 
 	pr_info("stcp: directional crypto selftest passed\n");
 

@@ -120,16 +120,28 @@ fn emit_last_literals(out: &mut Vec<u8>, literals: &[u8]) -> Result<(), StcpErro
 /// Small no_std LZ4 block encoder. The output is a raw LZ4 block with no frame
 /// wrapper; STCP carries the original length separately in a compact varint.
 pub fn compress_block(src: &[u8], level: CompressionLevel) -> Result<Vec<u8>, StcpError> {
+    compress_block_with_prefix(src, level, &[])
+}
+
+/// Encode directly after the STCP length prefix, avoiding a second buffer/copy.
+pub fn compress_block_with_prefix(
+    src: &[u8], level: CompressionLevel, prefix: &[u8],
+) -> Result<Vec<u8>, StcpError> {
+    let mut out = Vec::new();
+    let capacity = src.len().checked_add(prefix.len()).ok_or(StcpError::NoMem)?;
+    out.try_reserve_exact(capacity).map_err(|_| StcpError::NoMem)?;
+    out.extend_from_slice(prefix);
+    if src.is_empty() { return Ok(out); }
     match level {
-        CompressionLevel::Default => compress_block_default(src),
-        CompressionLevel::VeryFast => compress_block_fast(src, 4),
-        CompressionLevel::Fast => compress_block_fast(src, 2),
-        CompressionLevel::High => compress_block_deep(src, 4),
-        CompressionLevel::VeryHigh => compress_block_deep(src, 16),
+        CompressionLevel::Default => compress_block_default(src, out),
+        CompressionLevel::VeryFast => compress_block_fast(src, 4, out),
+        CompressionLevel::Fast => compress_block_fast(src, 2, out),
+        CompressionLevel::High => compress_block_deep(src, 4, out),
+        CompressionLevel::VeryHigh => compress_block_deep(src, 16, out),
     }
 }
 
-fn compress_block_default(src: &[u8]) -> Result<Vec<u8>, StcpError> {
+fn compress_block_default(src: &[u8], mut out: Vec<u8>) -> Result<Vec<u8>, StcpError> {
     if src.is_empty() {
         return Ok(Vec::new());
     }
@@ -138,8 +150,6 @@ fn compress_block_default(src: &[u8]) -> Result<Vec<u8>, StcpError> {
     table.try_reserve_exact(HASH_SIZE).map_err(|_| StcpError::NoMem)?;
     table.resize(HASH_SIZE, 0u32);
 
-    let mut out = Vec::new();
-    out.try_reserve_exact(src.len()).map_err(|_| StcpError::NoMem)?;
 
     let mut anchor = 0usize;
     let mut pos = 0usize;
@@ -177,13 +187,11 @@ fn compress_block_default(src: &[u8]) -> Result<Vec<u8>, StcpError> {
     Ok(out)
 }
 
-fn compress_block_fast(src: &[u8], skip: usize) -> Result<Vec<u8>, StcpError> {
+fn compress_block_fast(src: &[u8], skip: usize, mut out: Vec<u8>) -> Result<Vec<u8>, StcpError> {
     if src.is_empty() { return Ok(Vec::new()); }
     let mut table = Vec::new();
     table.try_reserve_exact(HASH_SIZE).map_err(|_| StcpError::NoMem)?;
     table.resize(HASH_SIZE, 0u32);
-    let mut out = Vec::new();
-    out.try_reserve_exact(src.len()).map_err(|_| StcpError::NoMem)?;
     let mut anchor = 0usize;
     let mut pos = 0usize;
 
@@ -211,7 +219,7 @@ fn compress_block_fast(src: &[u8], skip: usize) -> Result<Vec<u8>, StcpError> {
     Ok(out)
 }
 
-fn compress_block_deep(src: &[u8], max_candidates: usize) -> Result<Vec<u8>, StcpError> {
+fn compress_block_deep(src: &[u8], max_candidates: usize, mut out: Vec<u8>) -> Result<Vec<u8>, StcpError> {
     if src.is_empty() { return Ok(Vec::new()); }
     let mut head = Vec::new();
     head.try_reserve_exact(HASH_SIZE).map_err(|_| StcpError::NoMem)?;
@@ -219,8 +227,6 @@ fn compress_block_deep(src: &[u8], max_candidates: usize) -> Result<Vec<u8>, Stc
     let mut prev = Vec::new();
     prev.try_reserve_exact(src.len()).map_err(|_| StcpError::NoMem)?;
     prev.resize(src.len(), 0u32);
-    let mut out = Vec::new();
-    out.try_reserve_exact(src.len()).map_err(|_| StcpError::NoMem)?;
     let mut anchor = 0usize;
     let mut pos = 0usize;
 
@@ -315,10 +321,16 @@ pub fn decompress_block(src: &[u8], original_len: usize) -> Result<Vec<u8>, Stcp
             return Err(StcpError::Protocol);
         }
 
+        // Copy only initialized, non-overlapping ranges. Newly copied bytes
+        // become the source for the next doubling step (including offset=1).
         let start = out.len() - offset;
-        for i in 0..match_len {
-            let byte = out[start + i];
-            out.push(byte);
+        let mut remaining = match_len;
+        while remaining != 0 {
+            let count = remaining.min(out.len() - start);
+            let end = out.len();
+            out.resize(end + count, 0);
+            out.copy_within(start..start + count, end);
+            remaining -= count;
         }
     }
 

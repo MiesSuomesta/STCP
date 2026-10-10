@@ -1,0 +1,36 @@
+
+ <err> echo_benchmark: APP ZSOCK_CONNECT RETURN fd=1 rc=-1 errno=116 mapped_rc=-116 mode=blocking
+stcp> [00:02:32.891,815] <err> echo_benchmark: APP CONNECT FAIL fd=1 rc=-116 errno=116
+[00:02:32.891,815] <err> echo_benchmark: APP CONNECT FAIL fd=1 rc=-116 errno=116
+stcp> [00:02:33.169,952] <err> echo_benchmark: BENCHCHK U02 CONNECT RETURN fd=-116
+[00:02:33.169,952] <err> echo_benchmark: BENCHCHK U02 CONNECT RETURN fd=-116
+stcp> [00:02:33.187,530] <inf> echo_benchmark: ================ BENCHMARK SUMMARY ================
+[00:02:33.187,530] <inf> echo_benchmark: ================ BENCHMARK SUMMARY ================
+stcp> [00:02:33.207,397] <inf> echo_benchmark: Transport=stcp server=80.186.162.127:19000 chunk=4096 total=10240 bytes
+[00:02:33.207,397] <inf> echo_benchmark: Transport=stcp server=80.186.162.127:19000 chunk=4096 total=10240 bytes
+stcp> [00:02:33.233,673] <err> os: ***** SECURE FAULT *****
+[00:02:33.233,673] <err> os: ***** SECURE FAULT *****
+stcp> [00:02:33.247,192] <err> os:   Address: 0x0
+[00:02:33.247,192] <err> os:   Address: 0x0
+stcp> [00:02:33.259,002] <err> os:   Attribution unit violation
+[00:02:33.259,002] <err> os:   Attribution unit violation
+stcp> [00:02:33.273,254] <err> os: r0/a1:  0x200217a0  r1/a2:  0x00000002  r2/a3:  0x00000000
+[00:02:33.273,254] <err> os: r0/a1:  0x200217a0  r1/a2:  0x00000002  r2/a3:  0x00000000
+stcp> [00:02:33.292,755] <err> os: r3/a4:  0x2001f5f0 r12/ip:  0x20016510 r14/lr:  0x0005b6eb
+[00:02:33.292,755] <err> os: r3/a4:  0x2001f5f0 r12/ip:  0x20016510 r14/lr:  0x0005b6eb
+stcp> [00:02:33.312,255] <err> os:  xpsr:  0x2100003a
+[00:02:33.312,255] <err> os:  xpsr:  0x2100003a
+stcp> [00:02:33.324,768] <err> os: Faulting instruction address (r15/pc): 0x0005b6f0
+[00:02:33.324,768] <err> os: Faulting instruction address (r15/pc): 0x0005b6f0
+stcp> [00:02:33.342,712] <err> os: >>> ZEPHYR FATAL ERROR 41: Unknown error on CPU 0
+[00:02:33.342,712] <err> os: >>> ZEPHYR FATAL ERROR 41: Unknown error on CPU 0
+stcp> [00:02:33.360,626] <err> os: Fault during interrupt handling
+
+[00:02:33.360,626] <err> os: Fault during interrupt handling
+
+stcp> [00:02:33.375,579] <err> os: Current thread: 0x2001f5f0 (idle)
+[00:02:33.375,579] <err> os: Current thread: 0x2001f5f0 (idle)
+stcp> [00:02:33.390,686] <err> os: Halting system
+[00:02:33.390,686] <err> os: Halting system
+stcp> 
+

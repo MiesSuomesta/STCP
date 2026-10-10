@@ -826,26 +826,15 @@ pub fn send(
             stats.compression_stats.tx_input_bytes += plaintext.len() as u64;
             drop(stats);
 
-            match compression::compress_block(plaintext, compression_config.level) {
+            let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
+            match compression::compress_block_with_prefix(
+                plaintext, compression_config.level, &length_prefix[..prefix_len],
+            ) {
                 Ok(candidate) => {
-                    let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
-                    let candidate_len = prefix_len
-                        .checked_add(candidate.len())
-                        .ok_or(StcpError::Protocol)?;
-
-                    if candidate_len < plaintext.len() {
-                        match compressed_storage.try_reserve_exact(candidate_len) {
-                            Ok(()) => {
-                                compressed_storage.extend_from_slice(&length_prefix[..prefix_len]);
-                                compressed_storage.extend_from_slice(&candidate);
-                                wire_plaintext = &compressed_storage;
-                                compressed = true;
-                            }
-                            Err(_) => {
-                                let mut stats = ctx.inner.lock();
-                                stats.compression_stats.tx_errors += 1;
-                            }
-                        }
+                    if candidate.len() < plaintext.len() {
+                        compressed_storage = candidate;
+                        wire_plaintext = &compressed_storage;
+                        compressed = true;
                     }
                 }
                 Err(_) => {

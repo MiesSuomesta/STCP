@@ -1,0 +1,4 @@
+Diagnostic Linux kernel-module overlay based on module-10102026_140738.zip.
+Extract into the Linux kernel module source directory that contains rust/src/session.rs, Kbuild and src/stcp_proto.c. Do not extract into Zephyr module-v2 or application.
+Changes STCP_SEND_WINDOW 256 -> 16. Existing constant also limits out-of-order RX frames. This bounds Linux sender outstanding frames for Zephyr DL; it does not add receiver-advertised flow control or bound all Zephyr RX queues. Keep prior Zephyr 16-frame patch installed.
+Rebuild/install the Linux module using normal project scripts, stop ben2-server and reload module through your normal process (or reboot). Restart single stcp-udp server port19000 and run stcp bench download. Verify actual loaded module is the rebuilt version. This is a diagnostic experiment, not production memory-budget design. Rust/kernel compilation unavailable in creation environment.

@@ -115,9 +115,43 @@ static ssize_t bench_send(int fd, const void *data, size_t len)
     uint32_t header[4] = {sys_cpu_to_be32(0x42554432U), sys_cpu_to_be32(udp_run),
         sys_cpu_to_be32(udp_tx_seq), sys_cpu_to_be32((uint32_t)len)};
     memcpy(packet, header, 16); memcpy(packet + 16, data, len);
-    ssize_t n = zsock_send(fd, packet, len + 16, 0);
-    if (n < 0) return n;
-    if ((size_t)n != len + 16) { errno = EIO; return -1; }
+    if (active_cfg->transport == BENCH_TRANSPORT_STCP_UDP) {
+        /* STCP protocol 254 exposes stream-style partial writes. Keep the
+         * BUD2 envelope and sequence intact until its entire byte stream is
+         * accepted. Never restart an already partially accepted envelope.
+         */
+        size_t done = 0;
+        int64_t deadline = k_uptime_get() + active_cfg->timeout_ms;
+        while (done < len + 16) {
+            ssize_t n = zsock_send(fd, packet + done, len + 16 - done, 0);
+            int saved_errno = n < 0 ? errno : 0;
+            if (n > 0) {
+                if ((size_t)n > len + 16 - done) { errno = EIO; return -1; }
+                done += (size_t)n;
+                deadline = k_uptime_get() + active_cfg->timeout_ms;
+                continue;
+            }
+            if (n == 0) { errno = ECONNRESET; return -1; }
+            if (saved_errno == EINTR) continue;
+            if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) {
+                int rc = wait_socket_ready(fd, ZSOCK_POLLOUT, deadline);
+                if (rc == 0) continue;
+                /* Fatal even when rc is transient: the caller must not
+                 * restart a partially accepted envelope with a new header.
+                 */
+                errno = rc == -EAGAIN || rc == -EWOULDBLOCK || rc == -EINTR
+                      ? EIO : -rc;
+                return -1;
+            }
+            errno = saved_errno == 0 ? EIO : saved_errno;
+            return -1;
+        }
+    } else {
+        /* Native UDP preserves atomic datagram semantics. */
+        ssize_t n = zsock_send(fd, packet, len + 16, 0);
+        if (n < 0) return n;
+        if ((size_t)n != len + 16) { errno = EIO; return -1; }
+    }
     udp_tx_seq++; return (ssize_t)len;
 }
 static ssize_t bench_recv(int fd, void *data, size_t capacity)

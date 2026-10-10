@@ -1,6 +1,6 @@
 //! Linux BEN2 native socket server. Standard library only; STCP uses stcp.ko.
 mod bench_protocol;
-use std::{io, mem, os::fd::{AsRawFd, FromRawFd, OwnedFd}, time::{Duration,Instant}};
+use std::{collections::VecDeque, io, mem, os::fd::{AsRawFd, FromRawFd, OwnedFd}, time::{Duration,Instant}};
 
 const AF_INET:i32=2;
 const AF_STCP:i32=45;
@@ -33,13 +33,14 @@ fn word(b:&[u8],offset:usize)->u32 {u32::from_be_bytes(b[offset..offset+4].try_i
 struct Socket {
     fd:OwnedFd, plain_udp:bool, framed:bool, peer:Option<Address>, run:Option<u32>,
     tx_seq:u32,rx_seq:u32,pending:Vec<u8>,
+    outgoing:VecDeque<Vec<u8>>, outgoing_offset:usize, queued_bytes:usize,
 }
 impl Socket {
     fn new(fd:OwnedFd,transport:&str,timeout_ms:u64)->Result<Self,String> {
         let raw=fd.as_raw_fd();
         let tv=Timeval{sec:(timeout_ms/1000)as _,usec:((timeout_ms%1000)*1000)as _};
         checked(unsafe{setsockopt(raw,1,21,(&tv as *const Timeval).cast(),mem::size_of::<Timeval>()as u32)})?;
-        Ok(Self{fd,plain_udp:transport=="udp",framed:transport.ends_with("udp"),peer:None,run:None,tx_seq:0,rx_seq:0,pending:Vec::with_capacity(2081)})
+        Ok(Self{fd,plain_udp:transport=="udp",framed:transport.ends_with("udp"),peer:None,run:None,tx_seq:0,rx_seq:0,pending:Vec::with_capacity(2081),outgoing:VecDeque::new(),outgoing_offset:0,queued_bytes:0})
     }
     fn receive(&mut self,buffer:&mut [u8])->Result<Option<usize>,String> {
         if self.framed && !self.plain_udp {
@@ -95,44 +96,70 @@ impl Socket {
             for(i,v)in [BUD2,run,self.tx_seq,data.len()as u32].iter().enumerate(){envelope[i*4..i*4+4].copy_from_slice(&v.to_be_bytes());}
             envelope[16..16+data.len()].copy_from_slice(data);&envelope[..16+data.len()]
         } else {data};
-        let mut offset=0;
-        while offset<bytes.len() {
-            let n=unsafe{if self.plain_udp {
-                let peer=self.peer.ok_or("UDP send before peer")?;
-                sendto(self.fd.as_raw_fd(),bytes.as_ptr(),bytes.len(),MSG_NOSIGNAL,&peer,mem::size_of::<Address>()as u32)
-            }else{send(self.fd.as_raw_fd(),bytes[offset..].as_ptr(),bytes.len()-offset,MSG_NOSIGNAL)}};
-            if n<0 {let e=io::Error::last_os_error();if e.kind()==io::ErrorKind::Interrupted {continue;}return Err(e.to_string());}
-            if n==0 {return Err("zero-length socket send".into());}
-            if self.plain_udp && n as usize!=bytes.len() {return Err("partial UDP send".into());}
-            offset+=n as usize;
-        }
-        if self.framed {self.tx_seq=self.tx_seq.checked_add(1).ok_or("UDP sequence overflow")?;}
+        // Queue one complete envelope. A partial stream write resumes from
+        // its byte offset; native UDP remains one atomic datagram.
+        if self.queued_bytes + bytes.len() > 65536 {return Err("BEN2 TX queue overflow".into());}
+        let next_seq=if self.framed {self.tx_seq.checked_add(1).ok_or("UDP sequence overflow")?}else{self.tx_seq};
+        self.outgoing.push_back(bytes.to_vec());self.queued_bytes+=bytes.len();
+        self.tx_seq=next_seq;
         Ok(())
+    }
+    fn flush(&mut self)->Result<bool,String> {
+        let Some(bytes)=self.outgoing.front() else {return Ok(false);};
+        let offset=self.outgoing_offset;
+        let n=unsafe{if self.plain_udp {
+            let peer=self.peer.ok_or("UDP send before peer")?;
+            sendto(self.fd.as_raw_fd(),bytes.as_ptr(),bytes.len(),MSG_NOSIGNAL|MSG_DONTWAIT,&peer,mem::size_of::<Address>()as u32)
+        }else{send(self.fd.as_raw_fd(),bytes[offset..].as_ptr(),bytes.len()-offset,MSG_NOSIGNAL|MSG_DONTWAIT)}};
+        if n<0 {
+            let e=io::Error::last_os_error();
+            if e.kind()==io::ErrorKind::WouldBlock || e.kind()==io::ErrorKind::Interrupted {return Ok(false);}
+            return Err(e.to_string());
+        }
+        if n==0 {return Err("zero-length socket send".into());}
+        let n=n as usize;
+        if n>bytes.len()-offset || (self.plain_udp && n!=bytes.len()) {return Err("invalid partial socket send".into());}
+        self.outgoing_offset+=n;self.queued_bytes-=n;
+        if self.outgoing_offset==bytes.len() {self.outgoing.pop_front();self.outgoing_offset=0;}
+        Ok(true)
     }
     fn wait(&self,ms:i32)->Result<(),String> {
         let mut p=PollFd{fd:self.fd.as_raw_fd(),events:1,revents:0};
         let rc=unsafe{poll(&mut p,1,ms)};
         if rc<0 && io::Error::last_os_error().kind()!=io::ErrorKind::Interrupted {return Err(error());}Ok(())
     }
-    fn reset_udp(&mut self) {self.peer=None;self.run=None;self.tx_seq=0;self.rx_seq=0;self.pending.clear();}
+    fn reset_udp(&mut self) {self.peer=None;self.run=None;self.tx_seq=0;self.rx_seq=0;self.pending.clear();self.outgoing.clear();self.outgoing_offset=0;self.queued_bytes=0;}
 }
 fn run(socket:&mut Socket,timeout:Duration)->Result<(),String> {
     let mut protocol=bench_protocol::Protocol::new();let mut buffer=[0u8;16384];
     let mut last=Instant::now();let mut begun=!socket.plain_udp; let mut first_data=true;
     let result=(|| { loop {
-        match socket.receive(&mut buffer) {
-            Ok(Some(n))=>{
-                if first_data {eprintln!("BEN2_RX_FIRST bytes={n} prefix={:02x?}", &buffer[..n.min(20)]); first_data=false;}
-                begun=true;last=Instant::now();protocol.on_plain(&buffer[..n],&mut |b|socket.transmit(b))?;}
-            Ok(None)=>{},Err(e)=>return Err(e),
+        let mut progressed=socket.flush()?;
+        // Reserve room for a maximum stream echo and its completion reply.
+        // Always receive during download backpressure; do not block in send.
+        if socket.queued_bytes <= 32768 {
+            match socket.receive(&mut buffer) {
+                Ok(Some(n))=>{
+                    if first_data {eprintln!("BEN2_RX_FIRST bytes={n} prefix={:02x?}", &buffer[..n.min(20)]); first_data=false;}
+                    begun=true;progressed=true;
+                    protocol.on_plain(&buffer[..n],&mut |b|socket.transmit(b))?;}
+                Ok(None)=>{},Err(e)=>return Err(e),
+            }
         }
-        let outgoing=protocol.download_pending();
-        protocol.pump_download(&mut |b|socket.transmit(b))?;
-        if outgoing {last=Instant::now();}
+        if socket.outgoing.is_empty() {
+            protocol.pump_download(&mut |b|socket.transmit(b))?;
+        }
+        progressed |= socket.flush()?;
+        if progressed {last=Instant::now();}
         protocol.progress();
-        if protocol.done() {return Ok(());}
+        if protocol.done() && socket.outgoing.is_empty() {return Ok(());}
         if begun && last.elapsed()>=timeout {return Err("BEN2 inactivity timeout".into());}
-        if !protocol.download_pending() {socket.wait(20)?;}
+        if !progressed {
+            // POLLOUT on STCP can be optimistic. A bounded sleep avoids a
+            // busy loop while still servicing both directions every millisecond.
+            if socket.outgoing.is_empty() {socket.wait(20)?;}
+            else {std::thread::sleep(Duration::from_millis(1));}
+        }
     } })();
     if result.is_err() {protocol.fail();}
     result
@@ -234,4 +261,36 @@ mod tests {
         let mut s=framed();s.pending.extend(envelope(7,0,&[0;20]));s.extract(&mut out).unwrap();
         s.pending.extend(envelope(8,1,&[0;10]));assert!(s.extract(&mut out).is_err());
     }
+    #[test]
+    fn queued_envelopes_resume_a_partial_stream_write() {
+        let(a,mut b)=UnixStream::pair().unwrap();
+        let mut s=Socket::new(a.into(),"stcp-udp",1000).unwrap();s.run=Some(7);
+        s.transmit(&[3;1024]).unwrap();s.transmit(&[4;20]).unwrap();
+        let expected=[envelope(7,0,&[3;1024]),envelope(7,1,&[4;20])].concat();
+        // The OS has accepted only this prefix of the first envelope.
+        assert_eq!(unsafe{send(s.fd.as_raw_fd(),expected.as_ptr(),7,MSG_NOSIGNAL|MSG_DONTWAIT)},7);
+        s.outgoing_offset=7;s.queued_bytes-=7;
+        while !s.outgoing.is_empty() {assert!(s.flush().unwrap());}
+        assert_eq!(s.queued_bytes,0);assert_eq!(s.tx_seq,2);
+        use std::io::Read;
+        let mut received=vec![0;expected.len()];b.read_exact(&mut received).unwrap();assert_eq!(received,expected);
+    }
+    #[test]
+    fn send_backpressure_returns_without_blocking() {
+        let(a,b)=UnixStream::pair().unwrap();
+        let mut s=Socket::new(a.into(),"stcp-udp",1000).unwrap();s.run=Some(7);
+        let fill=[0u8;4096];
+        loop {
+            let n=unsafe{send(s.fd.as_raw_fd(),fill.as_ptr(),fill.len(),MSG_NOSIGNAL|MSG_DONTWAIT)};
+            if n<0 {assert_eq!(io::Error::last_os_error().kind(),io::ErrorKind::WouldBlock);break;}
+            assert!(n>0);
+        }
+        s.transmit(&[3;1024]).unwrap();
+        assert!(!s.flush().unwrap());assert_eq!(s.outgoing_offset,0);assert_eq!(s.queued_bytes,1040);
+        // RX still works while the TX side is full.
+        let packet=envelope(7,0,&[0;20]);
+        assert_eq!(unsafe{send(b.as_raw_fd(),packet.as_ptr(),packet.len(),MSG_NOSIGNAL|MSG_DONTWAIT)},packet.len()as isize);
+        let mut out=[0;1024];assert_eq!(s.receive(&mut out).unwrap(),Some(20));
+    }
+
 }

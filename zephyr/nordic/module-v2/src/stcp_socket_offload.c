@@ -1,3 +1,4 @@
+#include <zephyr/sys/printk.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <string.h>
@@ -41,11 +42,57 @@ static int wait_rust_ready(struct stcp_ctx *ctx, int timeout_ms)
 }
 #endif
 
+/* FULL_DUPLEX_WAIT_FIX: socket dispatch enters with the FD mutex held.
+ * Drop only that mutex during a wait so the opposite direction can run.
+ * The waiter count pins the context until close has woken/drained all waits.
+ * All counter/state accesses occur with the FD mutex held.
+ */
+#ifdef CONFIG_STCP_RUST_CORE
+static int stcp_wait_io(struct stcp_ctx *ctx, k_timeout_t timeout)
+{
+    struct k_mutex *lock = ctx->fd_lock;
+
+    ctx->io_waiters++;
+    if (lock) {
+        (void)k_mutex_unlock(lock);
+    }
+    (void)k_sem_take(&ctx->rust_event, timeout);
+    if (lock) {
+        (void)k_mutex_lock(lock, K_FOREVER);
+    }
+    ctx->io_waiters--;
+    if (ctx->closing) {
+        errno = EBADF;
+        return -1;
+    }
+    return 0;
+}
+#endif
+
 static int stcp_close(void *obj)
 {
     struct stcp_ctx *ctx = obj;
     if (!ctx) return 0;
+    struct k_mutex *fd_lock = ctx->fd_lock;
+    /* close() dispatch differs between Zephyr versions. Acquire the FD lock
+     * only if the dispatcher did not already acquire it for this thread. */
+    bool acquired = fd_lock && fd_lock->owner != k_current_get();
+    if (acquired) {
+        (void)k_mutex_lock(fd_lock, K_FOREVER);
+    }
+    ctx->closing = true;
 #ifdef CONFIG_STCP_RUST_CORE
+    k_sem_give(&ctx->rust_event);
+    while (ctx->io_waiters != 0) {
+        if (fd_lock) {
+            (void)k_mutex_unlock(fd_lock);
+        }
+        k_sleep(K_MSEC(1));
+        if (fd_lock) {
+            (void)k_mutex_lock(fd_lock, K_FOREVER);
+        }
+        k_sem_give(&ctx->rust_event);
+    }
     stcp_rust_rx_stop(ctx);
     if (ctx->rust_ctx) {
         stcp_rust_set_carrier(ctx->rust_ctx, NULL);
@@ -55,10 +102,13 @@ static int stcp_close(void *obj)
 #endif
     if (ctx->carrier_fd >= 0) zsock_close(ctx->carrier_fd);
     stcp_ctx_free(ctx);
+    if (acquired) {
+        (void)k_mutex_unlock(fd_lock);
+    }
     return 0;
 }
 
-static ssize_t stcp_recv_common(struct stcp_ctx *ctx, void *buf, size_t len,
+static ssize_t stcp_recv_common_locked(struct stcp_ctx *ctx, void *buf, size_t len,
                                 int flags)
 {
 #ifdef CONFIG_STCP_RUST_CORE
@@ -66,6 +116,8 @@ static ssize_t stcp_recv_common(struct stcp_ctx *ctx, void *buf, size_t len,
                              ((flags & ZSOCK_MSG_DONTWAIT) != 0);
 
     while (true) {
+        if (ctx->closing) { errno = EBADF; return -1; }
+        if (ctx->read_shutdown) return 0;
         ssize_t rc = stcp_rust_recv(ctx->rust_ctx, buf, len, flags);
 
         if (rc >= 0) {
@@ -85,14 +137,33 @@ static ssize_t stcp_recv_common(struct stcp_ctx *ctx, void *buf, size_t len,
             errno = EAGAIN;
             return -1;
         }
-        (void)k_sem_take(&ctx->rust_event, K_MSEC(100));
+        if (stcp_wait_io(ctx, K_MSEC(100)) < 0) return -1;
     }
 #else
     return zsock_recv(ctx->carrier_fd, buf, len, flags);
 #endif
 }
 
-static ssize_t stcp_send_common(struct stcp_ctx *ctx, const void *buf,
+static ssize_t stcp_recv_common(struct stcp_ctx *ctx, void *buf,
+                                  size_t len, int flags)
+{
+#ifdef CONFIG_STCP_RUST_CORE
+    const bool nonblocking = ctx->nonblocking ||
+                             ((flags & ZSOCK_MSG_DONTWAIT) != 0);
+    while (k_mutex_lock(&ctx->rx_lock, K_NO_WAIT) != 0) {
+        if (ctx->closing) { errno = EBADF; return -1; }
+        if (nonblocking) { errno = EAGAIN; return -1; }
+        if (stcp_wait_io(ctx, K_MSEC(1)) < 0) return -1;
+    }
+    ssize_t rc = stcp_recv_common_locked(ctx, buf, len, flags);
+    (void)k_mutex_unlock(&ctx->rx_lock);
+    return rc;
+#else
+    return stcp_recv_common_locked(ctx, buf, len, flags);
+#endif
+}
+
+static ssize_t stcp_send_common_locked(struct stcp_ctx *ctx, const void *buf,
                                 size_t len, int flags)
 {
 #ifdef CONFIG_STCP_RUST_CORE
@@ -100,6 +171,8 @@ static ssize_t stcp_send_common(struct stcp_ctx *ctx, const void *buf,
                              ((flags & ZSOCK_MSG_DONTWAIT) != 0);
 
     while (true) {
+        if (ctx->closing) { errno = EBADF; return -1; }
+        if (ctx->write_shutdown) { errno = EPIPE; return -1; }
         ssize_t rc = stcp_rust_send(ctx->rust_ctx, buf, len, flags);
 
         if (rc >= 0) {
@@ -107,6 +180,8 @@ static ssize_t stcp_send_common(struct stcp_ctx *ctx, const void *buf,
         }
         if (rc != -EAGAIN) {
             int err = (int)-rc;
+            printk("STCP_SEND_FAIL len=%u rust_rc=%d carrier_fd=%d type=%d\n",
+                   (unsigned)len, (int)rc, ctx->carrier_fd, ctx->socket_type);
             LOG_ERR("STCP_SOCKET_SEND_FAIL ctx=%p carrier_fd=%d len=%u "
                     "flags=0x%x rust_rc=%d errno=%d nonblocking=%d",
                     (void *)ctx, ctx->carrier_fd, (unsigned int)len,
@@ -118,11 +193,30 @@ static ssize_t stcp_send_common(struct stcp_ctx *ctx, const void *buf,
             errno = EAGAIN;
             return -1;
         }
-        (void)k_sem_take(&ctx->rust_event, K_MSEC(10));
+        if (stcp_wait_io(ctx, K_MSEC(10)) < 0) return -1;
         (void)stcp_rust_tick(ctx->rust_ctx);
     }
 #else
     return zsock_send(ctx->carrier_fd, buf, len, flags);
+#endif
+}
+
+static ssize_t stcp_send_common(struct stcp_ctx *ctx, const void *buf,
+                                  size_t len, int flags)
+{
+#ifdef CONFIG_STCP_RUST_CORE
+    const bool nonblocking = ctx->nonblocking ||
+                             ((flags & ZSOCK_MSG_DONTWAIT) != 0);
+    while (k_mutex_lock(&ctx->tx_lock, K_NO_WAIT) != 0) {
+        if (ctx->closing) { errno = EBADF; return -1; }
+        if (nonblocking) { errno = EAGAIN; return -1; }
+        if (stcp_wait_io(ctx, K_MSEC(1)) < 0) return -1;
+    }
+    ssize_t rc = stcp_send_common_locked(ctx, buf, len, flags);
+    (void)k_mutex_unlock(&ctx->tx_lock);
+    return rc;
+#else
+    return stcp_send_common_locked(ctx, buf, len, flags);
 #endif
 }
 
@@ -401,7 +495,7 @@ static int stcp_ioctl(void *obj, unsigned int request, va_list args)
     }
 
     case ZFD_IOCTL_SET_LOCK:
-        (void)va_arg(args, struct k_mutex *);
+        ctx->fd_lock = va_arg(args, struct k_mutex *);
         return 0;
 
     default:
@@ -725,6 +819,9 @@ static int stcp_socket(int family, int type, int protocol)
     if (protocol == 0) protocol = IPPROTO_STCP;
 #ifdef CONFIG_STCP_RUST_CORE
     extern void stcp_memory_snapshot(const char *stage, size_t requested);
+    extern unsigned int stcp_rust_build_id(void);
+    printk("STCP_BUILD c=full-duplex-wait-20261011 rust=%08x source=%s\n",
+           stcp_rust_build_id(), __FILE__);
     stcp_memory_snapshot("socket-start", 0);
 #endif
     ctx = stcp_ctx_alloc();

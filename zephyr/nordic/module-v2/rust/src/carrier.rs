@@ -167,6 +167,15 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         (endpoint.shared.clone(), endpoint.side, inner.owner)
     };
 
+    // RX_POOL_ADMISSION_FIX: dropping DATA here leaves sequence/nonce
+    // unchanged and sends no ACK. UDP retransmits after recv drains space.
+    // Small ACK/handshake/control packets always pass, releasing TX capacity.
+    let admission_carrier = { ctx.inner.lock().carrier };
+    if reliability_required(admission_carrier)
+        && crate::session::is_ready_snapshot(ctx)
+        && bytes.len() > 512
+        && !crate::allocator::rx_pool_ready()
+    { return 0; }
     let queued = { incoming_queue(&shared, side).lock().push_slice(bytes) };
     if let Err(error) = queued {
         if error.errno() == -12 { rx_nomem_snapshot(ctx, 1, bytes.len()); }

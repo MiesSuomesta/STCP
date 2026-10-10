@@ -26,6 +26,12 @@ struct stcp_ctx {
     struct sockaddr_in local;
     struct sockaddr_in peer;
     struct k_mutex lock;
+    struct k_mutex tx_lock;
+    struct k_mutex rx_lock;
+    /* FD-table mutex protects socket state; never hold it while waiting. */
+    struct k_mutex *fd_lock;
+    unsigned int io_waiters;
+    bool closing;
 #ifdef CONFIG_STCP_RUST_CORE
     void *rust_ctx;
     struct k_sem rust_event;
@@ -33,6 +39,8 @@ struct stcp_ctx {
     K_KERNEL_STACK_MEMBER(rust_rx_stack, CONFIG_STCP_RUST_RX_STACK_SIZE);
     volatile bool rust_rx_stop;
     volatile bool rust_rx_running;
+    bool rust_rx_created;
+    uint8_t *rust_rx_buffer;
 #endif
 };
 

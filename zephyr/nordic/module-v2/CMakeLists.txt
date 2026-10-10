@@ -22,8 +22,10 @@ if(CONFIG_STCP_RUST_CORE)
     set(STCP_RUST_PROFILE release)
     set(STCP_RUST_LIB ${STCP_RUST_DIR}/target/${STCP_RUST_TARGET}/${STCP_RUST_PROFILE}/libstcp_kernel_core.a)
 
-    add_custom_command(
-        OUTPUT ${STCP_RUST_LIB}
+    # Run Cargo every build; Cargo tracks all Rust inputs incrementally.
+    # An OUTPUT-only rule previously omitted allocator/frame/queue/state files.
+    add_custom_target(stcp_rust_core_build
+        BYPRODUCTS ${STCP_RUST_LIB}
         COMMAND ${CMAKE_COMMAND} -E env
             CARGO_TERM_COLOR=always
             RUSTUP_TOOLCHAIN=${CONFIG_STCP_RUST_TOOLCHAIN}
@@ -46,7 +48,6 @@ if(CONFIG_STCP_RUST_CORE)
         COMMENT "Building shared Raspberry Pi Rust STCP core for ${STCP_RUST_TARGET}"
         VERBATIM
     )
-    add_custom_target(stcp_rust_core_build DEPENDS ${STCP_RUST_LIB})
     add_dependencies(stcp stcp_rust_core_build)
     zephyr_link_libraries(${STCP_RUST_LIB})
     message(STATUS "STCP Rust core enabled: ${STCP_RUST_LIB}")

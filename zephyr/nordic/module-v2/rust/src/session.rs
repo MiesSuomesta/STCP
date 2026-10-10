@@ -590,7 +590,7 @@ pub fn accept(
 #[inline]
 fn frame_payload_len(ctx: &StcpContext) -> usize {
     if ctx.proto == 254 {
-        STCP_UDP_FRAME_PAYLOAD_LEN
+        STCP_UDP_FRAME_PAYLOAD_LEN.min(1024)
     } else {
         STCP_STREAM_FRAME_PAYLOAD_LEN
     }
@@ -610,22 +610,36 @@ pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
         return false;
     }
 
+    let data_len = if reliable { data_len.min(1024) } else { data_len };
     let frame_count = if data_len == 0 {
         0
     } else {
         data_len.div_ceil(frame_payload_len(ctx))
     };
 
+    // TX_POOL_ADMISSION_FIX: poll readiness includes actual buffer capacity.
+    if reliable && !crate::allocator::tx_pool_ready(frame_count) { return false; }
     let inner = ctx.inner.lock();
     inner.state == SocketState::Ready &&
         inner.pending_frames.len() + frame_count <= STCP_SEND_WINDOW
+}
+
+// Failure-only observation; does not alter the result or socket state.
+fn send_stage<T>(ctx: &StcpContext, stage: usize,
+                 result: Result<T, StcpError>) -> Result<T, StcpError> {
+    if let Err(error) = &result {
+        if error.errno() != -11 {
+            crate::carrier::debug_event(920, ctx, stage, (-error.errno()) as usize);
+        }
+    }
+    result
 }
 
 pub fn send(
     ctx: &StcpContext,
     data: &[u8],
 ) -> Result<usize, StcpError> {
-    progress_handshake(ctx)?;
+    send_stage(ctx, 1, progress_handshake(ctx))?;
 
     if !is_ready(ctx) {
         return Err(StcpError::Again);
@@ -635,7 +649,7 @@ pub fn send(
     let reliable = crate::carrier::reliability_required(carrier_ptr);
 
     if reliable {
-        process_control_frames(ctx)?;
+        send_stage(ctx, 2, process_control_frames(ctx))?;
     }
 
     let (shared, side) = ready_connection(ctx)?;
@@ -644,6 +658,7 @@ pub fn send(
         return Err(StcpError::Closed);
     }
 
+    let data = if reliable { &data[..data.len().min(1024)] } else { data };
     let frame_count = if data.is_empty() {
         0
     } else {
@@ -657,6 +672,9 @@ pub fn send(
         }
     }
 
+    let _pool_reservation = if reliable {
+        Some(crate::allocator::TxPoolReservation::acquire(frame_count)?)
+    } else { None };
     let payload_limit = frame_payload_len(ctx);
     let mut position = 0usize;
 
@@ -724,12 +742,12 @@ pub fn send(
         frame[..STCP_HEADER_LEN].copy_from_slice(&header);
         frame[STCP_HEADER_LEN..STCP_HEADER_LEN + NONCE_LEN]
             .copy_from_slice(&nonce.to_be_bytes());
-        let encrypted_written = crypto.encrypt_into(
+        let encrypted_written = send_stage(ctx, 3, crypto.encrypt_into(
             nonce,
             &header,
             plaintext,
             &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
-        )?;
+        ))?;
         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
 
         if reliable {
@@ -755,7 +773,7 @@ pub fn send(
                 });
                 inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
             }
-            send_frame(ctx, &shared, side, &frame, 0)?;
+            send_stage(ctx, 4, send_frame(ctx, &shared, side, &frame, 0))?;
         } else {
             {
                 let mut inner = ctx.inner.lock();
@@ -771,7 +789,7 @@ pub fn send(
             }
             let send_result = send_frame(ctx, &shared, side, &frame, 0);
             ctx.inner.lock().tx_frame_scratch = frame;
-            send_result?;
+            send_stage(ctx, 4, send_result)?;
         }
         position = end;
     }
@@ -1105,6 +1123,7 @@ fn update_acknowledgment(
     acknowledgment: u64,
 ) -> Result<(), StcpError> {
     let mut inner = ctx.inner.lock();
+    let pending_before = inner.pending_frames.len();
 
     if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
         inner.state = SocketState::Error;
@@ -1140,6 +1159,13 @@ fn update_acknowledgment(
         }
     }
 
+    // ACK_SEND_WAKE_FIX: publish available capacity before waking send().
+    let released = inner.pending_frames.len() < pending_before;
+    let owner = inner.owner;
+    drop(inner);
+    if released {
+        wake_recv(owner);
+    }
     Ok(())
 }
 
@@ -1153,15 +1179,16 @@ fn queue_ack(
         return Ok(());
     }
 
+    let mut sequence = sequence;
     let should_send = {
         let mut inner = ctx.inner.lock();
 
-        if inner
-            .last_ack_sent
-            .map(|acknowledged| acknowledged >= sequence)
-            .unwrap_or(false)
-        {
-            return Ok(());
+        // DUPLICATE_ACK_RECOVERY_FIX: retransmit the latest cumulative ACK.
+        if let Some(acknowledged) = inner.last_ack_sent {
+            if acknowledged >= sequence {
+                if !force { return Ok(()); }
+                sequence = acknowledged;
+            }
         }
 
         inner.rx_frames_since_ack =

@@ -1,9 +1,13 @@
 use core::{
     cell::UnsafeCell,
-    hint::spin_loop,
     ops::{Deref, DerefMut},
     sync::atomic::{AtomicBool, Ordering},
 };
+
+// Zephyr-only thread wait hook. Linux retains its own locking implementation.
+unsafe extern "C" {
+    fn stcp_rust_lock_wait();
+}
 
 pub struct SpinLock<T> {
     locked: AtomicBool,
@@ -33,7 +37,9 @@ impl<T> SpinLock<T> {
             .is_err()
         {
             while self.locked.load(Ordering::Relaxed) {
-                spin_loop();
+                // A busy high-priority waiter can starve a preempted owner
+                // forever on the single-core nRF9151. Block briefly instead.
+                unsafe { stcp_rust_lock_wait() };
             }
         }
 

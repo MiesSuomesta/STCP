@@ -15,6 +15,8 @@ struct stcp_ctx *stcp_ctx_alloc(void)
             pool[i].carrier_fd = -1;
             pool[i].state = STCP_CREATED;
             k_mutex_init(&pool[i].lock);
+            k_mutex_init(&pool[i].tx_lock);
+            k_mutex_init(&pool[i].rx_lock);
 #ifdef CONFIG_STCP_RUST_CORE
             k_sem_init(&pool[i].rust_event, 0, 1);
 #endif

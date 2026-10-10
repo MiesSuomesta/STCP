@@ -34,21 +34,14 @@ static void rust_rx_thread(void *p1, void *p2, void *p3)
     uint8_t *buffer;
     ARG_UNUSED(p2); ARG_UNUSED(p3);
 
-    buffer = stcp_buffer_alloc(CONFIG_STCP_RUST_RX_BUFFER_SIZE);
-    if (buffer == NULL) {
-        LOG_ERR("RX thread buffer allocation failed: bytes=%u",
-                CONFIG_STCP_RUST_RX_BUFFER_SIZE);
-        ctx->rust_rx_running = false;
-        k_sem_give(&ctx->rust_event);
-        return;
-    }
+    buffer = ctx->rust_rx_buffer;
 
     STCP_RX_INF("RX thread started: stack=%u heap_buffer=%u",
             CONFIG_STCP_RUST_RX_STACK_SIZE,
             CONFIG_STCP_RUST_RX_BUFFER_SIZE);
     log_current_stack("thread-start");
     while (!ctx->rust_rx_stop && ctx->carrier_fd >= 0) {
-        ssize_t n = zsock_recv(ctx->carrier_fd, buffer, CONFIG_STCP_RUST_RX_BUFFER_SIZE, 0);
+        ssize_t n = zsock_recv(ctx->carrier_fd, buffer, CONFIG_STCP_RUST_RX_BUFFER_SIZE, ZSOCK_MSG_DONTWAIT);
         if (n > 0) {
             int rc;
             if (IS_ENABLED(CONFIG_STCP_RUST_TRACE_WIRE)) {
@@ -95,15 +88,29 @@ static void rust_rx_thread(void *p1, void *p2, void *p3)
     }
     log_current_stack("thread-exit");
     (void)stcp_buffer_free(buffer);
+    ctx->rust_rx_buffer = NULL;
     ctx->rust_rx_running = false;
     k_sem_give(&ctx->rust_event);
 }
 
+/* RX_POOL_LIFETIME_FIX: close joins before Rust context/stack reuse. */
 int stcp_rust_rx_start(struct stcp_ctx *ctx)
 {
-    if (!ctx || ctx->rust_rx_running) return 0;
+    if (!ctx) return -EINVAL;
+    if (ctx->rust_rx_running) return 0;
+    if (ctx->rust_rx_created) {
+        (void)k_thread_join(&ctx->rust_rx_thread, K_FOREVER);
+        ctx->rust_rx_created = false;
+    }
+    ctx->rust_rx_buffer = stcp_buffer_alloc(CONFIG_STCP_RUST_RX_BUFFER_SIZE);
+    if (!ctx->rust_rx_buffer) {
+        LOG_ERR("RX thread buffer allocation failed: bytes=%u",
+                CONFIG_STCP_RUST_RX_BUFFER_SIZE);
+        return -ENOMEM;
+    }
     ctx->rust_rx_stop = false;
     ctx->rust_rx_running = true;
+    ctx->rust_rx_created = true;
     k_thread_create(&ctx->rust_rx_thread, ctx->rust_rx_stack,
                     K_KERNEL_STACK_SIZEOF(ctx->rust_rx_stack),
                     rust_rx_thread, ctx, NULL, NULL,
@@ -114,12 +121,13 @@ int stcp_rust_rx_start(struct stcp_ctx *ctx)
 
 void stcp_rust_rx_stop(struct stcp_ctx *ctx)
 {
-    if (!ctx || !ctx->rust_rx_running) return;
+    if (!ctx || !ctx->rust_rx_created) return;
     ctx->rust_rx_stop = true;
-    if (ctx->carrier_fd >= 0) (void)zsock_shutdown(ctx->carrier_fd, ZSOCK_SHUT_RDWR);
-    k_sem_take(&ctx->rust_event, K_MSEC(250));
-    if (ctx->rust_rx_running) {
-        k_thread_abort(&ctx->rust_rx_thread);
-        ctx->rust_rx_running = false;
-    }
+    if (ctx->carrier_fd >= 0)
+        (void)zsock_shutdown(ctx->carrier_fd, ZSOCK_SHUT_RDWR);
+    /* rust_event is a data notification, not a thread-exit semaphore.
+     * RX polls with DONTWAIT, so UDP shutdown need not unblock recv().
+     * Never abort a thread inside Rust/crypto: cleanup must run. */
+    (void)k_thread_join(&ctx->rust_rx_thread, K_FOREVER);
+    ctx->rust_rx_created = false;
 }

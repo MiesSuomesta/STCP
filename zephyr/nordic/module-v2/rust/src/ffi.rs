@@ -378,3 +378,7 @@ pub extern "C" fn stcp_rust_crypto_selftest() -> c_int {
 pub extern "C" fn stcp_rust_wire_header_len() -> usize {
     crate::frame::STCP_HEADER_LEN
 }
+
+// ABI marker changes with this troubleshooting build; C links and prints it.
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_build_id() -> u32 { 0x261010e1 }

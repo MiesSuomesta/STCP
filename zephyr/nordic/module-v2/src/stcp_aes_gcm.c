@@ -1,5 +1,8 @@
 #include <stcp/stcp_buffer_pool.h>
 #include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(stcp_gcm_diag, LOG_LEVEL_ERR);
+/* STCP_GCM_DIAGNOSTIC_FIX: failure-only logs; never log keys or plaintext. */
 #include <errno.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -40,6 +43,9 @@ static int stcp_gcm_key_import(const uint8_t *key,
     psa_status_t status = psa_import_key(&attr, key, 32, id);
     psa_reset_key_attributes(&attr);
 
+    if (status != PSA_SUCCESS)
+        LOG_ERR("STCP_GCM_IMPORT_FAIL status=%d usage=%u",
+                (int)status, (unsigned)usage);
     return status == PSA_SUCCESS ? 0 : stcp_gcm_error(status);
 }
 
@@ -78,6 +84,8 @@ int stcp_kernel_aes256_gcm_encrypt(
     (void)psa_destroy_key(id);
 
     if (status != PSA_SUCCESS || written != plain_len + STCP_GCM_TAG_LEN) {
+        LOG_ERR("STCP_GCM_ENCRYPT_FAIL status=%d plain=%zu aad=%zu out=%zu written=%zu",
+                (int)status, plain_len, aad_len, out_len, written);
         memset(out, 0, plain_len + STCP_GCM_TAG_LEN);
         return status == PSA_SUCCESS ? -EIO : stcp_gcm_error(status);
     }

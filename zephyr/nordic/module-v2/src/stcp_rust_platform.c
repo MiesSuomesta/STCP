@@ -183,6 +183,11 @@ void stcp_kernel_wake_recv(void *owner)
 void stcp_kernel_debug_event(uint32_t event, uintptr_t ctx,
                              uintptr_t arg0, uintptr_t arg1)
 {
+    if (event == 920) {
+        printk("STCP_SEND_STAGE_FAIL stage=%u errno=%u ctx=%p\n",
+               (unsigned)arg0, (unsigned)arg1, (void *)ctx);
+        return;
+    }
     if (event >= 900 && event <= 904) {
         LOG_ERR("STCP_MEM event=%u ctx=%p a=%u b=%u", event,
                 (void *)ctx, (unsigned)arg0, (unsigned)arg1);
@@ -677,6 +682,28 @@ ssize_t stcp_carrier_send(void *carrier, const uint8_t *data,
                         "Rust STCP TX");
     }
 
+    /* UDP_ATOMIC_SEND_FIX: never split one frame across datagrams. */
+    if (ctx->socket_type == SOCK_DGRAM) {
+        ssize_t rc;
+        int saved_errno;
+        do {
+            errno = 0;
+            rc = zsock_send(ctx->carrier_fd, data, len, flags);
+            saved_errno = errno;
+        } while (rc < 0 && saved_errno == EINTR);
+        if (rc < 0) {
+            LOG_ERR("STCP_UDP_TX_FAIL fd=%d len=%zu rc=%d errno=%d",
+                    ctx->carrier_fd, len, (int)rc, saved_errno);
+            return -(saved_errno ? saved_errno : EIO);
+        }
+        if ((size_t)rc != len) {
+            LOG_ERR("STCP_UDP_TX_SHORT fd=%d len=%zu rc=%d",
+                    ctx->carrier_fd, len, (int)rc);
+            return -EIO;
+        }
+        return rc;
+    }
+
     while (done < len) {
         ssize_t rc = zsock_send(ctx->carrier_fd,
                                 data + done,
@@ -702,4 +729,15 @@ ssize_t stcp_carrier_send(void *carrier, const uint8_t *data,
     }
 
     return (ssize_t)done;
+}
+
+// STCP_ZEPHYR_LOCK_WAIT_FIX
+/* All shared Rust-core callers run in thread context. k_yield() is not
+ * sufficient: a priority-5 waiter must allow a priority-7 owner to run.
+ * Sleep only on contention; keep the uncontended atomic fast path intact.
+ */
+void stcp_rust_lock_wait(void)
+{
+    __ASSERT_NO_MSG(!k_is_in_isr());
+    k_sleep(K_MSEC(1));
 }

@@ -1374,6 +1374,7 @@ fn update_acknowledgment(
     acknowledgment: u64,
 ) -> Result<(), StcpError> {
     let mut inner = ctx.inner.lock();
+    let pending_before = inner.pending_frames.len();
 
     if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
         inner.state = SocketState::Error;
@@ -1409,6 +1410,13 @@ fn update_acknowledgment(
         }
     }
 
+    // ACK_SEND_WAKE_FIX: publish available capacity before waking send().
+    let released = inner.pending_frames.len() < pending_before;
+    let owner = inner.owner;
+    drop(inner);
+    if released {
+        wake_recv(owner);
+    }
     Ok(())
 }
 
@@ -1422,15 +1430,16 @@ fn queue_ack(
         return Ok(());
     }
 
+    let mut sequence = sequence;
     let should_send = {
         let mut inner = ctx.inner.lock();
 
-        if inner
-            .last_ack_sent
-            .map(|acknowledged| acknowledged >= sequence)
-            .unwrap_or(false)
-        {
-            return Ok(());
+        // DUPLICATE_ACK_RECOVERY_FIX: retransmit the latest cumulative ACK.
+        if let Some(acknowledged) = inner.last_ack_sent {
+            if acknowledged >= sequence {
+                if !force { return Ok(()); }
+                sequence = acknowledged;
+            }
         }
 
         inner.rx_frames_since_ack =

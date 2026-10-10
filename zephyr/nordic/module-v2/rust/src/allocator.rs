@@ -50,3 +50,27 @@ fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
         core::hint::spin_loop();
     }
 }
+
+// POOL_FLOW_FIX: transient reservations never hold the context spinlock.
+unsafe extern "C" {
+    fn stcp_buffer_tx_begin(frames: usize) -> bool;
+    fn stcp_buffer_tx_end();
+    fn stcp_buffer_tx_ready(frames: usize) -> bool;
+    fn stcp_buffer_rx_ready() -> bool;
+}
+pub(crate) struct TxPoolReservation;
+impl TxPoolReservation {
+    pub(crate) fn acquire(frames: usize) -> Result<Self, crate::error::StcpError> {
+        if unsafe { stcp_buffer_tx_begin(frames) } { Ok(Self) }
+        else { Err(crate::error::StcpError::Again) }
+    }
+}
+impl Drop for TxPoolReservation {
+    fn drop(&mut self) { unsafe { stcp_buffer_tx_end() }; }
+}
+pub(crate) fn tx_pool_ready(frames: usize) -> bool {
+    unsafe { stcp_buffer_tx_ready(frames) }
+}
+pub(crate) fn rx_pool_ready() -> bool {
+    unsafe { stcp_buffer_rx_ready() }
+}

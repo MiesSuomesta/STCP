@@ -24,9 +24,6 @@ struct bench_result {
     uint32_t bytes_tx;
     uint32_t bytes_rx;
     int64_t elapsed_ms;
-    uint64_t tx_bps;
-    uint64_t rx_bps;
-    uint64_t aggregate_bps;
 };
 
 struct bench_summary {

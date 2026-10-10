@@ -145,11 +145,6 @@ static int cmd_config_transport(const struct shell *sh, size_t argc, char **argv
 }
 
 
-static uint64_t mib_micro(uint64_t bps)
-{
-    return (bps * 1000000ULL) / (8ULL * 1048576ULL);
-}
-
 static void emit_json_parts(const struct shell *sh, const char *json, int length)
 {
     enum { PART = 88 };
@@ -167,35 +162,20 @@ static void emit_machine_result(const struct shell *sh,
 {
     static char json[1024];
     const struct bench_result *r = bench_get_last_result(direction);
-    uint32_t operations;
-    uint64_t tx_mib, rx_mib, combined_mib, ops_micro;
     int written;
-
     if (!r || !cfg) return;
-    operations = (cfg->total_bytes + cfg->chunk_size - 1U) / cfg->chunk_size;
-    tx_mib = mib_micro(r->tx_bps);
-    rx_mib = mib_micro(r->rx_bps);
-    combined_mib = tx_mib + rx_mib;
-    ops_micro = r->elapsed_ms > 0 ? ((uint64_t)operations * 1000ULL * 1000000ULL) / (uint64_t)r->elapsed_ms : 0;
-
     written = snprintk(json, sizeof(json),
-        "{\"schema_version\":2,\"platform\":\"zephyr-nrf9151\"," 
-        "\"carrier\":\"ethernet\",\"mode\":\"%s\",\"transport\":\"%s\"," 
-        "\"direction\":\"%s\",\"clients\":1,\"payload_bytes\":%u," 
-        "\"pipeline\":1,\"total_bytes\":%u,\"elapsed_ms\":%lld," 
-        "\"operations\":%u,\"errors\":%u,\"status\":%d," 
-        "\"bytes_tx\":%u,\"bytes_rx\":%u," 
-        "\"tx_mib_s\":%llu.%06llu,\"rx_mib_s\":%llu.%06llu," 
-        "\"combined_mib_s\":%llu.%06llu,\"operations_s\":%llu.%06llu," 
-        "\"connect_mean_ms\":null,\"rtt_p50_ms\":null,\"rtt_p95_ms\":null," 
-        "\"rtt_p99_ms\":null,\"client_cpu_percent\":null}",
-        bench_transport_name(cfg->transport), bench_transport_name(cfg->transport),
-        direction, cfg->chunk_size, cfg->total_bytes, r->elapsed_ms, operations,
-        rc < 0 ? 1U : 0U, rc, r->bytes_tx, r->bytes_rx,
-        tx_mib / 1000000ULL, tx_mib % 1000000ULL,
-        rx_mib / 1000000ULL, rx_mib % 1000000ULL,
-        combined_mib / 1000000ULL, combined_mib % 1000000ULL,
-        ops_micro / 1000000ULL, ops_micro % 1000000ULL);
+        "{\"schema_version\":3,\"platform\":\"zephyr-nrf9151\","
+        "\"carrier\":\"%s\",\"transport\":\"%s\",\"direction\":\"%s\","
+        "\"payload_bytes\":%u,\"total_bytes\":%u,\"elapsed_ms\":%lld,"
+        "\"status\":%d,\"bytes_tx\":%u,\"bytes_rx\":%u,\"rates_on_server\":true}",
+#if defined(CONFIG_STCP_TRANSPORT_ETHERNET)
+        "ethernet",
+#else
+        "lte",
+#endif
+        bench_transport_name(cfg->transport), direction, cfg->chunk_size,
+        cfg->total_bytes, (long long)r->elapsed_ms, rc, r->bytes_tx, r->bytes_rx);
 
     if (written < 0 || written >= (int)sizeof(json)) {
         shell_error(sh, "Benchmark JSON formatting failed/truncated: %d", written);

@@ -11,6 +11,7 @@
 
 #include <stcp/stcp.h>
 #include "echo_benchmark.h"
+#include "ben2_metrics.h"
 #if defined(CONFIG_NRF_MODEM_LIB)
 #include "stcp_lte_transport.h"
 #include "modem_status.h"
@@ -19,7 +20,7 @@
 LOG_MODULE_REGISTER(echo_benchmark, LOG_LEVEL_INF);
 
 #define BENCH_MAGIC 0x42454e32U /* BEN2 */
-#define BENCH_VERSION 1U
+#define BENCH_VERSION BEN2_VERSION
 #define BENCH_MODE_UPLOAD 1U
 #define BENCH_MODE_DOWNLOAD 2U
 #define BENCH_MODE_FULL 3U
@@ -40,6 +41,16 @@ struct bench_reply {
     uint32_t bytes_received;
     uint32_t bytes_sent;
 } __packed;
+
+struct raw_direction {
+    uint64_t bytes, elapsed_us, calls, eagain, errors;
+};
+static struct raw_direction raw_tx, raw_rx;
+static uint64_t raw_connect_us, raw_elapsed_us;
+static uint64_t clock_us(void)
+{
+    return k_ticks_to_us_floor64(k_uptime_ticks());
+}
 
 static const struct bench_config *active_cfg;
 static struct bench_summary last_summary;
@@ -155,7 +166,7 @@ static int configure_socket_timeouts(int fd, uint32_t timeout_ms)
         recv_errno = errno;
     }
 
-    LOG_ERR("APP SOCKET TIMEOUTS fd=%d timeout_ms=%u "
+    LOG_DBG("APP SOCKET TIMEOUTS fd=%d timeout_ms=%u "
             "snd_rc=%d snd_errno=%d rcv_rc=%d rcv_errno=%d",
             fd, timeout_ms, rc_send, send_errno, rc_recv, recv_errno);
 
@@ -165,7 +176,7 @@ static int configure_socket_timeouts(int fd, uint32_t timeout_ms)
     return 0;
 }
 
-static int connect_server(const struct bench_config *cfg)
+static int connect_server_impl(const struct bench_config *cfg)
 {
     struct zsock_addrinfo hints = {.ai_family = AF_INET, .ai_socktype = SOCK_STREAM};
     struct zsock_addrinfo *res = NULL;
@@ -177,7 +188,7 @@ static int connect_server(const struct bench_config *cfg)
     char *port_end = NULL;
     int fd, rc;
 
-    LOG_ERR("APP CONNECT START transport=%s host=%s port=%s",
+    LOG_DBG("APP CONNECT START transport=%s host=%s port=%s",
             bench_transport_name(cfg->transport), cfg->host, cfg->port);
 
     /* Avoid DNS entirely when the configured host is already an IPv4
@@ -197,13 +208,13 @@ static int connect_server(const struct bench_config *cfg)
     if (rc == 1) {
         connect_addr = (const struct sockaddr *)&literal_peer;
         connect_addrlen = sizeof(literal_peer);
-        LOG_ERR("APP RESOLVE IPV4 FAST PATH host=%s port=%lu family=%d addrlen=%u",
+        LOG_DBG("APP RESOLVE IPV4 FAST PATH host=%s port=%lu family=%d addrlen=%u",
                 cfg->host, port_value, literal_peer.sin_family,
                 (unsigned int)connect_addrlen);
     } else {
-        LOG_ERR("APP DNS LOOKUP START host=%s port=%s", cfg->host, cfg->port);
+        LOG_DBG("APP DNS LOOKUP START host=%s port=%s", cfg->host, cfg->port);
         rc = zsock_getaddrinfo(cfg->host, cfg->port, &hints, &res);
-        LOG_ERR("APP DNS LOOKUP RETURN rc=%d result=%p", rc, res);
+        LOG_DBG("APP DNS LOOKUP RETURN rc=%d result=%p", rc, res);
         if (rc || !res) {
             LOG_ERR("APP CONNECT EXIT B: DNS failed host=%s port=%s rc=%d; "
                     "use 'stcp config host <IPv4>' to bypass DNS",
@@ -213,18 +224,18 @@ static int connect_server(const struct bench_config *cfg)
         resolved_with_dns = true;
         connect_addr = res->ai_addr;
         connect_addrlen = res->ai_addrlen;
-        LOG_ERR("APP DNS RESULT family=%d socktype=%d protocol=%d addrlen=%u",
+        LOG_DBG("APP DNS RESULT family=%d socktype=%d protocol=%d addrlen=%u",
                 res->ai_family, res->ai_socktype, res->ai_protocol,
                 (unsigned int)connect_addrlen);
     }
 
     errno = 0;
     if (cfg->transport == BENCH_TRANSPORT_STCP) {
-        LOG_ERR("APP SOCKET CALL family=AF_STCP type=SOCK_STREAM protocol=%d",
+        LOG_DBG("APP SOCKET CALL family=AF_STCP type=SOCK_STREAM protocol=%d",
                 IPPROTO_STCP);
         fd = zsock_socket(AF_STCP, SOCK_STREAM, IPPROTO_STCP);
     } else if (cfg->transport == BENCH_TRANSPORT_TCP) {
-        LOG_ERR("APP SOCKET CALL family=AF_INET type=SOCK_STREAM protocol=TCP");
+        LOG_DBG("APP SOCKET CALL family=AF_INET type=SOCK_STREAM protocol=TCP");
         fd = zsock_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     } else {
         LOG_ERR("APP CONNECT EXIT B: unsupported transport=%d",
@@ -235,7 +246,7 @@ static int connect_server(const struct bench_config *cfg)
         return -ENOTSUP;
     }
     if (fd < 0) {
-        LOG_ERR("APP SOCKET RETURN fd=%d errno=%d", fd, errno);
+        LOG_DBG("APP SOCKET RETURN fd=%d errno=%d", fd, errno);
         rc = -errno;
         LOG_ERR("APP CONNECT EXIT C: socket failed rc=%d", rc);
         if (resolved_with_dns) {
@@ -243,7 +254,7 @@ static int connect_server(const struct bench_config *cfg)
         }
         return rc;
     }
-    LOG_ERR("APP SOCKET RETURN fd=%d success", fd);
+    LOG_DBG("APP SOCKET RETURN fd=%d success", fd);
 
     (void)configure_socket_timeouts(fd, active_cfg->timeout_ms);
 
@@ -259,33 +270,33 @@ static int connect_server(const struct bench_config *cfg)
 
 #if defined(CONFIG_BENCH_STCP_BLOCKING_CONNECT)
     if (cfg->transport == BENCH_TRANSPORT_STCP) {
-        LOG_ERR("APP SOCKET FLAGS transport=stcp mode=blocking "
+        LOG_DBG("APP SOCKET FLAGS transport=stcp mode=blocking "
                 "nonblock_setup=skipped feature=BENCH_STCP_BLOCKING_CONNECT");
         errno = 0;
-        LOG_ERR("APP ZSOCK_CONNECT CALL fd=%d addrlen=%u mode=blocking",
+        LOG_DBG("APP ZSOCK_CONNECT CALL fd=%d addrlen=%u mode=blocking",
                 fd, (unsigned int)connect_addrlen);
         rc = zsock_connect(fd, connect_addr, connect_addrlen);
         if (rc < 0) {
             int saved_errno = errno;
             rc = -saved_errno;
-            LOG_ERR("APP ZSOCK_CONNECT RETURN fd=%d rc=-1 errno=%d "
+            LOG_DBG("APP ZSOCK_CONNECT RETURN fd=%d rc=-1 errno=%d "
                     "mapped_rc=%d mode=blocking",
                     fd, saved_errno, rc);
             goto fail;
         }
-        LOG_ERR("APP ZSOCK_CONNECT RETURN fd=%d rc=0 mode=blocking", fd);
+        LOG_DBG("APP ZSOCK_CONNECT RETURN fd=%d rc=0 mode=blocking", fd);
     } else
 #endif
     {
         rc = set_nonblocking(fd);
-        LOG_ERR("APP NONBLOCK RETURN fd=%d rc=%d errno=%d", fd, rc, errno);
+        LOG_DBG("APP NONBLOCK RETURN fd=%d rc=%d errno=%d", fd, rc, errno);
         if (rc < 0) goto fail;
 
         errno = 0;
-        LOG_ERR("APP ZSOCK_CONNECT CALL fd=%d addrlen=%u mode=nonblocking",
+        LOG_DBG("APP ZSOCK_CONNECT CALL fd=%d addrlen=%u mode=nonblocking",
                 fd, (unsigned int)connect_addrlen);
         rc = zsock_connect(fd, connect_addr, connect_addrlen);
-        LOG_ERR("APP ZSOCK_CONNECT RETURN fd=%d rc=%d errno=%d mode=nonblocking",
+        LOG_DBG("APP ZSOCK_CONNECT RETURN fd=%d rc=%d errno=%d mode=nonblocking",
                 fd, rc, errno);
         if (rc < 0) {
             if (errno != EINPROGRESS && errno != EAGAIN &&
@@ -294,19 +305,19 @@ static int connect_server(const struct bench_config *cfg)
                 LOG_ERR("APP CONNECT EXIT D: immediate failure rc=%d", rc);
                 goto fail;
             }
-            LOG_ERR("APP POLL CONNECT fd=%d timeout_ms=%u",
+            LOG_DBG("APP POLL CONNECT fd=%d timeout_ms=%u",
                     fd, active_cfg->timeout_ms);
             rc = wait_socket_ready(fd, ZSOCK_POLLOUT,
                                    k_uptime_get() + active_cfg->timeout_ms);
-            LOG_ERR("APP POLL CONNECT RETURN fd=%d rc=%d", fd, rc);
+            LOG_DBG("APP POLL CONNECT RETURN fd=%d rc=%d", fd, rc);
             if (rc < 0) goto fail;
             int err = 0; socklen_t sl = sizeof(err);
             if (zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &sl) < 0) {
                 rc = -errno;
-                LOG_ERR("APP SO_ERROR READ FAILED fd=%d rc=%d", fd, rc);
+                LOG_DBG("APP SO_ERROR READ FAILED fd=%d rc=%d", fd, rc);
                 goto fail;
             }
-            LOG_ERR("APP SO_ERROR fd=%d error=%d", fd, err);
+            LOG_DBG("APP SO_ERROR fd=%d error=%d", fd, err);
             if (err) { rc = -err; goto fail; }
         }
         /* Keep the connected socket non-blocking for the benchmark data plane.
@@ -315,7 +326,7 @@ static int connect_server(const struct bench_config *cfg)
          * zsock_send()/zsock_recv() when SO_SNDTIMEO/SO_RCVTIMEO are rejected
          * by a socket provider/offload.
          */
-        LOG_ERR("APP DATA PLANE fd=%d mode=nonblocking", fd);
+        LOG_DBG("APP DATA PLANE fd=%d mode=nonblocking", fd);
     }
 
 #if defined(CONFIG_BENCH_STCP_BLOCKING_CONNECT)
@@ -324,7 +335,7 @@ static int connect_server(const struct bench_config *cfg)
          * Keep STCP in blocking mode after a successful blocking connect.
          * Native TCP continues to use the non-blocking + poll data plane.
          */
-        LOG_ERR("APP DATA PLANE fd=%d transport=stcp mode=blocking "
+        LOG_DBG("APP DATA PLANE fd=%d transport=stcp mode=blocking "
                 "nonblock_setup=skipped feature=BENCH_STCP_BLOCKING_CONNECT",
                 fd);
     }
@@ -341,6 +352,46 @@ fail:
         zsock_freeaddrinfo(res);
     }
     return rc;
+}
+
+static int connect_server(const struct bench_config *cfg)
+{
+    memset(&raw_tx, 0, sizeof(raw_tx));
+    memset(&raw_rx, 0, sizeof(raw_rx));
+    uint64_t start = clock_us();
+    int fd = connect_server_impl(cfg);
+    raw_connect_us = clock_us() - start;
+    return fd;
+}
+
+static int send_metrics(int fd)
+{
+    struct ben2_metrics m = {
+        .carrier =
+#if defined(CONFIG_STCP_TRANSPORT_ETHERNET)
+            BEN2_CARRIER_ETHERNET,
+#else
+            BEN2_CARRIER_LTE,
+#endif
+        .tx_bytes = raw_tx.bytes, .rx_bytes = raw_rx.bytes,
+        .tx_us = raw_tx.elapsed_us, .rx_us = raw_rx.elapsed_us,
+        .send_calls = raw_tx.calls, .recv_calls = raw_rx.calls,
+        .eagain = raw_tx.eagain + raw_rx.eagain,
+        .errors = raw_tx.errors + raw_rx.errors,
+        .connect_us = raw_connect_us,
+        .elapsed_us = raw_elapsed_us,
+    };
+#if defined(CONFIG_THREAD_STACK_INFO) && defined(CONFIG_INIT_STACKS)
+    size_t unused = 0;
+    if (k_thread_stack_space_get(k_current_get(), &unused) == 0) {
+        size_t size = k_current_get()->stack_info.size;
+        m.stack_free_bytes = unused;
+        m.stack_used_bytes = size >= unused ? size - unused : 0;
+    }
+#endif
+    uint8_t record[BEN2_METRICS_SIZE];
+    ben2_metrics_encode(record, &m);
+    return send_all(fd, record, sizeof(record));
 }
 
 static void fill_pattern(uint8_t *buf, size_t len, uint32_t offset, uint8_t salt)
@@ -363,20 +414,20 @@ static int send_request(int fd, uint32_t mode, const struct bench_config *cfg)
         .total_bytes = sys_cpu_to_be32(cfg->total_bytes),
     };
 
-    LOG_ERR("BENCHCHK R01 SEND_ALL ENTER fd=%d mode=%u len=%u",
+    LOG_DBG("BENCHCHK R01 SEND_ALL ENTER fd=%d mode=%u len=%u",
             fd, mode, (unsigned int)sizeof(r));
     int rc = send_all(fd, &r, sizeof(r));
-    LOG_ERR("BENCHCHK R02 SEND_ALL RETURN fd=%d mode=%u rc=%d",
+    LOG_DBG("BENCHCHK R02 SEND_ALL RETURN fd=%d mode=%u rc=%d",
             fd, mode, rc);
     return rc;
 }
 
 static int recv_reply(int fd, uint32_t mode, struct bench_reply *reply)
 {
-    LOG_ERR("BENCHCHK P01 RECV_ALL ENTER fd=%d mode=%u len=%u",
+    LOG_DBG("BENCHCHK P01 RECV_ALL ENTER fd=%d mode=%u len=%u",
             fd, mode, (unsigned int)sizeof(*reply));
     int rc = recv_all(fd, reply, sizeof(*reply));
-    LOG_ERR("BENCHCHK P02 RECV_ALL RETURN fd=%d mode=%u rc=%d",
+    LOG_DBG("BENCHCHK P02 RECV_ALL RETURN fd=%d mode=%u rc=%d",
             fd, mode, rc);
 
     if (rc < 0) {
@@ -385,7 +436,7 @@ static int recv_reply(int fd, uint32_t mode, struct bench_reply *reply)
 
     if (sys_be32_to_cpu(reply->magic) != BENCH_MAGIC ||
         sys_be32_to_cpu(reply->mode) != mode) {
-        LOG_ERR("BENCHCHK P03 REPLY INVALID fd=%d mode=%u magic=0x%08x reply_mode=%u",
+        LOG_DBG("BENCHCHK P03 REPLY INVALID fd=%d mode=%u magic=0x%08x reply_mode=%u",
                 fd, mode,
                 (unsigned int)sys_be32_to_cpu(reply->magic),
                 (unsigned int)sys_be32_to_cpu(reply->mode));
@@ -393,24 +444,19 @@ static int recv_reply(int fd, uint32_t mode, struct bench_reply *reply)
     }
 
     rc = -(int)sys_be32_to_cpu(reply->status);
-    LOG_ERR("BENCHCHK P04 REPLY VALID fd=%d mode=%u status_rc=%d rx=%u tx=%u",
+    LOG_DBG("BENCHCHK P04 REPLY VALID fd=%d mode=%u status_rc=%d rx=%u tx=%u",
             fd, mode, rc,
             (unsigned int)sys_be32_to_cpu(reply->bytes_received),
             (unsigned int)sys_be32_to_cpu(reply->bytes_sent));
     return rc;
 }
 
-static uint64_t bps(uint64_t bytes, int64_t elapsed_ms)
-{
-    return (bytes * 8ULL * 1000ULL) / (uint64_t)MAX(elapsed_ms, 1);
-}
-
-
 static const char *result_status(int status)
 {
     return status == 0 ? "OK" : "FAILED";
 }
 
+#if defined(CONFIG_NRF_MODEM_LIB)
 static const char *rat_name(int act)
 {
     switch (act) {
@@ -420,11 +466,13 @@ static const char *rat_name(int act)
     }
 }
 
-static void log_rate_line(const char *name, const struct bench_result *r)
+#endif
+
+static void log_result_line(const char *name, const struct bench_result *r)
 {
-    LOG_INF("%-10s status=%s(%d) elapsed=%lld ms TX=%llu bit/s RX=%llu bit/s aggregate=%llu bit/s",
+    LOG_INF("%s status=%s(%d) elapsed=%lld ms TX=%u bytes RX=%u bytes; rates on server",
             name, result_status(r->status), r->status, r->elapsed_ms,
-            r->tx_bps, r->rx_bps, r->aggregate_bps);
+            r->bytes_tx, r->bytes_rx);
 }
 
 void bench_print_last_summary(const struct bench_config *cfg)
@@ -452,187 +500,91 @@ void bench_print_last_summary(const struct bench_config *cfg)
 #else
     LOG_INF("Network backend=Ethernet/native Zephyr stack");
 #endif
-    log_rate_line("UPLOAD", &last_summary.upload);
-    log_rate_line("DOWNLOAD", &last_summary.download);
-    log_rate_line("FULL", &last_summary.full);
+    log_result_line("UPLOAD", &last_summary.upload);
+    log_result_line("DOWNLOAD", &last_summary.download);
+    log_result_line("FULL", &last_summary.full);
     LOG_INF("===================================================");
 }
 
-static void report_progress(const char *label, uint32_t done, uint32_t total,
-                            int64_t started_ms, int64_t *last_report_ms,
-                            bool force)
+static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_size,
+                       uint8_t salt, const char *label)
 {
-    int64_t now = k_uptime_get();
-    uint32_t remaining = total - done;
-    uint32_t percent = total ? (uint32_t)(((uint64_t)done * 100ULL) / total) : 100U;
-    int64_t elapsed = MAX(now - started_ms, 1);
-
-    if (!force && active_cfg->report_interval_ms == 0) return;
-    if (!force && now - *last_report_ms < active_cfg->report_interval_ms) return;
-
-    LOG_INF("%s progress=%u%% transferred=%u/%u bytes remaining=%u rate=%llu bit/s",
-            label, percent, done, total, remaining, bps(done, elapsed));
-    *last_report_ms = now;
-}
-
-static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_size, uint8_t salt,
-                       const char *label)
-{
+    ARG_UNUSED(label);
     uint32_t off = 0;
-    uint32_t send_calls = 0;
-    uint32_t partial_calls = 0;
-    uint32_t eagain_calls = 0;
-    uint32_t poll_calls = 0;
-    uint32_t next_diag = 1024U * 1024U;
-    size_t max_send = 0;
-    int64_t started = k_uptime_get();
-    int64_t last_report = started;
-    int64_t deadline = started + active_cfg->timeout_ms;
-
-    if (active_cfg->transport == BENCH_TRANSPORT_STCP) {
-        LOG_ERR("BENCH_STCP_SEND_SLICE bytes=1024 app_chunk=%u total=%u",
-                chunk_size, total);
-    }
-
+    int rc = 0;
+    uint64_t started = clock_us();
+    int64_t deadline = k_uptime_get() + active_cfg->timeout_ms;
     while (off < total) {
-        size_t chunk_len = MIN(chunk_size, total - off);
-        size_t chunk_off = 0;
-
-        fill_pattern(tx_buf, chunk_len, off, salt);
-
-        while (chunk_off < chunk_len) {
-            size_t remaining = chunk_len - chunk_off;
-            size_t send_len = remaining;
-
-            /* Diagnostic phase 1.7: keep the BEN2/application chunk unchanged,
-             * but slice STCP payload writes into small syscalls.  This isolates
-             * whether a large blocking AF_STCP send() is what stalls the data
-             * plane.  TCP remains untouched for a clean baseline comparison.
-             */
-            if (active_cfg->transport == BENCH_TRANSPORT_STCP) {
-                send_len = MIN(send_len, (size_t)1024U);
-            }
-
-            ssize_t n = zsock_send(fd, tx_buf + chunk_off, send_len, 0);
-            /* errno must be captured before logging or other socket calls. */
-            int send_errno = (n < 0) ? errno : 0;
-            send_calls++;
-
+        size_t count = MIN(chunk_size, total - off);
+        fill_pattern(tx_buf, count, off, salt);
+        size_t position = 0;
+        while (position < count) {
+            size_t wanted = count - position;
+            if (active_cfg->transport == BENCH_TRANSPORT_STCP)
+                wanted = MIN(wanted, (size_t)1024U);
+            ssize_t n = zsock_send(fd, tx_buf + position, wanted, 0);
+            int saved_errno = n < 0 ? errno : 0;
+            raw_tx.calls++;
             if (n > 0) {
-                if ((size_t)n < send_len) partial_calls++;
-                if ((size_t)n > max_send) max_send = (size_t)n;
-                chunk_off += (size_t)n;
-                off += (uint32_t)n;
+                position += (size_t)n; off += (uint32_t)n;
+                raw_tx.bytes += (uint64_t)n;
                 deadline = k_uptime_get() + active_cfg->timeout_ms;
-
-                while (off >= next_diag && next_diag <= total) {
-                    int64_t elapsed_ms = MAX(k_uptime_get() - started, 1);
-                    LOG_ERR("BENCH_TX_PROGRESS bytes=%u/%u elapsed_ms=%lld calls=%u partial=%u eagain=%u polls=%u max_send=%u",
-                            off, total, (long long)elapsed_ms, send_calls,
-                            partial_calls, eagain_calls, poll_calls,
-                            (uint32_t)max_send);
-                    if (UINT32_MAX - next_diag < (1024U * 1024U)) {
-                        next_diag = UINT32_MAX;
-                        break;
-                    }
-                    next_diag += 1024U * 1024U;
-                }
-
-                report_progress(label, off, total, started, &last_report, off == total);
                 continue;
             }
-            if (n == 0) return -ECONNRESET;
-            if (send_errno == EINTR) continue;
-            if (send_errno == EAGAIN || send_errno == EWOULDBLOCK) {
-                int rc;
-
-                int64_t poll_started_ms;
-                int64_t poll_elapsed_ms;
-
-                eagain_calls++;
-                poll_calls++;
-                poll_started_ms = k_uptime_get();
+            if (!n) { rc = -ECONNRESET; goto done; }
+            if (saved_errno == EINTR) continue;
+            if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) {
+                raw_tx.eagain++;
                 rc = wait_socket_ready(fd, ZSOCK_POLLOUT, deadline);
-                poll_elapsed_ms = k_uptime_get() - poll_started_ms;
-
-                /* Keep diagnostics sparse so logging does not become the benchmark. */
-                if (eagain_calls <= 8U || (eagain_calls % 1024U) == 0U) {
-                    LOG_ERR("BENCH_TX_WAIT seq=%u bytes=%u rc=%d wait_ms=%lld",
-                            eagain_calls, off, rc, (long long)poll_elapsed_ms);
-                }
-
-                if (rc < 0) {
-                    LOG_ERR("%s TX wait failed rc=%d transferred=%u/%u eagain=%u polls=%u",
-                            label, rc, off, total, eagain_calls, poll_calls);
-                    return rc;
-                }
+                if (rc < 0) goto done;
                 continue;
             }
-            int err = send_errno;
-            LOG_ERR("BENCH_TX_SEND_FAIL fd=%d off=%u/%u "
-                    "chunk_off=%u send_len=%u n=%d errno=%d "
-                    "calls=%u partial=%u eagain=%u polls=%u",
-                    fd, off, total,
-                    (unsigned int)chunk_off, (unsigned int)send_len,
-                    (int)n, err, send_calls, partial_calls,
-                    eagain_calls, poll_calls);
-            return err ? -err : -EIO;
+            rc = saved_errno ? -saved_errno : -EIO;
+            goto done;
         }
     }
-
-    LOG_INF("%s I/O stats calls=%u partial=%u eagain=%u polls=%u max_send=%u",
-            label, send_calls, partial_calls, eagain_calls, poll_calls,
-            (uint32_t)max_send);
-    return 0;
+done:
+    raw_tx.elapsed_us = clock_us() - started;
+    if (rc < 0) raw_tx.errors++;
+    return rc;
 }
 
-static int stream_recv(int fd, uint8_t *rx_buf, uint32_t total, uint32_t rx_buf_size, uint8_t salt,
-                       const char *label)
+static int stream_recv(int fd, uint8_t *rx_buf, uint32_t total, uint32_t rx_buf_size,
+                       uint8_t salt, const char *label)
 {
+    ARG_UNUSED(label);
     uint32_t off = 0;
-    uint32_t recv_calls = 0;
-    uint32_t eagain_calls = 0;
-    uint32_t poll_calls = 0;
-    size_t max_recv = 0;
-    int64_t started = k_uptime_get();
-    int64_t last_report = started;
-    int64_t deadline = started + active_cfg->timeout_ms;
-
+    int rc = 0;
+    uint64_t started = clock_us();
+    int64_t deadline = k_uptime_get() + active_cfg->timeout_ms;
     while (off < total) {
         size_t wanted = MIN(rx_buf_size, total - off);
         ssize_t n = zsock_recv(fd, rx_buf, wanted, 0);
-        recv_calls++;
-
+        int saved_errno = n < 0 ? errno : 0;
+        raw_rx.calls++;
         if (n > 0) {
-            int rc = verify_pattern(rx_buf, (size_t)n, off, salt);
-            if (rc < 0) return rc;
-            if ((size_t)n > max_recv) max_recv = (size_t)n;
+            raw_rx.bytes += (uint64_t)n;
+            rc = verify_pattern(rx_buf, (size_t)n, off, salt);
+            if (rc < 0) goto done;
             off += (uint32_t)n;
             deadline = k_uptime_get() + active_cfg->timeout_ms;
-            report_progress(label, off, total, started, &last_report, off == total);
             continue;
         }
-        if (n == 0) return -ECONNRESET;
-        if (errno == EINTR) continue;
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            int rc;
-
-            eagain_calls++;
-            poll_calls++;
+        if (!n) { rc = -ECONNRESET; goto done; }
+        if (saved_errno == EINTR) continue;
+        if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) {
+            raw_rx.eagain++;
             rc = wait_socket_ready(fd, ZSOCK_POLLIN, deadline);
-            if (rc < 0) {
-                LOG_ERR("%s RX wait failed rc=%d transferred=%u/%u eagain=%u polls=%u",
-                        label, rc, off, total, eagain_calls, poll_calls);
-                return rc;
-            }
+            if (rc < 0) goto done;
             continue;
         }
-        return -errno;
+        rc = saved_errno ? -saved_errno : -EIO;
+        goto done;
     }
-
-    LOG_INF("%s I/O stats calls=%u eagain=%u polls=%u max_recv=%u",
-            label, recv_calls, eagain_calls, poll_calls, (uint32_t)max_recv);
-    return 0;
+done:
+    raw_rx.elapsed_us = clock_us() - started;
+    if (rc < 0) raw_rx.errors++;
+    return rc;
 }
 
 int bench_run_upload(const struct bench_config *cfg)
@@ -649,46 +601,49 @@ int bench_run_upload(const struct bench_config *cfg)
         last_summary.upload.status = -ENOMEM;
         return -ENOMEM;
     }
-    LOG_ERR("BENCHCHK U01 CONNECT ENTER");
+    LOG_DBG("BENCHCHK U01 CONNECT ENTER");
     int fd = connect_server(cfg);
-    LOG_ERR("BENCHCHK U02 CONNECT RETURN fd=%d", fd);
+    LOG_DBG("BENCHCHK U02 CONNECT RETURN fd=%d", fd);
     if (fd < 0) {
         last_summary.upload.status = fd;
         k_free(tx_buf);
         return fd;
     }
 
-    LOG_ERR("BENCHCHK U03 REQUEST SEND ENTER fd=%d len=%u",
+    LOG_DBG("BENCHCHK U03 REQUEST SEND ENTER fd=%d len=%u",
             fd, (unsigned int)sizeof(struct bench_request));
     int rc = send_request(fd, BENCH_MODE_UPLOAD, cfg);
-    LOG_ERR("BENCHCHK U04 REQUEST SEND RETURN fd=%d rc=%d", fd, rc);
+    LOG_DBG("BENCHCHK U04 REQUEST SEND RETURN fd=%d rc=%d", fd, rc);
 
     int64_t start = k_uptime_get();
+    uint64_t data_start_us = clock_us();
 
     if (!rc) {
-        LOG_ERR("BENCHCHK U05 UPLOAD STREAM ENTER fd=%d total=%u chunk=%u",
+        LOG_DBG("BENCHCHK U05 UPLOAD STREAM ENTER fd=%d total=%u chunk=%u",
                 fd, cfg->total_bytes, cfg->chunk_size);
         rc = stream_send(fd, tx_buf, cfg->total_bytes, cfg->chunk_size,
                          0x17, "UPLOAD TX");
-        LOG_ERR("BENCHCHK U06 UPLOAD STREAM RETURN fd=%d rc=%d", fd, rc);
+        LOG_DBG("BENCHCHK U06 UPLOAD STREAM RETURN fd=%d rc=%d", fd, rc);
     }
 
+    raw_elapsed_us = clock_us() - data_start_us;
+    if (!rc) rc = send_metrics(fd);
     if (!rc) {
-        LOG_ERR("BENCHCHK U07 REPLY RECV ENTER fd=%d len=%u",
+        LOG_DBG("BENCHCHK U07 REPLY RECV ENTER fd=%d len=%u",
                 fd, (unsigned int)sizeof(struct bench_reply));
         rc = recv_reply(fd, BENCH_MODE_UPLOAD, &reply);
-        LOG_ERR("BENCHCHK U08 REPLY RECV RETURN fd=%d rc=%d", fd, rc);
+        LOG_DBG("BENCHCHK U08 REPLY RECV RETURN fd=%d rc=%d", fd, rc);
     }
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
     k_free(tx_buf);
     last_summary.upload.status = rc;
-    last_summary.upload.bytes_tx = rc < 0 ? 0 : cfg->total_bytes;
+    last_summary.upload.bytes_tx = (uint32_t)raw_tx.bytes;
     last_summary.upload.elapsed_ms = ms;
-    last_summary.upload.tx_bps = rc < 0 ? 0 : bps(cfg->total_bytes, ms);
-    last_summary.upload.aggregate_bps = last_summary.upload.tx_bps;
+
+
     if (rc < 0) return rc;
-    LOG_INF("UPLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, last_summary.upload.tx_bps);
+
     return 0;
 }
 
@@ -710,23 +665,26 @@ int bench_run_download(const struct bench_config *cfg)
     if (fd < 0) { last_summary.download.status = fd; k_free(rx_buf); return fd; }
     int rc = send_request(fd, BENCH_MODE_DOWNLOAD, cfg);
     int64_t start = k_uptime_get();
+    uint64_t data_start_us = clock_us();
     if (!rc) rc = stream_recv(fd, rx_buf, cfg->total_bytes, cfg->chunk_size, 0x53, "DOWNLOAD RX");
+    raw_elapsed_us = clock_us() - data_start_us;
     if (!rc) {
         struct bench_reply ack = {.magic=sys_cpu_to_be32(BENCH_MAGIC), .mode=sys_cpu_to_be32(BENCH_MODE_DOWNLOAD), .status=0,
             .bytes_received=sys_cpu_to_be32(cfg->total_bytes), .bytes_sent=0};
         rc = send_all(fd, &ack, sizeof(ack));
     }
+    if (!rc) rc = send_metrics(fd);
     if (!rc) rc = recv_reply(fd, BENCH_MODE_DOWNLOAD, &reply);
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
     k_free(rx_buf);
     last_summary.download.status = rc;
-    last_summary.download.bytes_rx = rc < 0 ? 0 : cfg->total_bytes;
+    last_summary.download.bytes_rx = (uint32_t)raw_rx.bytes;
     last_summary.download.elapsed_ms = ms;
-    last_summary.download.rx_bps = rc < 0 ? 0 : bps(cfg->total_bytes, ms);
-    last_summary.download.aggregate_bps = last_summary.download.rx_bps;
+
+
     if (rc < 0) return rc;
-    LOG_INF("DOWNLOAD bytes=%u elapsed=%lld ms throughput=%llu bit/s", cfg->total_bytes, ms, last_summary.download.rx_bps);
+
     return 0;
 }
 
@@ -768,11 +726,14 @@ int bench_run_full(const struct bench_config *cfg)
     if (rc < 0) { last_summary.full.status = rc; zsock_close(fd); k_free(tx_buf); k_free(rx_buf); return rc; }
     ctx.fd = fd; ctx.rc = 0; ctx.tx_buf = tx_buf; ctx.total = cfg->total_bytes; ctx.chunk = cfg->chunk_size; k_sem_init(&ctx.done, 0, 1);
     int64_t start = k_uptime_get();
+    uint64_t data_start_us = clock_us();
     k_thread_create(&sender_thread, sender_stack, K_THREAD_STACK_SIZEOF(sender_stack), sender_entry,
                     &ctx, NULL, NULL, K_PRIO_PREEMPT(5), 0, K_NO_WAIT);
     rc = stream_recv(fd, rx_buf, cfg->total_bytes, rx_chunk, 0x53, "FULL RX");
     k_sem_take(&ctx.done, K_FOREVER);
+    k_thread_join(&sender_thread, K_FOREVER);
     if (!rc) rc = ctx.rc;
+    raw_elapsed_us = clock_us() - data_start_us;
     if (!rc) {
         struct bench_reply ack = {
             .magic = sys_cpu_to_be32(BENCH_MAGIC),
@@ -783,23 +744,22 @@ int bench_run_full(const struct bench_config *cfg)
         };
         rc = send_all(fd, &ack, sizeof(ack));
     }
+    if (!rc) rc = send_metrics(fd);
     if (!rc) rc = recv_reply(fd, BENCH_MODE_FULL, &reply);
     int64_t ms = MAX(k_uptime_get() - start, 1);
     zsock_close(fd);
     k_free(tx_buf);
     k_free(rx_buf);
     last_summary.full.status = rc;
-    last_summary.full.bytes_tx = rc < 0 ? 0 : cfg->total_bytes;
-    last_summary.full.bytes_rx = rc < 0 ? 0 : cfg->total_bytes;
+    last_summary.full.bytes_tx = (uint32_t)raw_tx.bytes;
+    last_summary.full.bytes_rx = (uint32_t)raw_rx.bytes;
     last_summary.full.elapsed_ms = ms;
-    last_summary.full.tx_bps = rc < 0 ? 0 : bps(cfg->total_bytes, ms);
-    last_summary.full.rx_bps = last_summary.full.tx_bps;
-    last_summary.full.aggregate_bps = rc < 0 ? 0 : bps((uint64_t)cfg->total_bytes * 2ULL, ms);
+
+
+
     if (rc < 0) return rc;
     LOG_INF("FULL upload=%u download=%u elapsed=%lld ms", cfg->total_bytes, cfg->total_bytes, ms);
-    LOG_INF("FULL TX=%llu bit/s RX=%llu bit/s aggregate=%llu bit/s",
-            last_summary.full.tx_bps, last_summary.full.rx_bps,
-            last_summary.full.aggregate_bps);
+
     return 0;
 }
 
@@ -842,7 +802,7 @@ static int validate_config(const struct bench_config *cfg)
 {
     if (!cfg || !cfg->host[0] || !cfg->port[0]) return -EINVAL;
     if (cfg->chunk_size < 1 || cfg->chunk_size > BENCH_MAX_CHUNK) return -EINVAL;
-    if (cfg->total_bytes < cfg->chunk_size || cfg->timeout_ms < 1000) return -EINVAL;
+    if (cfg->total_bytes < cfg->chunk_size || cfg->total_bytes > 256U * 1024U * 1024U || cfg->timeout_ms < 1000) return -EINVAL;
     if (cfg->report_interval_ms > 600000U) return -EINVAL;
     return 0;
 }
@@ -858,7 +818,7 @@ int bench_run_all(const struct bench_config *cfg)
     LOG_INF("Benchmark transport=%s host=%s port=%s total=%u chunk=%u",
             bench_transport_name(cfg->transport), cfg->host, cfg->port,
             cfg->total_bytes, cfg->chunk_size);
-    LOG_INF("Progress report interval=%u ms", cfg->report_interval_ms);
+    LOG_INF("BEN2 v2: raw metrics sent to server; no progress logging during data transfer");
     rc = bench_run_upload(cfg);
     if (rc < 0) { bench_print_last_summary(cfg); return rc; }
     k_sleep(K_SECONDS(CONFIG_BENCH_PAUSE_SECONDS));

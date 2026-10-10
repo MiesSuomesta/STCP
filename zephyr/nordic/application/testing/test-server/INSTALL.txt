@@ -1,0 +1,16 @@
+BEN2 v2 SERVER OVERLAY
+
+Purkamiskohde on hakemisto, jossa nykyinen stcp_server.rs,
+bench_protocol.rs ja stcp_aes_gcm_userspace.rs sijaitsevat.
+Ota niista ensin varmuuskopio.
+
+unzip -o /polku/BEN2-v2-server-overlay.zip -d /polku/serverilahteisiin
+
+Kaanna nykyisella Cargo-projektilla ja nykyisella build-komennolla.
+BEN2_RESULTS=/polku/zephyr-ben2.jsonl maarittaa tulostiedoston.
+STCP_TRACE=1 ottaa yksityiskohtaisen tracen kayttoon.
+
+Huomaa: BEN2 v2 tarvitsee myos paivitetyn Zephyr-clientin.
+zephyr-integration/ben2_metrics.h on serialisointiheaderi, ei valmis
+firmwarepaivitys. Zephyr-sovelluksen lahteita ei ollut mukana.
+Rust-serverin kaannosta ei ole ajettu tassa ymparistossa.

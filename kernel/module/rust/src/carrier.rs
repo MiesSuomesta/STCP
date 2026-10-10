@@ -193,6 +193,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
      * handshake and can perform the Ready transition before the baseline is
      * captured, losing the only connect wakeup. */
     let was_connected = crate::session::is_ready_snapshot(ctx);
+    let had_peer_public_key = crate::session::peer_public_key_ready_snapshot(ctx);
 
     debug_event(312, ctx, was_connected as usize, adopted_connection_id as usize);
     match crate::session::progress_receive(ctx) {
@@ -201,7 +202,9 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
                 !was_connected && crate::session::is_ready_snapshot(ctx);
 
             debug_event(313, ctx, readable as usize, became_connected as usize);
-            if readable || became_connected || adopted_connection_id {
+            let peer_public_key_became_ready = !had_peer_public_key &&
+                crate::session::peer_public_key_ready_snapshot(ctx);
+            if readable || became_connected || adopted_connection_id || peer_public_key_became_ready {
                 wake_recv(owner);
             }
         }

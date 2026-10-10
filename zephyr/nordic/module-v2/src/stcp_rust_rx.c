@@ -1,3 +1,4 @@
+#include <stcp/stcp_buffer_pool.h>
 #include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -33,7 +34,7 @@ static void rust_rx_thread(void *p1, void *p2, void *p3)
     uint8_t *buffer;
     ARG_UNUSED(p2); ARG_UNUSED(p3);
 
-    buffer = k_malloc(CONFIG_STCP_RUST_RX_BUFFER_SIZE);
+    buffer = stcp_buffer_alloc(CONFIG_STCP_RUST_RX_BUFFER_SIZE);
     if (buffer == NULL) {
         LOG_ERR("RX thread buffer allocation failed: bytes=%u",
                 CONFIG_STCP_RUST_RX_BUFFER_SIZE);
@@ -93,7 +94,7 @@ static void rust_rx_thread(void *p1, void *p2, void *p3)
         break;
     }
     log_current_stack("thread-exit");
-    k_free(buffer);
+    (void)stcp_buffer_free(buffer);
     ctx->rust_rx_running = false;
     k_sem_give(&ctx->rust_event);
 }

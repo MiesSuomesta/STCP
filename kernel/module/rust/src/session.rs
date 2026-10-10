@@ -129,11 +129,12 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
     }
 }
 
-/* UDP must permit several large application messages in flight.  The old
- * 64-frame cap was exhausted by two 1 MiB writes (about 36 datagrams), which
- * caused stop-and-wait behaviour as soon as payloads crossed one frame. */
-const STCP_SEND_WINDOW: usize = 256;
-const STCP_ACK_EVERY_FRAMES: u8 = 8;
+//
+// !!! KEEP IN SYNC WITH ZEPHYR MODULE !!!
+//
+const STCP_SEND_WINDOW: usize = 8;
+const STCP_ACK_EVERY_FRAMES: u8 = 4;
+
 const STCP_MAX_RETRANSMIT_PER_TICK: usize = 4;
 const STCP_TICK_MS: u32 = 20;
 const STCP_INITIAL_RTO_MS: u32 = 60;
@@ -1723,6 +1724,14 @@ pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
 pub fn is_connected(ctx: &StcpContext) -> bool {
     let _ = progress_handshake(ctx);
     is_ready(ctx)
+}
+
+/* A TCP server can legitimately receive a legacy PublicKey with wire CID 0.
+ * Crypto ready is independent of the later peer HandshakeDone/Ready transition.
+ * Snapshot only: callers must not advance the parser while waiting for RX.
+ */
+pub(crate) fn peer_public_key_ready_snapshot(ctx: &StcpContext) -> bool {
+    ctx.inner.lock().crypto.ready()
 }
 
 pub(crate) fn is_ready_snapshot(ctx: &StcpContext) -> bool {

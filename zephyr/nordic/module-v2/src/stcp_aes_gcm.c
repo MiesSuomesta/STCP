@@ -1,3 +1,4 @@
+#include <stcp/stcp_buffer_pool.h>
 #include <zephyr/kernel.h>
 #include <errno.h>
 #include <stdint.h>
@@ -139,7 +140,7 @@ int stcp_kernel_aes256_gcm_decrypt_in_place(
 
     size_t plain_len = cipher_len - STCP_GCM_TAG_LEN;
 
-    uint8_t *tmp = k_malloc(plain_len ? plain_len : 1);
+    uint8_t *tmp = stcp_buffer_alloc(plain_len ? plain_len : 1);
     if (!tmp)
         return -ENOMEM;
 
@@ -153,7 +154,7 @@ int stcp_kernel_aes256_gcm_decrypt_in_place(
         memset(cipher, 0, plain_len);
 
     memset(tmp, 0, plain_len);
-    k_free(tmp);
+    (void)stcp_buffer_free(tmp);
 
     return rc;
 }

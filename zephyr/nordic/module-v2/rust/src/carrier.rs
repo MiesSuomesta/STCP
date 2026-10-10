@@ -141,6 +141,23 @@ pub(crate) fn transmit(
     Ok(())
 }
 
+/* Error-only snapshots: no allocations; do not log under a queue lock. */
+fn rx_nomem_snapshot(ctx: &StcpContext, stage: usize, input: usize) {
+    let (tx_count, tx_bytes, app_bytes, reorder_count, reorder_bytes, endpoint) = {
+        let inner = ctx.inner.lock();
+        (inner.pending_frames.len(),
+         inner.pending_frames.iter().map(|f| f.bytes.len()).sum::<usize>(),
+         inner.rx_app_data.len(), inner.out_of_order_frames.len(),
+         inner.out_of_order_frames.iter().map(|f| f.ciphertext.len()).sum::<usize>(),
+         inner.connection.as_ref().map(|e| (e.shared.clone(), e.side)))
+    };
+    let wire_bytes = endpoint.map(|(shared, side)| incoming_queue(&shared, side).lock().len()).unwrap_or(0);
+    debug_event(900, ctx, stage, input);
+    debug_event(901, ctx, tx_count, tx_bytes);
+    debug_event(902, ctx, wire_bytes, app_bytes);
+    debug_event(903, ctx, reorder_count, reorder_bytes);
+}
+
 fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
@@ -150,10 +167,9 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         (endpoint.shared.clone(), endpoint.side, inner.owner)
     };
 
-    if let Err(error) = incoming_queue(&shared, side)
-        .lock()
-        .push_slice(bytes)
-    {
+    let queued = { incoming_queue(&shared, side).lock().push_slice(bytes) };
+    if let Err(error) = queued {
+        if error.errno() == -12 { rx_nomem_snapshot(ctx, 1, bytes.len()); }
         return error.errno();
     }
 
@@ -179,6 +195,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
             }
         }
         Err(error) => {
+            if error.errno() == -12 { rx_nomem_snapshot(ctx, 2, bytes.len()); }
             /* Before accept() attaches the UDP child carrier, ENOTCONN is expected. */
             if error.errno() != -107 && error.errno() != -11 {
                 return error.errno();

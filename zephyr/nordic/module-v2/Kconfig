@@ -71,15 +71,34 @@ config STCP_POLL_TRACE
 menuconfig STCP_RUST_CORE
     bool "Use shared Raspberry Pi Rust STCP protocol core"
     default y
+    select SYS_HEAP_RUNTIME_STATS
     select MBEDTLS_PSA_CRYPTO_C
     help
       Builds the no_std Rust STCP core as a static library and links it into
       Zephyr. C remains only the BSD socket and native carrier adapter.
 
 if STCP_RUST_CORE
+
+config STCP_BUFFER_POOL_FRAMES
+    int "Static 1152-byte STCP frame buffer slots"
+    default 16
+    range 4 64
+    help
+      Shared frame storage for Rust RX/TX and crypto scratch. No heap fallback.
+      Diagnostic 16-slot pool is shared by TX, RX and crypto scratch.
+      A 16-frame TX window can consume all slots; pool-full is possible.
+
+config STCP_BUFFER_POOL_LARGE
+    int "Static 8192-byte STCP carrier/large buffer slots"
+    default 2
+    range 1 8
+    help
+      Includes per-socket carrier RX storage. Limits concurrent large buffers.
+
 config STCP_RUST_TOOLCHAIN
     string "Rustup toolchain used by Cargo"
     default "nightly"
+
 config STCP_RUST_RX_STACK_SIZE
     int "Per-socket Rust carrier RX thread stack"
     default 8192

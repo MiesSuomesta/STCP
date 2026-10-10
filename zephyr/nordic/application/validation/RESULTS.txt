@@ -1,0 +1,4 @@
+Rust compiler/cargo unavailable in this environment: Rust build, unit tests and integration tests NOT RUN.
+Previous C/Zephyr host validation does not validate this Rust rewrite.
+Cargo unit tests and Python BEN2 integration checks are supplied for execution on the target Linux host.
+Hardware STCP/LTE remains untested.

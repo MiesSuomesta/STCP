@@ -134,10 +134,11 @@ static int cmd_config_transport(const struct shell *sh, size_t argc, char **argv
     ARG_UNUSED(argc);
     ensure_config();
     if (!strcmp(argv[1], "tcp")) shell_cfg.transport = BENCH_TRANSPORT_TCP;
-    else if (!strcmp(argv[1], "stcp")) shell_cfg.transport = BENCH_TRANSPORT_STCP;
-    else if (!strcmp(argv[1], "tls")) shell_cfg.transport = BENCH_TRANSPORT_TLS;
+    else if (!strcmp(argv[1], "stcp") || !strcmp(argv[1], "stcp-tcp")) shell_cfg.transport = BENCH_TRANSPORT_STCP;
+    else if (!strcmp(argv[1], "stcp-udp")) shell_cfg.transport = BENCH_TRANSPORT_STCP_UDP;
+    else if (!strcmp(argv[1], "udp")) shell_cfg.transport = BENCH_TRANSPORT_UDP;
     else {
-        shell_error(sh, "Transport must be tcp, tls or stcp");
+        shell_error(sh, "Transport must be tcp, udp, stcp-tcp or stcp-udp");
         return -EINVAL;
     }
     shell_print(sh, "Transport = %s", bench_transport_name(shell_cfg.transport));
@@ -189,6 +190,7 @@ enum bench_job_kind {
     BENCH_JOB_DOWNLOAD,
     BENCH_JOB_FULL,
     BENCH_JOB_ALL,
+    BENCH_JOB_MATRIX,
 };
 
 struct bench_job {
@@ -212,6 +214,7 @@ static const char *bench_job_name(enum bench_job_kind kind)
     case BENCH_JOB_DOWNLOAD: return "download";
     case BENCH_JOB_FULL: return "full";
     case BENCH_JOB_ALL: return "all";
+    case BENCH_JOB_MATRIX: return "matrix";
     default: return "unknown";
     }
 }
@@ -223,6 +226,7 @@ static int run_job(const struct bench_job *job)
     case BENCH_JOB_DOWNLOAD: return bench_run_download(&job->cfg);
     case BENCH_JOB_FULL: return bench_run_full(&job->cfg);
     case BENCH_JOB_ALL: return bench_run_all(&job->cfg);
+    case BENCH_JOB_MATRIX: return bench_run_matrix(&job->cfg);
     default: return -EINVAL;
     }
 }
@@ -255,7 +259,7 @@ static void bench_worker_main(void *arg1, void *arg2, void *arg3)
                     (unsigned int)CONFIG_BENCH_WORKER_STACK_SIZE);
 
         rc = run_job(&job);
-        if (job.kind != BENCH_JOB_ALL) {
+        if (job.kind != BENCH_JOB_ALL && job.kind != BENCH_JOB_MATRIX) {
             emit_machine_result(job.sh, &job.cfg, name, rc);
         }
 
@@ -333,6 +337,9 @@ static int cmd_bench_full(const struct shell *sh, size_t argc, char **argv)
 static int cmd_bench_all(const struct shell *sh, size_t argc, char **argv)
 { ARG_UNUSED(argc); ARG_UNUSED(argv); return queue_benchmark(sh, BENCH_JOB_ALL); }
 
+static int cmd_bench_matrix(const struct shell *sh, size_t argc, char **argv)
+{ ARG_UNUSED(argc); ARG_UNUSED(argv); return queue_benchmark(sh, BENCH_JOB_MATRIX); }
+
 SHELL_STATIC_SUBCMD_SET_CREATE(config_cmds,
     SHELL_CMD(show, NULL, "Show runtime benchmark configuration", cmd_config_show),
     SHELL_CMD_ARG(host, NULL, "Set host: stcp config host <name|ip>", cmd_config_host, 2, 0),
@@ -341,7 +348,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(config_cmds,
     SHELL_CMD_ARG(total, NULL, "Set total bytes: stcp config total <bytes>", cmd_config_total, 2, 0),
     SHELL_CMD_ARG(timeout, NULL, "Set inactivity timeout ms", cmd_config_timeout, 2, 0),
     SHELL_CMD_ARG(report, NULL, "Set progress report interval ms (0 disables)", cmd_config_report, 2, 0),
-    SHELL_CMD_ARG(transport, NULL, "Set tcp, tls or stcp", cmd_config_transport, 2, 0),
+    SHELL_CMD_ARG(transport, NULL, "Set tcp, udp, stcp-tcp or stcp-udp", cmd_config_transport, 2, 0),
     SHELL_SUBCMD_SET_END
 );
 
@@ -360,6 +367,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(net_cmds,
 #endif
 
 SHELL_STATIC_SUBCMD_SET_CREATE(bench_cmds,
+    SHELL_CMD(matrix, NULL, "Run all transport/direction combinations; port is matrix base", cmd_bench_matrix),
     SHELL_CMD(upload, NULL, "Run continuous upload benchmark", cmd_bench_upload),
     SHELL_CMD(download, NULL, "Run continuous download benchmark", cmd_bench_download),
     SHELL_CMD(full, NULL, "Run full-duplex benchmark", cmd_bench_full),

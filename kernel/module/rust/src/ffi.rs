@@ -378,6 +378,15 @@ pub extern "C" fn stcp_rust_has_data(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_peer_public_key_ready(raw: *mut c_void) -> c_int {
+    match with_ctx(raw, session::peer_public_key_ready_snapshot) {
+        Ok(true) => 1,
+        Ok(false) => 0,
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_is_connected(
     raw: *mut c_void,
 ) -> c_int {

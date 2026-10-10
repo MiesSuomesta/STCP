@@ -144,11 +144,10 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
     }
 }
 
-/* UDP must permit several large application messages in flight.  The old
- * 64-frame cap was exhausted by two 1 MiB writes (about 36 datagrams), which
- * caused stop-and-wait behaviour as soon as payloads crossed one frame. */
-const STCP_SEND_WINDOW: usize = 256;
-const STCP_ACK_EVERY_FRAMES: u8 = 8;
+/* Zephyr heap must retain space for RX/ACK parsing and crypto scratch.
+ * 16 frames allow two eight-frame cumulative ACK batches in flight. */
+const STCP_SEND_WINDOW: usize = 8;
+const STCP_ACK_EVERY_FRAMES: u8 = 4;
 const STCP_MAX_RETRANSMIT_PER_TICK: usize = 4;
 const STCP_TICK_MS: u32 = 20;
 const STCP_INITIAL_RTO_MS: u32 = 60;

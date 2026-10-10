@@ -1,173 +1,245 @@
-//! BEN2 benchmark protocol, operating on decrypted STCP application bytes.
+//! BEN2 version 2: bounded client raw metrics, processing on the server.
+use std::{fs::OpenOptions, io::Write, sync::{Mutex, atomic::{AtomicU64, Ordering}}, time::{Instant, SystemTime, UNIX_EPOCH}};
+static RESULT_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 const MAGIC: u32 = 0x4245_4e32;
-const VERSION: u32 = 1;
+const VERSION: u32 = 2;
 const MAX_TOTAL: u32 = 256 * 1024 * 1024;
-
-fn word(buf: &[u8], at: usize) -> u32 {
-    u32::from_be_bytes(buf[at..at + 4].try_into().unwrap())
+const METRIC_MAGIC: u32 = 0x4d54_5232; // MTR2
+const METRIC_LEN: usize = 112;
+static RESULT_LOCK: Mutex<()> = Mutex::new(());
+fn report_interval()->u64 {
+    std::env::var("BEN2_REPORT_MS").ok().and_then(|s|s.parse::<u64>().ok()).unwrap_or(5000).min(3_600_000)
 }
-fn pattern(offset: u32, salt: u8) -> u8 {
-    (offset.wrapping_mul(31).wrapping_add(salt as u32) & 255) as u8
+fn word(b: &[u8], at: usize) -> u32 { u32::from_be_bytes(b[at..at+4].try_into().unwrap()) }
+fn wide(b: &[u8], at: usize) -> u64 { u64::from_be_bytes(b[at..at+8].try_into().unwrap()) }
+fn pattern(offset: u32, salt: u8) -> u8 { (offset.wrapping_mul(31).wrapping_add(salt as u32)&255) as u8 }
+fn us(d: std::time::Duration) -> u64 { d.as_micros().min(u64::MAX as u128) as u64 }
+fn rate(bytes: u64, micros: u64) -> String {
+    if micros==0 { "null".into() } else { format!("{:.6}", bytes as f64*1e6/(1048576.0*micros as f64)) }
 }
-
-#[derive(Clone, Copy, Debug)]
-struct Request { mode: u32, chunk: u32, total: u32 }
-
+#[derive(Clone,Copy,Debug)]
+struct Request { version:u32, mode:u32, chunk:u32, total:u32 }
 #[derive(Debug)]
-pub enum Protocol {
-    Detect(Vec<u8>),
-    Echo,
-    Bench(Bench),
-}
-
+pub enum Protocol { Detect(Vec<u8>), Echo, Bench(Bench) }
 #[derive(Debug)]
 pub struct Bench {
-    request: Request,
-    received: u32,
-    sent: u32,
-    ack: Vec<u8>,
-    completed: bool,
+    test_id:u64, transport:String, report_ms:u64, next_report:Instant, report_rx:u32, report_tx:u32, report_at:Instant,
+    request:Request, received:u32, sent:u32, trailer:Vec<u8>, completed:bool,
+    started:Instant, rx_start:Option<Instant>, tx_start:Option<Instant>,
+    rx_us:u64, tx_us:u64, receive_calls:u64, send_calls:u64,
+    client:Option<ClientMetrics>, published:bool,
 }
-
-impl Protocol {
-    pub fn new() -> Self { Self::Detect(Vec::new()) }
-
-    pub fn on_plain(&mut self, bytes: &[u8], send: &mut impl FnMut(&[u8]) -> Result<(), String>) -> Result<(), String> {
-        match self {
-            Self::Echo => send(bytes),
-            Self::Detect(pending) => {
-                pending.extend_from_slice(bytes);
-                if pending.len() >= 4 && pending[..4] != MAGIC.to_be_bytes() {
-                    let echo = std::mem::take(pending);
-                    *self = Self::Echo;
-                    return send(&echo);
-                }
-                if pending.len() < 20 { return Ok(()); }
-                let data = std::mem::take(pending);
-                let version = word(&data, 4);
-                let request = Request { mode: word(&data, 8), chunk: word(&data, 12), total: word(&data, 16) };
-                if version != VERSION || !(1..=3).contains(&request.mode) || request.chunk == 0 || request.total == 0 || request.total > MAX_TOTAL {
-                    return Err(format!("invalid BEN2 request version={version} request={request:?}"));
-                }
-                eprintln!("[BEN2] start mode={} chunk={} total={}", request.mode, request.chunk, request.total);
-                *self = Self::Bench(Bench { request, received: 0, sent: 0, ack: Vec::new(), completed: false });
-                // Download is pumped incrementally by the connection loop.
-                self.on_plain(&data[20..], send)
-            }
-            Self::Bench(bench) => {
-                if bench.completed { return Err("BEN2 data after completed request".into()); }
-                let mut pos = 0;
-                if bench.request.mode != 2 {
-                    let remaining = (bench.request.total - bench.received) as usize;
-                    let count = remaining.min(bytes.len());
-                    for (i, &byte) in bytes[..count].iter().enumerate() {
-                        if byte != pattern(bench.received + i as u32, 0x17) {
-                            return Err(format!("BEN2 payload mismatch offset={}", bench.received + i as u32));
-                        }
-                    }
-                    bench.received += count as u32;
-                    pos = count;
-                }
-                if bench.request.mode == 1 {
-                    if bench.received == bench.request.total {
-                        bench.completed = true;
-                        send(&reply(1, 0, bench.received, 0))?;
-                        eprintln!("[BEN2] upload PASS bytes={}", bench.received);
-                    }
-                    if pos != bytes.len() { return Err("BEN2 trailing upload bytes".into()); }
-                    return Ok(());
-                }
-                bench.ack.extend_from_slice(&bytes[pos..]);
-                if bench.ack.len() > 20 { return Err("BEN2 trailing ACK bytes".into()); }
-                if bench.ack.len() == 20 && bench.sent == bench.request.total && bench.received == if bench.request.mode == 3 { bench.request.total } else { 0 } {
-                    if word(&bench.ack, 0) != MAGIC || word(&bench.ack, 4) != bench.request.mode || word(&bench.ack, 8) != 0 || word(&bench.ack, 12) != bench.request.total || word(&bench.ack, 16) != if bench.request.mode == 3 { bench.request.total } else { 0 } {
-                        return Err("BEN2 invalid client ACK".into());
-                    }
-                    bench.completed = true;
-                    send(&reply(bench.request.mode, 0, bench.received, bench.sent))?;
-                    eprintln!("[BEN2] mode={} PASS rx={} tx={}", bench.request.mode, bench.received, bench.sent);
-                }
-                Ok(())
-            }
+#[derive(Debug)]
+struct ClientMetrics { carrier:u32, values:[u64;12] }
+impl ClientMetrics {
+    fn parse(b:&[u8], request:Request) -> Result<Self,String> {
+        if b.len()!=METRIC_LEN || word(b,0)!=METRIC_MAGIC || word(b,4)!=1 || word(b,8)!=METRIC_LEN as u32 || word(b,12)>2 {
+            return Err("invalid BEN2 MTR2 header".into());
         }
+        let mut values=[0;12];
+        for (i,v) in values.iter_mut().enumerate() { *v=wide(b,16+i*8); }
+        let tx=if request.mode==2 {0} else {request.total as u64};
+        let rx=if request.mode==1 {0} else {request.total as u64};
+        if values[0]!=tx || values[1]!=rx { return Err("BEN2 client byte-count mismatch".into()); }
+        // Bounded to 24h; also avoids accepting corrupt time counters as rates.
+        if [2,3,10,11].iter().any(|i| values[*i]>86_400_000_000) { return Err("BEN2 client time out of range".into()); }
+        Ok(Self {carrier:word(b,12),values})
     }
-
-    pub fn pump_download(&mut self, send: &mut impl FnMut(&[u8]) -> Result<(), String>) -> Result<(), String> {
-        let Self::Bench(bench) = self else { return Ok(()); };
-        if bench.request.mode == 1 || bench.sent >= bench.request.total { return Ok(()); }
-        // Keep each STCP write bounded. In FULL mode, the receive side must
-        // continue making progress instead of sending the entire download first.
-        let count = (bench.request.chunk as usize).min(1024)
-            .min((bench.request.total - bench.sent) as usize);
-        let mut buffer = vec![0u8; count];
-        for (i, byte) in buffer.iter_mut().enumerate() {
-            *byte = pattern(bench.sent + i as u32, 0x53);
+    fn json(&self)->String {
+        let v=&self.values;
+        let carrier=match self.carrier {1=>"ethernet",2=>"lte",_=>"unknown"};
+        format!("{{\"carrier\":\"{}\",\"tx_bytes\":{},\"rx_bytes\":{},\"tx_us\":{},\"rx_us\":{},\"send_calls\":{},\"recv_calls\":{},\"eagain\":{},\"errors\":{},\"stack_used_bytes\":{},\"stack_free_bytes\":{},\"connect_us\":{},\"elapsed_us\":{},\"tx_mib_s\":{},\"rx_mib_s\":{}}}",carrier,v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9],v[10],v[11],rate(v[0],v[2]),rate(v[1],v[3]))
+    }
+}
+impl Bench {
+    fn progress(&mut self) {
+        if self.completed || self.report_ms==0 || Instant::now()<self.next_report {return;}
+        let now=Instant::now(); let elapsed=us(now.duration_since(self.started));
+        let window=us(now.duration_since(self.report_at));
+        let rx_time=if self.received==self.request.total {self.rx_us} else {self.rx_start.map(|s|us(now.duration_since(s))).unwrap_or(0)};
+        let tx_time=if self.sent==self.request.total {self.tx_us} else {self.tx_start.map(|s|us(now.duration_since(s))).unwrap_or(0)};
+        println!("BEN2_PROGRESS {{\"sequence\":{},\"transport\":\"{}\",\"mode\":{},\"total_bytes\":{},\"rx_bytes\":{},\"tx_bytes\":{},\"elapsed_us\":{},\"rx_mib_s\":{},\"tx_mib_s\":{},\"window_rx_mib_s\":{},\"window_tx_mib_s\":{}}}",self.test_id,self.transport,self.request.mode,self.request.total,self.received,self.sent,elapsed,rate(self.received as u64,rx_time),rate(self.sent as u64,tx_time),rate((self.received-self.report_rx)as u64,window),rate((self.sent-self.report_tx)as u64,window));
+        self.report_rx=self.received;self.report_tx=self.sent;self.report_at=now;
+        self.next_report=now+std::time::Duration::from_millis(self.report_ms);
+    }
+    fn publish(&mut self, status:&str) {
+        if self.published {return;} self.published=true;
+        let elapsed=us(self.started.elapsed());
+        let body=format!("{{\"schema\":1,\"protocol\":\"BEN2\",\"transport\":\"{}\",\"version\":{},\"mode\":{},\"chunk_bytes\":{},\"total_bytes\":{},\"status\":\"{}\",\"server\":{{\"rx_bytes\":{},\"tx_bytes\":{},\"rx_window_us\":{},\"tx_window_us\":{},\"elapsed_us\":{},\"receive_callbacks\":{},\"send_callbacks\":{},\"rx_mib_s\":{},\"tx_mib_s\":{},\"aggregate_mib_s\":{}}},\"client\":{}}}",self.transport,self.request.version,self.request.mode,self.request.chunk,self.request.total,status,self.received,self.sent,self.rx_us,self.tx_us,elapsed,self.receive_calls,self.send_calls,rate(self.received as u64,self.rx_us),rate(self.sent as u64,self.tx_us),rate(self.received as u64+self.sent as u64,elapsed),self.client.as_ref().map(ClientMetrics::json).unwrap_or_else(||"null".into()));
+        let timestamp_ms=SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis();
+        let sequence=self.test_id;
+        let row=format!("{{\"timestamp_ms\":{timestamp_ms},\"sequence\":{sequence},{}",&body[1..]);
+        println!("BEN2_RESULT {row}");
+        let path=std::env::var("BEN2_RESULTS").unwrap_or_else(|_|"benchmark-results/zephyr-ben2.jsonl".into());
+        let saved=(||->std::io::Result<()> {
+            let _guard=RESULT_LOCK.lock().map_err(|_|std::io::Error::other("result lock poisoned"))?;
+            if let Some(parent)=std::path::Path::new(&path).parent() { if !parent.as_os_str().is_empty() {std::fs::create_dir_all(parent)?;} }
+            let mut file=OpenOptions::new().create(true).append(true).open(&path)?;
+            writeln!(file,"{row}")?; file.flush()
+        })();
+        if let Err(e)=saved { eprintln!("[BEN2] result save failed {path}: {e}"); }
+    }
+    fn finish(&mut self, send:&mut impl FnMut(&[u8])->Result<(),String>)->Result<(),String> {
+        let needed=METRIC_LEN;
+        let ack_len=if self.request.mode==1 {0} else {20};
+        if self.trailer.len()!=ack_len+needed {return Ok(());}
+        if self.sent!=if self.request.mode==1 {0} else {self.request.total} {return Ok(());}
+        if self.received!=if self.request.mode==2 {0} else {self.request.total} {return Ok(());}
+        if ack_len!=0 {
+            let a=&self.trailer;
+            if word(a,0)!=MAGIC || word(a,4)!=self.request.mode || word(a,8)!=0 || word(a,12)!=self.sent || word(a,16)!=self.received {return Err("BEN2 invalid client ACK".into());}
         }
-        send(&buffer)?;
-        bench.sent += count as u32;
-        if bench.sent == bench.request.total {
-            eprintln!("[BEN2] download queued mode={} bytes={}", bench.request.mode, bench.sent);
-        }
+        if needed!=0 {self.client=Some(ClientMetrics::parse(&self.trailer[ack_len..],self.request)?);}
+        let status=if self.client.as_ref().is_some_and(|m|m.values[7]!=0) {1} else {0};
+        send(&reply(self.request.mode,status,self.received,self.sent))?;
+        self.completed=true;
+        self.publish(if status==0 {"PASS"} else {"FAIL"});
         Ok(())
     }
-
 }
-
-fn reply(mode: u32, status: u32, received: u32, sent: u32) -> [u8; 20] {
-    let mut out = [0u8; 20];
-    for (i, val) in [MAGIC, mode, status, received, sent].iter().enumerate() {
-        out[i * 4..i * 4 + 4].copy_from_slice(&val.to_be_bytes());
+impl Drop for Bench { fn drop(&mut self) { if !self.published {self.publish("INCOMPLETE");} } }
+impl Protocol {
+    pub fn fail(&mut self) {
+        if let Self::Bench(b)=self {
+            if b.rx_us==0 {b.rx_us=b.rx_start.map(|s|us(s.elapsed())).unwrap_or(0);}
+            if b.tx_us==0 {b.tx_us=b.tx_start.map(|s|us(s.elapsed())).unwrap_or(0);}
+            b.publish("FAIL");
+        }
     }
-    out
+    pub fn done(&self)->bool { matches!(self,Self::Bench(b) if b.completed) }
+    pub fn download_pending(&self)->bool { matches!(self,Self::Bench(b) if !b.completed && b.request.mode!=1 && b.sent<b.request.total) }
+    pub fn progress(&mut self) {if let Self::Bench(b)=self {b.progress();}}
+    pub fn new()->Self {Self::Detect(Vec::new())}
+    pub fn on_plain(&mut self, bytes:&[u8], send:&mut impl FnMut(&[u8])->Result<(),String>)->Result<(),String> {
+        match self {
+            Self::Echo=>send(bytes),
+            Self::Detect(pending)=> {
+                // Detection retains only the fixed request header, never payload.
+                let n=(20-pending.len()).min(bytes.len()); pending.extend_from_slice(&bytes[..n]);
+                if pending.len()>=4 && pending[..4]!=MAGIC.to_be_bytes() {
+                    let prefix=std::mem::take(pending); *self=Self::Echo;
+                    send(&prefix)?; return send(&bytes[n..]);
+                }
+                if pending.len()<20 {return Ok(());}
+                let request=Request{version:word(pending,4),mode:word(pending,8),chunk:word(pending,12),total:word(pending,16)};
+                if request.version!=VERSION || !(1..=3).contains(&request.mode) || request.chunk==0 || request.chunk>MAX_TOTAL || request.total==0 || request.total>MAX_TOTAL {return Err(format!("invalid BEN2 request {request:?}"));}
+                *self=Self::Bench(Bench {test_id:RESULT_SEQUENCE.fetch_add(1,Ordering::Relaxed),transport:std::env::var("BEN2_TRANSPORT").unwrap_or_else(|_|"stcp-tcp".into()),report_ms:report_interval(),next_report:Instant::now()+std::time::Duration::from_millis(report_interval()),report_rx:0,report_tx:0,report_at:Instant::now(),request,received:0,sent:0,trailer:Vec::new(),completed:false,started:Instant::now(),rx_start:None,tx_start:None,rx_us:0,tx_us:0,receive_calls:0,send_calls:0,client:None,published:false});
+                self.on_plain(&bytes[n..],send)
+            }
+            Self::Bench(b)=> {
+                if b.completed {return if bytes.is_empty(){Ok(())}else{Err("BEN2 data after completion".into())};}
+                let count=if b.request.mode==2 {0} else {((b.request.total-b.received)as usize).min(bytes.len())};
+                if count>0 {
+                    let started=*b.rx_start.get_or_insert_with(Instant::now); b.receive_calls+=1;
+                    for (i,&byte) in bytes[..count].iter().enumerate() {if byte!=pattern(b.received+i as u32,0x17) {return Err(format!("BEN2 mismatch offset={}",b.received+i as u32));}}
+                    b.received+=count as u32;
+                    if b.received==b.request.total {b.rx_us=us(started.elapsed());}
+                }
+                let maximum=(if b.request.mode==1 {0} else {20})+METRIC_LEN;
+                if bytes.len()-count>maximum-b.trailer.len() {return Err("BEN2 oversized trailer".into());}
+                b.trailer.extend_from_slice(&bytes[count..]);
+                b.finish(send)
+            }
+        }
+    }
+    pub fn pump_download(&mut self,send:&mut impl FnMut(&[u8])->Result<(),String>)->Result<(),String> {
+        let Self::Bench(b)=self else {return Ok(());};
+        if b.completed {return Ok(());}
+        if b.request.mode!=1 && b.sent<b.request.total {
+            let count=(b.request.chunk as usize).min(1024).min((b.request.total-b.sent)as usize);
+            // Fixed stack buffer avoids a heap allocation per outgoing chunk.
+            let mut buffer=[0;1024];
+            for (i,byte) in buffer[..count].iter_mut().enumerate() {*byte=pattern(b.sent+i as u32,0x53);}
+            let started=*b.tx_start.get_or_insert_with(Instant::now);
+            send(&buffer[..count])?; b.send_calls+=1; b.sent+=count as u32;
+            if b.sent==b.request.total {b.tx_us=us(started.elapsed());}
+        }
+        // Also handles an ACK/trailer buffered before the final download chunk.
+        b.finish(send)
+    }
+}
+fn reply(mode:u32,status:u32,received:u32,sent:u32)->[u8;20] {
+    let mut out=[0;20]; for (i,v) in [MAGIC,mode,status,received,sent].iter().enumerate() {out[i*4..i*4+4].copy_from_slice(&v.to_be_bytes());} out
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    #[test]
-    fn upload() {
-        let mut protocol = Protocol::new();
-        let mut sent = Vec::new();
-        let mut request = Vec::new();
-        for word in [MAGIC, VERSION, 1, 4, 9] { request.extend_from_slice(&word.to_be_bytes()); }
-        protocol.on_plain(&request[..8], &mut |b| { sent.extend_from_slice(b); Ok(()) }).unwrap();
-        protocol.on_plain(&request[8..], &mut |b| { sent.extend_from_slice(b); Ok(()) }).unwrap();
-        let data: Vec<_> = (0..9).map(|i| pattern(i, 0x17)).collect();
-        protocol.on_plain(&data, &mut |b| { sent.extend_from_slice(b); Ok(()) }).unwrap();
-        assert_eq!(sent, reply(1, 0, 9, 0));
-    }
+ use super::*;
+ fn req(mode:u32,total:u32)->Vec<u8> { [MAGIC,VERSION,mode,4096,total].iter().flat_map(|x|x.to_be_bytes()).collect() }
+ fn metrics(mode:u32,total:u32,errors:u64)->Vec<u8> {
+  let mut b=vec![0;METRIC_LEN];
+  for (i,x) in [METRIC_MAGIC,1,METRIC_LEN as u32,2].iter().enumerate() {b[i*4..i*4+4].copy_from_slice(&x.to_be_bytes());}
+  let values=[if mode==2 {0}else{total as u64},if mode==1 {0}else{total as u64},1000,2000,3,4,0,errors,2400,1600,3000,5000];
+  for (i,x) in values.iter().enumerate() {b[16+i*8..24+i*8].copy_from_slice(&x.to_be_bytes());} b
+ }
+ #[test] fn upload_fragmented() {
+  let mut p=Protocol::new(); let mut out=Vec::new();
+  let mut input=req(1,9); input.extend((0..9).map(|i|pattern(i,0x17))); input.extend(metrics(1,9,0));
+  for b in input {p.on_plain(&[b],&mut |x|{out.extend_from_slice(x);Ok(())}).unwrap();}
+  assert_eq!(out,reply(1,0,9,0));
+ }
+ #[test] fn download() {
+  let mut p=Protocol::new();let mut out=Vec::new();
+  p.on_plain(&req(2,2048),&mut |_|Ok(())).unwrap();
+  p.pump_download(&mut |x|{out.extend_from_slice(x);Ok(())}).unwrap();
+  p.pump_download(&mut |x|{out.extend_from_slice(x);Ok(())}).unwrap();
+  assert!(out.iter().enumerate().all(|(i,b)|*b==pattern(i as u32,0x53)));
+  let mut ack=reply(2,0,2048,0).to_vec(); ack.extend(metrics(2,2048,0));
+  p.on_plain(&ack,&mut |x|{out.extend_from_slice(x);Ok(())}).unwrap();
+  assert_eq!(&out[2048..],&reply(2,0,0,2048));
+ }
+ #[test] fn full_ack_before_last_pump() {
+  let mut p=Protocol::new();let mut out=Vec::new();
+  p.on_plain(&req(3,2048),&mut |_|Ok(())).unwrap();
+  let mut data:Vec<u8>=(0..2048).map(|i|pattern(i,0x17)).collect();
+  data.extend(reply(3,0,2048,2048)); data.extend(metrics(3,2048,0));
+  p.on_plain(&data,&mut |_|Ok(())).unwrap();
+  for _ in 0..2 {p.pump_download(&mut |x|{out.extend_from_slice(x);Ok(())}).unwrap();}
+  assert_eq!(&out[2048..],&reply(3,0,2048,2048));
+ }
+ #[test] fn reports_client_error() {
+  let mut p=Protocol::new();let mut out=Vec::new(); let mut data=req(1,1);
+  data.push(pattern(0,0x17));data.extend(metrics(1,1,1));
+  p.on_plain(&data,&mut |x|{out.extend_from_slice(x);Ok(())}).unwrap();
+  assert_eq!(out,reply(1,1,1,0));
+ }
+ #[test] fn rejects_old_version() {
+  let mut p=Protocol::new();let mut r=req(1,1);r[7]=1;
+  assert!(p.on_plain(&r,&mut |_|Ok(())).is_err());
+ }
+ #[test] fn rejects_bad_counts_and_oversize() {
+  for oversize in [false,true] {
+   let mut p=Protocol::new();let mut data=req(1,1);data.push(pattern(0,0x17));
+   let mut m=metrics(1,1,0);m[23]=2;data.extend(m);if oversize{data.push(0);}
+   assert!(p.on_plain(&data,&mut |_|Ok(())).is_err());
+  }
+ }
+ #[test] fn preserves_echo() {
+  let mut p=Protocol::new();let mut out=Vec::new();
+  p.on_plain(b"hello",&mut |x|{out.extend_from_slice(x);Ok(())}).unwrap();assert_eq!(out,b"hello");
+ }
 }
 
 #[cfg(test)]
-mod integration_tests {
+mod progress_tests {
     use super::*;
-    fn req(mode: u32, chunk: u32, total: u32) -> Vec<u8> {
-        [MAGIC, VERSION, mode, chunk, total].iter().flat_map(|w| w.to_be_bytes()).collect()
+    fn benchmark()->Protocol {
+        let mut p=Protocol::new();
+        let request:Vec<u8>=[MAGIC,VERSION,1,1024,2048].iter().flat_map(|v|v.to_be_bytes()).collect();
+        p.on_plain(&request,&mut |_|Ok(())).unwrap();p
     }
     #[test]
-    fn download_ack() {
-        let mut p = Protocol::new();
-        let mut out = Vec::new();
-        p.on_plain(&req(2, 4096, 4096), &mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        assert!(out.is_empty());
-        for _ in 0..4 { p.pump_download(&mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap(); }
-        assert_eq!(out.len(), 4096);
-        assert!(out.iter().enumerate().all(|(i,b)| *b == pattern(i as u32, 0x53)));
-        p.on_plain(&reply(2, 0, 4096, 0), &mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        assert_eq!(&out[4096..], &reply(2, 0, 0, 4096));
+    fn due_report_advances_snapshot_without_changing_payload() {
+        let mut p=benchmark();let Protocol::Bench(b)=&mut p else {panic!("bench expected")};
+        b.report_ms=100;b.next_report=Instant::now()-std::time::Duration::from_millis(1);
+        b.received=1024;b.progress();
+        assert_eq!(b.report_rx,1024);assert_eq!(b.received,1024);
+        assert!(b.next_report>Instant::now());
     }
     #[test]
-    fn full_duplex_interleaved() {
-        let mut p = Protocol::new();
-        let mut out = Vec::new();
-        p.on_plain(&req(3, 4096, 2048), &mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        p.pump_download(&mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        let data: Vec<_> = (0..2048).map(|i| pattern(i, 0x17)).collect();
-        p.on_plain(&data[..1024], &mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        p.pump_download(&mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        p.on_plain(&data[1024..], &mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        p.on_plain(&reply(3, 0, 2048, 2048), &mut |b| { out.extend_from_slice(b); Ok(()) }).unwrap();
-        assert_eq!(out.len(), 2068);
-        assert_eq!(&out[2048..], &reply(3, 0, 2048, 2048));
+    fn zero_interval_disables_snapshot() {
+        let mut p=benchmark();let Protocol::Bench(b)=&mut p else {panic!("bench expected")};
+        b.report_ms=0;b.next_report=Instant::now();b.received=1024;b.progress();
+        assert_eq!(b.report_rx,0);
     }
 }

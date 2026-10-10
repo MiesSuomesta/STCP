@@ -9,6 +9,7 @@ zephyr_library_sources_ifdef(CONFIG_STCP
 
 if(CONFIG_STCP_RUST_CORE)
     zephyr_library_sources(
+        src/stcp_buffer_pool.c
         src/stcp_rust_platform.c
         src/stcp_aes_gcm.c
         src/stcp_rust_rx.c

@@ -132,6 +132,9 @@ SYS_INIT(stcp_crypto_init_hook, APPLICATION, 85);
 void *stcp_rust_kernel_alloc(size_t size)
 {
     void *ptr = k_malloc(size ? size : 1U);
+    if (ptr == NULL) {
+        LOG_ERR("Rust heap allocation failed: bytes=%u", (unsigned)size);
+    }
     if (IS_ENABLED(CONFIG_STCP_V2_TRACE_ALLOC)) {
         LOG_DBG("rust alloc size=%u ptr=%p", (unsigned)size, ptr);
     }

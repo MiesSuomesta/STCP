@@ -1,7 +1,9 @@
+#include <stcp/stcp_buffer_pool.h>
 #include <errno.h>
 #include <string.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
+#include <zephyr/sys/sys_heap.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
@@ -79,9 +81,65 @@ static int stcp_crypto_init_hook(void)
 }
 SYS_INIT(stcp_crypto_init_hook, APPLICATION, 85);
 
+/* Diagnostic access to Zephyr's system k_malloc heap. Snapshot under its
+ * lock; release before logging to avoid logger/allocator lock inversion. */
+extern struct k_heap _system_heap;
+void stcp_memory_snapshot(const char *stage, size_t requested)
+{
+#ifdef CONFIG_SYS_HEAP_RUNTIME_STATS
+    if (requested == 0) {
+        LOG_ERR("STCP_HEAP alloc_loops=%u", (unsigned)CONFIG_SYS_HEAP_ALLOC_LOOPS);
+        stcp_buffer_pool_report();
+    }
+    struct sys_memory_stats stats;
+    k_spinlock_key_t key = k_spin_lock(&_system_heap.lock);
+    int rc = sys_heap_runtime_stats_get(&_system_heap.heap, &stats);
+    k_spin_unlock(&_system_heap.lock, key);
+    if (rc == 0) {
+        LOG_ERR("STCP_HEAP stage=%s requested=%u used=%u free=%u peak=%u",
+                stage, (unsigned)requested, (unsigned)stats.allocated_bytes,
+                (unsigned)stats.free_bytes, (unsigned)stats.max_allocated_bytes);
+    } else {
+        LOG_ERR("STCP_HEAP stage=%s stats_rc=%d", stage, rc);
+    }
+#else
+    LOG_ERR("STCP_HEAP stats disabled");
+#endif
+}
+
+/* One diagnostic dump per boot. Direct printk is required while the
+ * allocator lock is held; CONFIG_LOG_PRINTK must be disabled. */
+#if defined(CONFIG_SYS_HEAP_INFO) && defined(CONFIG_SYS_HEAP_VALIDATE) && !defined(CONFIG_LOG_PRINTK)
+static atomic_t heap_dump_done;
+static void stcp_heap_failure_dump(size_t requested)
+{
+    if (!atomic_cas(&heap_dump_done, 0, 1)) return;
+    printk("STCP_HEAP_DUMP_BEGIN requested=%u alloc_loops=%u\n",
+           (unsigned)requested, (unsigned)CONFIG_SYS_HEAP_ALLOC_LOOPS);
+    k_spinlock_key_t key = k_spin_lock(&_system_heap.lock);
+    bool valid = sys_heap_validate(&_system_heap.heap);
+    if (valid) sys_heap_print_info(&_system_heap.heap, true);
+    k_spin_unlock(&_system_heap.lock, key);
+    printk("STCP_HEAP_DUMP_END valid=%u\n", (unsigned)valid);
+}
+#else
+static void stcp_heap_failure_dump(size_t requested)
+{
+    LOG_ERR("STCP_HEAP_DUMP disabled requested=%u", (unsigned)requested);
+}
+#endif
+
 void *stcp_rust_kernel_alloc(size_t size)
 {
-    void *ptr = k_malloc(size ? size : 1U);
+    /* Small Rust metadata/control buffers retain the system allocator.
+     * Frame-sized buffers never fall back to the fragmented heap. */
+    void *ptr = size > 512U ? stcp_buffer_alloc(size) : k_malloc(size ? size : 1U);
+    if (ptr == NULL) {
+        stcp_memory_snapshot("alloc-failed", size);
+        stcp_buffer_pool_report();
+        if (size <= 512U) stcp_heap_failure_dump(size);
+        LOG_ERR("STCP_MEM alloc_failed bytes=%u", (unsigned)size);
+    }
     if (IS_ENABLED(CONFIG_STCP_RUST_TRACE_ALLOC)) {
         STCP_CRYPTO_DBG("rust alloc size=%u ptr=%p", (unsigned)size, ptr);
     }
@@ -91,7 +149,7 @@ void *stcp_rust_kernel_alloc(size_t size)
 void stcp_rust_kernel_free(void *ptr)
 {
     if (ptr != NULL) {
-        k_free(ptr);
+        if (!stcp_buffer_free(ptr)) k_free(ptr);
     }
 }
 
@@ -125,6 +183,11 @@ void stcp_kernel_wake_recv(void *owner)
 void stcp_kernel_debug_event(uint32_t event, uintptr_t ctx,
                              uintptr_t arg0, uintptr_t arg1)
 {
+    if (event >= 900 && event <= 904) {
+        LOG_ERR("STCP_MEM event=%u ctx=%p a=%u b=%u", event,
+                (void *)ctx, (unsigned)arg0, (unsigned)arg1);
+        return;
+    }
     if (IS_ENABLED(CONFIG_STCP_RUST_TRACE_EVENTS)) {
         STCP_CRYPTO_DBG("rust event=%u ctx=%p arg0=%u arg1=%u", event,
                 (void *)ctx, (unsigned)arg0, (unsigned)arg1);
@@ -567,13 +630,13 @@ int stcp_kernel_chacha_decrypt_in_place(const uint8_t *key, uint64_t nonce,
     uint8_t *tmp;
     int rc;
     if (!cipher || cipher_len < 16) return -EINVAL;
-    tmp = k_malloc(cipher_len - 16);
+    tmp = stcp_buffer_alloc(cipher_len - 16);
     if (!tmp) return -ENOMEM;
     rc = stcp_kernel_chacha_decrypt(key, nonce, aad, aad_len,
                                     cipher, cipher_len, tmp, cipher_len - 16);
     if (rc == 0) memcpy(cipher, tmp, cipher_len - 16);
     memset(tmp, 0, cipher_len - 16);
-    k_free(tmp);
+    (void)stcp_buffer_free(tmp);
     return rc;
 }
 

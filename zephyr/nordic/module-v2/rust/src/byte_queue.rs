@@ -5,7 +5,7 @@ use alloc::{
 
 use crate::error::StcpError;
 
-pub const BYTE_QUEUE_CHUNK_SIZE: usize = 4096;
+pub const BYTE_QUEUE_CHUNK_SIZE: usize = 1152;
 
 pub struct ByteChunk {
     data: Vec<u8>,
@@ -64,8 +64,10 @@ impl ByteQueue {
 
             let count = input.len().min(BYTE_QUEUE_CHUNK_SIZE);
             let mut chunk = Vec::new();
+            /* Allocate the bytes actually received, including their wire
+             * header. CHUNK_SIZE is a maximum, not a minimum allocation. */
             chunk
-                .try_reserve_exact(BYTE_QUEUE_CHUNK_SIZE.min(count.max(4096)))
+                .try_reserve_exact(count)
                 .map_err(|_| StcpError::NoMem)?;
             chunk.extend_from_slice(&input[..count]);
             self.chunks.push_back(ByteChunk { data: chunk, offset: 0 });

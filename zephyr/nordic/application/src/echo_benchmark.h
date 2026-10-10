@@ -7,6 +7,8 @@ enum bench_transport {
     BENCH_TRANSPORT_TCP = 0,
     BENCH_TRANSPORT_STCP = 1,
     BENCH_TRANSPORT_TLS = 2,
+    BENCH_TRANSPORT_UDP = 3,
+    BENCH_TRANSPORT_STCP_UDP = 4,
 };
 
 struct bench_config {
@@ -38,6 +40,7 @@ int bench_run_upload(const struct bench_config *cfg);
 int bench_run_download(const struct bench_config *cfg);
 int bench_run_full(const struct bench_config *cfg);
 int bench_run_all(const struct bench_config *cfg);
+int bench_run_matrix(const struct bench_config *cfg);
 void bench_print_last_summary(const struct bench_config *cfg);
 const struct bench_result *bench_get_last_result(const char *direction);
 int echo_benchmark_run(void);

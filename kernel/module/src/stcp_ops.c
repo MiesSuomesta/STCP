@@ -23,6 +23,10 @@
 #include "stcp_socket.h"
 #include "stcp_users.h"
 
+/* Additive Rust snapshot ABI; kept local because the supplied module archive
+ * does not include the shared stcp_rust_ffi.h header. */
+extern int stcp_rust_peer_public_key_ready(void *ctx);
+
 #define STCP_IO_BUFFER_MAX (2 * 1024 * 1024)
 #define STCP_CONNECT_TIMEOUT_MS 5000
 #define STCP_SEND_READY_TIMEOUT_MS 5000
@@ -822,18 +826,22 @@ static int stcp_accept(
 	}
 
 	if (external_tcp) {
-		/* The RX worker consumes the already queued Zephyr PublicKey frame and
-		 * adopts its connection id before the server emits its own PublicKey. */
+		/* Nonzero wire IDs must be adopted before our PublicKey is emitted.
+		 * Legacy TCP peers may use CID 0: accept that only after RX has
+		 * successfully processed their PublicKey. CID 0 is not "no frame".
+		 * UDP demultiplexing keeps its existing nonzero-ID requirements. */
 		pr_emerg("stcp-xconnect: A12 connection-id-wait-enter child=%px ctx=%px carrier=%px\n",
 			child, child->rust_ctx, child->carrier);
 		ret = wait_event_interruptible_timeout(
 			child->recv_wq,
 			stcp_rust_connection_id(child->rust_ctx) != 0 ||
+			stcp_rust_peer_public_key_ready(child->rust_ctx) > 0 ||
 			stcp_carrier_last_error(child->carrier) != 0,
 			msecs_to_jiffies(STCP_CONNECT_TIMEOUT_MS)
 		);
-		pr_emerg("stcp-xconnect: A13 connection-id-wait-exit ret=%d cid=%llu terminal=%d\n",
+		pr_emerg("stcp-xconnect: A13 connection-id-wait-exit ret=%d cid=%llu peer_key_ready=%d terminal=%d\n",
 			ret, (unsigned long long)stcp_rust_connection_id(child->rust_ctx),
+			stcp_rust_peer_public_key_ready(child->rust_ctx),
 			stcp_carrier_last_error(child->carrier));
 		if (stcp_carrier_last_error(child->carrier) != 0) {
 			ret = stcp_carrier_last_error(child->carrier);
@@ -864,10 +872,12 @@ static int stcp_accept(
 	 *
 	 * A non-zero connection id proves that RX has already accepted a valid
 	 * STCP handshake frame for this child, so treat only that specific -EINVAL
-	 * as the benign "already started by RX" race.  Keep every other error
+	 * as the benign "already started by RX" race. An already-Ready CID-0
+	 * child is also valid. Keep every other error
 	 * fatal so genuine invalid-state bugs are not hidden.
 	 */
-	if (ret == -EINVAL && stcp_rust_connection_id(child->rust_ctx) != 0) {
+	if (ret == -EINVAL && (stcp_rust_connection_id(child->rust_ctx) != 0 ||
+	    stcp_rust_is_connected(child->rust_ctx) > 0)) {
 		pr_emerg("stcp-xconnect: A15B handshake already advanced by RX; continuing child=%px ctx=%px cid=%llu\n",
 			child, child->rust_ctx,
 			(unsigned long long)stcp_rust_connection_id(child->rust_ctx));

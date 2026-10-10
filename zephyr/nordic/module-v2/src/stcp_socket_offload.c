@@ -723,6 +723,10 @@ static int stcp_socket(int family, int type, int protocol)
     int rc;
     ARG_UNUSED(family);
     if (protocol == 0) protocol = IPPROTO_STCP;
+#ifdef CONFIG_STCP_RUST_CORE
+    extern void stcp_memory_snapshot(const char *stage, size_t requested);
+    stcp_memory_snapshot("socket-start", 0);
+#endif
     ctx = stcp_ctx_alloc();
     if (!ctx) { errno = ENOMEM; return -1; }
     errno = 0;

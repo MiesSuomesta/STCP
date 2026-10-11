@@ -13,6 +13,7 @@
 #include <stcp/stcp.h>
 #include "echo_benchmark.h"
 #include "ben2_metrics.h"
+#include "stcp_bench_diag.h"
 #if defined(CONFIG_NRF_MODEM_LIB)
 #include "stcp_lte_transport.h"
 #include "modem_status.h"
@@ -51,6 +52,49 @@ static uint64_t raw_connect_us, raw_elapsed_us;
 static uint64_t clock_us(void)
 {
     return k_ticks_to_us_floor64(k_uptime_ticks());
+}
+
+/* BENCH_NET_DIAG: raw Zephyr socket calls, no transport behaviour changes. */
+static struct stcp_bench_diag net_diag;
+
+static ssize_t diag_zsock_send(int fd, const void *buf, size_t len, int flags)
+{
+    uint32_t begin = k_cycle_get_32();
+    ssize_t n = zsock_send(fd, buf, len, flags);
+    int saved_errno = errno;
+    uint64_t us = k_cyc_to_us_floor32(k_cycle_get_32() - begin);
+    net_diag.send_attempts++;
+    net_diag.send_total_us += us;
+    if (us > net_diag.send_max_us) net_diag.send_max_us = us;
+    if (n < 0) {
+        if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK)
+            net_diag.send_busy++;
+        else net_diag.send_errors++;
+    }
+    errno = saved_errno;
+    return n;
+}
+
+static ssize_t diag_zsock_recv(int fd, void *buf, size_t len, int flags)
+{
+    uint32_t begin = k_cycle_get_32();
+    ssize_t n = zsock_recv(fd, buf, len, flags);
+    int saved_errno = errno;
+    uint64_t us = k_cyc_to_us_floor32(k_cycle_get_32() - begin);
+    net_diag.recv_calls++;
+    net_diag.rx_total_us += us;
+    if (us > net_diag.rx_max_us) net_diag.rx_max_us = us;
+    if (n > 0) { net_diag.rx_packets++; net_diag.rx_bytes += (uint64_t)n; }
+    else if (n < 0 && saved_errno != EAGAIN && saved_errno != EWOULDBLOCK)
+        net_diag.rx_errors++;
+    errno = saved_errno;
+    return n;
+}
+
+static void diag_reset(void) { memset(&net_diag, 0, sizeof(net_diag)); }
+static void diag_report(const char *transport, const char *direction)
+{
+    stcp_bench_diag_print(transport, direction, &net_diag);
 }
 
 static const struct bench_config *active_cfg;
@@ -132,7 +176,7 @@ static int is_datagram(enum bench_transport t)
 { return t == BENCH_TRANSPORT_UDP || t == BENCH_TRANSPORT_STCP_UDP; }
 static ssize_t bench_send(int fd, const void *data, size_t len)
 {
-    if (!is_datagram(active_cfg->transport)) return zsock_send(fd, data, len, 0);
+    if (!is_datagram(active_cfg->transport)) return diag_zsock_send(fd, data, len, 0);
     if (!len || len > 1024) { errno = EMSGSIZE; return -1; }
     uint8_t *packet = udp_send_packet;
     uint32_t header[4] = {sys_cpu_to_be32(0x42554432U), sys_cpu_to_be32(udp_run),
@@ -146,7 +190,7 @@ static ssize_t bench_send(int fd, const void *data, size_t len)
         size_t done = 0;
         int64_t deadline = k_uptime_get() + active_cfg->timeout_ms;
         while (done < len + 16) {
-            ssize_t n = zsock_send(fd, packet + done, len + 16 - done, 0);
+            ssize_t n = diag_zsock_send(fd, packet + done, len + 16 - done, 0);
             int saved_errno = n < 0 ? errno : 0;
             if (n > 0) {
                 if ((size_t)n > len + 16 - done) { errno = EIO; return -1; }
@@ -171,7 +215,7 @@ static ssize_t bench_send(int fd, const void *data, size_t len)
         }
     } else {
         /* Native UDP preserves atomic datagram semantics. */
-        ssize_t n = zsock_send(fd, packet, len + 16, 0);
+        ssize_t n = diag_zsock_send(fd, packet, len + 16, 0);
         if (n < 0) return n;
         if ((size_t)n != len + 16) { errno = EIO; return -1; }
     }
@@ -179,12 +223,12 @@ static ssize_t bench_send(int fd, const void *data, size_t len)
 }
 static ssize_t bench_recv(int fd, void *data, size_t capacity)
 {
-    if (!is_datagram(active_cfg->transport)) return zsock_recv(fd, data, capacity, 0);
+    if (!is_datagram(active_cfg->transport)) return diag_zsock_recv(fd, data, capacity, 0);
     uint8_t *packet = udp_recv_packet; uint32_t h[4];
     size_t packet_size;
     if (active_cfg->transport == BENCH_TRANSPORT_UDP) {
         /* One extra byte detects oversize datagrams even when truncated. */
-        ssize_t n = zsock_recv(fd, packet, 1041, 0);
+        ssize_t n = diag_zsock_recv(fd, packet, 1041, 0);
         if (n < 0) return n;
         if (n < 16) { LOG_ERR("BENCH_UDP_SHORT fd=%d bytes=%d", fd, (int)n); errno = EBADMSG; return -1; }
         packet_size = (size_t)n;
@@ -199,7 +243,7 @@ static ssize_t bench_recv(int fd, void *data, size_t capacity)
                 if (!len || len > 1024) { errno = EBADMSG; return -1; }
                 if (udp_rx_pending >= len + 16) { packet_size = len + 16; break; }
             }
-            ssize_t n = zsock_recv(fd, packet + udp_rx_pending, 1041, 0);
+            ssize_t n = diag_zsock_recv(fd, packet + udp_rx_pending, 1041, 0);
             if (n <= 0) return n;
             udp_rx_pending += (size_t)n;
         }
@@ -993,13 +1037,19 @@ int bench_run_all(const struct bench_config *cfg)
             bench_transport_name(cfg->transport), cfg->host, cfg->port,
             cfg->total_bytes, cfg->chunk_size);
     LOG_INF("BEN2 v2: raw metrics sent to server; no progress logging during data transfer");
+    diag_reset();
     rc = bench_run_upload(cfg);
+    diag_report(bench_transport_name(cfg->transport), "upload");
     if (rc < 0) { bench_print_last_summary(cfg); return rc; }
     k_sleep(K_SECONDS(CONFIG_BENCH_PAUSE_SECONDS));
+    diag_reset();
     rc = bench_run_download(cfg);
+    diag_report(bench_transport_name(cfg->transport), "download");
     if (rc < 0) { bench_print_last_summary(cfg); return rc; }
     k_sleep(K_SECONDS(CONFIG_BENCH_PAUSE_SECONDS));
+    diag_reset();
     rc = bench_run_full(cfg);
+    diag_report(bench_transport_name(cfg->transport), "full");
     bench_print_last_summary(cfg);
     return rc;
 }
@@ -1031,8 +1081,10 @@ int bench_run_matrix(const struct bench_config *cfg)
         report[at++] = sys_cpu_to_be32(t);
         LOG_INF("MATRIX transport=%s host=%s port=%s", bench_transport_name(current.transport), current.host, current.port);
         for (size_t mode = 0; mode < 3; mode++) {
+            diag_reset();
             int rc = mode == 0 ? bench_run_upload(&current) :
                 mode == 1 ? bench_run_download(&current) : bench_run_full(&current);
+            diag_report(bench_transport_name(current.transport), directions[mode]);
             const struct bench_result *result = bench_get_last_result(directions[mode]);
             report[at++] = sys_cpu_to_be32((uint32_t)rc);
             report[at++] = sys_cpu_to_be32(result->bytes_tx);

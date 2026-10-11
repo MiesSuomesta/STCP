@@ -47,12 +47,12 @@ Usage: $(basename "$0") [host|rpi|kernel|zephyr-lte|zephyr-eth|all]
 
 Default: host
 
-  host               Install staged host kernel module on this machine
-  rpi                Install staged Raspberry Pi kernel + module tree over SSH
-  kernel             Backwards-compatible alias for 'host'
-  zephyr-lte         Flash the already-built nRF9151/LTE firmware
-  zephyr-eth         Flash the already-built nRF9151 + W5500 firmware
-  all                Install local kernel module and flash ZEPHYR_VARIANT
+  --host               Install staged host kernel module on this machine
+  --rpi                Install staged Raspberry Pi kernel + module tree over SSH
+  --kernel             Backwards-compatible alias for 'host'
+  --zephyr-lte         Flash the already-built nRF9151/LTE firmware
+  --zephyr-eth         Flash the already-built nRF9151 + W5500 firmware
+  --all                Install local kernel module and flash ZEPHYR_VARIANT
 
 Environment:
   ZEPHYR_VARIANT=lte|ethernet   Used by 'all' (default: lte)
@@ -417,17 +417,19 @@ flash_zephyr() {
     pnc_note "STCP Zephyr flash complete" "$variant flashed successfully"
 }
 
-cmd="${1:-host}"
+flag="${1:---host}"
+cmd="$(echo $flag | sed 's,^--,,')"
+
 case "$cmd" in
     host) install_host ;;
     rpi) install_rpi ;;
     kernel) install_host ;;
     zephyr-lte) flash_zephyr lte ;;
-    zephyr-ethernet) flash_zephyr ethernet ;;
+    zephyr-eth|zephyr-ethernet) flash_zephyr ethernet ;;
     all)
         install_host
         flash_zephyr "${ZEPHYR_VARIANT:-lte}"
         ;;
     -h|--help) usage ;;
-    *) echo "[FAIL] Unknown action: $cmd" >&2; usage >&2; exit 2 ;;
+    *) echo "[FAIL] Unknown action: $flag" >&2; usage >&2; exit 2 ;;
 esac

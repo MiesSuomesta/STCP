@@ -96,6 +96,29 @@ static int wait_socket_ready(int fd, short events, int64_t deadline_ms)
     }
 }
 
+/* Connection setup only: POLLOUT/SO_ERROR alone may precede CONNECTED.
+ * getpeername on native Zephyr TCP checks NET_CONTEXT_CONNECTED. */
+static int wait_native_tcp_connected(int fd, int64_t deadline_ms)
+{
+    while (k_uptime_get() < deadline_ms) {
+        int rc = wait_socket_ready(fd, ZSOCK_POLLOUT, deadline_ms);
+        if (rc < 0) return rc;
+        int error = 0;
+        socklen_t len = sizeof(error);
+        if (zsock_getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0)
+            return -errno;
+        if (error) return -error;
+        struct sockaddr_storage peer;
+        len = sizeof(peer);
+        if (zsock_getpeername(fd, (struct sockaddr *)&peer, &len) == 0)
+            return 0;
+        if (errno != ENOTCONN) return -errno;
+        /* Yield only during handshake; never in the data path. */
+        k_sleep(K_MSEC(1));
+    }
+    return -ETIMEDOUT;
+}
+
 /* UDP BEN2 envelope: BUD2, run id, sequence, payload length (BE u32).
  * No retransmission: loss/reorder/duplicates fail the benchmark rather than
  * accidentally passing the repeating byte pattern. Each direction has one writer.
@@ -433,6 +456,11 @@ static int connect_server_impl(const struct bench_config *cfg)
             }
             LOG_DBG("APP SO_ERROR fd=%d error=%d", fd, err);
             if (err) { rc = -err; goto fail; }
+        }
+        if (cfg->transport == BENCH_TRANSPORT_TCP) {
+            rc = wait_native_tcp_connected(fd,
+                    k_uptime_get() + active_cfg->timeout_ms);
+            if (rc < 0) goto fail;
         }
         /* Keep the connected socket non-blocking for the benchmark data plane.
          * The stream helpers below enforce their own inactivity deadlines with

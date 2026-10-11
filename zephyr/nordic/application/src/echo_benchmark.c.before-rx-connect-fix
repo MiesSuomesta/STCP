@@ -163,7 +163,7 @@ static ssize_t bench_recv(int fd, void *data, size_t capacity)
         /* One extra byte detects oversize datagrams even when truncated. */
         ssize_t n = zsock_recv(fd, packet, 1041, 0);
         if (n < 0) return n;
-        if (n < 16) { errno = EBADMSG; return -1; }
+        if (n < 16) { LOG_ERR("BENCH_UDP_SHORT fd=%d bytes=%d", fd, (int)n); errno = EBADMSG; return -1; }
         packet_size = (size_t)n;
     } else {
         /* Protocol 254 legacy SOCK_STREAM ABI may split/coalesce reads.
@@ -185,6 +185,9 @@ static ssize_t bench_recv(int fd, void *data, size_t capacity)
     for (size_t i = 0; i < 4; i++) h[i] = sys_be32_to_cpu(h[i]);
     if (h[0] != 0x42554432U || h[1] != udp_run || h[2] != udp_rx_seq ||
         !h[3] || h[3] > 1024 || h[3] != packet_size - 16 || h[3] > capacity) {
+        LOG_ERR("BENCH_UDP_BAD_FRAME fd=%d magic=0x%08x run=%u expected_run=%u seq=%u expected_seq=%u payload=%u packet=%u capacity=%u",
+                fd, h[0], h[1], udp_run, h[2], udp_rx_seq, h[3],
+                (unsigned)packet_size, (unsigned)capacity);
         errno = EBADMSG; return -1;
     }
     memcpy(data, packet + 16, h[3]); udp_rx_seq++;
@@ -520,7 +523,12 @@ static void fill_pattern(uint8_t *buf, size_t len, uint32_t offset, uint8_t salt
 static int verify_pattern(const uint8_t *buf, size_t len, uint32_t offset, uint8_t salt)
 {
     for (size_t i = 0; i < len; i++)
-        if (buf[i] != (uint8_t)(((offset + i) * 31U + salt) & 0xffU)) return -EBADMSG;
+        if (buf[i] != (uint8_t)(((offset + i) * 31U + salt) & 0xffU)) {
+            LOG_ERR("BENCH_PATTERN_MISMATCH offset=%u received=%u expected=%u",
+                    (unsigned)(offset+i), (unsigned)buf[i],
+                    (unsigned)(((offset+i)*31U+salt)&0xffU));
+            return -EBADMSG;
+        }
     return 0;
 }
 

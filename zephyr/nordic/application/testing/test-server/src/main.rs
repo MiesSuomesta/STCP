@@ -34,13 +34,14 @@ struct Socket {
     fd:OwnedFd, plain_udp:bool, framed:bool, peer:Option<Address>, run:Option<u32>,
     tx_seq:u32,rx_seq:u32,pending:Vec<u8>,
     outgoing:VecDeque<Vec<u8>>, outgoing_offset:usize, queued_bytes:usize,
+    udp_gap:Duration,next_udp_send:Instant,
 }
 impl Socket {
     fn new(fd:OwnedFd,transport:&str,timeout_ms:u64)->Result<Self,String> {
         let raw=fd.as_raw_fd();
         let tv=Timeval{sec:(timeout_ms/1000)as _,usec:((timeout_ms%1000)*1000)as _};
         checked(unsafe{setsockopt(raw,1,21,(&tv as *const Timeval).cast(),mem::size_of::<Timeval>()as u32)})?;
-        Ok(Self{fd,plain_udp:transport=="udp",framed:transport.ends_with("udp"),peer:None,run:None,tx_seq:0,rx_seq:0,pending:Vec::with_capacity(2081),outgoing:VecDeque::new(),outgoing_offset:0,queued_bytes:0})
+        Ok(Self{fd,plain_udp:transport=="udp",framed:transport.ends_with("udp"),peer:None,run:None,tx_seq:0,rx_seq:0,pending:Vec::with_capacity(2081),outgoing:VecDeque::new(),outgoing_offset:0,queued_bytes:0,udp_gap:Duration::ZERO,next_udp_send:Instant::now()})
     }
     fn receive(&mut self,buffer:&mut [u8])->Result<Option<usize>,String> {
         if self.framed && !self.plain_udp {
@@ -106,6 +107,7 @@ impl Socket {
     }
     fn flush(&mut self)->Result<bool,String> {
         let Some(bytes)=self.outgoing.front() else {return Ok(false);};
+        if self.plain_udp && Instant::now()<self.next_udp_send {return Ok(false);}
         let offset=self.outgoing_offset;
         let n=unsafe{if self.plain_udp {
             let peer=self.peer.ok_or("UDP send before peer")?;
@@ -119,6 +121,7 @@ impl Socket {
         if n==0 {return Err("zero-length socket send".into());}
         let n=n as usize;
         if n>bytes.len()-offset || (self.plain_udp && n!=bytes.len()) {return Err("invalid partial socket send".into());}
+        if self.plain_udp {self.next_udp_send=Instant::now()+self.udp_gap;}
         self.outgoing_offset+=n;self.queued_bytes-=n;
         if self.outgoing_offset==bytes.len() {self.outgoing.pop_front();self.outgoing_offset=0;}
         Ok(true)
@@ -128,7 +131,7 @@ impl Socket {
         let rc=unsafe{poll(&mut p,1,ms)};
         if rc<0 && io::Error::last_os_error().kind()!=io::ErrorKind::Interrupted {return Err(error());}Ok(())
     }
-    fn reset_udp(&mut self) {self.peer=None;self.run=None;self.tx_seq=0;self.rx_seq=0;self.pending.clear();self.outgoing.clear();self.outgoing_offset=0;self.queued_bytes=0;}
+    fn reset_udp(&mut self) {self.peer=None;self.run=None;self.tx_seq=0;self.rx_seq=0;self.pending.clear();self.outgoing.clear();self.outgoing_offset=0;self.queued_bytes=0;self.next_udp_send=Instant::now();}
 }
 fn run(socket:&mut Socket,timeout:Duration)->Result<(),String> {
     let mut protocol=bench_protocol::Protocol::new();let mut buffer=[0u8;16384];
@@ -164,18 +167,18 @@ fn run(socket:&mut Socket,timeout:Duration)->Result<(),String> {
     if result.is_err() {protocol.fail();}
     result
 }
-fn usage(){eprintln!("ben2-server --transport all|tcp|udp|stcp-tcp|stcp-udp [--bind IPv4] [--port 19000] [--timeout-ms 60000] [--report-ms 5000]\n--report-ms 0 disables interim reports. STCP modes require stcp.ko.");}
+fn usage(){eprintln!("ben2-server --transport all|tcp|udp|stcp-tcp|stcp-udp [--bind IPv4] [--port 19000] [--timeout-ms 60000] [--report-ms 5000] [--udp-gap-us 10000]\n--udp-gap-us sets native UDP TX spacing; 0 disables pacing. STCP is unaffected. --report-ms 0 disables interim reports. STCP modes require stcp.ko.");}
 fn main()->Result<(),String> {
     if !cfg!(target_os="linux") {return Err("native STCP server requires Linux".into());}
     let mut transport="stcp-tcp".to_string();let mut address="0.0.0.0".to_string();
-    let mut port=19000u16;let mut timeout=60000u64;let mut report=5000u64;
+    let mut port=19000u16;let mut timeout=60000u64;let mut report=5000u64;let mut udp_gap=10000u64;
     let mut args=std::env::args().skip(1);
     while let Some(arg)=args.next(){if arg=="--help" {usage();return Ok(());}
         let value=args.next().ok_or_else(||format!("missing value for {arg}"))?;
         match arg.as_str(){"--transport"=>transport=value,"--bind"=>address=value,
             "--port"=>port=value.parse().map_err(|_|"bad port")?,"--timeout-ms"=>timeout=value.parse().map_err(|_|"bad timeout")?,
-            "--report-ms"=>report=value.parse().map_err(|_|"bad report interval")?,_=>return Err(format!("unknown option {arg}"))}}
-    if port==0 || timeout==0 || timeout>86_400_000 || report>3_600_000 {return Err("invalid port/timeout/report interval".into());}
+            "--report-ms"=>report=value.parse().map_err(|_|"bad report interval")?,"--udp-gap-us"=>udp_gap=value.parse().map_err(|_|"bad UDP gap")?,_=>return Err(format!("unknown option {arg}"))}}
+    if port==0 || timeout==0 || timeout>86_400_000 || report>3_600_000 || udp_gap>1_000_000 {return Err("invalid port/timeout/report interval".into());}
     if transport=="all" {
         if port>65532 {return Err("matrix base port must be <=65532".into());}
         let executable=std::env::current_exe().map_err(|e|e.to_string())?;
@@ -183,7 +186,7 @@ fn main()->Result<(),String> {
         for(i,t)in ["stcp-tcp","stcp-udp","tcp","udp"].iter().enumerate() {
             let spawned=std::process::Command::new(&executable).args([
                 "--transport",t,"--bind",&address,"--port",&(port+i as u16).to_string(),
-                "--timeout-ms",&timeout.to_string(),"--report-ms",&report.to_string()]).spawn();
+                "--timeout-ms",&timeout.to_string(),"--report-ms",&report.to_string(),"--udp-gap-us",&udp_gap.to_string()]).spawn();
             match spawned {Ok(child)=>children.push(child),Err(e)=>{for child in &mut children {let _=child.kill();let _=child.wait();}return Err(e.to_string());}}
         }
         loop {
@@ -205,9 +208,10 @@ fn main()->Result<(),String> {
     for(name,value)in [(2,one),(8,queue),(7,queue)] {unsafe{setsockopt(raw,1,name,(&value as *const i32).cast(),4)};}
     checked(unsafe{bind(raw,&a,mem::size_of::<Address>()as u32)})?;
     if transport!="udp" {checked(unsafe{listen(raw,16)})?;}
-    eprintln!("BENCH_SERVER_READY transport={transport} bind={address} port={port} report_ms={report}");
+    eprintln!("BENCH_SERVER_READY transport={transport} bind={address} port={port} report_ms={report} udp_gap_us={udp_gap}");
     if transport=="udp" {
         let mut socket=Socket::new(fd,&transport,timeout)?;
+        socket.udp_gap=Duration::from_micros(udp_gap);
         loop {if let Err(e)=run(&mut socket,Duration::from_millis(timeout)){eprintln!("BEN2_ERROR {e}");}socket.reset_udp();}
     }else{
         loop {
@@ -291,6 +295,17 @@ mod tests {
         let packet=envelope(7,0,&[0;20]);
         assert_eq!(unsafe{send(b.as_raw_fd(),packet.as_ptr(),packet.len(),MSG_NOSIGNAL|MSG_DONTWAIT)},packet.len()as isize);
         let mut out=[0;1024];assert_eq!(s.receive(&mut out).unwrap(),Some(20));
+    }
+
+    #[test]
+    fn udp_pacing_retains_the_unsent_datagram() {
+        let(a,_b)=UnixStream::pair().unwrap();
+        let mut s=Socket::new(a.into(),"stcp-udp",1000).unwrap();s.run=Some(7);
+        s.transmit(&[3;1024]).unwrap();
+        s.plain_udp=true;s.udp_gap=Duration::from_millis(20);
+        s.next_udp_send=Instant::now()+Duration::from_secs(1);
+        assert!(!s.flush().unwrap());assert_eq!(s.queued_bytes,1040);
+        assert_eq!(s.outgoing_offset,0);assert_eq!(s.outgoing.len(),1);
     }
 
 }

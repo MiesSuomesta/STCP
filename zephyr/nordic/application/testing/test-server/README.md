@@ -17,7 +17,7 @@ stcp config total 1048576
 stcp bench matrix
 ```
 
-For LTE use the public server IP. Matrix runs STCP-TCP, STCP-UDP, TCP and UDP; each runs UL, DL and FULL. Failed tests do not prevent subsequent tests. Configuration port is the base port. Forward TCP 19000, UDP 19001, TCP 19002, UDP 19003 to the server. The matrix summary uses TCP 19002. Changing the base port shifts all four ports.
+For LTE use the public server IP. Matrix runs TCP, STCP-TCP, UDP and STCP-UDP; each runs UL, DL and FULL. Failed tests do not prevent subsequent tests. Configuration port is the base port. Forward TCP 19000, TCP 19001, UDP 19002, UDP 19003 to the server. The matrix summary uses TCP 19001. Changing the base port shifts all four ports.
 
 Linux prints each protocol's PASS/FAIL and UL/DL/FULL bit/sec. FULL is combined TX+RX. Zephyr sends raw counters; Linux calculates rates. Matrix elapsed time includes benchmark protocol control exchanges. Detailed BEN2_RESULT includes transfer timing. Final summary is appended to benchmark-results/zephyr-matrix.jsonl (override BEN2_MATRIX_RESULTS). Individual BEN2 results and periodic progress remain available. --report-ms 0 disables periodic progress.
 

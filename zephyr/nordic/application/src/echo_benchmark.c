@@ -250,6 +250,21 @@ static ssize_t bench_recv(int fd, void *data, size_t capacity)
     }
     memcpy(h, packet, 16);
     for (size_t i = 0; i < 4; i++) h[i] = sys_be32_to_cpu(h[i]);
+    /* Native UDP DL: server owns the transmit run ID. The client-side
+     * udp_run is locally generated and cannot be assumed to match it.
+     * Synchronize exactly once, on the first valid sequence-zero frame.
+     * Subsequent frames must match both run and sequence strictly.
+     * STCP-UDP is deliberately unchanged.
+     */
+    if (active_cfg->transport == BENCH_TRANSPORT_UDP && udp_rx_seq == 0 &&
+        h[0] == 0x42554432U && h[2] == 0 &&
+        h[3] > 0 && h[3] <= 1024 && h[3] == packet_size - 16 &&
+        h[3] <= capacity) {
+        if (h[1] != udp_run) {
+            LOG_INF("BENCH_UDP_DL_RUN_SYNC local=%u peer=%u", udp_run, h[1]);
+            udp_run = h[1];
+        }
+    }
     if (h[0] != 0x42554432U || h[1] != udp_run || h[2] != udp_rx_seq ||
         !h[3] || h[3] > 1024 || h[3] != packet_size - 16 || h[3] > capacity) {
         LOG_ERR("BENCH_UDP_BAD_FRAME fd=%d magic=0x%08x run=%u expected_run=%u seq=%u expected_seq=%u payload=%u packet=%u capacity=%u",

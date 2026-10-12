@@ -374,6 +374,18 @@ pub extern "C" fn stcp_rust_crypto_selftest() -> c_int {
     match crate::crypto::selftest() { Ok(()) => 0, Err(e) => e.errno() }
 }
 
+/* Set before handshake for predictable test behavior. -1 OFF, 0 AUTO, 1..5 LZ4. */
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_set_compression_level(raw: *mut c_void, level: i32) -> c_int {
+    if !(-1..=5).contains(&level) { return EINVAL; }
+    match with_ctx(raw, |ctx| {
+        ctx.inner.lock().compression_level = level;
+    }) {
+        Ok(()) => 0,
+        Err(errno) => errno,
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_wire_header_len() -> usize {
     crate::frame::STCP_HEADER_LEN

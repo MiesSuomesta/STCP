@@ -8,7 +8,7 @@ const MSG_DONTWAIT:i32=0x40;
 const MSG_NOSIGNAL:i32=0x4000;
 const BUD2:u32=0x42554432;
 const BAK2:u32=0x42414b32;
-const UDP_WINDOW:u32=8;
+const UDP_WINDOW:u32=16; // Hyvä arvo, menee passiin
 #[repr(C)]
 #[derive(Clone,Copy,Default)]
 struct Address {family:u16,port:u16,addr:u32,zero:[u8;8]}

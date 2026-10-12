@@ -3,6 +3,9 @@ use alloc::vec::Vec;
 use crate::error::StcpError;
 
 pub const STCP_VERSION: u8 = 2;
+/* Logical descriptor flags, encoded at wire byte 0 bits 6..7. */
+pub const FLAG_COMPRESSED: u8 = 0x01;
+pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
 /*
  * Compact STCPv2 wire header.
  *

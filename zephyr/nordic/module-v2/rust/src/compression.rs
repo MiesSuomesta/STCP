@@ -4,8 +4,7 @@ use alloc::vec::Vec;
 
 use crate::error::StcpError;
 
-pub const FLAG_COMPRESSED: u8 = 0x01;
-pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
+pub use crate::frame::{FLAG_COMPRESSED, FLAG_COMPRESSION_CAPABLE};
 pub const DEFAULT_COMPRESSION_THRESHOLD: usize = 1024;
 const HASH_BITS: usize = 12;
 const HASH_SIZE: usize = 1 << HASH_BITS;

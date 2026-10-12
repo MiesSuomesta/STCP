@@ -1,0 +1,187 @@
+--- a/kernel/module/rust/src/compression.rs
++++ b/kernel/module/rust/src/compression.rs
+@@ -2,8 +2,7 @@
+ 
+ use crate::error::StcpError;
+ 
+-pub const FLAG_COMPRESSED: u8 = 0x01;
+-pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
++pub use crate::frame::{FLAG_COMPRESSED, FLAG_COMPRESSION_CAPABLE};
+ pub const DEFAULT_COMPRESSION_THRESHOLD: usize = 1024;
+ const HASH_BITS: usize = 12;
+ const HASH_SIZE: usize = 1 << HASH_BITS;
+--- a/kernel/module/rust/src/frame.rs
++++ b/kernel/module/rust/src/frame.rs
+@@ -3,6 +3,9 @@
+ use crate::error::StcpError;
+ 
+ pub const STCP_VERSION: u8 = 2;
++/* Logical descriptor flags, encoded at wire byte 0 bits 6..7. */
++pub const FLAG_COMPRESSED: u8 = 0x01;
++pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
+ /*
+  * Compact STCPv2 wire header.
+  *
+--- a/zephyr/nordic/module-v2/rust/src/compression.rs
++++ b/zephyr/nordic/module-v2/rust/src/compression.rs
+@@ -4,8 +4,7 @@
+ 
+ use crate::error::StcpError;
+ 
+-pub const FLAG_COMPRESSED: u8 = 0x01;
+-pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
++pub use crate::frame::{FLAG_COMPRESSED, FLAG_COMPRESSION_CAPABLE};
+ pub const DEFAULT_COMPRESSION_THRESHOLD: usize = 1024;
+ const HASH_BITS: usize = 12;
+ const HASH_SIZE: usize = 1 << HASH_BITS;
+--- a/zephyr/nordic/module-v2/rust/src/ffi.rs
++++ b/zephyr/nordic/module-v2/rust/src/ffi.rs
+@@ -374,6 +374,18 @@
+     match crate::crypto::selftest() { Ok(()) => 0, Err(e) => e.errno() }
+ }
+ 
++/* Set before handshake for predictable test behavior. -1 OFF, 0 AUTO, 1..5 LZ4. */
++#[unsafe(no_mangle)]
++pub extern "C" fn stcp_rust_set_compression_level(raw: *mut c_void, level: i32) -> c_int {
++    if !(-1..=5).contains(&level) { return EINVAL; }
++    match with_ctx(raw, |ctx| {
++        ctx.inner.lock().compression_level = level;
++    }) {
++        Ok(()) => 0,
++        Err(errno) => errno,
++    }
++}
++
+ #[unsafe(no_mangle)]
+ pub extern "C" fn stcp_rust_wire_header_len() -> usize {
+     crate::frame::STCP_HEADER_LEN
+--- a/zephyr/nordic/module-v2/rust/src/session.rs
++++ b/zephyr/nordic/module-v2/rust/src/session.rs
+@@ -495,11 +495,16 @@
+         )
+     };
+ 
+-    let frame = encode_frame(
+-        PacketType::PublicKey,
+-        connection_id(ctx),
+-        &public_key,
++    let mut header = Header::with_numbers(
++        PacketType::PublicKey, public_key.len(), 0, 0, connection_id(ctx),
+     )?;
++    // Capability means RX can decode LZ4, not that TX compression is enabled.
++    header.flags |= FLAG_COMPRESSION_CAPABLE;
++    let mut frame = Vec::new();
++    frame.try_reserve_exact(STCP_HEADER_LEN + public_key.len())
++        .map_err(|_| StcpError::NoMem)?;
++    frame.extend_from_slice(&header.encode());
++    frame.extend_from_slice(&public_key);
+ 
+     send_frame(ctx, &shared, side, &frame, 0)?;
+     Ok(())
+@@ -511,7 +516,16 @@
+     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
+     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
+     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
+-        PacketType::PublicKey => { if frame.header.flags & !FLAG_COMPRESSION_CAPABLE != 0 { return Err(StcpError::Protocol); } if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} crate::carrier::debug_event(263,ctx,frame.payload.len(),0); let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
++        PacketType::PublicKey => {
++            if frame.header.flags & !FLAG_COMPRESSION_CAPABLE != 0 { return Err(StcpError::Protocol); }
++            if frame.payload.len() != PUBLIC_KEY_WIRE_LEN { return Err(StcpError::Protocol); }
++            ctx.inner.lock().peer_compression_capable =
++                frame.header.flags & FLAG_COMPRESSION_CAPABLE != 0;
++            crate::carrier::debug_event(263, ctx, frame.payload.len(), 0);
++            let mut key = [0u8; PUBLIC_KEY_WIRE_LEN];
++            key.copy_from_slice(&frame.payload);
++            received_key = Some(key);
++        }
+         PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} received_done=true; }
+         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
+     }}
+@@ -708,20 +722,41 @@
+             )
+         };
+ 
+-        let encrypted_len = plaintext
++        let (compression_level, peer_capable) = {
++            let inner = ctx.inner.lock();
++            (inner.compression_level, inner.peer_compression_capable)
++        };
++        let mut compressed_storage = Vec::new();
++        let mut wire_plaintext = plaintext;
++        let mut compressed = false;
++        if peer_capable && compression_level >= 0 && plaintext.len() >= 64 {
++            let level = if compression_level == 0 { 3 } else { compression_level as u32 };
++            if let Some(level) = crate::compression::CompressionLevel::from_u32(level) {
++                let mut prefix = [0u8; 10];
++                let prefix_len = crate::compression::encode_uvarint(plaintext.len(), &mut prefix);
++                if let Ok(candidate) = crate::compression::compress_block_with_prefix(
++                    plaintext, level, &prefix[..prefix_len],
++                ) {
++                    if candidate.len() < plaintext.len() {
++                        compressed_storage = candidate;
++                        wire_plaintext = &compressed_storage;
++                        compressed = true;
++                    }
++                }
++            }
++        }
++        let encrypted_len = wire_plaintext
+             .len()
+             .checked_add(AES_GCM_TAG_LEN)
+             .ok_or(StcpError::Protocol)?;
+         let payload_len = NONCE_LEN
+             .checked_add(encrypted_len)
+             .ok_or(StcpError::Protocol)?;
+-        let header = Header::with_numbers(
+-            packet_type,
+-            payload_len,
+-            sequence,
+-            acknowledgment,
+-            connection_id,
+-        )?.encode();
++        let mut header_value = Header::with_numbers(
++            packet_type, payload_len, sequence, acknowledgment, connection_id,
++        )?;
++        if compressed { header_value.flags |= FLAG_COMPRESSED; }
++        let header = header_value.encode();
+         let frame_len = STCP_HEADER_LEN
+             .checked_add(NONCE_LEN)
+             .and_then(|value| value.checked_add(encrypted_len))
+@@ -747,7 +782,7 @@
+         let encrypted_written = send_stage(ctx, 3, crypto.encrypt_into(
+             nonce,
+             &header,
+-            plaintext,
++            wire_plaintext,
+             &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
+         ))?;
+         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
+--- a/zephyr/nordic/module-v2/rust/src/state.rs
++++ b/zephyr/nordic/module-v2/rust/src/state.rs
+@@ -148,6 +148,9 @@
+     pub crypto: CryptoContext,
+     pub role: Role,
+     pub peer_handshake_done: bool,
++    pub peer_compression_capable: bool,
++    /* -1 OFF, 0 AUTO, 1..5 LZ4 levels. */
++    pub compression_level: i32,
+     pub tx_nonce: u64,
+     pub expected_rx_nonce: u64,
+     pub tx_sequence: u64,
+@@ -197,6 +200,8 @@
+                 crypto,
+                 role: Role::Client,
+                 peer_handshake_done: false,
++                peer_compression_capable: false,
++                compression_level: -1,
+                 tx_nonce: 0,
+                 expected_rx_nonce: 0,
+                 tx_sequence: 0,
+@@ -248,6 +253,8 @@
+                 crypto,
+                 role: Role::Server,
+                 peer_handshake_done: false,
++                peer_compression_capable: false,
++                compression_level: -1,
+                 tx_nonce: 0,
+                 expected_rx_nonce: 0,
+                 tx_sequence: 0,

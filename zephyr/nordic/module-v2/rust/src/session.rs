@@ -146,9 +146,9 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
     }
 }
 
-/* Zephyr heap must retain space for RX/ACK parsing and crypto scratch.
- * 16 frames allow two eight-frame cumulative ACK batches in flight. */
-const STCP_SEND_WINDOW: usize = 8;
+/* STCP-UDP: allow up to 16 unacknowledged frames. Actual admission is
+ * additionally limited by the shared TX/RX/crypto frame buffer pool. */
+const STCP_SEND_WINDOW: usize = 16;
 const STCP_ACK_EVERY_FRAMES: u8 = 4;
 const STCP_MAX_RETRANSMIT_PER_TICK: usize = 4;
 const STCP_TICK_MS: u32 = 20;
@@ -495,11 +495,16 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
         )
     };
 
-    let frame = encode_frame(
-        PacketType::PublicKey,
-        connection_id(ctx),
-        &public_key,
+    let mut header = Header::with_numbers(
+        PacketType::PublicKey, public_key.len(), 0, 0, connection_id(ctx),
     )?;
+    // Capability means RX can decode LZ4, not that TX compression is enabled.
+    header.flags |= FLAG_COMPRESSION_CAPABLE;
+    let mut frame = Vec::new();
+    frame.try_reserve_exact(STCP_HEADER_LEN + public_key.len())
+        .map_err(|_| StcpError::NoMem)?;
+    frame.extend_from_slice(&header.encode());
+    frame.extend_from_slice(&public_key);
 
     send_frame(ctx, &shared, side, &frame, 0)?;
     Ok(())
@@ -511,7 +516,16 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => { if frame.header.flags & !FLAG_COMPRESSION_CAPABLE != 0 { return Err(StcpError::Protocol); } if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} crate::carrier::debug_event(263,ctx,frame.payload.len(),0); let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
+        PacketType::PublicKey => {
+            if frame.header.flags & !FLAG_COMPRESSION_CAPABLE != 0 { return Err(StcpError::Protocol); }
+            if frame.payload.len() != PUBLIC_KEY_WIRE_LEN { return Err(StcpError::Protocol); }
+            ctx.inner.lock().peer_compression_capable =
+                frame.header.flags & FLAG_COMPRESSION_CAPABLE != 0;
+            crate::carrier::debug_event(263, ctx, frame.payload.len(), 0);
+            let mut key = [0u8; PUBLIC_KEY_WIRE_LEN];
+            key.copy_from_slice(&frame.payload);
+            received_key = Some(key);
+        }
         PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} received_done=true; }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
@@ -708,20 +722,41 @@ pub fn send(
             )
         };
 
-        let encrypted_len = plaintext
+        let (compression_level, peer_capable) = {
+            let inner = ctx.inner.lock();
+            (inner.compression_level, inner.peer_compression_capable)
+        };
+        let mut compressed_storage = Vec::new();
+        let mut wire_plaintext = plaintext;
+        let mut compressed = false;
+        if peer_capable && compression_level >= 0 && plaintext.len() >= 64 {
+            let level = if compression_level == 0 { 3 } else { compression_level as u32 };
+            if let Some(level) = crate::compression::CompressionLevel::from_u32(level) {
+                let mut prefix = [0u8; 10];
+                let prefix_len = crate::compression::encode_uvarint(plaintext.len(), &mut prefix);
+                if let Ok(candidate) = crate::compression::compress_block_with_prefix(
+                    plaintext, level, &prefix[..prefix_len],
+                ) {
+                    if candidate.len() < plaintext.len() {
+                        compressed_storage = candidate;
+                        wire_plaintext = &compressed_storage;
+                        compressed = true;
+                    }
+                }
+            }
+        }
+        let encrypted_len = wire_plaintext
             .len()
             .checked_add(AES_GCM_TAG_LEN)
             .ok_or(StcpError::Protocol)?;
         let payload_len = NONCE_LEN
             .checked_add(encrypted_len)
             .ok_or(StcpError::Protocol)?;
-        let header = Header::with_numbers(
-            packet_type,
-            payload_len,
-            sequence,
-            acknowledgment,
-            connection_id,
-        )?.encode();
+        let mut header_value = Header::with_numbers(
+            packet_type, payload_len, sequence, acknowledgment, connection_id,
+        )?;
+        if compressed { header_value.flags |= FLAG_COMPRESSED; }
+        let header = header_value.encode();
         let frame_len = STCP_HEADER_LEN
             .checked_add(NONCE_LEN)
             .and_then(|value| value.checked_add(encrypted_len))
@@ -747,7 +782,7 @@ pub fn send(
         let encrypted_written = send_stage(ctx, 3, crypto.encrypt_into(
             nonce,
             &header,
-            plaintext,
+            wire_plaintext,
             &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
         ))?;
         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);

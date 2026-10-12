@@ -6,6 +6,9 @@
 #include <string.h>
 
 #include <zephyr/kernel.h>
+#if defined(CONFIG_ARCH_STACKWALK)
+#include <zephyr/arch/arch_interface.h>
+#endif
 #include <zephyr/logging/log.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/sys/byteorder.h>
@@ -97,6 +100,30 @@ static void diag_report(const char *transport, const char *direction)
     stcp_bench_diag_print(transport, direction, &net_diag);
 }
 
+/* First EBADMSG per benchmark direction. Diagnostic only. */
+static bool bench_ebadmsg_traced;
+#if defined(CONFIG_ARCH_STACKWALK)
+static bool bench_stack_frame(void *cookie, uintptr_t addr, unsigned int frame)
+{
+    ARG_UNUSED(cookie);
+    LOG_ERR("BENCH_EBADMSG_STACK frame=%u pc=%p", frame, (void *)addr);
+    return frame < 23;
+}
+#endif
+static void bench_badmsg_trace(const char *site, int fd, uint32_t expected,
+                               uint32_t actual, uint32_t size)
+{
+    if (bench_ebadmsg_traced) return;
+    bench_ebadmsg_traced = true;
+    LOG_ERR("BENCH_EBADMSG site=%s fd=%d expected=%u actual=%u size=%u thread=%p",
+            site, fd, expected, actual, size, k_current_get());
+#if defined(CONFIG_ARCH_STACKWALK)
+    arch_stack_walk(bench_stack_frame, NULL, k_current_get());
+#else
+    LOG_ERR("BENCH_EBADMSG_STACK unavailable: CONFIG_ARCH_STACKWALK disabled");
+#endif
+}
+
 static const struct bench_config *active_cfg;
 static struct bench_summary last_summary;
 
@@ -168,6 +195,29 @@ static int wait_native_tcp_connected(int fd, int64_t deadline_ms)
  * accidentally passing the repeating byte pattern. Each direction has one writer.
  */
 static uint32_t udp_run, udp_tx_seq, udp_rx_seq;
+/* Native UDP RX observability only; reset per benchmark direction. */
+static struct {
+    uint32_t datagrams, short_frames, bad_headers, seq_gaps;
+    uint32_t first_expected, first_seen, first_gap_us;
+    uint64_t first_rx_us, last_rx_us;
+} udp_rx_diag;
+static void udp_rx_diag_reset(void)
+{
+    memset(&udp_rx_diag, 0, sizeof(udp_rx_diag));
+}
+static void udp_rx_diag_report(const char *direction)
+{
+    LOG_INF("BENCH_UDP_RX_DIAG direction=%s datagrams=%u short=%u bad_headers=%u "
+            "seq_gaps=%u first_expected=%u first_seen=%u first_gap_us=%u "
+            "first_rx_us=%llu last_rx_us=%llu",
+            direction, udp_rx_diag.datagrams, udp_rx_diag.short_frames,
+            udp_rx_diag.bad_headers, udp_rx_diag.seq_gaps,
+            udp_rx_diag.first_expected, udp_rx_diag.first_seen,
+            udp_rx_diag.first_gap_us,
+            (unsigned long long)udp_rx_diag.first_rx_us,
+            (unsigned long long)udp_rx_diag.last_rx_us);
+}
+
 static uint8_t udp_send_packet[1040], udp_recv_packet[2081];
 static size_t udp_rx_pending;
 static int is_stcp(enum bench_transport t)
@@ -221,6 +271,14 @@ static ssize_t bench_send(int fd, const void *data, size_t len)
     }
     udp_tx_seq++; return (ssize_t)len;
 }
+/* BAK2 cumulative ACK for native UDP only. */
+static int udp_download_ack(int fd)
+{
+    uint32_t a[4] = {sys_cpu_to_be32(0x42414b32U),
+        sys_cpu_to_be32(udp_run), sys_cpu_to_be32(udp_rx_seq), 0};
+    ssize_t n = diag_zsock_send(fd, a, sizeof(a), 0);
+    return n == sizeof(a) ? 0 : -1;
+}
 static ssize_t bench_recv(int fd, void *data, size_t capacity)
 {
     if (!is_datagram(active_cfg->transport)) return diag_zsock_recv(fd, data, capacity, 0);
@@ -230,8 +288,26 @@ static ssize_t bench_recv(int fd, void *data, size_t capacity)
         /* One extra byte detects oversize datagrams even when truncated. */
         ssize_t n = diag_zsock_recv(fd, packet, 1041, 0);
         if (n < 0) return n;
-        if (n < 16) { LOG_ERR("BENCH_UDP_SHORT fd=%d bytes=%d", fd, (int)n); errno = EBADMSG; return -1; }
+        if (n < 16) {
+            udp_rx_diag.short_frames++;
+            LOG_ERR("BENCH_UDP_SHORT fd=%d bytes=%d", fd, (int)n);
+            bench_badmsg_trace("udp-short", fd, 16, (uint32_t)n, (uint32_t)n);
+            errno = EBADMSG; return -1;
+        }
+        uint64_t now_us = clock_us();
+        if (!udp_rx_diag.datagrams) udp_rx_diag.first_rx_us = now_us;
+        udp_rx_diag.last_rx_us = now_us;
+        udp_rx_diag.datagrams++;
         packet_size = (size_t)n;
+        /* Ignore reordered/duplicate frames, ACK current cumulative offset. */
+        uint32_t magic = sys_get_be32(packet);
+        uint32_t run = sys_get_be32(packet + 4);
+        uint32_t seq = sys_get_be32(packet + 8);
+        if (magic == 0x42554432U && run == udp_run && seq != udp_rx_seq) {
+            (void)udp_download_ack(fd);
+            errno = EAGAIN;
+            return -1;
+        }
     } else {
         /* Protocol 254 legacy SOCK_STREAM ABI may split/coalesce reads.
          * Preserve the envelope even across EAGAIN and partial reads.
@@ -240,7 +316,10 @@ static ssize_t bench_recv(int fd, void *data, size_t capacity)
             if (udp_rx_pending >= 16) {
                 memcpy(h, packet, 16);
                 uint32_t len = sys_be32_to_cpu(h[3]);
-                if (!len || len > 1024) { errno = EBADMSG; return -1; }
+                if (!len || len > 1024) {
+                    bench_badmsg_trace("stcp-udp-length", fd, 1024, len, (uint32_t)udp_rx_pending);
+                    errno = EBADMSG; return -1;
+                }
                 if (udp_rx_pending >= len + 16) { packet_size = len + 16; break; }
             }
             ssize_t n = diag_zsock_recv(fd, packet + udp_rx_pending, 1041, 0);
@@ -250,29 +329,33 @@ static ssize_t bench_recv(int fd, void *data, size_t capacity)
     }
     memcpy(h, packet, 16);
     for (size_t i = 0; i < 4; i++) h[i] = sys_be32_to_cpu(h[i]);
-    /* Native UDP DL: server owns the transmit run ID. The client-side
-     * udp_run is locally generated and cannot be assumed to match it.
-     * Synchronize exactly once, on the first valid sequence-zero frame.
-     * Subsequent frames must match both run and sequence strictly.
-     * STCP-UDP is deliberately unchanged.
-     */
-    if (active_cfg->transport == BENCH_TRANSPORT_UDP && udp_rx_seq == 0 &&
-        h[0] == 0x42554432U && h[2] == 0 &&
-        h[3] > 0 && h[3] <= 1024 && h[3] == packet_size - 16 &&
-        h[3] <= capacity) {
-        if (h[1] != udp_run) {
-            LOG_INF("BENCH_UDP_DL_RUN_SYNC local=%u peer=%u", udp_run, h[1]);
-            udp_run = h[1];
-        }
-    }
     if (h[0] != 0x42554432U || h[1] != udp_run || h[2] != udp_rx_seq ||
         !h[3] || h[3] > 1024 || h[3] != packet_size - 16 || h[3] > capacity) {
+        if (active_cfg->transport == BENCH_TRANSPORT_UDP) {
+            if (h[0] == 0x42554432U && h[1] == udp_run &&
+                h[2] != udp_rx_seq) {
+                if (!udp_rx_diag.seq_gaps) {
+                    udp_rx_diag.first_expected = udp_rx_seq;
+                    udp_rx_diag.first_seen = h[2];
+                    udp_rx_diag.first_gap_us =
+                        (uint32_t)(udp_rx_diag.last_rx_us -
+                                   udp_rx_diag.first_rx_us);
+                }
+                udp_rx_diag.seq_gaps++;
+            } else {
+                udp_rx_diag.bad_headers++;
+            }
+        }
         LOG_ERR("BENCH_UDP_BAD_FRAME fd=%d magic=0x%08x run=%u expected_run=%u seq=%u expected_seq=%u payload=%u packet=%u capacity=%u",
                 fd, h[0], h[1], udp_run, h[2], udp_rx_seq, h[3],
                 (unsigned)packet_size, (unsigned)capacity);
+        bench_badmsg_trace("udp-frame", fd, udp_rx_seq, h[2], (uint32_t)packet_size);
         errno = EBADMSG; return -1;
     }
     memcpy(data, packet + 16, h[3]); udp_rx_seq++;
+    if (active_cfg->transport == BENCH_TRANSPORT_UDP) {
+        if (udp_download_ack(fd) < 0) LOG_WRN("BENCH_UDP_ACK_SEND_FAILED seq=%u", udp_rx_seq);
+    }
     if (active_cfg->transport == BENCH_TRANSPORT_STCP_UDP) {
         udp_rx_pending -= packet_size;
         memmove(packet, packet + packet_size, udp_rx_pending);
@@ -285,11 +368,21 @@ static int send_all(int fd, const void *buf, size_t len)
     const uint8_t *p = buf;
     size_t done = 0;
     int64_t deadline = k_uptime_get() + active_cfg->timeout_ms;
+    int64_t tcp_start_grace = k_uptime_get() + 250;
     while (done < len) {
         ssize_t n = bench_send(fd, p + done, len - done);
         if (n > 0) { done += (size_t)n; deadline = k_uptime_get() + active_cfg->timeout_ms; continue; }
         if (n == 0) return -ECONNRESET;
         if (errno == EINTR) continue;
+        /* Native Zephyr TCP can report ENOTCONN briefly after nonblocking
+         * connect readiness. Retry only before any control bytes are sent;
+         * never hide a disconnect after a partial write. */
+        if (active_cfg->transport == BENCH_TRANSPORT_TCP &&
+            done == 0 && errno == ENOTCONN &&
+            k_uptime_get() < deadline && k_uptime_get() < tcp_start_grace) {
+            k_sleep(K_MSEC(1));
+            continue;
+        }
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             int rc = wait_socket_ready(fd, ZSOCK_POLLOUT, deadline);
             if (rc < 0) return rc;
@@ -614,6 +707,7 @@ static int verify_pattern(const uint8_t *buf, size_t len, uint32_t offset, uint8
             LOG_ERR("BENCH_PATTERN_MISMATCH offset=%u received=%u expected=%u",
                     (unsigned)(offset+i), (unsigned)buf[i],
                     (unsigned)(((offset+i)*31U+salt)&0xffU));
+            bench_badmsg_trace("pattern", -1, offset + (uint32_t)i, buf[i], (uint32_t)len);
             return -EBADMSG;
         }
     return 0;
@@ -653,6 +747,7 @@ static int recv_reply(int fd, uint32_t mode, struct bench_reply *reply)
                 fd, mode,
                 (unsigned int)sys_be32_to_cpu(reply->magic),
                 (unsigned int)sys_be32_to_cpu(reply->mode));
+        bench_badmsg_trace("reply", fd, mode, sys_be32_to_cpu(reply->mode), sizeof(*reply));
         return -EBADMSG;
     }
 
@@ -727,6 +822,7 @@ static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_s
     int rc = 0;
     uint64_t started = clock_us();
     int64_t deadline = k_uptime_get() + active_cfg->timeout_ms;
+    int64_t tcp_start_grace = k_uptime_get() + 250;
     while (off < total) {
         size_t count = MIN(chunk_size, total - off);
         fill_pattern(tx_buf, count, off, salt);
@@ -750,6 +846,14 @@ static int stream_send(int fd, uint8_t *tx_buf, uint32_t total, uint32_t chunk_s
             }
             if (!n) { rc = -ECONNRESET; goto done; }
             if (saved_errno == EINTR) continue;
+            /* Retry a transient native TCP connect-state race only before
+             * the first data byte. Once transfer starts, ENOTCONN is fatal. */
+            if (active_cfg->transport == BENCH_TRANSPORT_TCP &&
+                off == 0 && saved_errno == ENOTCONN &&
+                k_uptime_get() < deadline && k_uptime_get() < tcp_start_grace) {
+                k_sleep(K_MSEC(1));
+                continue;
+            }
             if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) {
                 raw_tx.eagain++;
                 rc = wait_socket_ready(fd, ZSOCK_POLLOUT, deadline);
@@ -802,12 +906,14 @@ static int stream_recv(int fd, uint8_t *rx_buf, uint32_t total, uint32_t rx_buf_
     }
 done:
     raw_rx.elapsed_us = clock_us() - started;
+    if (rc == -EBADMSG) bench_badmsg_trace("stream-recv", fd, off, total, rx_buf_size);
     if (rc < 0) raw_rx.errors++;
     return rc;
 }
 
 int bench_run_upload(const struct bench_config *cfg)
 {
+    bench_ebadmsg_traced = false;
     memset(&last_summary.upload, 0, sizeof(last_summary.upload));
     last_summary.upload.status = -ECANCELED;
     int valid = validate_config(cfg);
@@ -872,6 +978,7 @@ int bench_run_upload(const struct bench_config *cfg)
 
 int bench_run_download(const struct bench_config *cfg)
 {
+    bench_ebadmsg_traced = false;
     memset(&last_summary.download, 0, sizeof(last_summary.download));
     last_summary.download.status = -ECANCELED;
     int valid = validate_config(cfg);
@@ -929,6 +1036,7 @@ static void sender_entry(void *a, void *b, void *c)
 
 int bench_run_full(const struct bench_config *cfg)
 {
+    bench_ebadmsg_traced = false;
     memset(&last_summary.full, 0, sizeof(last_summary.full));
     last_summary.full.status = -ECANCELED;
     int valid = validate_config(cfg);
@@ -1097,9 +1205,12 @@ int bench_run_matrix(const struct bench_config *cfg)
         LOG_INF("MATRIX transport=%s host=%s port=%s", bench_transport_name(current.transport), current.host, current.port);
         for (size_t mode = 0; mode < 3; mode++) {
             diag_reset();
+            udp_rx_diag_reset();
             int rc = mode == 0 ? bench_run_upload(&current) :
                 mode == 1 ? bench_run_download(&current) : bench_run_full(&current);
             diag_report(bench_transport_name(current.transport), directions[mode]);
+            if (current.transport == BENCH_TRANSPORT_UDP)
+                udp_rx_diag_report(directions[mode]);
             const struct bench_result *result = bench_get_last_result(directions[mode]);
             report[at++] = sys_cpu_to_be32((uint32_t)rc);
             report[at++] = sys_cpu_to_be32(result->bytes_tx);
@@ -1120,7 +1231,10 @@ int bench_run_matrix(const struct bench_config *cfg)
     uint32_t ack[5];
     if (!rc) rc = recv_all(fd, ack, sizeof(ack));
     if (!rc && (sys_be32_to_cpu(ack[0]) != 0x464f4d32U ||
-                sys_be32_to_cpu(ack[1]) != 1 || sys_be32_to_cpu(ack[2]) != 0)) rc = -EBADMSG;
+                sys_be32_to_cpu(ack[1]) != 1 || sys_be32_to_cpu(ack[2]) != 0)) {
+        bench_badmsg_trace("matrix-ack", fd, 0x464f4d32U, sys_be32_to_cpu(ack[0]), sizeof(ack));
+        rc = -EBADMSG;
+    }
     zsock_close(fd);
     LOG_INF("MATRIX matrix report rc=%d", rc);
     return rc < 0 ? rc : overall;

@@ -7,6 +7,8 @@ const AF_STCP:i32=45;
 const MSG_DONTWAIT:i32=0x40;
 const MSG_NOSIGNAL:i32=0x4000;
 const BUD2:u32=0x42554432;
+const BAK2:u32=0x42414b32;
+const UDP_WINDOW:u32=8;
 #[repr(C)]
 #[derive(Clone,Copy,Default)]
 struct Address {family:u16,port:u16,addr:u32,zero:[u8;8]}
@@ -35,13 +37,14 @@ struct Socket {
     tx_seq:u32,rx_seq:u32,pending:Vec<u8>,
     outgoing:VecDeque<Vec<u8>>, outgoing_offset:usize, queued_bytes:usize,
     udp_gap:Duration,next_udp_send:Instant,
+    udp_acked:u32, udp_unacked:VecDeque<(u32,Vec<u8>,Instant)>, udp_retries:u64,
 }
 impl Socket {
     fn new(fd:OwnedFd,transport:&str,timeout_ms:u64)->Result<Self,String> {
         let raw=fd.as_raw_fd();
         let tv=Timeval{sec:(timeout_ms/1000)as _,usec:((timeout_ms%1000)*1000)as _};
         checked(unsafe{setsockopt(raw,1,21,(&tv as *const Timeval).cast(),mem::size_of::<Timeval>()as u32)})?;
-        Ok(Self{fd,plain_udp:transport=="udp",framed:transport.ends_with("udp"),peer:None,run:None,tx_seq:0,rx_seq:0,pending:Vec::with_capacity(2081),outgoing:VecDeque::new(),outgoing_offset:0,queued_bytes:0,udp_gap:Duration::ZERO,next_udp_send:Instant::now()})
+        Ok(Self{fd,plain_udp:transport=="udp",framed:transport.ends_with("udp"),peer:None,run:None,tx_seq:0,rx_seq:0,pending:Vec::with_capacity(2081),outgoing:VecDeque::new(),outgoing_offset:0,queued_bytes:0,udp_gap:Duration::ZERO,next_udp_send:Instant::now(),udp_acked:0,udp_unacked:VecDeque::new(),udp_retries:0})
     }
     fn receive(&mut self,buffer:&mut [u8])->Result<Option<usize>,String> {
         if self.framed && !self.plain_udp {
@@ -60,6 +63,20 @@ impl Socket {
         let bytes=&raw[..n as usize];
         if !self.framed {buffer[..bytes.len()].copy_from_slice(bytes);return Ok(Some(bytes.len()));}
         if self.plain_udp {
+            // BAK2 is an out-of-band, cumulative download ACK, not BEN2 payload.
+            if bytes.len()==16 && word(bytes,0)==BAK2 {
+                if self.peer.is_some_and(|p|p.addr==peer.addr && p.port==peer.port)
+                    && self.run==Some(word(bytes,4)) {
+                    let next=word(bytes,8);
+                    if next>=self.udp_acked && next<=self.tx_seq {
+                        self.udp_acked=next;
+                        while self.udp_unacked.front().is_some_and(|(seq,_,_)|*seq<next) {
+                            self.udp_unacked.pop_front();
+                        }
+                    }
+                }
+                return Ok(None);
+            }
             if let Some(p)=self.peer {if p.addr!=peer.addr || p.port!=peer.port {return Ok(None);}}
             if self.run.is_none() {
                 // Ignore stale/non-request packets while the UDP listener is idle.
@@ -121,9 +138,30 @@ impl Socket {
         if n==0 {return Err("zero-length socket send".into());}
         let n=n as usize;
         if n>bytes.len()-offset || (self.plain_udp && n!=bytes.len()) {return Err("invalid partial socket send".into());}
-        if self.plain_udp {self.next_udp_send=Instant::now()+self.udp_gap;}
+        if self.plain_udp {
+            self.next_udp_send=Instant::now()+self.udp_gap;
+            if bytes.len()>=16 && word(bytes,0)==BUD2 {
+                let seq=word(bytes,8);
+                // Only BEN2 download data frames enter the retransmission queue.
+                if seq>=self.udp_acked && !self.udp_unacked.iter().any(|(s,_,_)|*s==seq) {
+                    self.udp_unacked.push_back((seq,bytes.clone(),Instant::now()));
+                }
+            }
+        }
         self.outgoing_offset+=n;self.queued_bytes-=n;
         if self.outgoing_offset==bytes.len() {self.outgoing.pop_front();self.outgoing_offset=0;}
+        Ok(true)
+    }
+    fn retry_udp(&mut self)->Result<bool,String> {
+        if !self.plain_udp || !self.outgoing.is_empty() {return Ok(false);}
+        let Some((seq,packet,_))=self.udp_unacked.iter().find(|(_,_,at)|at.elapsed()>=Duration::from_millis(200)) else {return Ok(false);};
+        let seq=*seq;let packet=packet.clone();
+        let peer=self.peer.ok_or("UDP retransmit without peer")?;
+        let n=unsafe{sendto(self.fd.as_raw_fd(),packet.as_ptr(),packet.len(),MSG_NOSIGNAL|MSG_DONTWAIT,&peer,mem::size_of::<Address>()as u32)};
+        if n<0 {let e=io::Error::last_os_error();if e.kind()==io::ErrorKind::WouldBlock{return Ok(false);}return Err(e.to_string());}
+        if n as usize!=packet.len(){return Err("partial UDP retransmit".into());}
+        if let Some(item)=self.udp_unacked.iter_mut().find(|(s,_,_)|*s==seq){item.2=Instant::now();}
+        self.udp_retries+=1;
         Ok(true)
     }
     fn wait(&self,ms:i32)->Result<(),String> {
@@ -131,7 +169,7 @@ impl Socket {
         let rc=unsafe{poll(&mut p,1,ms)};
         if rc<0 && io::Error::last_os_error().kind()!=io::ErrorKind::Interrupted {return Err(error());}Ok(())
     }
-    fn reset_udp(&mut self) {self.peer=None;self.run=None;self.tx_seq=0;self.rx_seq=0;self.pending.clear();self.outgoing.clear();self.outgoing_offset=0;self.queued_bytes=0;self.next_udp_send=Instant::now();}
+    fn reset_udp(&mut self) {self.peer=None;self.run=None;self.tx_seq=0;self.rx_seq=0;self.pending.clear();self.outgoing.clear();self.outgoing_offset=0;self.queued_bytes=0;self.next_udp_send=Instant::now();self.udp_acked=0;self.udp_unacked.clear();self.udp_retries=0;}
 }
 fn run(socket:&mut Socket,timeout:Duration)->Result<(),String> {
     let mut protocol=bench_protocol::Protocol::new();let mut buffer=[0u8;16384];
@@ -149,10 +187,11 @@ fn run(socket:&mut Socket,timeout:Duration)->Result<(),String> {
                 Ok(None)=>{},Err(e)=>return Err(e),
             }
         }
-        if socket.outgoing.is_empty() {
+        if socket.outgoing.is_empty() && (!socket.plain_udp || socket.tx_seq-socket.udp_acked<UDP_WINDOW) {
             protocol.pump_download(&mut |b|socket.transmit(b))?;
         }
         progressed |= socket.flush()?;
+        progressed |= socket.retry_udp()?;
         if progressed {last=Instant::now();}
         protocol.progress();
         if protocol.done() && socket.outgoing.is_empty() {return Ok(());}

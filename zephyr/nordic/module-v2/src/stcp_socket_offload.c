@@ -720,10 +720,45 @@ static int stcp_shutdown(void *obj, int how)
 #endif
     return zsock_shutdown(ctx->carrier_fd, how);
 }
+/* Reserved STCP socket option namespace for compression benchmarking.
+ * No compression implementation is wired into this Zephyr Rust core yet.
+ * Fail explicitly rather than silently forwarding an STCP option to TCP/UDP.
+ */
+#define STCP_SOL_PROTOCOL 253
+#define STCP_SO_COMPRESSION_LEVEL 1
+
 static int stcp_getsockopt(void *obj,int level,int optname,void *optval,socklen_t *optlen)
-{ return zsock_getsockopt(((struct stcp_ctx *)obj)->carrier_fd,level,optname,optval,optlen); }
+{
+    struct stcp_ctx *ctx = obj;
+    if (level == STCP_SOL_PROTOCOL) {
+        errno = (optname == STCP_SO_COMPRESSION_LEVEL) ? ENOTSUP : ENOPROTOOPT;
+        return -1;
+    }
+    return zsock_getsockopt(ctx->carrier_fd, level, optname, optval, optlen);
+}
 static int stcp_setsockopt(void *obj,int level,int optname,const void *optval,socklen_t optlen)
-{ return zsock_setsockopt(((struct stcp_ctx *)obj)->carrier_fd,level,optname,optval,optlen); }
+{
+    struct stcp_ctx *ctx = obj;
+    if (level == STCP_SOL_PROTOCOL) {
+        if (optname != STCP_SO_COMPRESSION_LEVEL) {
+            errno = ENOPROTOOPT;
+            return -1;
+        }
+        if (!optval || optlen != sizeof(int)) {
+            errno = EINVAL;
+            return -1;
+        }
+        const int compression_level = *(const int *)optval;
+        if (compression_level < -1 || compression_level > 5) {
+            errno = EINVAL;
+            return -1;
+        }
+        /* TODO: call Rust FFI after compression and peer negotiation exist. */
+        errno = ENOTSUP;
+        return -1;
+    }
+    return zsock_setsockopt(ctx->carrier_fd, level, optname, optval, optlen);
+}
 static int stcp_getpeername(void *obj, struct sockaddr *addr, socklen_t *len)
 { return zsock_getpeername(((struct stcp_ctx *)obj)->carrier_fd,addr,len); }
 static int stcp_getsockname(void *obj, struct sockaddr *addr, socklen_t *len)

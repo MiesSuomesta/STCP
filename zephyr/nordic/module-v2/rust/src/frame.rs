@@ -3,6 +3,10 @@ use alloc::vec::Vec;
 use crate::error::StcpError;
 
 pub const STCP_VERSION: u8 = 2;
+// Same two descriptor flag bits as Linux/Raspberry Pi STCP.
+// Header::encode() maps these to bits 6 and 7 of wire byte 0.
+pub const FLAG_COMPRESSED: u8 = 0x01;
+pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
 /*
  * Compact STCPv2 wire header.
  *
@@ -69,7 +73,7 @@ impl PacketType {
 #[derive(Debug, Clone, Copy)]
 pub struct Header {
     pub packet_type: PacketType,
-    /* Two wire flag bits are currently available; all existing callers use 0. */
+    /* Wire bits: 0x01 = compressed DATA, 0x02 = compression-capable PublicKey. */
     pub flags: u8,
     pub payload_len: usize,
     pub sequence: u64,

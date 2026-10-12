@@ -34,6 +34,8 @@ use crate::{
         encode_frame,
         Header,
         PacketType,
+        FLAG_COMPRESSED,
+        FLAG_COMPRESSION_CAPABLE,
         STCP_FRAME_PAYLOAD_LEN,
         STCP_STREAM_FRAME_PAYLOAD_LEN,
         STCP_UDP_FRAME_PAYLOAD_LEN,
@@ -509,7 +511,7 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
-        PacketType::PublicKey => { if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} crate::carrier::debug_event(263,ctx,frame.payload.len(),0); let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
+        PacketType::PublicKey => { if frame.header.flags & !FLAG_COMPRESSION_CAPABLE != 0 { return Err(StcpError::Protocol); } if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);} crate::carrier::debug_event(263,ctx,frame.payload.len(),0); let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); received_key=Some(key); }
         PacketType::HandshakeDone => { if !frame.payload.is_empty(){return Err(StcpError::Protocol);} received_done=true; }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}
@@ -1073,12 +1075,35 @@ fn process_in_order_frame(
     /* Decrypt directly over the ciphertext portion of the owned wire frame.
      * The nonce prefix is retained as a skipped ByteQueue offset, so RX does
      * not allocate a plaintext Vec and does not copy a multi-megabyte payload. */
+    // The compressed bit is authenticated as part of the AES-GCM AAD.
+    if frame.header.flags & !FLAG_COMPRESSED != 0 {
+        return Err(StcpError::Protocol);
+    }
+    let compressed = frame.header.flags & FLAG_COMPRESSED != 0;
     let plaintext_len = crypto.decrypt_in_place(
         frame.nonce,
         &aad,
         &mut frame.ciphertext[NONCE_LEN..],
     )?;
     frame.ciphertext.truncate(NONCE_LEN + plaintext_len);
+
+    // Decode outside the socket spinlock. Bound allocation by the configured
+    // maximum frame payload; reject malformed lengths and compressed bombs.
+    let decompressed = if compressed {
+        let plaintext = &frame.ciphertext[NONCE_LEN..];
+        let (original_len, prefix_len) = crate::compression::decode_uvarint(plaintext)?;
+        if original_len == 0 || original_len > STCP_STREAM_FRAME_PAYLOAD_LEN {
+            return Err(StcpError::Protocol);
+        }
+        let block = plaintext.get(prefix_len..).ok_or(StcpError::Protocol)?;
+        let decoded = crate::compression::decompress_block(block, original_len)?;
+        if decoded.len() != original_len {
+            return Err(StcpError::Protocol);
+        }
+        Some(decoded)
+    } else {
+        None
+    };
 
     let became_readable = {
         let mut inner = ctx.inner.lock();
@@ -1097,7 +1122,12 @@ fn process_in_order_frame(
             .checked_add(1)
             .ok_or(StcpError::Protocol)?;
         inner.last_rx_sequence = Some(sequence);
-        inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)?;
+        if let Some(decoded) = decompressed {
+            inner.rx_app_data.push_vec_from(decoded, 0)?;
+        } else {
+            // Preserve the existing zero-copy fast path for plain frames.
+            inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)?;
+        }
 
         if packet_type == PacketType::DataChunkEnd {
             inner.rx_message_ready = true;

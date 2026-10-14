@@ -730,8 +730,12 @@ pub fn send(
         let mut wire_plaintext = plaintext;
         let mut compressed = false;
         if peer_capable && compression_level >= 0 && plaintext.len() >= 64 {
-            let level = if compression_level == 0 { 3 } else { compression_level as u32 };
-            if let Some(level) = crate::compression::CompressionLevel::from_u32(level) {
+            let selected = if compression_level == 0 {
+                crate::compression::auto_sample_level(plaintext)
+            } else {
+                crate::compression::CompressionLevel::from_u32(compression_level as u32)
+            };
+            if let Some(level) = selected {
                 let mut prefix = [0u8; 10];
                 let prefix_len = crate::compression::encode_uvarint(plaintext.len(), &mut prefix);
                 if let Ok(candidate) = crate::compression::compress_block_with_prefix(

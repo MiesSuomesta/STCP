@@ -1,0 +1,138 @@
+--- a/kernel/module/rust/src/compression.rs
++++ b/kernel/module/rust/src/compression.rs
+@@ -58,6 +58,44 @@
+     #[inline]
+     pub fn should_try(self, len: usize) -> bool {
+         self.mode == CompressionMode::Auto && len >= self.threshold
++    }
++}
++
++/// Estimate frame compressibility with four 32-byte slices (128 bytes total).
++/// A fixed L1 probe keeps input size constant; thresholds are heuristic.
++/// Returns None to send the original bytes without compression.
++pub fn auto_sample_level(src: &[u8]) -> Option<CompressionLevel> {
++    const CHUNK: usize = 32;
++    const SAMPLE: usize = CHUNK * 4;
++    if src.len() < SAMPLE {
++        return None;
++    }
++    let last = src.len() - CHUNK;
++    // Avoid overlapping slices on short payloads.
++    let offsets = if src.len() < 224 {
++        [0, 32, 64, 96]
++    } else {
++        [0, last / 3, (last * 2) / 3, last]
++    };
++    let mut sample = [0u8; SAMPLE];
++    for (i, offset) in offsets.iter().enumerate() {
++        sample[i * CHUNK..(i + 1) * CHUNK]
++            .copy_from_slice(&src[*offset..*offset + CHUNK]);
++    }
++    let compressed_len = compress_block(&sample, CompressionLevel::VeryFast).ok()?.len();
++    // Tiny probes include LZ4 token/length overhead; tune with real traffic.
++    if compressed_len >= 126 {
++        None
++    } else if compressed_len >= 109 {
++        Some(CompressionLevel::VeryFast)
++    } else if compressed_len >= 77 {
++        Some(CompressionLevel::Fast)
++    } else if compressed_len >= 39 {
++        Some(CompressionLevel::Default)
++    } else if compressed_len >= 13 {
++        Some(CompressionLevel::High)
++    } else {
++        Some(CompressionLevel::VeryHigh)
+     }
+ }
+ 
+--- a/zephyr/nordic/module-v2/rust/src/compression.rs
++++ b/zephyr/nordic/module-v2/rust/src/compression.rs
+@@ -60,6 +60,44 @@
+     #[inline]
+     pub fn should_try(self, len: usize) -> bool {
+         self.mode == CompressionMode::Auto && len >= self.threshold
++    }
++}
++
++/// Estimate frame compressibility with four 32-byte slices (128 bytes total).
++/// A fixed L1 probe keeps input size constant; thresholds are heuristic.
++/// Returns None to send the original bytes without compression.
++pub fn auto_sample_level(src: &[u8]) -> Option<CompressionLevel> {
++    const CHUNK: usize = 32;
++    const SAMPLE: usize = CHUNK * 4;
++    if src.len() < SAMPLE {
++        return None;
++    }
++    let last = src.len() - CHUNK;
++    // Avoid overlapping slices on short payloads.
++    let offsets = if src.len() < 224 {
++        [0, 32, 64, 96]
++    } else {
++        [0, last / 3, (last * 2) / 3, last]
++    };
++    let mut sample = [0u8; SAMPLE];
++    for (i, offset) in offsets.iter().enumerate() {
++        sample[i * CHUNK..(i + 1) * CHUNK]
++            .copy_from_slice(&src[*offset..*offset + CHUNK]);
++    }
++    let compressed_len = compress_block(&sample, CompressionLevel::VeryFast).ok()?.len();
++    // Tiny probes include LZ4 token/length overhead; tune with real traffic.
++    if compressed_len >= 126 {
++        None
++    } else if compressed_len >= 109 {
++        Some(CompressionLevel::VeryFast)
++    } else if compressed_len >= 77 {
++        Some(CompressionLevel::Fast)
++    } else if compressed_len >= 39 {
++        Some(CompressionLevel::Default)
++    } else if compressed_len >= 13 {
++        Some(CompressionLevel::High)
++    } else {
++        Some(CompressionLevel::VeryHigh)
+     }
+ }
+ 
+--- a/kernel/module/rust/src/session.rs
++++ b/kernel/module/rust/src/session.rs
+@@ -821,7 +821,14 @@
+         let mut wire_plaintext = plaintext;
+         let mut compressed = false;
+ 
+-        if peer_compression_capable && compression_config.should_try(plaintext.len()) {
++        let selected_level = if peer_compression_capable
++            && compression_config.should_try(plaintext.len())
++        {
++            compression::auto_sample_level(plaintext)
++        } else {
++            None
++        };
++        if let Some(level) = selected_level {
+             let mut stats = ctx.inner.lock();
+             stats.compression_stats.tx_attempts += 1;
+             stats.compression_stats.tx_input_bytes += plaintext.len() as u64;
+@@ -829,7 +836,7 @@
+ 
+             let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
+             match compression::compress_block_with_prefix(
+-                plaintext, compression_config.level, &length_prefix[..prefix_len],
++                plaintext, level, &length_prefix[..prefix_len],
+             ) {
+                 Ok(candidate) => {
+                     if candidate.len() < plaintext.len() {
+--- a/zephyr/nordic/module-v2/rust/src/session.rs
++++ b/zephyr/nordic/module-v2/rust/src/session.rs
+@@ -730,8 +730,12 @@
+         let mut wire_plaintext = plaintext;
+         let mut compressed = false;
+         if peer_capable && compression_level >= 0 && plaintext.len() >= 64 {
+-            let level = if compression_level == 0 { 3 } else { compression_level as u32 };
+-            if let Some(level) = crate::compression::CompressionLevel::from_u32(level) {
++            let level = if compression_level == 0 {
++                crate::compression::auto_sample_level(plaintext)
++            } else {
++                crate::compression::CompressionLevel::from_u32(compression_level as u32)
++            };
++            if let Some(level) = level {
+                 let mut prefix = [0u8; 10];
+                 let prefix_len = crate::compression::encode_uvarint(plaintext.len(), &mut prefix);
+                 if let Ok(candidate) = crate::compression::compress_block_with_prefix(

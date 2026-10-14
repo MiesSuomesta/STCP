@@ -1,0 +1,374 @@
+--- a/kernel/module/include/stcp.h
++++ b/kernel/module/include/stcp.h
+@@ -14,6 +14,7 @@
+ #define STCP_SO_COMPRESSION_THRESHOLD  2
+ #define STCP_SO_COMPRESSION_STATS      3
+ #define STCP_SO_COMPRESSION_LEVEL      4
++#define STCP_SO_AUTO_LEVEL_STATS       5
+ #define STCP_COMPRESSION_DEFAULT_THRESHOLD 1024U
+ #define STCP_COMPRESSION_DEFAULT_LEVEL 3U
+ 
+@@ -25,6 +26,11 @@
+ 
+ /* Runtime policy used by sockets that keep the compression level on default. */
+ u32 stcp_compression_get_default_compression_level(void);
++
++struct stcp_auto_level_stats {
++    unsigned long long off;
++    unsigned long long levels[5];
++};
+ 
+ struct stcp_compression_stats {
+     unsigned long long tx_attempts;
+--- a/kernel/module/include/stcp_rust_ffi.h
++++ b/kernel/module/include/stcp_rust_ffi.h
+@@ -5,6 +5,7 @@
+ 
+ 
+ struct stcp_compression_stats;
++struct stcp_auto_level_stats;
+ 
+ 
+ struct stcp_reliability_stats {
+@@ -59,6 +60,7 @@
+ void stcp_rust_shutdown(void *ctx, int how);
+ int stcp_rust_tick(void *ctx);
+ int stcp_rust_get_reliability_stats(void *ctx, struct stcp_reliability_stats *out_stats);
++int stcp_rust_get_auto_level_stats(void *ctx, struct stcp_auto_level_stats *out_stats);
+ int stcp_rust_get_compression_stats(void *ctx, struct stcp_compression_stats *out_stats);
+ int stcp_rust_crypto_selftest(void);
+ 
+--- a/kernel/module/src/stcp_ops.c
++++ b/kernel/module/src/stcp_ops.c
+@@ -1227,6 +1227,7 @@
+ {
+ 	struct stcp_sock *ssk;
+ 	struct stcp_compression_stats compression_stats;
++	struct stcp_auto_level_stats auto_stats;
+ 	int value;
+ 	int len;
+ 	int ret;
+@@ -1239,7 +1240,15 @@
+ 		return -EFAULT;
+ 	ssk = stcp_sk(sock->sk);
+ 
+-	if (optname == STCP_SO_COMPRESSION_STATS) {
++	if (optname == STCP_SO_AUTO_LEVEL_STATS) {
++        if (len < sizeof(auto_stats)) return -EINVAL;
++        ret = stcp_rust_get_auto_level_stats(ssk->rust_ctx, &auto_stats);
++        if (ret) return ret;
++        if (copy_to_user(optval, &auto_stats, sizeof(auto_stats))) return -EFAULT;
++        if (put_user(sizeof(auto_stats), optlen)) return -EFAULT;
++        return 0;
++    }
++    if (optname == STCP_SO_COMPRESSION_STATS) {
+ 		if (len < sizeof(compression_stats))
+ 			return -EINVAL;
+ 		ret = stcp_rust_get_compression_stats(ssk->rust_ctx, &compression_stats);
+--- a/kernel/module/rust/src/ffi.rs
++++ b/kernel/module/rust/src/ffi.rs
+@@ -13,6 +13,12 @@
+ };
+ 
+ const EINVAL: c_int = -22;
++
++#[repr(C)]
++pub struct StcpAutoLevelStats {
++    pub off: u64,
++    pub levels: [u64; 5],
++}
+ 
+ #[repr(C)]
+ pub struct StcpCompressionStats {
+@@ -458,6 +464,20 @@
+ }
+ 
+ #[unsafe(no_mangle)]
++pub extern "C" fn stcp_rust_get_auto_level_stats(
++    raw: *mut c_void,
++    out: *mut StcpAutoLevelStats,
++) -> c_int {
++    if out.is_null() { return EINVAL; }
++    match with_ctx(raw, session::compression_snapshot) {
++        Ok(s) => { unsafe { ptr::write(out, StcpAutoLevelStats {
++            off: s.auto_off, levels: s.auto_levels,
++        }); } 0 }
++        Err(e) => e,
++    }
++}
++
++#[unsafe(no_mangle)]
+ pub extern "C" fn stcp_rust_get_compression_stats(
+     raw: *mut c_void,
+     out_stats: *mut StcpCompressionStats,
+--- a/kernel/module/rust/src/state.rs
++++ b/kernel/module/rust/src/state.rs
+@@ -23,6 +23,8 @@
+ 
+ #[derive(Debug, Clone, Copy, Default)]
+ pub struct CompressionStats {
++    pub auto_off: u64,
++    pub auto_levels: [u64; 5],
+     pub tx_attempts: u64,
+     pub tx_compressed_frames: u64,
+     pub tx_fallback_frames: u64,
+--- a/kernel/module/rust/src/session.rs
++++ b/kernel/module/rust/src/session.rs
+@@ -821,7 +821,21 @@
+         let mut wire_plaintext = plaintext;
+         let mut compressed = false;
+ 
++        let selected_level = if peer_compression_capable
++            && compression_config.should_try(plaintext.len())
++        {
++            compression::auto_sample_level(plaintext)
++        } else {
++            None
++        };
+         if peer_compression_capable && compression_config.should_try(plaintext.len()) {
++            let mut stats = ctx.inner.lock();
++            match selected_level {
++                Some(level) => stats.compression_stats.auto_levels[level as usize - 1] += 1,
++                None => stats.compression_stats.auto_off += 1,
++            }
++        }
++        if let Some(level) = selected_level {
+             let mut stats = ctx.inner.lock();
+             stats.compression_stats.tx_attempts += 1;
+             stats.compression_stats.tx_input_bytes += plaintext.len() as u64;
+@@ -829,7 +843,7 @@
+ 
+             let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
+             match compression::compress_block_with_prefix(
+-                plaintext, compression_config.level, &length_prefix[..prefix_len],
++                plaintext, level, &length_prefix[..prefix_len],
+             ) {
+                 Ok(candidate) => {
+                     if candidate.len() < plaintext.len() {
+--- a/kernel/module/rust/src/compression.rs
++++ b/kernel/module/rust/src/compression.rs
+@@ -58,6 +58,44 @@
+     #[inline]
+     pub fn should_try(self, len: usize) -> bool {
+         self.mode == CompressionMode::Auto && len >= self.threshold
++    }
++}
++
++/// Estimate frame compressibility with four 32-byte slices (128 bytes total).
++/// A fixed L1 probe keeps input size constant; thresholds are heuristic.
++/// Returns None to send the original bytes without compression.
++pub fn auto_sample_level(src: &[u8]) -> Option<CompressionLevel> {
++    const CHUNK: usize = 32;
++    const SAMPLE: usize = CHUNK * 4;
++    if src.len() < SAMPLE {
++        return None;
++    }
++    let last = src.len() - CHUNK;
++    // Avoid overlapping slices on short payloads.
++    let offsets = if src.len() < 224 {
++        [0, 32, 64, 96]
++    } else {
++        [0, last / 3, (last * 2) / 3, last]
++    };
++    let mut sample = [0u8; SAMPLE];
++    for (i, offset) in offsets.iter().enumerate() {
++        sample[i * CHUNK..(i + 1) * CHUNK]
++            .copy_from_slice(&src[*offset..*offset + CHUNK]);
++    }
++    let compressed_len = compress_block(&sample, CompressionLevel::VeryFast).ok()?.len();
++    // Tiny probes include LZ4 token/length overhead; tune with real traffic.
++    if compressed_len >= 126 {
++        None
++    } else if compressed_len >= 109 {
++        Some(CompressionLevel::VeryFast)
++    } else if compressed_len >= 77 {
++        Some(CompressionLevel::Fast)
++    } else if compressed_len >= 39 {
++        Some(CompressionLevel::Default)
++    } else if compressed_len >= 13 {
++        Some(CompressionLevel::High)
++    } else {
++        Some(CompressionLevel::VeryHigh)
+     }
+ }
+ 
+--- a/zephyr/nordic/module-v2/include/stcp/stcp_rust_ffi.h
++++ b/zephyr/nordic/module-v2/include/stcp/stcp_rust_ffi.h
+@@ -6,6 +6,9 @@
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
++struct stcp_auto_level_stats { uint64_t off; uint64_t levels[5]; };
++#define STCP_SOL_PROTOCOL 253
++#define STCP_SO_AUTO_LEVEL_STATS 5
+ struct stcp_reliability_stats {
+     uint32_t srtt_ms, rttvar_ms, rto_ms;
+     uint64_t sent_frames, acknowledged_frames, retransmitted_frames;
+@@ -31,6 +34,7 @@
+ int stcp_rust_can_send(void *ctx, size_t len);
+ int stcp_rust_tick(void *ctx);
+ void stcp_rust_shutdown(void *ctx, int how);
++int stcp_rust_get_auto_level_stats(void *ctx, struct stcp_auto_level_stats *out);
+ int stcp_rust_get_reliability_stats(void *ctx, struct stcp_reliability_stats *out);
+ int stcp_rust_crypto_selftest(void);
+ int stcp_rust_carrier_receive(void *ctx, const uint8_t *data, size_t len);
+--- a/zephyr/nordic/module-v2/src/stcp_v2_socket.c
++++ b/zephyr/nordic/module-v2/src/stcp_v2_socket.c
+@@ -639,8 +639,18 @@
+ 
+ static int getsockopt_socket(void *obj, int level, int optname, void *optval, socklen_t *optlen)
+ {
+-    return zsock_getsockopt(((struct stcp_v2_socket *)obj)->carrier->fd,
+-                            level, optname, optval, optlen);
++    struct stcp_v2_socket *sock = obj;
++    if (level == STCP_SOL_PROTOCOL && optname == STCP_SO_AUTO_LEVEL_STATS) {
++        struct stcp_auto_level_stats stats;
++        if (!optval || !optlen || *optlen < sizeof(stats)) { errno = EINVAL; return -1; }
++        int rc = stcp_rust_get_auto_level_stats(sock->rust_ctx, &stats);
++        if (rc != 0) { errno = rc < 0 ? -rc : rc; return -1; }
++        memcpy(optval, &stats, sizeof(stats));
++        *optlen = sizeof(stats);
++        return 0;
++    }
++    if (level == STCP_SOL_PROTOCOL) { errno = ENOPROTOOPT; return -1; }
++    return zsock_getsockopt(sock->carrier->fd, level, optname, optval, optlen);
+ }
+ static int setsockopt_socket(void *obj, int level, int optname, const void *optval, socklen_t optlen)
+ {
+--- a/zephyr/nordic/module-v2/rust/src/ffi.rs
++++ b/zephyr/nordic/module-v2/rust/src/ffi.rs
+@@ -13,6 +13,12 @@
+ };
+ 
+ const EINVAL: c_int = -22;
++
++#[repr(C)]
++pub struct StcpAutoLevelStats {
++    pub off: u64,
++    pub levels: [u64; 5],
++}
+ 
+ #[repr(C)]
+ pub struct StcpReliabilityStats {
+@@ -324,6 +330,21 @@
+     }
+ }
+ 
++
++#[unsafe(no_mangle)]
++pub extern "C" fn stcp_rust_get_auto_level_stats(
++    raw: *mut c_void,
++    out: *mut StcpAutoLevelStats,
++) -> c_int {
++    if out.is_null() { return EINVAL; }
++    match with_ctx(raw, |ctx| {
++        let inner = ctx.inner.lock();
++        (inner.auto_off, inner.auto_levels)
++    }) {
++        Ok((off, levels)) => { unsafe { ptr::write(out, StcpAutoLevelStats { off, levels }); } 0 }
++        Err(e) => e,
++    }
++}
+ 
+ #[unsafe(no_mangle)]
+ pub extern "C" fn stcp_rust_get_reliability_stats(
+--- a/zephyr/nordic/module-v2/rust/src/state.rs
++++ b/zephyr/nordic/module-v2/rust/src/state.rs
+@@ -151,6 +151,8 @@
+     pub peer_compression_capable: bool,
+     /* -1 OFF, 0 AUTO, 1..5 LZ4 levels. */
+     pub compression_level: i32,
++    pub auto_off: u64,
++    pub auto_levels: [u64; 5],
+     pub tx_nonce: u64,
+     pub expected_rx_nonce: u64,
+     pub tx_sequence: u64,
+@@ -202,6 +204,8 @@
+                 peer_handshake_done: false,
+                 peer_compression_capable: false,
+                 compression_level: -1,
++                auto_off: 0,
++                auto_levels: [0; 5],
+                 tx_nonce: 0,
+                 expected_rx_nonce: 0,
+                 tx_sequence: 0,
+@@ -255,6 +259,8 @@
+                 peer_handshake_done: false,
+                 peer_compression_capable: false,
+                 compression_level: -1,
++                auto_off: 0,
++                auto_levels: [0; 5],
+                 tx_nonce: 0,
+                 expected_rx_nonce: 0,
+                 tx_sequence: 0,
+--- a/zephyr/nordic/module-v2/rust/src/session.rs
++++ b/zephyr/nordic/module-v2/rust/src/session.rs
+@@ -730,8 +730,19 @@
+         let mut wire_plaintext = plaintext;
+         let mut compressed = false;
+         if peer_capable && compression_level >= 0 && plaintext.len() >= 64 {
+-            let level = if compression_level == 0 { 3 } else { compression_level as u32 };
+-            if let Some(level) = crate::compression::CompressionLevel::from_u32(level) {
++            let level = if compression_level == 0 {
++                crate::compression::auto_sample_level(plaintext)
++            } else {
++                crate::compression::CompressionLevel::from_u32(compression_level as u32)
++            };
++            if compression_level == 0 {
++                let mut inner = ctx.inner.lock();
++                match level {
++                    Some(selected) => inner.auto_levels[selected as usize - 1] += 1,
++                    None => inner.auto_off += 1,
++                }
++            }
++            if let Some(level) = level {
+                 let mut prefix = [0u8; 10];
+                 let prefix_len = crate::compression::encode_uvarint(plaintext.len(), &mut prefix);
+                 if let Ok(candidate) = crate::compression::compress_block_with_prefix(
+--- a/zephyr/nordic/module-v2/rust/src/compression.rs
++++ b/zephyr/nordic/module-v2/rust/src/compression.rs
+@@ -60,6 +60,44 @@
+     #[inline]
+     pub fn should_try(self, len: usize) -> bool {
+         self.mode == CompressionMode::Auto && len >= self.threshold
++    }
++}
++
++/// Estimate frame compressibility with four 32-byte slices (128 bytes total).
++/// A fixed L1 probe keeps input size constant; thresholds are heuristic.
++/// Returns None to send the original bytes without compression.
++pub fn auto_sample_level(src: &[u8]) -> Option<CompressionLevel> {
++    const CHUNK: usize = 32;
++    const SAMPLE: usize = CHUNK * 4;
++    if src.len() < SAMPLE {
++        return None;
++    }
++    let last = src.len() - CHUNK;
++    // Avoid overlapping slices on short payloads.
++    let offsets = if src.len() < 224 {
++        [0, 32, 64, 96]
++    } else {
++        [0, last / 3, (last * 2) / 3, last]
++    };
++    let mut sample = [0u8; SAMPLE];
++    for (i, offset) in offsets.iter().enumerate() {
++        sample[i * CHUNK..(i + 1) * CHUNK]
++            .copy_from_slice(&src[*offset..*offset + CHUNK]);
++    }
++    let compressed_len = compress_block(&sample, CompressionLevel::VeryFast).ok()?.len();
++    // Tiny probes include LZ4 token/length overhead; tune with real traffic.
++    if compressed_len >= 126 {
++        None
++    } else if compressed_len >= 109 {
++        Some(CompressionLevel::VeryFast)
++    } else if compressed_len >= 77 {
++        Some(CompressionLevel::Fast)
++    } else if compressed_len >= 39 {
++        Some(CompressionLevel::Default)
++    } else if compressed_len >= 13 {
++        Some(CompressionLevel::High)
++    } else {
++        Some(CompressionLevel::VeryHigh)
+     }
+ }
+ 

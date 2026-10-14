@@ -195,6 +195,7 @@ pub struct ContextInner {
 pub struct StcpContext {
     pub proto: u8,
     pub parser_busy: AtomicBool,
+    pub parser_pending: AtomicBool,
     /* UDP demux readers holding a raw context pointer. Release removes the
      * context from UDP_SESSIONS first, then waits for this count to drain. */
     pub udp_demux_refs: AtomicUsize,
@@ -208,6 +209,7 @@ impl StcpContext {
         Ok(Self {
             proto,
             parser_busy: AtomicBool::new(false),
+            parser_pending: AtomicBool::new(false),
             udp_demux_refs: AtomicUsize::new(0),
             inner: SpinLock::new(ContextInner {
                 state: SocketState::New,
@@ -260,6 +262,7 @@ impl StcpContext {
         Ok(Self {
             proto,
             parser_busy: AtomicBool::new(false),
+            parser_pending: AtomicBool::new(false),
             udp_demux_refs: AtomicUsize::new(0),
             inner: SpinLock::new(ContextInner {
                 state: SocketState::Handshake,

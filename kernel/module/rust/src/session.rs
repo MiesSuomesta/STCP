@@ -542,7 +542,18 @@ fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
 }
 
 fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
-    let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,1,0); return Ok(()); };
+    let Some(guard) = try_parser_guard(ctx) else {
+        ctx.parser_pending.store(true, Ordering::Release);
+        crate::carrier::debug_event(209, ctx, 1, 0);
+        return Ok(());
+    };
+    let result = process_handshake_frames_locked(ctx);
+    drop(guard);
+    drain_deferred_parser(ctx);
+    result
+}
+
+fn process_handshake_frames_locked(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
     loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
@@ -1018,10 +1029,18 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         }
     }
 
-    let Some(_guard) = try_parser_guard(ctx) else {
+    let Some(guard) = try_parser_guard(ctx) else {
+        ctx.parser_pending.store(true, Ordering::Release);
         crate::carrier::debug_event(209, ctx, 2, 0);
         return Ok(());
     };
+    let result = fill_application_buffer_locked(ctx);
+    drop(guard);
+    drain_deferred_parser(ctx);
+    result
+}
+
+fn fill_application_buffer_locked(ctx: &StcpContext) -> Result<(), StcpError> {
 
     let (shared, side) = connection_for_data(ctx)?;
     let queue = incoming_queue(&shared, side);
@@ -1718,14 +1737,54 @@ pub fn has_data(ctx: &StcpContext) -> bool {
  * recv_wq. This guarantees that a wake corresponds to data/EOF visible to
  * recv(), eliminating the producer-before-publication race.
  */
-pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
-    progress_handshake(ctx)?;
-
-    let state = ctx.inner.lock().state;
-    if state == SocketState::Ready || state == SocketState::Closed {
-        fill_application_buffer(ctx)?;
+/* A missed parser acquisition must not discard an RX notification.  The
+ * active parser drains the pending bit before releasing ownership, and a
+ * final post-release check closes the release/notification race. */
+fn drain_deferred_parser(ctx: &StcpContext) {
+    if ctx.parser_pending.load(Ordering::Acquire) {
+        let _ = progress_receive(ctx);
     }
+}
 
+pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
+    ctx.parser_pending.store(true, Ordering::Release);
+    let Some(guard) = try_parser_guard(ctx) else {
+        return Ok({
+            let inner = ctx.inner.lock();
+            inner.rx_message_ready || inner.peer_eof
+        });
+    };
+
+    let was_ready = is_ready_snapshot(ctx);
+    let mut result = Ok(());
+    loop {
+        ctx.parser_pending.store(false, Ordering::Release);
+        let state = ctx.inner.lock().state;
+        if state == SocketState::Handshake {
+            result = process_handshake_frames_locked(ctx);
+        }
+        if result.is_ok() {
+            let state = ctx.inner.lock().state;
+            if state == SocketState::Ready || state == SocketState::Closed {
+                result = fill_application_buffer_locked(ctx);
+            }
+        }
+        if result.is_err() || !ctx.parser_pending.swap(false, Ordering::AcqRel) {
+            break;
+        }
+    }
+    drop(guard);
+
+    /* Publish the state before waking the accept/connect waiter.  This also
+     * covers a deferred parse completed by a different caller than RX. */
+    if !was_ready && is_ready_snapshot(ctx) {
+        wake_recv(ctx.inner.lock().owner);
+    }
+    if ctx.parser_pending.load(Ordering::Acquire) {
+        /* Another producer raced with releasing parser_busy. */
+        return progress_receive(ctx);
+    }
+    result?;
     let inner = ctx.inner.lock();
     Ok(inner.rx_message_ready || inner.peer_eof)
 }

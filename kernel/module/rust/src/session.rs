@@ -721,6 +721,30 @@ pub fn set_compression_level(ctx: &StcpContext, level: u32) -> Result<(), StcpEr
     Ok(())
 }
 
+pub fn set_auto_samples(ctx: &StcpContext, samples: u32) -> Result<(), StcpError> {
+    if !(1..=32).contains(&samples) { return Err(StcpError::InvalidState); }
+    ctx.inner.lock().auto_samples = samples;
+    Ok(())
+}
+
+pub fn set_auto_slot_bytes(ctx: &StcpContext, bytes: u32) -> Result<(), StcpError> {
+    if !(1..=256).contains(&bytes) { return Err(StcpError::InvalidState); }
+    ctx.inner.lock().auto_slot_bytes = bytes;
+    Ok(())
+}
+
+pub fn auto_slot_bytes_snapshot(ctx: &StcpContext) -> u32 {
+    ctx.inner.lock().auto_slot_bytes
+}
+
+pub fn auto_samples_snapshot(ctx: &StcpContext) -> u32 {
+    ctx.inner.lock().auto_samples
+}
+
+pub fn auto_snapshot(ctx: &StcpContext) -> crate::state::AutoStats {
+    ctx.inner.lock().auto_stats
+}
+
 #[inline]
 fn frame_payload_len(ctx: &StcpContext) -> usize {
     if ctx.proto == 254 {
@@ -832,7 +856,29 @@ pub fn send(
         let mut wire_plaintext = plaintext;
         let mut compressed = false;
 
-        if peer_compression_capable && compression_config.should_try(plaintext.len()) {
+        if peer_compression_capable && compression_config.mode == CompressionMode::Auto {
+            // A frame below the compression threshold is an AUTO OFF decision.
+            // Do not probe or compress it, but expose the decision in socket stats.
+            let selected = if compression_config.should_try(plaintext.len()) {
+                let (sample_count, slot_bytes) = {
+                    let inner = ctx.inner.lock();
+                    (inner.auto_samples, inner.auto_slot_bytes)
+                };
+                compression::auto_sample_level(plaintext, sample_count, slot_bytes)
+            } else {
+                None
+            };
+            {
+                let mut inner = ctx.inner.lock();
+                match selected {
+                    Some(level) => {
+                        let index = level as usize - 1;
+                        inner.auto_stats.levels[index] = inner.auto_stats.levels[index].saturating_add(1);
+                    }
+                    None => inner.auto_stats.off = inner.auto_stats.off.saturating_add(1),
+                }
+            }
+            if let Some(selected_level) = selected {
             let mut stats = ctx.inner.lock();
             stats.compression_stats.tx_attempts += 1;
             stats.compression_stats.tx_input_bytes += plaintext.len() as u64;
@@ -840,7 +886,7 @@ pub fn send(
 
             let prefix_len = compression::encode_uvarint(plaintext.len(), &mut length_prefix);
             match compression::compress_block_with_prefix(
-                plaintext, compression_config.level, &length_prefix[..prefix_len],
+                plaintext, selected_level, &length_prefix[..prefix_len],
             ) {
                 Ok(candidate) => {
                     if candidate.len() < plaintext.len() {
@@ -863,8 +909,8 @@ pub fn send(
                 stats.compression_stats.tx_fallback_frames += 1;
                 stats.compression_stats.tx_wire_bytes += plaintext.len() as u64;
             }
+            } // selected AUTO compression level
         }
-
         let encrypted_len = wire_plaintext
             .len()
             .checked_add(AES_GCM_TAG_LEN)

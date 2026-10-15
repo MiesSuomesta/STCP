@@ -15,7 +15,8 @@ MODULE_V2="${STCP_V2_MODULE:-$NORDIC_ROOT/module-v2}"
 CANONICAL_CORE="${STCP_SHARED_RUST_CORE_DIR:-$VERSION_TO_USE/kernel/module/rust}"
 COMMON_CONF="$NORDIC_ROOT/common.conf"
 LTE_CONF="${STCP_V2_CONF:-$NORDIC_ROOT/lte.conf}"
-EXTRA_CONF_FILE="$COMMON_CONF;$LTE_CONF"
+APP_LTE_CONF="$APP_ROOT/lte.conf"
+EXTRA_CONF_FILE="$COMMON_CONF;$LTE_CONF;$APP_LTE_CONF"
 MEMORY_DIR="$STCP_PROJECT_ROOT/artifacts/zephyr-memory"
 
 BUILD_DIR="$APP_ROOT/build-lte"
@@ -34,6 +35,7 @@ fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
     fail "Missing: $APP_ROOT/prj.conf"
 [[ -f "$COMMON_CONF" ]] || fail "Missing common config: $COMMON_CONF"
 [[ -f "$LTE_CONF" ]] || fail "Missing LTE config: $LTE_CONF"
+[[ -f "$APP_LTE_CONF" ]] || fail "Missing app LTE config: $APP_LTE_CONF"
 [[ -f "$MODULE_V2/CMakeLists.txt" ]] ||
     fail "Missing: $MODULE_V2/CMakeLists.txt"
 [[ -f "$MODULE_V2/zephyr/module.yml" ]] ||
@@ -104,6 +106,12 @@ fi
 
 grep -q '^CONFIG_STCP=y' "$CONFIG_FILE" ||
     fail "CONFIG_STCP=y missing"
+
+for symbol in STCP_TRANSPORT_ETHERNET NET_L2_ETHERNET ETH_W5500 NET_CONFIG_AUTO_INIT; do
+    if grep -q "^CONFIG_${symbol}=y" "$CONFIG_FILE"; then
+        fail "CONFIG_${symbol}=y must not be enabled in LTE build"
+    fi
+done
 
 log "DONE"
 

@@ -1201,6 +1201,16 @@ static int stcp_setsockopt(
 		ssk->compression_threshold = (u32)value;
 		return 0;
 
+	case STCP_SO_AUTO_SAMPLES:
+        if (value < 1 || value > STCP_AUTO_SAMPLES_MAX)
+            return -EINVAL;
+        return stcp_rust_set_auto_samples(ssk->rust_ctx, (u32)value);
+
+    case STCP_SO_AUTO_SLOT_BYTES:
+        if (value < 1 || value > STCP_AUTO_SLOT_BYTES_MAX)
+            return -EINVAL;
+        return stcp_rust_set_auto_slot_bytes(ssk->rust_ctx, (u32)value);
+
 	case STCP_SO_COMPRESSION_LEVEL:
 		if (value < STCP_COMPRESSION_LEVEL_VERY_FAST ||
 		    value > STCP_COMPRESSION_LEVEL_VERY_HIGH)
@@ -1227,6 +1237,7 @@ static int stcp_getsockopt(
 {
 	struct stcp_sock *ssk;
 	struct stcp_compression_stats compression_stats;
+	struct stcp_auto_stats auto_stats;
 	int value;
 	int len;
 	int ret;
@@ -1252,6 +1263,19 @@ static int stcp_getsockopt(
 		return 0;
 	}
 
+    if (optname == STCP_SO_AUTO_STATS) {
+        if (len < sizeof(auto_stats))
+            return -EINVAL;
+        ret = stcp_rust_get_auto_stats(ssk->rust_ctx, &auto_stats);
+        if (ret)
+            return ret;
+        if (copy_to_user(optval, &auto_stats, sizeof(auto_stats)))
+            return -EFAULT;
+        if (put_user(sizeof(auto_stats), optlen))
+            return -EFAULT;
+        return 0;
+    }
+
 	if (len < sizeof(value))
 		return -EINVAL;
 
@@ -1262,6 +1286,16 @@ static int stcp_getsockopt(
 	case STCP_SO_COMPRESSION_THRESHOLD:
 		value = (int)ssk->compression_threshold;
 		break;
+    case STCP_SO_AUTO_SAMPLES:
+        ret = stcp_rust_get_auto_samples(ssk->rust_ctx, (u32 *)&value);
+        if (ret)
+            return ret;
+        break;
+    case STCP_SO_AUTO_SLOT_BYTES:
+        ret = stcp_rust_get_auto_slot_bytes(ssk->rust_ctx, (u32 *)&value);
+        if (ret)
+            return ret;
+        break;
 	case STCP_SO_COMPRESSION_LEVEL:
 		value = (int)ssk->compression_level;
 		break;

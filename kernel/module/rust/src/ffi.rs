@@ -29,6 +29,12 @@ pub struct StcpCompressionStats {
 }
 
 #[repr(C)]
+pub struct StcpAutoStats {
+    pub off: u64,
+    pub levels: [u64; 5],
+}
+
+#[repr(C)]
 pub struct StcpReliabilityStats {
     pub srtt_ms: u32,
     pub rttvar_ms: u32,
@@ -451,6 +457,46 @@ pub extern "C" fn stcp_rust_get_reliability_stats(
                     },
                 );
             }
+            0
+        }
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_set_auto_samples(raw: *mut c_void, samples: u32) -> c_int {
+    with_ctx_result(raw, |ctx| session::set_auto_samples(ctx, samples))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_get_auto_samples(raw: *mut c_void, out: *mut u32) -> c_int {
+    if out.is_null() { return EINVAL; }
+    match with_ctx(raw, session::auto_samples_snapshot) {
+        Ok(samples) => { unsafe { ptr::write(out, samples); } 0 }
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_set_auto_slot_bytes(raw: *mut c_void, bytes: u32) -> c_int {
+    with_ctx_result(raw, |ctx| session::set_auto_slot_bytes(ctx, bytes))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_get_auto_slot_bytes(raw: *mut c_void, out: *mut u32) -> c_int {
+    if out.is_null() { return EINVAL; }
+    match with_ctx(raw, session::auto_slot_bytes_snapshot) {
+        Ok(bytes) => { unsafe { ptr::write(out, bytes); } 0 }
+        Err(errno) => errno,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_get_auto_stats(raw: *mut c_void, out: *mut StcpAutoStats) -> c_int {
+    if out.is_null() { return EINVAL; }
+    match with_ctx(raw, session::auto_snapshot) {
+        Ok(stats) => {
+            unsafe { ptr::write(out, StcpAutoStats { off: stats.off, levels: stats.levels }); }
             0
         }
         Err(errno) => errno,

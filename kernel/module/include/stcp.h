@@ -14,6 +14,18 @@
 #define STCP_SO_COMPRESSION_THRESHOLD  2
 #define STCP_SO_COMPRESSION_STATS      3
 #define STCP_SO_COMPRESSION_LEVEL      4
+#define STCP_SO_AUTO_STATS             5
+#define STCP_SO_AUTO_SAMPLES           6
+#define STCP_AUTO_SAMPLES_DEFAULT      4U
+#define STCP_AUTO_SAMPLES_MAX          32U
+#define STCP_SO_AUTO_SLOT_BYTES        7
+#define STCP_AUTO_SLOT_BYTES_DEFAULT   32U
+#define STCP_AUTO_SLOT_BYTES_MAX       256U
+
+struct stcp_auto_stats {
+    u64 off;
+    u64 levels[5];
+};
 #define STCP_COMPRESSION_DEFAULT_THRESHOLD 1024U
 #define STCP_COMPRESSION_DEFAULT_LEVEL 3U
 

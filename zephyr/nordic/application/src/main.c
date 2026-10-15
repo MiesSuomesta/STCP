@@ -2,10 +2,10 @@
 #include <zephyr/logging/log.h>
 
 #include "echo_benchmark.h"
-#if defined(CONFIG_ETH_W5500)
+#if defined(CONFIG_STCP_TRANSPORT_ETHERNET) && defined(CONFIG_ETH_W5500)
 #include "ethernet_status.h"
 #endif
-#if defined(CONFIG_NRF_MODEM_LIB)
+#if !defined(CONFIG_STCP_TRANSPORT_ETHERNET) && defined(CONFIG_NRF_MODEM_LIB)
 #include "stcp_lte_transport.h"
 #endif
 
@@ -19,7 +19,7 @@ int main(void)
 
     LOG_INF("STCP transport benchmark starting");
 
-#if defined(CONFIG_NRF_MODEM_LIB)
+#if !defined(CONFIG_STCP_TRANSPORT_ETHERNET) && defined(CONFIG_NRF_MODEM_LIB)
     ret = stcp_lte_transport_init();
     if (ret < 0) {
         LOG_ERR("LTE transport initialization failed: %d", ret);
@@ -29,7 +29,7 @@ int main(void)
     LOG_INF("LTE transport connected and data path ready");
 #else
     LOG_INF("Ethernet transport build; LTE initialization skipped");
-#if defined(CONFIG_ETH_W5500)
+#if defined(CONFIG_STCP_TRANSPORT_ETHERNET) && defined(CONFIG_ETH_W5500)
     k_sleep(K_MSEC(1200));
     ethernet_status_log_startup();
 #endif

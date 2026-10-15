@@ -2,6 +2,20 @@ cmake_minimum_required(VERSION 3.20.0)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(stcp_mqtt)
 
+# Reject mixed carriers before building firmware.
+if(CONFIG_STCP_TRANSPORT_ETHERNET)
+    if(NOT CONFIG_ETH_W5500 OR CONFIG_NRF_MODEM_LIB)
+        message(FATAL_ERROR "Ethernet transport requires W5500 and modem disabled")
+    endif()
+else()
+    if(CONFIG_ETH_W5500 OR CONFIG_NET_L2_ETHERNET OR CONFIG_NET_CONFIG_AUTO_INIT)
+        message(FATAL_ERROR "LTE transport must disable W5500, Ethernet L2 and automatic LAN configuration")
+    endif()
+    if(NOT CONFIG_NRF_MODEM_LIB)
+        message(FATAL_ERROR "LTE transport requires CONFIG_NRF_MODEM_LIB=y")
+    endif()
+endif()
+
 # Fail before compilation if the Ethernet pool fragment was omitted/overridden.
 if(CONFIG_ETH_W5500)
     if(NOT "${CONFIG_NET_BUF_DATA_SIZE}" STREQUAL "1536")

@@ -35,6 +35,12 @@ pub struct CompressionStats {
     pub rx_errors: u64,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AutoStats {
+    pub off: u64,
+    pub levels: [u64; 5],
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SocketState {
     New,
@@ -189,6 +195,9 @@ pub struct ContextInner {
     pub tx_frame_scratch: Vec<u8>,
     pub compression: CompressionConfig,
     pub compression_stats: CompressionStats,
+    pub auto_stats: AutoStats,
+    pub auto_samples: u32,
+    pub auto_slot_bytes: u32,
     pub peer_compression_capable: bool,
 }
 
@@ -246,6 +255,9 @@ impl StcpContext {
                 tx_frame_scratch: Vec::new(),
                 compression: CompressionConfig::default(),
                 compression_stats: CompressionStats::default(),
+                auto_stats: AutoStats::default(),
+                auto_samples: 4,
+                auto_slot_bytes: 32,
                 peer_compression_capable: false,
             }),
         })
@@ -302,6 +314,9 @@ impl StcpContext {
                 tx_frame_scratch: Vec::new(),
                 compression: CompressionConfig::default(),
                 compression_stats: CompressionStats::default(),
+                auto_stats: AutoStats::default(),
+                auto_samples: 4,
+                auto_slot_bytes: 32,
                 peer_compression_capable: false,
             }),
         })

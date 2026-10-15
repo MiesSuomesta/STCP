@@ -119,30 +119,33 @@ fn emit_last_literals(out: &mut Vec<u8>, literals: &[u8]) -> Result<(), StcpErro
 /// Small no_std LZ4 block encoder. The output is a raw LZ4 block with no frame
 /// wrapper; STCP carries the original length separately in a compact varint.
 
-/// AUTO probe, integrated in the STCP module (no external library).
-/// Four 32-byte slices, spread across the frame; L1 is the fixed probe.
-pub fn auto_sample_level(src: &[u8]) -> Option<CompressionLevel> {
-    const CHUNK: usize = 32;
-    const SAMPLE: usize = 128;
-    if src.len() < SAMPLE { return None; }
-    let last = src.len() - CHUNK;
-    let offsets = if src.len() < 224 {
-        [0, 32, 64, 96]
-    } else {
-        [0, last / 3, last * 2 / 3, last]
-    };
-    let mut sample = [0u8; SAMPLE];
-    for (i, &offset) in offsets.iter().enumerate() {
-        sample[i * CHUNK..(i + 1) * CHUNK]
-            .copy_from_slice(&src[offset..offset + CHUNK]);
+/// AUTO decision: `samples` examined out of `2 * samples` equal slots.
+/// Up to `slot_bytes` bytes are read from each even slot. No wire changes.
+/// The score is normalized to the original 128-byte heuristic thresholds.
+pub fn auto_sample_level(src: &[u8], samples: u32, slot_bytes: u32) -> Option<CompressionLevel> {
+    let chunk = slot_bytes.clamp(1, 256) as usize;
+    let n = samples.clamp(1, 32) as usize;
+    if src.is_empty() { return None; }
+    let slots = n * 2;
+    let mut sample = Vec::new();
+    sample.try_reserve(n * chunk).ok()?;
+    for i in 0..n {
+        let slot_start = (2 * i * src.len()) / slots;
+        let slot_end = ((2 * i + 1) * src.len()) / slots;
+        // Small frames may have slots shorter than 32 bytes: sample the
+        // available bytes without reading outside the frame.
+        let len = (slot_end - slot_start).min(chunk);
+        if len == 0 { continue; }
+        sample.extend_from_slice(&src[slot_start..slot_start + len]);
     }
+    if sample.is_empty() { return None; }
     let compressed_len = compress_block(&sample, CompressionLevel::VeryFast).ok()?.len();
-    // These thresholds are initial heuristics; calibrate against wire/CPU benchmarks.
-    if compressed_len >= 126 { None }
-    else if compressed_len >= 109 { Some(CompressionLevel::VeryFast) }
-    else if compressed_len >= 77 { Some(CompressionLevel::Fast) }
-    else if compressed_len >= 39 { Some(CompressionLevel::Default) }
-    else if compressed_len >= 13 { Some(CompressionLevel::High) }
+    let score = compressed_len.saturating_mul(128) / sample.len();
+    if score >= 126 { None }
+    else if score >= 109 { Some(CompressionLevel::VeryFast) }
+    else if score >= 77 { Some(CompressionLevel::Fast) }
+    else if score >= 39 { Some(CompressionLevel::Default) }
+    else if score >= 13 { Some(CompressionLevel::High) }
     else { Some(CompressionLevel::VeryHigh) }
 }
 

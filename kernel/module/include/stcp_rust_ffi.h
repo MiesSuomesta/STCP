@@ -5,6 +5,12 @@
 
 
 struct stcp_compression_stats;
+struct stcp_auto_stats;
+int stcp_rust_get_auto_stats(void *ctx, struct stcp_auto_stats *out_stats);
+int stcp_rust_set_auto_samples(void *ctx, u32 samples);
+int stcp_rust_get_auto_samples(void *ctx, u32 *out_samples);
+int stcp_rust_set_auto_slot_bytes(void *ctx, u32 bytes);
+int stcp_rust_get_auto_slot_bytes(void *ctx, u32 *out_bytes);
 
 
 struct stcp_reliability_stats {

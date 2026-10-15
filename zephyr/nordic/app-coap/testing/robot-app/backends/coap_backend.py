@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import socket
 import sys
+import time
+import json
 
 HOST = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 5683
@@ -13,6 +15,7 @@ print(f"COAP_TEST_BACKEND_READY {HOST}:{PORT}", flush=True)
 
 while True:
     data, peer = sock.recvfrom(2048)
+    service_started_ns = time.perf_counter_ns()
     if len(data) < 4:
         print(f"COAP_TEST_DROP short={len(data)}", flush=True)
         continue
@@ -37,6 +40,7 @@ while True:
     first = (1 << 6) | (2 << 4) | tkl
     response = bytes([first, 69, mid_hi, mid_lo]) + token + b"\xff" + PAYLOAD
     sock.sendto(response, peer)
+    print("STCP_APP_METRIC " + json.dumps({"backend_service_us": (time.perf_counter_ns()-service_started_ns)/1000, "request_bytes": len(data), "response_bytes": len(response)}), flush=True)
     print(
         f"COAP_TEST_RESPONSE bytes={len(response)} mid={(mid_hi << 8) | mid_lo} "
         f"payload={PAYLOAD.decode()}",

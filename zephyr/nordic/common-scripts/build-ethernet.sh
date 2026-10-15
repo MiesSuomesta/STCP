@@ -19,6 +19,9 @@ SHIELD="seeed_w5500"
 OVERLAY="$APP_DIR/boards/nrf9151dk_nrf9151_ns_w5500.overlay"
 COMMON_CONF="$NORDIC_ROOT/common.conf"
 TRANSPORT_CONF="$NORDIC_ROOT/ethernet.conf"
+APP_CONF="$APP_DIR/ethernet.conf"
+EXTRA_CONF="$COMMON_CONF;$TRANSPORT_CONF"
+[[ ! -f "$APP_CONF" ]] || EXTRA_CONF="$EXTRA_CONF;$APP_CONF"
 
 for f in "$APP_DIR/CMakeLists.txt" "$APP_DIR/prj.conf" "$COMMON_CONF" "$TRANSPORT_CONF" \
          "$MODULE_DIR/zephyr/module.yml" "$OVERLAY"; do
@@ -28,7 +31,7 @@ done
 west build --sysbuild -p always -d "$BUILD_DIR" -b "$BOARD" \
     --shield "$SHIELD" "$APP_DIR" -- \
     "-DZEPHYR_EXTRA_MODULES=$MODULE_DIR" \
-    "-DEXTRA_CONF_FILE=$COMMON_CONF;$TRANSPORT_CONF" \
+    "-DEXTRA_CONF_FILE=$EXTRA_CONF" \
     "-DDTC_OVERLAY_FILE=$OVERLAY" \
     "-DZEPHYR_SDK_INSTALL_DIR=$ZEPHYR_SDK_INSTALL_DIR"
 

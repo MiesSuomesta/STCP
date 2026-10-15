@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import socket
 import sys
+import time
+import json
 
 HOST = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 1883
@@ -53,6 +55,9 @@ print(f"MQTT_TEST_BROKER_READY {HOST}:{PORT}", flush=True)
 while True:
     conn, peer = srv.accept()
     print(f"MQTT_TEST_ACCEPT peer={peer[0]}:{peer[1]}", flush=True)
+    delivery_started_ns=time.perf_counter_ns()
+    delivered_bytes=0
+    delivered_messages=0
     with conn:
         try:
             while True:
@@ -64,6 +69,10 @@ while True:
                     print("MQTT_TEST_CONNACK_OK", flush=True)
                 elif ptype == 3:  # PUBLISH
                     topic, payload = parse_publish(first, body)
+                    delivered_bytes+=len(payload)
+                    delivered_messages+=1
+                    elapsed_us=(time.perf_counter_ns()-delivery_started_ns)/1000
+                    print("STCP_APP_METRIC " + json.dumps({"delivered_messages": delivered_messages, "delivered_payload_bytes": delivered_bytes, "delivery_window_us": elapsed_us, "delivered_payload_bit_s": delivered_bytes*8e6/elapsed_us}), flush=True)
                     print(
                         f"MQTT_TEST_PUBLISH topic={topic} bytes={len(payload)} "
                         f"payload={payload.decode('utf-8', errors='replace')}",

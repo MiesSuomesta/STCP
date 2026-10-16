@@ -1,320 +1,59 @@
-name: Build STCPv2
+name: STCP build
 
 on:
   push:
     branches: [main, master, develop]
-    paths:
-      - "STCPv2/**"
-      - ".github/workflows/build.yml"
+    paths: ['kernel/**', 'scripts/**', 'MiniSDK/**', 'tests/**', '.github/**', 'STCP/kernel/**']
   pull_request:
-    paths:
-      - "STCPv2/**"
-      - ".github/workflows/build.yml"
+    paths: ['kernel/**', 'scripts/**', 'MiniSDK/**', 'tests/**', '.github/**', 'STCP/kernel/**']
   workflow_dispatch:
     inputs:
       build_linux:
         description: Build Linux x86_64 and Raspberry Pi ARM64 modules
-        required: false
         type: boolean
         default: true
 
 permissions:
   contents: read
 
-concurrency:
-  group: stcpv2-build-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: "1"
-  PATH: "/home/pomo/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-
 jobs:
   validate:
-    name: Validate STCPv2
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-
     steps:
-      - name: Checkout STCPv2 only
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          clean: false
-          submodules: false
-          lfs: false
-          sparse-checkout: |
-            STCPv2
-            .github/workflows/build.yml
-          sparse-checkout-cone-mode: false
-
-      - name: Install validation tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            shellcheck kmod \
-            python3
-
-      - name: Check STCPv2 shell syntax
-        shell: /usr/bin/bash --noprofile --norc -e {0}
-        run: |
-          set -Eeuo pipefail
-
-          while IFS= read -r -d '' script; do
-            echo "bash -n $script"
-            /usr/bin/bash -n "$script"
-          done < <(
-            find STCPv2 \
-              -path 'STCPv2/kernel-module/raspberry-kernel-sources' -prune -o \
-              -path 'STCPv2/zephyr/nordic/ncs-3.3.0' -prune -o \
-              -path 'STCPv2/zephyr/nordic-3.4.0' -prune -o \
-              -path '*/target' -prune -o \
-              -path '*/build' -prune -o \
-              -path '*/results' -prune -o \
-              -name '*.sh' -type f -print0
-          )
-
-      - name: ShellCheck STCPv2 orchestration scripts
-        shell: /usr/bin/bash --noprofile --norc -e {0}
-        run: |
-          set -Eeuo pipefail
-
-          scripts=(
-            STCPv2/kernel-module/build-and-deploy.sh
-            STCPv2/kernel-module/build-benchmark-publish.sh
-            STCPv2/kernel-module/build-rpi-package.sh
-            STCPv2/kernel-module/benchmark/run-all-full.sh
-            STCPv2/web/publish-latest.sh
-          )
-
-          existing=()
-          for script in "${scripts[@]}"; do
-            [[ -f "$script" ]] && existing+=("$script")
-          done
-
-          if ((${#existing[@]})); then
-            shellcheck --severity=error -x "${existing[@]}"
-          fi
-
-      - name: Check STCPv2 Python syntax
-        shell: /usr/bin/bash --noprofile --norc -e {0}
-        run: |
-          set -Eeuo pipefail
-
-          dirs=()
-          [[ -d STCPv2/kernel-module/benchmark ]] &&
-            dirs+=(STCPv2/kernel-module/benchmark)
-          [[ -d STCPv2/kernel-module/echo-server ]] &&
-            dirs+=(STCPv2/kernel-module/echo-server)
-
-          if ((${#dirs[@]})); then
-            python3 -m compileall -q "${dirs[@]}"
-          fi
+          persist-credentials: false
+      - name: Validate maintained scripts
+        shell: bash
+        run: bash .github/scripts/stcp-ci.sh validate
 
   linux-kernel-modules:
-    name: Linux x86_64 + Raspberry Pi ARM64
     needs: validate
-    if: >-
-      github.event_name != 'workflow_dispatch' ||
-      inputs.build_linux == true
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_linux)
     runs-on: [self-hosted, linux, x64, stcp-builder]
-    timeout-minutes: 150
-
-    defaults:
-      run:
-        shell: /usr/bin/bash --noprofile --norc -e {0}
-        working-directory: STCPv2/kernel-module
-
+    timeout-minutes: 360
+    concurrency:
+      group: stcp-hardware
+      cancel-in-progress: false
     env:
+      X86_KDIR: ${{ vars.STCP_X86_KDIR }}
+      RPI_KDIR: ${{ vars.STCP_RPI_KDIR }}
+      RUST_TOOLCHAIN: ${{ vars.STCP_RUST_TOOLCHAIN || 'nightly' }}
       CROSS_COMPILE: aarch64-linux-gnu-
-      CARRIER_DEBUG: "0"
-      STOP_BENCHMARKS: "0"
-      DRY_RUN: "0"
-
+      JOBS: '4'
     steps:
-      - name: Checkout STCPv2 only
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          clean: false
-          submodules: false
-          lfs: false
-          sparse-checkout: |
-            STCPv2
-            .github/workflows/build.yml
-          sparse-checkout-cone-mode: false
-
-
-      - name: Resolve kernel build trees
-        run: |
-          set -Eeuo pipefail
-
-          X86_KDIR="${{ vars.STCP_X86_KDIR }}"
-          RPI_KDIR="${{ vars.STCP_RPI_KDIR }}"
-
-          if [[ -z "$X86_KDIR" ]]; then
-            X86_KDIR="/lib/modules/$(uname -r)/build"
-          fi
-
-          if [[ -z "$RPI_KDIR" ]]; then
-            RPI_KDIR="/home/pomo/git/STCP/STCPv2/kernel-module/raspberry-kernel-sources"
-          fi
-
-          echo "X86 kernel tree: $X86_KDIR"
-          echo "Raspberry kernel tree: $RPI_KDIR"
-
-          {
-            echo "X86_KDIR=$X86_KDIR"
-            echo "RPI_KDIR=$RPI_KDIR"
-            echo "JOBS=$(nproc)"
-          } >> "$GITHUB_ENV"
-
-          [[ -f "$X86_KDIR/Makefile" ]] || {
-            echo "[FAIL] Missing x86 Makefile: $X86_KDIR/Makefile" >&2
-            exit 1
-          }
-
-          [[ -f "$RPI_KDIR/Makefile" ]] || {
-            echo "[FAIL] Missing Raspberry Makefile: $RPI_KDIR/Makefile" >&2
-            exit 1
-          }
-
-          [[ -f "$RPI_KDIR/Module.symvers" ]] || {
-            echo "[FAIL] Missing Raspberry Module.symvers: $RPI_KDIR/Module.symvers" >&2
-            echo "Kernel tree must be prepared and modules built before STCP module build." >&2
-            exit 1
-          }
-
-          echo "[ OK ] Kernel build trees are ready"
-
-      - name: Verify Linux build environment
-        run: |
-          set -Eeuo pipefail
-
-          commands=(
-            make rustup cargo rustc file modinfo
-            "${CROSS_COMPILE}gcc"
-            "${CROSS_COMPILE}ld"
-            "${CROSS_COMPILE}ar"
-            "${CROSS_COMPILE}readelf"
-          )
-
-          for command_name in "${commands[@]}"; do
-            command -v "$command_name"
-          done
-
-          uname -a
-          rustc --version
-          cargo --version
-          make --version | head -1
-          "${CROSS_COMPILE}gcc" --version | head -1
-
-      - name: Ensure Rust nightly and rust-src
-        run: |
-          set -Eeuo pipefail
-
-          if ! rustup toolchain list | grep -q '^nightly'; then
-            rustup toolchain install nightly --profile minimal
-          fi
-
-          rustup component add rust-src --toolchain nightly
-
-      - name: Build Linux modules
-        id: build_modules
-        continue-on-error: true
-        run: |
-          set -Eeuo pipefail
-
-          X86_KDIR="$X86_KDIR" \
-          RPI_KDIR="$RPI_KDIR" \
-          CROSS_COMPILE="$CROSS_COMPILE" \
-          JOBS="$JOBS" \
-          STOP_BENCHMARKS="$STOP_BENCHMARKS" \
-          CARRIER_DEBUG="$CARRIER_DEBUG" \
-          DRY_RUN="$DRY_RUN" \
-            /usr/bin/bash ./build-and-deploy.sh build
-
-      - name: Verify produced modules
-        id: verify_modules
-        if: always() && !cancelled() && steps.build_modules.outcome == 'success'
-        continue-on-error: true
-        run: |
-          set -Eeuo pipefail
-
-          x86_module="x86-kernel-module/stcp.ko"
-          rpi_module="raspberry-kernel-module/stcp.ko"
-
-          test -f "$x86_module"
-          test -f "$rpi_module"
-
-          file "$x86_module" | grep -Eq 'x86-64|x86_64'
-          "${CROSS_COMPILE}readelf" -h "$rpi_module" |
-            grep -q 'Machine:.*AArch64'
-
-          modinfo "$x86_module" |
-            grep -E '^(description|license|depends|name|vermagic):'
-
-          modinfo "$rpi_module" |
-            grep -E '^(description|license|depends|name|vermagic):'
-
-      - name: Package Linux artifacts
-        id: package_modules
-        if: always() && !cancelled() && steps.build_modules.outcome == 'success' && steps.verify_modules.outcome == 'success'
-        continue-on-error: true
-        run: |
-          set -Eeuo pipefail
-
-          rm -rf ci-artifacts
-          mkdir -p \
-            ci-artifacts/x86_64 \
-            ci-artifacts/raspberry-pi-arm64
-
-          cp x86-kernel-module/stcp.ko \
-            ci-artifacts/x86_64/stcp.ko
-
-          cp raspberry-kernel-module/stcp.ko \
-            ci-artifacts/raspberry-pi-arm64/stcp.ko
-
-          [[ -f x86-kernel-module/Module.symvers ]] &&
-            cp x86-kernel-module/Module.symvers ci-artifacts/x86_64/
-
-          [[ -f raspberry-kernel-module/Module.symvers ]] &&
-            cp raspberry-kernel-module/Module.symvers \
-              ci-artifacts/raspberry-pi-arm64/
-
-          modinfo x86-kernel-module/stcp.ko \
-            > ci-artifacts/x86_64/modinfo.txt
-
-          modinfo raspberry-kernel-module/stcp.ko \
-            > ci-artifacts/raspberry-pi-arm64/modinfo.txt
-
-          (
-            cd ci-artifacts
-            sha256sum \
-              x86_64/stcp.ko \
-              raspberry-pi-arm64/stcp.ko \
-              > SHA256SUMS
-          )
-
-      - name: Upload Linux modules
-        if: always() && !cancelled()
-        continue-on-error: true
+          persist-credentials: false
+      - name: Build and verify both architectures
+        shell: bash
+        run: bash .github/scripts/stcp-ci.sh build
+      - name: Upload modules and build logs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: stcpv2-linux-modules-${{ github.run_id }}-${{ github.run_attempt }}
-          path: STCPv2/kernel-module/ci-artifacts/
+          name: stcp-linux-modules-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-artifacts/
           if-no-files-found: warn
           retention-days: 14
-
-
-
-      - name: Fail job after artifact upload if build failed
-        if: >-
-          always() && !cancelled() &&
-          (steps.build_modules.outcome == 'failure' ||
-           steps.verify_modules.outcome == 'failure' ||
-           steps.package_modules.outcome == 'failure')
-        run: |
-          echo "Linux module build/verification/package failed; artifact upload was attempted first." >&2
-          exit 1

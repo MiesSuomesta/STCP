@@ -1,217 +1,57 @@
-name: STCP extended overnight benchmark
+name: STCP overnight full run
 
 on:
   workflow_dispatch:
     inputs:
-      duration:
-        description: Duration per transport/case in seconds
-        required: false
-        default: "20"
-      pipelines:
-        description: Space-separated pipeline depths
-        required: false
-        default: "1 4 8"
-      publish:
-        description: Generate and publish the benchmark dashboards
+      skip_compile:
+        description: Use existing compiled artifacts (default rebuilds)
         type: boolean
-        required: false
         default: false
-      create_golden_tag:
-        description: Create and push a golden tag after a completely successful manual run
-        type: boolean
-        required: false
-        default: false
+      site_mode:
+        description: Site generation and publication
+        type: choice
+        options: [none, preview, publish]
+        default: preview
   schedule:
-    # 22:00 UTC is 01:00 in Finland during summer time.
-    - cron: "0 22 * * *"
+    # UTC; 01:00 in Finland during summer, 00:00 during winter.
+    - cron: '0 22 * * *'
 
 permissions:
-  contents: write
-
-concurrency:
-  group: stcp-overnight-benchmark
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   overnight:
-    name: Raspberry Pi extended matrix
-    runs-on:
-      - self-hosted
-      - linux
-      - x64
-      - stcp-builder
-
-    # 432 case groups × three transports × 20 seconds is at least 7.2 hours,
-    # plus deployment, perf, SSH and reporting overhead.
-    timeout-minutes: 900
-
-    defaults:
-      run:
-        shell: /usr/bin/bash --noprofile --norc -e {0}
-        working-directory: kernel-module
-
+    runs-on: [self-hosted, linux, x64, stcp-builder]
+    timeout-minutes: 1440
+    concurrency:
+      group: stcp-hardware
+      cancel-in-progress: false
     env:
-      RPI_ADDR: "192.168.1.199"
-      RPI_USER: "pi"
-      RPI_BENCHMARK_DIR: "/home/pi/benchmark"
-
-      CLIENTS_LIST: "1 2 4 8 16 32 64 128"
-      PAYLOADS: "1024 65536 131072 262144 1048576 2097152 4194304 8388608 16777216"
-      PIPELINES: ${{ github.event_name == 'workflow_dispatch' && inputs.pipelines || '1 4 8' }}
-      DURATION: ${{ github.event_name == 'workflow_dispatch' && inputs.duration || '20' }}
-
-      VERIFY: "0"
-      IRQ_METRICS: "1"
-      PERF_METRICS: "1"
-      CONTINUE_ON_ERROR: "1"
-      SYNC_RPI: "1"
-      CARRIER_DEBUG: "0"
-      AUTO_PUBLISH_WEB: ${{ github.event_name == 'workflow_dispatch' && inputs.publish && '1' || '0' }}
-
+      STCP_PROJECT_ROOT: /srv/stcp-project
+      STCP_CI_PYTHON: ${{ vars.STCP_CI_PYTHON }}
+      STCP_CI_SKIP_COMPILE: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_compile && 'true' || 'false' }}
+      STCP_CI_SITE_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.site_mode || 'preview' }}
     steps:
-      - name: Checkout STCPv2
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          clean: true
-
-      - name: Show environment
-        run: |
-          set -Eeuo pipefail
-
-          echo "Runner: $(hostname)"
-          echo "Kernel: $(uname -r)"
-          echo "Commit: $GITHUB_SHA"
-          echo "Clients: $CLIENTS_LIST"
-          echo "Payloads: $PAYLOADS"
-          echo "Pipelines: $PIPELINES"
-          echo "Duration: $DURATION"
-
-          command -v python3
-          command -v ssh
-          command -v scp
-          command -v perf
-          command -v tar
-
-      - name: Validate scripts
-        run: |
-          set -Eeuo pipefail
-
-          /usr/bin/bash -n benchmark/run-overnight-matrix.sh
-          /usr/bin/bash -n build-benchmark-publish.sh
-          /usr/bin/bash -n benchmark/run-all-full.sh
-
-      - name: Verify Raspberry connectivity
-        run: |
-          set -Eeuo pipefail
-
-          ssh -o BatchMode=yes -o ConnectTimeout=10 \
-            "${RPI_USER}@${RPI_ADDR}" \
-            'echo "Raspberry: $(hostname)"; uname -a; lsmod | grep "^stcp "'
-
-      - name: Run extended overnight matrix
-        id: benchmark
-        continue-on-error: true
-        run: |
-          set -Eeuo pipefail
-
-          /usr/bin/bash benchmark/run-overnight-matrix.sh
-
-      - name: Resolve result files
-        id: results
-        if: always() && !cancelled()
-        run: |
-          set -uo pipefail
-
-          result_dir=""
-          result_archive=""
-
-          if [[ -f benchmark/results/latest-overnight.txt ]]; then
-            result_dir="$(cat benchmark/results/latest-overnight.txt)"
-          fi
-
-          if [[ -f benchmark/results/latest-overnight-archive.txt ]]; then
-            result_archive="$(cat benchmark/results/latest-overnight-archive.txt)"
-          fi
-
-          {
-            echo "result_dir=$result_dir"
-            echo "result_archive=$result_archive"
-          } >>"$GITHUB_OUTPUT"
-
-          echo "Result directory: $result_dir"
-          echo "Result archive:   $result_archive"
-
-      - name: Upload overnight results
-        if: always() && !cancelled()
-        continue-on-error: true
+          persist-credentials: false
+      - name: All phases, regression and benchmarks
+        shell: bash
+        run: bash .github/scripts/stcp-ci.sh overnight
+      - name: Upload current full run and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: stcp-overnight-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            kernel-module/benchmark/results/latest-overnight.txt
-            kernel-module/benchmark/results/latest-overnight-archive.txt
-            kernel-module/benchmark/results/overnight-*-summary.txt
-            ${{ steps.results.outputs.result_archive }}
-            kernel-module/benchmark/pipeline-logs/overnight-*.log
+          path: ci-artifacts/
           if-no-files-found: warn
           retention-days: 30
-          compression-level: 0
-
-      - name: Create golden tag
-        if: >-
-          !cancelled() &&
-          steps.benchmark.outcome == 'success' &&
-          github.event_name == 'workflow_dispatch' &&
-          inputs.create_golden_tag
-        env:
-          TAG_NAME: stcp-golden-${{ github.run_id }}-${{ github.run_attempt }}
-          RESULT_DIR: ${{ steps.results.outputs.result_dir }}
-          RESULT_ARCHIVE: ${{ steps.results.outputs.result_archive }}
-        run: |
-          set -Eeuo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          printf -v tag_details '%s\n' \
-            "Workflow: $GITHUB_WORKFLOW" \
-            "Run: $GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT" \
-            "Commit: $GITHUB_SHA" \
-            "Clients: $CLIENTS_LIST" \
-            "Payloads: $PAYLOADS" \
-            "Pipelines: $PIPELINES" \
-            "Duration: $DURATION" \
-            "Result directory: $RESULT_DIR" \
-            "Result archive: $RESULT_ARCHIVE"
-
-          git tag -a "$TAG_NAME" \
-            -m "STCP extended overnight benchmark passed" \
-            -m "$tag_details"
-
-          git push origin "$TAG_NAME"
-
-      - name: Job summary
-        if: always() && !cancelled()
-        env:
-          RESULT_DIR: ${{ steps.results.outputs.result_dir }}
-          RESULT_ARCHIVE: ${{ steps.results.outputs.result_archive }}
+      - name: Summary
+        if: always()
+        shell: bash
         run: |
           {
-            echo "## STCP extended overnight benchmark"
-            echo
-            echo "- Commit: \`$GITHUB_SHA\`"
-            echo "- Clients: \`$CLIENTS_LIST\`"
-            echo "- Payloads: \`$PAYLOADS\`"
-            echo "- Pipelines: \`$PIPELINES\`"
-            echo "- Duration: \`$DURATION s\`"
-            echo "- Result: \`$RESULT_DIR\`"
-            echo "- Archive: \`$RESULT_ARCHIVE\`"
-          } >>"$GITHUB_STEP_SUMMARY"
-
-
-      - name: Fail job after artifacts if benchmark failed
-        if: always() && !cancelled() && steps.benchmark.outcome == 'failure'
-        run: |
-          echo "Benchmark step failed; artifacts and summaries were collected first." >&2
-          exit 1
+            echo '## STCP full run: host/Raspberry, Zephyr, CoAP, MQTT, P2P (ETH/LTE)'
+            echo "Workflow commit: $GITHUB_SHA"
+            echo 'See full-run.log, revisions.json and per-phase results in the artifact.'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -16,6 +16,8 @@ run_dir="$root/test-results/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 mkdir -p "$run_dir"
 status=0
 for suite in "${suites[@]}"; do
+  # STCP integrated security gate v1
+  # MiniSDK: security belongs to the paid SDK. bash /srv/stcp-project/SDK/security/run-security-gate.sh || exit $?
   "$python_bin" -m robot --outputdir "$run_dir/$suite" "$root/tests/robot/$suite.robot" || status=1
 done
 echo "Reports: $run_dir"

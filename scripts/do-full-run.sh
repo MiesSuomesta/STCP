@@ -678,6 +678,8 @@ run_zephyr_tests() {
     # Run Robot directly so output.xml/log.html/report.html are guaranteed to
     # belong to THIS run. Do not let set -e abort before results/latest is
     # updated on a failing test.
+    # STCP integrated security gate v1
+    bash /srv/stcp-project/SDK/security/run-security-gate.sh || exit $?
     if robot --exitonfailure --outputdir "$run_dir" "$suite"; then
         rc=0
     else

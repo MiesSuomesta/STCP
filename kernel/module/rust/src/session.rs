@@ -305,7 +305,14 @@ pub fn connect(
      * ID. The UDP listener creates the server child only when that datagram is
      * received, because only then are the real peer address and port known.
      */
-    if ctx.proto == 254 {
+
+    // STCP_TCP_CARRIER_SINGLE_ACCEPT_PATH
+    // A real TCP connection must use the child attached to its accepted carrier.
+    // Do not also enqueue a registry child: kernel_accept() can finish before
+    // Rust connect() publishes that child, leaving two independent accept queues.
+    // Keep the registry path only for carrierless in-memory connections.
+    let carrier_backed_tcp = ctx.proto == 253 && ctx.inner.lock().carrier != 0;
+    if ctx.proto == 254 || carrier_backed_tcp {
         let mut inner = ctx.inner.lock();
 
         inner.peer = Some(target);
@@ -556,7 +563,20 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
 fn process_handshake_frames_locked(ctx: &StcpContext) -> Result<(), StcpError> {
     let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
     let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
-    loop { let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
+    loop {
+        // STCP_HANDSHAKE_DONE_BEFORE_KEY
+        // RX can derive keys and send Done before accept emits our PublicKey.
+        // Done is a boundary only once the peer key is also available. Honor
+        // Done from an earlier parser pass as well, and leave DATA untouched.
+        let have_handshake_inputs = {
+            let inner = ctx.inner.lock();
+            (received_done || inner.peer_handshake_done) &&
+                (received_key.is_some() || inner.crypto.ready())
+        };
+        if have_handshake_inputs {
+            break;
+        }
+ let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
         PacketType::PublicKey => {
             if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);}
             if frame.header.flags & !(FLAG_COMPRESSION_CAPABLE) != 0 { return Err(StcpError::Protocol); }
@@ -569,21 +589,10 @@ fn process_handshake_frames_locked(ctx: &StcpContext) -> Result<(), StcpError> {
             if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
             received_done = true;
 
-            /*
-             * HandshakeDone is the protocol boundary.  TCP may coalesce the
-             * peer's HandshakeDone and first application DATA frame into the
-             * same kernel_recvmsg() buffer.  Do not keep parsing that DATA as
-             * a handshake frame: doing so returned EPROTO and left accept()
-             * waiting until timeout (most reproducibly on Raspberry ->
-             * Raspberry).
-             *
-             * Stop here after consuming HandshakeDone.  The state transition
-             * below marks the context Ready and progress_receive() immediately
-             * calls fill_application_buffer(), which consumes any complete
-             * DATA frame already queued behind it.
-             */
+            /* Done may precede PublicKey. The loop-level boundary check
+             * handles either order without consuming application DATA. */
             crate::carrier::debug_event(253, ctx, queue.lock().len(), 0);
-            break;
+            // The next loop checks both Done and key before stopping.
         }
         _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
     }}

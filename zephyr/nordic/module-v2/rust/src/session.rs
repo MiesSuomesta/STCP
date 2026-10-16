@@ -30,7 +30,6 @@ use crate::{
     byte_queue::ByteQueue,
     error::StcpError,
     frame::{
-        encode_control_frame,
         encode_frame,
         Header,
         PacketType,
@@ -917,7 +916,6 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     const MAX_RX_BATCH_FRAMES: usize = 128;
     let mut became_readable = false;
     let mut peer_eof = false;
-    let mut late_handshake_done = false;
 
     for _ in 0..MAX_RX_BATCH_FRAMES {
         let Some(frame) = extract_next_wire_frame(ctx, queue)? else {
@@ -925,6 +923,12 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         };
 
         let header = frame.header;
+
+        if crate::control::is_control(header.packet_type) &&
+           !authenticate_control(ctx, &header, &frame.payload) {
+            // Invalid, plaintext, stale and replayed controls have no effects.
+            continue;
+        }
 
         match header.packet_type {
             PacketType::DataChunk | PacketType::DataChunkEnd => {
@@ -972,61 +976,35 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
             }
 
             PacketType::Ack => {
-                if !frame.payload.is_empty() {
-                    return protocol_error(ctx);
-                }
                 update_acknowledgment(ctx, header.acknowledgment)?;
             }
-
             PacketType::Ping => {
-                if !frame.payload.is_empty() {
-                    return protocol_error(ctx);
-                }
                 queue_pong(ctx, header.sequence)?;
             }
-
-            PacketType::Pong => {
-                if !frame.payload.is_empty() {
-                    return protocol_error(ctx);
-                }
-            }
-
+            PacketType::Pong => {}
             PacketType::Reset => {
                 return protocol_error(ctx);
             }
-
             PacketType::Close => {
                 peer_eof = true;
                 break;
             }
 
-            PacketType::PublicKey => {
-                if frame.payload.len() != PUBLIC_KEY_WIRE_LEN {
-                    return protocol_error(ctx);
-                }
-            }
-
-            PacketType::HandshakeDone => {
-                if !frame.payload.is_empty() {
-                    return protocol_error(ctx);
-                }
-                late_handshake_done = true;
+            PacketType::PublicKey | PacketType::HandshakeDone => {
+                // Handshake retransmissions cannot mutate an established session.
+                continue;
             }
         }
     }
 
     let mut should_wake = became_readable;
 
-    if peer_eof || late_handshake_done {
+    if peer_eof {
         let mut inner = ctx.inner.lock();
 
         if peer_eof && !inner.peer_eof {
             inner.peer_eof = true;
             should_wake = true;
-        }
-
-        if late_handshake_done {
-            inner.peer_handshake_done = true;
         }
     }
 
@@ -1183,6 +1161,35 @@ fn process_in_order_frame(
     Ok(became_readable)
 }
 
+fn authenticated_control_frame(
+    ctx: &StcpContext,
+    packet_type: PacketType,
+    sequence: u64,
+    acknowledgment: u64,
+) -> Result<Vec<u8>, StcpError> {
+    let (crypto, connection_id, nonce) = {
+        let mut inner = ctx.inner.lock();
+        let nonce = inner.tx_control_nonce;
+        // Reserve before releasing the lock: concurrent sends never reuse it.
+        inner.tx_control_nonce = nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+        (inner.crypto.clone(), inner.connection_id, nonce)
+    };
+    crate::control::encode(&crypto, packet_type, sequence, acknowledgment,
+                           connection_id, nonce)
+}
+
+fn authenticate_control(ctx: &StcpContext, header: &Header, payload: &[u8]) -> bool {
+    let (crypto, connection_id) = {
+        let inner = ctx.inner.lock();
+        (inner.crypto.clone(), inner.connection_id)
+    };
+    let Some(nonce) = crate::control::verify(&crypto, header, payload, connection_id) else {
+        return false;
+    };
+    // Parser serialization plus this lock makes replay publication atomic.
+    ctx.inner.lock().control_replay.accept(nonce)
+}
+
 fn current_expected_sequence(ctx: &StcpContext) -> u64 {
     ctx.inner.lock().expected_rx_sequence
 }
@@ -1280,13 +1287,7 @@ fn queue_ack(
      * to `sequence`.  This cuts ACK traffic by roughly 8x for fragmented
      * UDP application messages while DataChunkEnd still flushes promptly. */
     let (shared, side) = connection_for_data(ctx)?;
-    let frame = encode_control_frame(
-        PacketType::Ack,
-        0,
-        sequence,
-        connection_id(ctx),
-        &[],
-    )?;
+    let frame = authenticated_control_frame(ctx, PacketType::Ack, 0, sequence)?;
     send_frame(ctx, &shared, side, &frame, 0)?;
     Ok(())
 }
@@ -1296,13 +1297,7 @@ fn queue_pong(
     ping_sequence: u64,
 ) -> Result<(), StcpError> {
     let (shared, side) = connection_for_data(ctx)?;
-    let frame = encode_control_frame(
-        PacketType::Pong,
-        ping_sequence,
-        0,
-        connection_id(ctx),
-        &[],
-    )?;
+    let frame = authenticated_control_frame(ctx, PacketType::Pong, ping_sequence, 0)?;
     send_frame(ctx, &shared, side, &frame, 0)?;
     Ok(())
 }
@@ -1566,13 +1561,7 @@ pub fn shutdown(
 
     if let Some((shared, side)) = connection {
         let acknowledgment = ctx.inner.lock().last_rx_sequence.unwrap_or(0);
-        if let Ok(close_frame) = encode_control_frame(
-            PacketType::Close,
-            0,
-            acknowledgment,
-            connection_id(ctx),
-            &[],
-        ) {
+        if let Ok(close_frame) = authenticated_control_frame(ctx, PacketType::Close, 0, acknowledgment) {
             let _ = send_frame(ctx, &shared, side, &close_frame, 0);
         }
 

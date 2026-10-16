@@ -8,6 +8,7 @@ mod allocator;
 pub mod benchmark;
 mod byte_queue;
 mod crypto;
+mod control;
 mod error;
 mod ffi;
 mod carrier;

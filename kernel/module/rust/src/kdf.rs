@@ -43,3 +43,8 @@ pub fn derive_directional_keys(shared:&[u8;32], client_pub:&[u8;32], server_pub:
     if client==server { return Err(StcpError::Crypto); }
     Ok((client,server))
 }
+
+// Separate control traffic from DATA even when both start their nonce at zero.
+pub(crate) fn derive_control_key(data_key: &[u8; 32]) -> [u8; 32] {
+    hmac_parts(data_key, &[b"STCP wire3 control AES256-GCM key", &[1]])
+}

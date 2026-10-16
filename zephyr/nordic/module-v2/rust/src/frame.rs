@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use crate::error::StcpError;
 
-pub const STCP_VERSION: u8 = 2;
+pub const STCP_VERSION: u8 = 3;
 // Same two descriptor flag bits as Linux/Raspberry Pi STCP.
 // Header::encode() maps these to bits 6 and 7 of wire byte 0.
 pub const FLAG_COMPRESSED: u8 = 0x01;

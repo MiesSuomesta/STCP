@@ -5,6 +5,7 @@ extern crate alloc;
 mod allocator;
 mod byte_queue;
 mod crypto;
+mod control;
 #[allow(dead_code)]
 mod compression;
 mod error;

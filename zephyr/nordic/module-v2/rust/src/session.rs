@@ -134,12 +134,7 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
             if current.packet_type != header.packet_type || current.payload_len != header.payload_len || current.sequence != header.sequence || current.acknowledgment != header.acknowledgment || current.connection_id != header.connection_id {
                 continue;
             }
-            remove_header(&mut wire)?;
-            if header.payload_len == 0 {
-                Vec::new()
-            } else {
-                wire.take_or_read_vec(header.payload_len)?
-            }
+            wire.take_after_prefix(STCP_HEADER_LEN, header.payload_len)?
         };
         return Ok(Some(WireFrame { header, payload }));
     }

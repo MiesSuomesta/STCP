@@ -69,6 +69,11 @@ impl ByteQueue {
         let added = input.len();
         let new_len = self.len.checked_add(added).ok_or(StcpError::NoMem)?;
 
+        // Roll back appended chunks and the old tail on any allocation failure.
+        // Spare capacity may grow, but logical contents and offsets stay unchanged.
+        let old_chunks = self.chunks.len();
+        let old_tail_len = self.chunks.back().map(|chunk| chunk.data.len());
+        let result = (|| -> Result<(), StcpError> {
         while !input.is_empty() {
             if let Some(back) = self.chunks.back_mut() {
                 /*
@@ -103,11 +108,22 @@ impl ByteQueue {
                 .try_reserve_exact(capacity)
                 .map_err(|_| StcpError::NoMem)?;
             chunk.extend_from_slice(&input[..count]);
+            self.chunks.try_reserve(1).map_err(|_| StcpError::NoMem)?;
             self.chunks.push_back(ByteChunk {
                 data: chunk,
                 offset: 0,
             });
             input = &input[count..];
+        }
+
+            Ok(())
+        })();
+        if let Err(error) = result {
+            self.chunks.truncate(old_chunks);
+            if let (Some(tail), Some(old_len)) = (self.chunks.back_mut(), old_tail_len) {
+                tail.data.truncate(old_len);
+            }
+            return Err(error);
         }
 
         self.len = new_len;
@@ -156,7 +172,9 @@ impl ByteQueue {
         }
 
         let count = input.len();
-        self.len = self.len.checked_add(count).ok_or(StcpError::NoMem)?;
+        let new_len = self.len.checked_add(count).ok_or(StcpError::NoMem)?;
+        self.chunks.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+        self.len = new_len;
         self.chunks.push_back(ByteChunk {
             data: input,
             offset: 0,
@@ -178,7 +196,9 @@ impl ByteQueue {
         if count == 0 {
             return Ok(());
         }
-        self.len = self.len.checked_add(count).ok_or(StcpError::NoMem)?;
+        let new_len = self.len.checked_add(count).ok_or(StcpError::NoMem)?;
+        self.chunks.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+        self.len = new_len;
         self.chunks.push_back(ByteChunk { data: input, offset });
         Ok(())
     }
@@ -226,6 +246,27 @@ impl ByteQueue {
             return Ok(buffer);
         }
         self.read_vec(count)
+    }
+
+    /// Consume a prefix and return the following payload atomically on ENOMEM.
+    pub fn take_after_prefix(&mut self, prefix: usize, count: usize) -> Result<Vec<u8>, StcpError> {
+        let total = prefix.checked_add(count).ok_or(StcpError::Protocol)?;
+        if self.len < total { return Err(StcpError::Again); }
+        if prefix == 0 { return self.take_or_read_vec(count); }
+        // Preserve the zero-copy path for a separate header and owned payload.
+        let exact = self.chunks.front().map(|c| c.data.len() - c.offset == prefix).unwrap_or(false)
+            && self.chunks.get(1).map(|c| c.offset == 0 && c.data.len() == count).unwrap_or(false);
+        if exact {
+            self.discard(prefix);
+            return self.take_or_read_vec(count);
+        }
+        let mut output = Vec::new();
+        output.try_reserve_exact(count).map_err(|_| StcpError::NoMem)?;
+        output.resize(count, 0);
+        // No fallible operation remains after consuming the header.
+        self.discard(prefix);
+        self.read_into(&mut output);
+        Ok(output)
     }
 
     /// Copy exactly `count` bytes into one owned buffer.

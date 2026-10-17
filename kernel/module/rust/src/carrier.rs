@@ -12,7 +12,7 @@ use core::{
 };
 
 use crate::{
-    byte_queue::ByteQueue,
+    byte_queue::{ByteQueue, RX_WIRE_BUDGET, RX_CHUNK_LIMIT},
     crypto::Role,
     error::StcpError,
     frame::{Header, PacketType, STCP_HEADER_LEN},
@@ -112,7 +112,7 @@ pub(crate) fn transmit(
     if carrier == 0 {
         outgoing_queue(shared, side)
             .lock()
-            .push_slice(bytes)?;
+            .push_slice_bounded(bytes, RX_WIRE_BUDGET, RX_CHUNK_LIMIT)?;
         wake_recv(shared.peer_owner(side));
         return Ok(());
     }
@@ -139,16 +139,17 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     debug_event(310, ctx, bytes.len(), 0);
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
+        if inner.state == SocketState::Error || inner.state == SocketState::Closed { return -107; }
         let Some(endpoint) = &inner.connection else {
             return -107;
         };
         (endpoint.shared.clone(), endpoint.side, inner.owner)
     };
 
-    if let Err(error) = incoming_queue(&shared, side)
-        .lock()
-        .push_slice(bytes)
+    let queued = { incoming_queue(&shared, side).lock().push_slice_bounded(bytes, RX_WIRE_BUDGET, RX_CHUNK_LIMIT) };
+    if let Err(error) = queued
     {
+        if error.errno() == -105 { crate::session::fail_rx_budget(ctx); }
         if matches!(error, StcpError::NoMem) {
             /* NOMEM-9001: incoming carrier bytes could not be appended to
              * the wire ByteQueue. arg0=received byte count, arg1=errno. */

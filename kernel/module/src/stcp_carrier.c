@@ -6,6 +6,8 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 #include <linux/kthread.h>
+#include <linux/ktime.h>
+#include <linux/timekeeping.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/net.h>
@@ -96,6 +98,14 @@ extern int stcp_rust_carrier_receive_from(
 	u32 peer_addr,
 	u16 peer_port
 );
+
+extern ssize_t stcp_rust_rx_allowance(void *ctx, size_t maximum);
+
+u64 stcp_kernel_monotonic_ms(void);
+u64 stcp_kernel_monotonic_ms(void)
+{
+    return (u64)ktime_to_ms(ktime_get());
+}
 
 extern void *stcp_rust_get_carrier(void *rust_ctx);
 
@@ -402,6 +412,16 @@ static int stcp_receiver_thread(void *argument)
 		ssize_t received_len;
 		int ret;
 
+        if (carrier->kind == STCP_CARRIER_TCP && READ_ONCE(carrier->rust_ctx)) {
+            ssize_t allowed = stcp_rust_rx_allowance(READ_ONCE(carrier->rust_ctx), buffer_size);
+            if (allowed < 0) {
+                stcp_carrier_record_terminal_error(carrier, (int)allowed);
+                while (!kthread_should_stop()) schedule_timeout_interruptible(HZ / 10 ?: 1);
+                break;
+            }
+            if (!allowed) { schedule_timeout_interruptible(msecs_to_jiffies(10) ?: 1); continue; }
+            vector.iov_len = (size_t)allowed;
+        }
 		memset(&peer, 0, sizeof(peer));
 		{
 			bool trace_recv = READ_ONCE(stcp_verbose_debug) &&
@@ -415,7 +435,7 @@ static int stcp_receiver_thread(void *argument)
 			&message,
 			&vector,
 			1,
-			buffer_size,
+			vector.iov_len,
 			0
 		);
 
@@ -492,12 +512,13 @@ static int stcp_receiver_thread(void *argument)
 				       callback_owner, READ_ONCE(carrier->destroy_started),
 				       READ_ONCE(carrier->stopping));
 
-			if (callback_ctx)
-				ret = stcp_rust_carrier_receive_from(
-					callback_ctx, buffer, (size_t)received_len,
-					peer_addr, peer_port);
-			else
-				ret = -ESHUTDOWN;
+            if (callback_ctx) {
+                do {
+                    ret = stcp_rust_carrier_receive_from(callback_ctx, buffer, (size_t)received_len, peer_addr, peer_port);
+                    if (carrier->kind != STCP_CARRIER_TCP || ret != -ENOMEM || kthread_should_stop()) break;
+                    schedule_timeout_interruptible(msecs_to_jiffies(10) ?: 1);
+                } while (!kthread_should_stop());
+            } else ret = -ESHUTDOWN;
 
 			active = atomic_dec_return(&carrier->rx_callbacks);
 			if (READ_ONCE(stcp_verbose_debug))

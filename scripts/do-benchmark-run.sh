@@ -27,9 +27,9 @@ do
         mkdir -p "$tmp"
 
         cd "$tmp"
-        bash /srv/stcp-project/SDK/scripts/netconsole/enable-netconsole.sh
+        bash /srv/stcp-project/utilities/scripts/netconsole/enable-netconsole.sh
         bash /srv/stcp-project/STCP/do-full-run.sh "${FULL_RUN_ARGS[@]}"
-        bash /srv/stcp-project/SDK/scripts/stcp-postmortem.sh
+        bash /srv/stcp-project/utilities/scripts/stcp-postmortem.sh
         cp -v ./*.zip /srv/stcp-project/
     ) |& ts "[Benchmark round $r / $ROUNDS :: %Y-%m-%d %H:%M:%S] "
 done

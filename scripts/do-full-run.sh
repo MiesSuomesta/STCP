@@ -679,7 +679,7 @@ run_zephyr_tests() {
     # belong to THIS run. Do not let set -e abort before results/latest is
     # updated on a failing test.
     # STCP integrated security gate v1
-    bash /srv/stcp-project/SDK/security/run-security-gate.sh || exit $?
+    bash /srv/stcp-project/utilities/security/run-security-gate.sh || exit $?
     if robot --exitonfailure --outputdir "$run_dir" "$suite"; then
         rc=0
     else
@@ -886,7 +886,7 @@ main() {
     cleanup_stcp_users
 
     info "Setting up netconsole...."
-    bash /srv/stcp-project/SDK/scripts/netconsole/enable-netconsole.sh
+    bash /srv/stcp-project/utilities/scripts/netconsole/enable-netconsole.sh
 
     if run_host_rpi_tests; then
         :
@@ -916,7 +916,7 @@ main() {
         zephyr_rc=$?
         info "Zephyr Robot tests FAIL rc=$zephyr_rc"
         info "Collecting postmortem from finalized Zephyr results/latest..."
-        bash /srv/stcp-project/SDK/scripts/stcp-postmortem.sh || true
+        bash /srv/stcp-project/utilities/scripts/stcp-postmortem.sh || true
         fail "Stopping full run after Zephyr Robot failure rc=$zephyr_rc"
     fi
 

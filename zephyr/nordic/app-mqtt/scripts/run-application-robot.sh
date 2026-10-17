@@ -19,7 +19,7 @@ cd "$TEST"
 rm -f mqtt-backend.log mqtt-gateway.log
 set +e
 # STCP integrated security gate v1
-bash /srv/stcp-project/SDK/security/run-security-gate.sh || exit $?
+bash /srv/stcp-project/utilities/security/run-security-gate.sh || exit $?
 robot --outputdir "$RUN_DIR" mqtt.robot
 rc=$?
 set -e

@@ -41,7 +41,13 @@ static void rust_rx_thread(void *p1, void *p2, void *p3)
             CONFIG_STCP_RUST_RX_BUFFER_SIZE);
     log_current_stack("thread-start");
     while (!ctx->rust_rx_stop && ctx->carrier_fd >= 0) {
-        ssize_t n = zsock_recv(ctx->carrier_fd, buffer, CONFIG_STCP_RUST_RX_BUFFER_SIZE, ZSOCK_MSG_DONTWAIT);
+        ssize_t allowance = stcp_rust_rx_allowance(ctx->rust_ctx, CONFIG_STCP_RUST_RX_BUFFER_SIZE);
+        if (allowance < 0) {
+            ctx->last_error = (int)-allowance; ctx->state = STCP_CLOSED;
+            ctx->poll_read_wakeup = true; k_sem_give(&ctx->rust_event); break;
+        }
+        if (!allowance) { k_sleep(K_MSEC(10)); continue; }
+        ssize_t n = zsock_recv(ctx->carrier_fd, buffer, (size_t)allowance, ZSOCK_MSG_DONTWAIT);
         if (n > 0) {
             int rc;
             if (IS_ENABLED(CONFIG_STCP_RUST_TRACE_WIRE)) {
@@ -50,7 +56,11 @@ static void rust_rx_thread(void *p1, void *p2, void *p3)
             }
             STCP_RX_INF("Rust carrier receive start: bytes=%zd", n);
             log_current_stack("before-rust-receive");
-            rc = stcp_rust_carrier_receive(ctx->rust_ctx, buffer, (size_t)n);
+            do {
+                rc = stcp_rust_carrier_receive(ctx->rust_ctx, buffer, (size_t)n);
+                if (ctx->protocol != 253 || rc != -ENOMEM || ctx->rust_rx_stop) break;
+                k_sleep(K_MSEC(10));
+            } while (!ctx->rust_rx_stop);
             log_current_stack("after-rust-receive");
             STCP_RX_INF("Rust carrier receive return: bytes=%zd rc=%d", n, rc);
             if (rc < 0 && rc != -EAGAIN) {

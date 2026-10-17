@@ -169,6 +169,9 @@ pub struct ContextInner {
     pub last_rx_sequence: Option<u64>,
     pub rx_app_data: ByteQueue,
     pub rx_message_ready: bool,
+    pub rx_paused: bool,
+    pub rx_partial_started_ms: Option<u64>,
+    pub rx_terminal_errno: i32,
     pub peer_eof: bool,
     pub carrier: usize,
     pub connection_id: u64,
@@ -182,13 +185,17 @@ pub struct StcpContext {
     pub proto: u8,
     pub parser_busy: AtomicBool,
     pub inner: SpinLock<ContextInner>,
+    // Drop buffers before returning the admission reservation.
+    _rx_lease: crate::rx_policy::SessionLease,
 }
 
 impl StcpContext {
     pub fn new(proto: u8) -> Result<Self, crate::error::StcpError> {
+        let rx_lease = crate::rx_policy::SessionLease::acquire()?;
         let crypto = CryptoContext::new()?;
 
         Ok(Self {
+            _rx_lease: rx_lease,
             proto,
             parser_busy: AtomicBool::new(false),
             inner: SpinLock::new(ContextInner {
@@ -222,6 +229,9 @@ impl StcpContext {
                 last_rx_sequence: None,
                 rx_app_data: ByteQueue::new(),
                 rx_message_ready: false,
+                rx_paused: false,
+                rx_partial_started_ms: None,
+                rx_terminal_errno: 0,
                 peer_eof: false,
                 carrier: 0,
                 connection_id: 0,
@@ -238,9 +248,11 @@ impl StcpContext {
         peer: Address,
         shared: Arc<Connection>,
     ) -> Result<Self, crate::error::StcpError> {
+        let rx_lease = crate::rx_policy::SessionLease::acquire()?;
         let crypto = CryptoContext::new()?;
 
         Ok(Self {
+            _rx_lease: rx_lease,
             proto,
             parser_busy: AtomicBool::new(false),
             inner: SpinLock::new(ContextInner {
@@ -277,6 +289,9 @@ impl StcpContext {
                 last_rx_sequence: None,
                 rx_app_data: ByteQueue::new(),
                 rx_message_ready: false,
+                rx_paused: false,
+                rx_partial_started_ms: None,
+                rx_terminal_errno: 0,
                 peer_eof: false,
                 carrier: 0,
                 connection_id: 0,

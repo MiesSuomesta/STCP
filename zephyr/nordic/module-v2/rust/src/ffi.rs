@@ -394,3 +394,12 @@ pub extern "C" fn stcp_rust_wire_header_len() -> usize {
 // ABI marker changes with this troubleshooting build; C links and prints it.
 #[unsafe(no_mangle)]
 pub extern "C" fn stcp_rust_build_id() -> u32 { 0x261010e1 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn stcp_rust_rx_allowance(raw: *mut c_void, maximum: usize) -> isize {
+    match with_ctx(raw, |ctx| session::rx_allowance(ctx, maximum)) {
+        Ok(Ok(n)) => n.min(isize::MAX as usize) as isize,
+        Ok(Err(error)) => error.errno() as isize,
+        Err(error) => error as isize,
+    }
+}

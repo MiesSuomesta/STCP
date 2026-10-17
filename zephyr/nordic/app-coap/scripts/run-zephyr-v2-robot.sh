@@ -33,7 +33,7 @@ echo "[INFO] Zephyr v2 Robot run: $RUN_DIR"
 cd "$TEST"
 set +e
 # STCP integrated security gate v1
-bash /srv/stcp-project/SDK/security/run-security-gate.sh || exit $?
+bash /srv/stcp-project/utilities/security/run-security-gate.sh || exit $?
 robot --outputdir "$RUN_DIR" zephyr-v2.robot
 rc=$?
 set -e

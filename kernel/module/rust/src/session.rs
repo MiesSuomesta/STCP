@@ -73,6 +73,7 @@ fn try_parser_guard(ctx: &StcpContext) -> Option<ParserGuard<'_>> {
 }
 struct WireFrame { header: Header, payload: Vec<u8> }
 fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Result<Option<WireFrame>, StcpError> {
+    check_rx_deadline(ctx)?;
     debug_event(350, ctx, 0, 0);
     let mut retries = 0usize;
     loop {
@@ -83,7 +84,11 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
         }
         let header = {
             let mut wire = queue.lock();
-            if wire.len() < STCP_HEADER_LEN { return Ok(None); }
+            if wire.len() < STCP_HEADER_LEN {
+                let partial = !wire.is_empty(); drop(wire);
+                observe_partial_frame(ctx, partial);
+                return Ok(None);
+            }
             let header = match peek_header(&wire) {
                 Ok(header) => header,
                 Err(StcpError::Again) => return Ok(None),
@@ -95,10 +100,20 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
                 return Err(StcpError::Kernel(-105));
             }
             let frame_len = STCP_HEADER_LEN.checked_add(header.payload_len).ok_or(StcpError::Protocol)?;
-            if wire.len() < frame_len { return Ok(None); }
+            if wire.len() < frame_len {
+                drop(wire); observe_partial_frame(ctx, true); return Ok(None);
+            }
             header
         };
         crate::carrier::debug_event(203, ctx, header.packet_type as usize, header.payload_len);
+        if pause_for_tcp_frame(ctx, &header) { return Ok(None); }
+        if matches!(header.packet_type, PacketType::DataChunk | PacketType::DataChunkEnd) {
+            let mut inner = ctx.inner.lock();
+            if header.sequence == inner.expected_rx_sequence &&
+               inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) != 0 {
+                inner.rx_app_data.reserve_owned_slot()?;
+            }
+        }
         let payload = {
             let mut wire = queue.lock();
             let current = peek_header(&wire)?;
@@ -123,6 +138,7 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
                     }
                 }
         };
+        observe_partial_frame(ctx, false);
         return Ok(Some(WireFrame { header, payload }));
     }
 }
@@ -495,6 +511,7 @@ pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
 }
 
 pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
+    check_rx_deadline(ctx)?;
     let state = ctx.inner.lock().state;
 
     if state == SocketState::Handshake {
@@ -1043,7 +1060,7 @@ pub fn recv(
         if inner.state != SocketState::Ready &&
            inner.state != SocketState::Closed
         {
-            return Err(StcpError::InvalidState);
+            return Err(if inner.rx_terminal_errno != 0 { StcpError::Kernel(inner.rx_terminal_errno) } else { StcpError::InvalidState });
         }
     }
 
@@ -1057,6 +1074,7 @@ pub fn recv(
     if inner.rx_message_ready && !inner.rx_app_data.is_empty() {
         let count = inner.rx_app_data.read_into(output);
 
+        if inner.rx_app_data.retained_bytes() <= RX_APP_BUDGET / 2 { inner.rx_paused = false; }
         if inner.rx_app_data.is_empty() {
             inner.rx_message_ready = false;
         }
@@ -1283,7 +1301,16 @@ fn take_next_buffered_frame(
     Some(inner.out_of_order_frames.swap_remove(position))
 }
 
-fn process_in_order_frame(
+fn process_in_order_frame(ctx: &StcpContext, frame: BufferedFrame) -> Result<bool, StcpError> {
+    match process_in_order_frame_impl(ctx, frame) {
+        // This frame was already detached. Never advertise it as unconsumed
+        // carrier input: failure here is terminal rather than a replay request.
+        Err(StcpError::NoMem) => { fail_rx_budget(ctx); Err(StcpError::Kernel(-105)) },
+        result => result,
+    }
+}
+
+fn process_in_order_frame_impl(
     ctx: &StcpContext,
     mut frame: BufferedFrame,
 ) -> Result<bool, StcpError> {
@@ -1365,6 +1392,11 @@ fn process_in_order_frame(
             return Err(StcpError::Protocol);
         }
 
+        let publish_capacity = decompressed.as_ref().map(|v| v.capacity()).unwrap_or(frame.ciphertext.capacity());
+        if ctx.proto == 254 && inner.rx_message_ready &&
+           publish_capacity > inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) {
+            return Err(StcpError::Again);
+        }
         let next_rx_nonce = inner.expected_rx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
         let next_rx_sequence = inner.expected_rx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
         if inner.state != SocketState::Ready && inner.state != SocketState::Closed { return Err(StcpError::Closed); }
@@ -1577,6 +1609,7 @@ fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> {
 }
 
 pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
+    check_rx_deadline(ctx)?;
     debug_event(335, ctx, 0, 0);
     {
         let inner = ctx.inner.lock();
@@ -1687,10 +1720,75 @@ pub fn reliability_snapshot(
     )
 }
 
-pub(crate) fn fail_rx_budget(ctx: &StcpContext) {
+fn observe_partial_frame(ctx: &StcpContext, partial: bool) {
+    let mut inner = ctx.inner.lock();
+    if !partial || inner.rx_paused { inner.rx_partial_started_ms = None; }
+    else if inner.rx_partial_started_ms.is_none() { inner.rx_partial_started_ms = Some(crate::rx_policy::now_ms()); }
+}
+
+pub(crate) fn note_rx_allocation_stall(ctx: &StcpContext) { observe_partial_frame(ctx, true); }
+
+fn check_rx_deadline(ctx: &StcpContext) -> Result<(), StcpError> {
+    let expired = {
+        let inner = ctx.inner.lock();
+        !inner.rx_paused && inner.rx_partial_started_ms.map(|start|
+            crate::rx_policy::now_ms().saturating_sub(start) >= crate::rx_policy::PARTIAL_FRAME_TIMEOUT_MS
+        ).unwrap_or(false)
+    };
+    if expired { fail_rx_error(ctx, -110); return Err(StcpError::Kernel(-110)); }
+    Ok(())
+}
+
+fn pause_for_tcp_frame(ctx: &StcpContext, header: &Header) -> bool {
+    if ctx.proto != 253 || !matches!(header.packet_type, PacketType::DataChunk | PacketType::DataChunkEnd) { return false; }
+    let mut inner = ctx.inner.lock();
+    let retained = inner.rx_app_data.retained_bytes();
+    if inner.rx_paused && retained > RX_APP_BUDGET / 2 { return true; }
+    inner.rx_paused = false;
+    let needed = if header.flags & FLAG_COMPRESSED != 0 {
+        frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT)
+    } else { header.payload_len };
+    if inner.rx_message_ready && retained != 0 && needed > inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) {
+        inner.rx_paused = true; inner.rx_partial_started_ms = None; return true;
+    }
+    false
+}
+
+/// Called before C consumes stream bytes. Zero pauses reads; negative is terminal.
+pub(crate) fn rx_allowance(ctx: &StcpContext, maximum: usize) -> Result<usize, StcpError> {
+    check_rx_deadline(ctx)?;
+    // Also retry a retained complete frame after a reader freed capacity.
+    match progress_receive(ctx) {
+        Ok(_) | Err(StcpError::Again) => {},
+        Err(StcpError::NoMem) => note_rx_allocation_stall(ctx),
+        Err(error) => return Err(error),
+    }
+    let mut inner = ctx.inner.lock();
+    if inner.state == SocketState::Error || inner.state == SocketState::Closed { return Err(if inner.rx_terminal_errno != 0 { StcpError::Kernel(inner.rx_terminal_errno) } else { StcpError::Closed }); }
+    if ctx.proto != 253 { return Ok(maximum); }
+    let used = inner.rx_app_data.retained_bytes();
+    if inner.rx_paused && used > RX_APP_BUDGET / 2 { return Ok(0); }
+    inner.rx_paused = false;
+    let high = RX_APP_BUDGET.saturating_sub(frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) + 64);
+    if inner.rx_message_ready && (used > high || inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) == 0) {
+        inner.rx_paused = true; inner.rx_partial_started_ms = None; return Ok(0);
+    }
+    let endpoint = inner.connection.as_ref().map(|e| (e.shared.clone(), e.side));
+    drop(inner);
+    let Some((shared, side)) = endpoint else { return Ok(maximum); };
+    let room = incoming_queue(&shared,side).lock().bounded_append_room(RX_WIRE_BUDGET, RX_CHUNK_LIMIT);
+    Ok(maximum.min(room))
+}
+
+pub(crate) fn fail_rx_budget(ctx: &StcpContext) { fail_rx_error(ctx, -105); }
+
+fn fail_rx_error(ctx: &StcpContext, error: i32) {
     let (owner, endpoint) = {
         let mut inner = ctx.inner.lock();
         inner.state = SocketState::Error;
+        if inner.rx_terminal_errno == 0 { inner.rx_terminal_errno = error; }
+        inner.rx_paused = false;
+        inner.rx_partial_started_ms = None;
         inner.rx_app_data.clear();
         inner.rx_message_ready = false;
         // Make the existing wait predicate observe this terminal state.

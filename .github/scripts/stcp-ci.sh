@@ -86,7 +86,7 @@ project="${STCP_PROJECT_ROOT:-/srv/stcp-project}"
 [[ "$project" == /srv/stcp-project ]] || { echo '[FAIL] Current full-run requires /srv/stcp-project' >&2; exit 1; }
 test -f "$project/settings.sh"
 test -f "$project/scripts/do-full-run.sh"
-test -f "$project/SDK/tools/site-generator/full_run_pipeline.py"
+test -f "$project/utilities/tools/site-generator/full_run_pipeline.py"
 # Never silently benchmark an unrelated installed revision.
 actual="$(git -C "$project/STCP" rev-parse HEAD)"
 expected="$(git -C "$source_root" rev-parse HEAD)"

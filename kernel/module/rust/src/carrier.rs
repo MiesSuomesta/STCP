@@ -139,7 +139,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     debug_event(310, ctx, bytes.len(), 0);
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
-        if inner.state == SocketState::Error || inner.state == SocketState::Closed { return -107; }
+        if inner.state == SocketState::Error || inner.state == SocketState::Closed { return if inner.rx_terminal_errno != 0 { inner.rx_terminal_errno } else { -107 }; }
         let Some(endpoint) = &inner.connection else {
             return -107;
         };
@@ -209,6 +209,7 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
                 wake_recv(owner);
             }
         }
+        Err(StcpError::NoMem) => { crate::session::note_rx_allocation_stall(ctx); wake_recv(owner); return 0; }
         Err(error) => {
             /* Before accept() attaches the UDP child carrier, ENOTCONN is expected. */
             if error.errno() != -107 && error.errno() != -11 {

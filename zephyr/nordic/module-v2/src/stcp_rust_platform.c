@@ -741,3 +741,9 @@ void stcp_rust_lock_wait(void)
     __ASSERT_NO_MSG(!k_is_in_isr());
     k_sleep(K_MSEC(1));
 }
+
+uint64_t stcp_kernel_monotonic_ms(void);
+uint64_t stcp_kernel_monotonic_ms(void)
+{
+    return (uint64_t)k_uptime_get();
+}

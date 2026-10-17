@@ -4,6 +4,7 @@ extern crate alloc;
 
 mod allocator;
 mod byte_queue;
+mod rx_policy;
 mod crypto;
 mod control;
 #[allow(dead_code)]

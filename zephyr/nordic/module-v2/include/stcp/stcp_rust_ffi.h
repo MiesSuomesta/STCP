@@ -30,6 +30,7 @@ int stcp_rust_has_data(void *ctx);
 int stcp_rust_is_connected(void *ctx);
 int stcp_rust_can_send(void *ctx, size_t len);
 int stcp_rust_tick(void *ctx);
+ssize_t stcp_rust_rx_allowance(void *ctx, size_t maximum);
 void stcp_rust_shutdown(void *ctx, int how);
 int stcp_rust_get_reliability_stats(void *ctx, struct stcp_reliability_stats *out);
 int stcp_rust_crypto_selftest(void);

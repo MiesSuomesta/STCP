@@ -49,6 +49,21 @@ impl ByteQueue {
     }
 
     /// Backing capacity, including consumed prefixes and spare tail space.
+    pub fn reserve_owned_slot(&mut self) -> Result<(), StcpError> {
+        self.chunks.try_reserve(1).map_err(|_| StcpError::NoMem)
+    }
+
+    pub fn owned_capacity_room(&self, byte_limit: usize, chunk_limit: usize) -> usize {
+        if self.chunks.len() >= chunk_limit { 0 } else { byte_limit.saturating_sub(self.retained_bytes()) }
+    }
+
+    /// Upper bound on appendable bytes without exceeding retained-data caps.
+    pub fn bounded_append_room(&self, byte_limit: usize, chunk_limit: usize) -> usize {
+        let spare = self.chunks.back().map(|c| c.data.capacity().saturating_sub(c.data.len())).unwrap_or(0);
+        let fresh = if self.chunks.len() < chunk_limit { byte_limit.saturating_sub(self.retained_bytes()) } else { 0 };
+        spare.saturating_add(fresh).min(byte_limit.saturating_sub(self.len))
+    }
+
     pub fn retained_bytes(&self) -> usize {
         self.chunks.iter().fold(0usize, |sum, c| sum.saturating_add(c.data.capacity()))
     }

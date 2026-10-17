@@ -22,7 +22,7 @@ use crate::{
         wake_accept,
         wake_recv,
     },
-    byte_queue::ByteQueue,
+    byte_queue::{ByteQueue, RX_WIRE_BUDGET, RX_APP_BUDGET, RX_REORDER_BUDGET, RX_CHUNK_LIMIT, RX_FRAME_DATA_LIMIT},
     compression::{
         self, CompressionLevel, CompressionMode, FLAG_COMPRESSED, FLAG_COMPRESSION_CAPABLE,
     },
@@ -90,6 +90,10 @@ fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Re
                 Err(StcpError::Protocol) => { wire.discard(1); continue; }
                 Err(error) => return Err(error),
             };
+            if matches!(header.packet_type, PacketType::DataChunk | PacketType::DataChunkEnd) &&
+               header.payload_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) + NONCE_LEN + AES_GCM_TAG_LEN + 10 {
+                return Err(StcpError::Kernel(-105));
+            }
             let frame_len = STCP_HEADER_LEN.checked_add(header.payload_len).ok_or(StcpError::Protocol)?;
             if wire.len() < frame_len { return Ok(None); }
             header
@@ -494,7 +498,7 @@ pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
     let state = ctx.inner.lock().state;
 
     if state == SocketState::Handshake {
-        process_handshake_frames(ctx)?;
+        finish_rx_result(ctx, process_handshake_frames(ctx))?;
     }
 
     Ok(())
@@ -1085,6 +1089,7 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
     };
     let result = fill_application_buffer_locked(ctx);
     drop(guard);
+    let result = finish_rx_result(ctx, result);
     drain_deferred_parser(ctx);
     result
 }
@@ -1237,6 +1242,10 @@ fn buffer_out_of_order_frame(
      * Never retain more frames than the receive side can reasonably
      * accept from the current send window.
      */
+    let retained = inner.out_of_order_frames.iter().fold(0usize, |n, f| n.saturating_add(f.ciphertext.capacity()));
+    if frame.ciphertext.capacity() > RX_REORDER_BUDGET.saturating_sub(retained) {
+        return Err(StcpError::Kernel(-105));
+    }
     if inner.out_of_order_frames.len() >= STCP_SEND_WINDOW {
         inner.state = SocketState::Error;
         return Err(StcpError::Protocol);
@@ -1311,6 +1320,10 @@ fn process_in_order_frame(
         return Err(StcpError::Protocol);
     }
 
+    if frame.header.flags & FLAG_COMPRESSED == 0 && plaintext_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) {
+        return Err(StcpError::Kernel(-105));
+    }
+
     let decompressed = if frame.header.flags & FLAG_COMPRESSED != 0 {
         let plaintext = &frame.ciphertext[NONCE_LEN..];
         let wire_len = plaintext.len();
@@ -1321,7 +1334,8 @@ fn process_in_order_frame(
                 return Err(error);
             }
         };
-        if original_len > frame_payload_len(ctx) || prefix_len >= plaintext.len() {
+        if original_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) { return Err(StcpError::Kernel(-105)); }
+        if prefix_len >= plaintext.len() {
             ctx.inner.lock().compression_stats.rx_errors += 1;
             return Err(StcpError::Protocol);
         }
@@ -1351,18 +1365,14 @@ fn process_in_order_frame(
             return Err(StcpError::Protocol);
         }
 
+        let next_rx_nonce = inner.expected_rx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+        let next_rx_sequence = inner.expected_rx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+        if inner.state != SocketState::Ready && inner.state != SocketState::Closed { return Err(StcpError::Closed); }
         let was_readable = inner.rx_message_ready;
-        inner.expected_rx_nonce = inner.expected_rx_nonce
-            .checked_add(1)
-            .ok_or(StcpError::Crypto)?;
-        inner.expected_rx_sequence = inner.expected_rx_sequence
-            .checked_add(1)
-            .ok_or(StcpError::Protocol)?;
-        inner.last_rx_sequence = Some(sequence);
         let publish_result = if let Some(data) = decompressed {
-            inner.rx_app_data.push_vec_from(data, 0)
+            inner.rx_app_data.push_vec_from_bounded(data, 0, RX_APP_BUDGET, RX_CHUNK_LIMIT)
         } else {
-            inner.rx_app_data.push_vec_from(frame.ciphertext, NONCE_LEN)
+            inner.rx_app_data.push_vec_from_bounded(frame.ciphertext, NONCE_LEN, RX_APP_BUDGET, RX_CHUNK_LIMIT)
         };
         if let Err(error) = publish_result {
             if matches!(error, StcpError::NoMem) {
@@ -1378,6 +1388,10 @@ fn process_in_order_frame(
             }
             return Err(error);
         }
+
+        inner.expected_rx_nonce = next_rx_nonce;
+        inner.expected_rx_sequence = next_rx_sequence;
+        inner.last_rx_sequence = Some(sequence);
 
         /*
          * SOCK_STREAM is a byte stream: expose decrypted bytes as soon as
@@ -1673,6 +1687,29 @@ pub fn reliability_snapshot(
     )
 }
 
+pub(crate) fn fail_rx_budget(ctx: &StcpContext) {
+    let (owner, endpoint) = {
+        let mut inner = ctx.inner.lock();
+        inner.state = SocketState::Error;
+        inner.rx_app_data.clear();
+        inner.rx_message_ready = false;
+        // Make the existing wait predicate observe this terminal state.
+        inner.peer_eof = true;
+        inner.out_of_order_frames.clear();
+        (inner.owner, inner.connection.as_ref().map(|e| (e.shared.clone(), e.side)))
+    };
+    if let Some((shared, side)) = endpoint {
+        incoming_queue(&shared, side).lock().clear();
+    }
+    ctx.parser_pending.store(false, Ordering::Release);
+    wake_recv(owner);
+}
+
+fn finish_rx_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -> Result<T, StcpError> {
+    if matches!(result, Err(StcpError::Kernel(-105))) { fail_rx_budget(ctx); }
+    result
+}
+
 fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {
     ctx.inner.lock().state = SocketState::Error;
     Err(StcpError::Protocol)
@@ -1826,7 +1863,7 @@ pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
         /* Another producer raced with releasing parser_busy. */
         return progress_receive(ctx);
     }
-    result?;
+    finish_rx_result(ctx, result)?;
     let inner = ctx.inner.lock();
     Ok(inner.rx_message_ready || inner.peer_eof)
 }

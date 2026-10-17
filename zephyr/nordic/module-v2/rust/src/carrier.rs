@@ -8,7 +8,7 @@ use alloc::{
 use core::ffi::{c_int, c_void};
 
 use crate::{
-    byte_queue::ByteQueue,
+    byte_queue::{ByteQueue, RX_WIRE_BUDGET, RX_CHUNK_LIMIT},
     error::StcpError,
     frame::{Header, PacketType, STCP_HEADER_LEN},
     spinlock::SpinLock,
@@ -109,7 +109,7 @@ pub(crate) fn transmit(
     if carrier == 0 {
         outgoing_queue(shared, side)
             .lock()
-            .push_slice(bytes)?;
+            .push_slice_bounded(bytes, RX_WIRE_BUDGET, RX_CHUNK_LIMIT)?;
         wake_recv(shared.peer_owner(side));
         return Ok(());
     }
@@ -161,6 +161,7 @@ fn rx_nomem_snapshot(ctx: &StcpContext, stage: usize, input: usize) {
 fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
     let (shared, side, owner) = {
         let inner = ctx.inner.lock();
+        if inner.state == SocketState::Error || inner.state == SocketState::Closed { return -107; }
         let Some(endpoint) = &inner.connection else {
             return -107;
         };
@@ -176,8 +177,9 @@ fn queue_to_context(ctx: &StcpContext, bytes: &[u8]) -> c_int {
         && bytes.len() > 512
         && !crate::allocator::rx_pool_ready()
     { return 0; }
-    let queued = { incoming_queue(&shared, side).lock().push_slice(bytes) };
+    let queued = { incoming_queue(&shared, side).lock().push_slice_bounded(bytes, RX_WIRE_BUDGET, RX_CHUNK_LIMIT) };
     if let Err(error) = queued {
+        if error.errno() == -105 { crate::session::fail_rx_budget(ctx); }
         if error.errno() == -12 { rx_nomem_snapshot(ctx, 1, bytes.len()); }
         return error.errno();
     }

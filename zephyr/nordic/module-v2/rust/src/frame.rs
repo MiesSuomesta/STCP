@@ -30,7 +30,8 @@ pub const STCP_UDP_FRAME_PAYLOAD_LEN: usize = 60 * 1024;
 pub const STCP_STREAM_FRAME_PAYLOAD_LEN: usize = 2 * 1024 * 1024;
 /* Compatibility default for code paths without a context. */
 pub const STCP_FRAME_PAYLOAD_LEN: usize = STCP_UDP_FRAME_PAYLOAD_LEN;
-pub const STCP_MAX_PAYLOAD_LEN: usize = 64 * 1024 * 1024;
+// Largest currently emitted DATA frame plus nonce, tag and uvarint prefix.
+pub const STCP_MAX_PAYLOAD_LEN: usize = STCP_STREAM_FRAME_PAYLOAD_LEN + STCP_NONCE_LEN + STCP_AUTH_TAG_LEN + 10;
 
 const TYPE_MASK: u8 = 0x0f;
 const VERSION_MASK: u8 = 0x03;
@@ -156,7 +157,13 @@ impl Header {
             input[13..17].try_into().map_err(|_| StcpError::Protocol)?,
         ) as u64;
 
-        if payload_len > STCP_MAX_PAYLOAD_LEN {
+        let max_payload = match packet_type {
+            PacketType::PublicKey => STCP_PUBLIC_KEY_LEN,
+            PacketType::HandshakeDone => 0,
+            PacketType::DataChunk | PacketType::DataChunkEnd => STCP_MAX_PAYLOAD_LEN,
+            _ => STCP_NONCE_LEN + STCP_AUTH_TAG_LEN,
+        };
+        if payload_len > max_payload {
             return Err(StcpError::Protocol);
         }
 

@@ -29,6 +29,14 @@ fn byte_queue_chunk_capacity(remaining: usize) -> usize {
     }
 }
 
+// Per-session ceilings. These are admission limits, not preallocated pools.
+// Kernel(-105) is ENOBUFS: distinct from allocator ENOMEM (-12).
+pub const RX_WIRE_BUDGET: usize = 8 * 1024 * 1024;
+pub const RX_APP_BUDGET: usize = 16 * 1024 * 1024;
+pub const RX_REORDER_BUDGET: usize = 16 * 1024 * 1024;
+pub const RX_CHUNK_LIMIT: usize = 4096;
+pub const RX_FRAME_DATA_LIMIT: usize = 2 * 1024 * 1024;
+
 pub struct ByteChunk {
     data: Vec<u8>,
     offset: usize,
@@ -62,13 +70,32 @@ impl ByteQueue {
         self.len = 0;
     }
 
-    pub fn push_slice(
+    /// Backing capacity, including consumed prefixes and spare tail space.
+    pub fn retained_bytes(&self) -> usize {
+        self.chunks.iter().fold(0usize, |sum, c| sum.saturating_add(c.data.capacity()))
+    }
+
+    fn admit_owned(&self, input: &Vec<u8>, byte_limit: usize, chunk_limit: usize) -> Result<(), StcpError> {
+        if self.chunks.len() >= chunk_limit || input.capacity() > byte_limit.saturating_sub(self.retained_bytes()) {
+            return Err(StcpError::Kernel(-105));
+        }
+        Ok(())
+    }
+
+    pub fn push_slice(&mut self, input: &[u8]) -> Result<(), StcpError> {
+        self.push_slice_bounded(input, usize::MAX, usize::MAX)
+    }
+
+    pub fn push_slice_bounded(
         &mut self,
         mut input: &[u8],
+        byte_limit: usize,
+        chunk_limit: usize,
     ) -> Result<(), StcpError> {
         let added = input.len();
         let new_len = self.len.checked_add(added).ok_or(StcpError::NoMem)?;
 
+        if new_len > byte_limit { return Err(StcpError::Kernel(-105)); }
         // Roll back appended chunks and the old tail on any allocation failure.
         // Spare capacity may grow, but logical contents and offsets stay unchanged.
         let old_chunks = self.chunks.len();
@@ -101,7 +128,9 @@ impl ByteQueue {
              * small tails in bounded tiers so Handshake/ChunkEnd/Close
              * frames remain cheap even when the Zephyr heap is tight.
              */
-            let capacity = byte_queue_chunk_capacity(input.len());
+            let remaining = byte_limit.saturating_sub(self.retained_bytes());
+            let capacity = byte_queue_chunk_capacity(input.len()).min(remaining);
+            if capacity == 0 || self.chunks.len() >= chunk_limit { return Err(StcpError::Kernel(-105)); }
             let count = input.len().min(capacity);
             let mut chunk = Vec::new();
             chunk
@@ -184,10 +213,16 @@ impl ByteQueue {
 
     /// Append a range from an owned buffer without copying. Bytes before
     /// `offset` remain allocated but are skipped by the queue reader.
-    pub fn push_vec_from(
+    pub fn push_vec_from(&mut self, input: Vec<u8>, offset: usize) -> Result<(), StcpError> {
+        self.push_vec_from_bounded(input, offset, usize::MAX, usize::MAX)
+    }
+
+    pub fn push_vec_from_bounded(
         &mut self,
         input: Vec<u8>,
         offset: usize,
+        byte_limit: usize,
+        chunk_limit: usize,
     ) -> Result<(), StcpError> {
         if offset > input.len() {
             return Err(StcpError::Protocol);
@@ -196,6 +231,7 @@ impl ByteQueue {
         if count == 0 {
             return Ok(());
         }
+        self.admit_owned(&input, byte_limit, chunk_limit)?;
         let new_len = self.len.checked_add(count).ok_or(StcpError::NoMem)?;
         self.chunks.try_reserve(1).map_err(|_| StcpError::NoMem)?;
         self.len = new_len;

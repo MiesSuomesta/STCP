@@ -1216,6 +1216,20 @@ static bool stcp_tcp_fin_acknowledged(struct sock *sk)
 	       state != TCP_LAST_ACK;
 }
 
+/* A second shutdown does not abort TCP_LAST_ACK. Arm abortive close only
+ * after the bounded graceful wait failed. The existing final-free path
+ * still owns sock_release(), after RX and send callbacks have stopped.
+ */
+static void stcp_tcp_arm_close_abort(struct socket *socket)
+{
+	struct sock *sk = socket->sk;
+
+	lock_sock(sk);
+	sk->sk_lingertime = 0;
+	sock_set_flag(sk, SOCK_LINGER);
+	release_sock(sk);
+}
+
 int stcp_carrier_graceful_close(
 	struct stcp_carrier *carrier,
 	unsigned int drain_timeout_ms,
@@ -1264,6 +1278,7 @@ int stcp_carrier_graceful_close(
 		msecs_to_jiffies(max_t(unsigned int, drain_timeout_ms, 1))
 	);
 	if (drained < 0) {
+		stcp_tcp_arm_close_abort(socket);
 		return (int)drained;
 	}
 
@@ -1290,6 +1305,7 @@ int stcp_carrier_graceful_close(
 		msecs_to_jiffies(max_t(unsigned int, fin_timeout_ms, 1))
 	);
 	if (fin_acked < 0) {
+		stcp_tcp_arm_close_abort(socket);
 		kernel_sock_shutdown(socket, SHUT_RDWR);
 		return (int)fin_acked;
 	}
@@ -1299,10 +1315,11 @@ int stcp_carrier_graceful_close(
 	} else {
 		atomic64_inc(&stcp_tcp_close_fin_timeouts);
 		pr_warn_ratelimited(
-			"stcp: TCP FIN acknowledgement timeout state=%u wmem=%d; forcing shutdown\n",
+			"stcp: TCP FIN acknowledgement timeout state=%u wmem=%d; arming abortive close\n",
 			READ_ONCE(sk->sk_state),
 			sk_wmem_alloc_get(sk)
 		);
+		stcp_tcp_arm_close_abort(socket);
 		kernel_sock_shutdown(socket, SHUT_RDWR);
 	}
 

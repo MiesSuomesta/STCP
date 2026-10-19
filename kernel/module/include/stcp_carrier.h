@@ -26,6 +26,15 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	u16 peer_port
 );
 
+/* Rust FFI: errno is separate from the success-only output pointer. */
+int stcp_carrier_create_udp_child_checked(
+	struct stcp_carrier *listener,
+	void *child_rust_ctx,
+	u32 peer_addr,
+	u16 peer_port,
+	struct stcp_carrier **out_child
+);
+
 void stcp_carrier_set_owner(
 	struct stcp_carrier *carrier,
 	void *owner

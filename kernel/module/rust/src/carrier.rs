@@ -22,12 +22,13 @@ use crate::{
 
 unsafe extern "C" {
     fn stcp_carrier_needs_reliability(carrier: *const c_void) -> bool;
-    fn stcp_carrier_create_udp_child(
+    fn stcp_carrier_create_udp_child_checked(
         listener: *mut c_void,
         child_rust_ctx: *mut c_void,
         peer_addr: u32,
         peer_port: u16,
-    ) -> *mut c_void;
+        out_child: *mut *mut c_void,
+    ) -> c_int;
     fn stcp_carrier_destroy(carrier: *mut c_void);
     fn stcp_carrier_send(
         carrier: *mut c_void,
@@ -307,18 +308,25 @@ fn create_udp_child(
         return Err(StcpError::Kernel(-107));
     }
 
-    let child_carrier = unsafe {
-        stcp_carrier_create_udp_child(
+    let mut child_carrier = core::ptr::null_mut();
+    let status = unsafe {
+        stcp_carrier_create_udp_child_checked(
             listener_carrier as *mut c_void,
             child_ptr as *mut c_void,
             peer_addr,
             peer_port,
+            &mut child_carrier,
         )
     };
 
-    if child_carrier.is_null() {
+    if status != 0 || child_carrier.is_null() {
         unsafe { drop(Box::from_raw(child_ptr as *mut StcpContext)) };
-        return Err(StcpError::NoMem);
+        return Err(if status < 0 {
+            StcpError::Kernel(status)
+        } else {
+            // A successful FFI call must always provide an owned carrier.
+            StcpError::Kernel(-5)
+        });
     }
 
     {

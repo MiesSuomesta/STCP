@@ -716,6 +716,32 @@ struct stcp_carrier *stcp_carrier_create_udp_child(
 	return child;
 }
 
+/* Keep Linux ERR_PTR values on the C side of the Rust FFI boundary. */
+int stcp_carrier_create_udp_child_checked(
+	struct stcp_carrier *listener,
+	void *child_rust_ctx,
+	u32 peer_addr,
+	u16 peer_port,
+	struct stcp_carrier **out_child
+)
+{
+	struct stcp_carrier *child;
+
+	if (!out_child)
+		return -EINVAL;
+	*out_child = NULL;
+
+	child = stcp_carrier_create_udp_child(
+		listener, child_rust_ctx, peer_addr, peer_port);
+	if (IS_ERR(child))
+		return PTR_ERR(child);
+	if (!child)
+		return -ENOMEM;
+
+	*out_child = child;
+	return 0;
+}
+
 void stcp_carrier_set_owner(
 	struct stcp_carrier *carrier,
 	void *owner

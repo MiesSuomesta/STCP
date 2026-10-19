@@ -262,31 +262,35 @@ pub fn listen(
     backlog: i32,
 ) -> Result<(), StcpError> {
     let address = {
-        let mut inner = ctx.inner.lock();
+        let inner = ctx.inner.lock();
 
         if inner.state != SocketState::Bound {
             return Err(StcpError::InvalidState);
         }
 
-        let address = inner.local.ok_or(StcpError::InvalidState)?;
-        inner.backlog = backlog.max(1) as usize;
-        inner.state = SocketState::Listening;
-        address
+        inner.local.ok_or(StcpError::InvalidState)?
     };
 
     let ctx_ptr = ptr::from_ref(ctx) as usize;
     let mut listeners = LISTENERS.lock();
 
     if listeners.iter().any(|entry| entry.address == address) {
-        let mut inner = ctx.inner.lock();
-        inner.state = SocketState::Bound;
         return Err(StcpError::AddressInUse);
     }
 
+    // Do not publish Listening until registration can complete without allocation.
+    listeners.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+    let mut inner = ctx.inner.lock();
+    if inner.state != SocketState::Bound {
+        return Err(StcpError::InvalidState);
+    }
+    inner.backlog = backlog.max(1) as usize;
+    inner.state = SocketState::Listening;
     listeners.push(ListenerEntry {
         address,
         ctx: ctx_ptr,
     });
+    drop(inner);
     crate::carrier::debug_event(230, ctx, address.port as usize, listeners.len());
 
     Ok(())
@@ -1639,7 +1643,10 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
     process_control_frames(ctx)?;
 
     let (shared, side) = connection_for_data(ctx)?;
-    let mut retransmit = Vec::new();
+    // Bounded batch: collecting retransmissions must never allocate under the lock.
+    let mut retransmit: [Option<Arc<[u8]>>; STCP_MAX_RETRANSMIT_PER_TICK] =
+        core::array::from_fn(|_| None);
+    let mut retransmit_len = 0usize;
 
     {
         let mut inner = ctx.inner.lock();
@@ -1661,7 +1668,7 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
             /* Never retransmit the entire window in one timer callback. A
              * delayed cumulative ACK previously made hundreds of frames fire
              * together, congesting loopback UDP and delaying the ACK further. */
-            if retransmit.len() >= STCP_MAX_RETRANSMIT_PER_TICK {
+            if retransmit_len >= STCP_MAX_RETRANSMIT_PER_TICK {
                 continue;
             }
 
@@ -1679,7 +1686,8 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
                 .max(1);
 
             retransmitted_count = retransmitted_count.saturating_add(1);
-            retransmit.push(pending.bytes.clone());
+            retransmit[retransmit_len] = Some(Arc::clone(&pending.bytes));
+            retransmit_len += 1;
         }
 
         inner.stats.retransmitted_frames = inner
@@ -1695,7 +1703,7 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
         }
     }
 
-    for frame in retransmit {
+    for frame in retransmit.into_iter().flatten() {
         send_frame(ctx, &shared, side, &frame, 0)?;
     }
 

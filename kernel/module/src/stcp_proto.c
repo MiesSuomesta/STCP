@@ -7,6 +7,7 @@
 #include <linux/workqueue.h>
 
 #include <net/sock.h>
+#include <net/net_namespace.h>
 
 #include "stcp.h"
 #include "stcp_carrier.h"
@@ -203,6 +204,13 @@ static int stcp_create(
 
 	if (!sock)
 		return -EINVAL;
+
+	/* AUD19-02: carriers and Rust registries currently belong to init_net.
+	 * Reject other namespaces before allocating any socket/session state.
+	 * Full netns support requires per-net registries and admission budgets.
+	 */
+	if (!net_eq(net, &init_net))
+		return -EAFNOSUPPORT;
 
 	/*
 	 * Public STCP socket contract:

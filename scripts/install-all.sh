@@ -4,7 +4,6 @@ set -x
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/artifacts/build"
-ZAPP="$ROOT/zephyr/nordic/application"
 SUDO="${SUDO:-sudo}"
 PNC_ENABLE="${PNC_ENABLE:-1}"
 PNC_APP="${PNC_APP:-STCPv2 install}"
@@ -43,20 +42,16 @@ pnc_run() {
 
 usage() {
     cat <<USAGE
-Usage: $(basename "$0") [host|rpi|kernel|zephyr-lte|zephyr-eth|all]
+Usage: $(basename "$0") [host|rpi|kernel|all]
 
 Default: host
 
   --host               Install staged host kernel module on this machine
   --rpi                Install staged Raspberry Pi kernel + module tree over SSH
   --kernel             Backwards-compatible alias for 'host'
-  --zephyr-lte         Flash the already-built nRF9151/LTE firmware
-  --zephyr-eth         Flash the already-built nRF9151 + W5500 firmware
-  --all                Install local kernel module and flash ZEPHYR_VARIANT
+  --all                Install host and Raspberry Pi protocol modules
 
 Environment:
-  ZEPHYR_VARIANT=lte|ethernet   Used by 'all' (default: lte)
-  NCS_DIR=PATH                      Nordic Connect SDK tree
   SUDO=command                      local sudo command (default: sudo)
   RPI_HOST=host                     Raspberry Pi SSH host (default: raspi)
   RPI_USER=user                     Raspberry Pi SSH user (default: current user)
@@ -67,8 +62,7 @@ Environment:
   PNC_WRAPPER=CMD                   force pncwrap/pncwrapper command
   PNC_MOBILE=1                      also send pncnote notifications to mobile
 
-Run scripts/build-all.sh first. Zephyr variants are intentionally not both
-flashed in sequence because the second flash would simply replace the first.
+Run scripts/build-all.sh first.
 USAGE
 }
 
@@ -384,39 +378,6 @@ REMOTE_INSTALL
     fi
 }
 
-flash_zephyr() {
-    local variant="$1" builddir script ncs
-    case "$variant" in
-        lte)
-            builddir="$ZAPP/build-lte"
-            script="$ZAPP/scripts/flash-lte.sh"
-            ;;
-        ethernet)
-            builddir="$ZAPP/build-ethernet"
-            script="$ZAPP/scripts/flash-ethernet.sh"
-            ;;
-        *) echo "[FAIL] Unknown Zephyr variant: $variant" >&2; return 2 ;;
-    esac
-
-    [[ -d "$builddir" ]] || {
-        echo "[FAIL] Missing Zephyr build directory: $builddir" >&2
-        echo "       Build it first with: scripts/build-all.sh zephyr-$variant" >&2
-        return 1
-    }
-
-    ncs="${NCS_DIR:-$ROOT/zephyr/nordic/ncs-3.3.0}"
-    [[ -x "$ncs/.venv/bin/python" ]] || {
-        echo "[FAIL] NCS environment missing: $ncs/.venv/bin/python" >&2
-        echo "       Set NCS_DIR=/path/to/ncs" >&2
-        return 1
-    }
-
-    echo "[INFO] Flashing Zephyr variant: $variant"
-    pnc_run "STCPv2 Zephyr $variant flash" env NCS_DIR="$ncs" bash "$script"
-    echo "[OK] Zephyr $variant flashed"
-    pnc_note "STCP Zephyr flash complete" "$variant flashed successfully"
-}
-
 flag="${1:---host}"
 cmd="$(echo $flag | sed 's,^--,,')"
 
@@ -424,11 +385,9 @@ case "$cmd" in
     host) install_host ;;
     rpi) install_rpi ;;
     kernel) install_host ;;
-    zephyr-lte) flash_zephyr lte ;;
-    zephyr-eth|zephyr-ethernet) flash_zephyr ethernet ;;
     all)
         install_host
-        flash_zephyr "${ZEPHYR_VARIANT:-lte}"
+        install_rpi
         ;;
     -h|--help) usage ;;
     *) echo "[FAIL] Unknown action: $flag" >&2; usage >&2; exit 2 ;;

@@ -156,7 +156,8 @@ impl ReliabilityStats {
 pub struct BufferedFrame {
     pub header: Header,
     pub nonce: u64,
-    pub ciphertext: Vec<u8>,
+    /// Authenticated plaintext with the original NONCE_LEN-byte prefix.
+    pub payload: Vec<u8>,
 }
 
 pub struct ContextInner {

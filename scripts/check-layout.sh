@@ -2,14 +2,12 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 required=(
+  MiniSDK/README.md
   kernel/module/Makefile
   kernel/module/Kbuild
-  zephyr/nordic/module/CMakeLists.txt
-  zephyr/nordic/application/CMakeLists.txt
   tests/kernel/testing
   tests/kernel/stress
   tests/benchmark/raspberrypi
-  tests/benchmark/zephyr
   tests/robot
 )
 for rel in "${required[@]}"; do

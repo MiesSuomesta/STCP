@@ -44,5 +44,5 @@ Publish only through the gate:
 ```
 
 The current matrix is a small smoke/IoT/throughput baseline. Linux/RPi,
-Zephyr, UDP, CoAP, MQTT, P2P, fault injection, wire-byte capture, perf and
+UDP, fault injection, wire-byte capture, perf and
 energy collectors are the next adapters; they will write the same case schema.

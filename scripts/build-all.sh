@@ -3,7 +3,6 @@ set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 KMOD="$ROOT/kernel/module"
-ZAPP="$ROOT/zephyr/nordic/application"
 OUT="$ROOT/artifacts/build"
 JOBS="${JOBS:-$(nproc)}"
 STRICT="${STRICT:-0}"
@@ -52,8 +51,6 @@ pnc_run() {
 
 DO_HOST=1
 DO_RPI=1
-DO_ZEPHYR_NRF9151=1
-DO_ZEPHYR_ETHERNET=1
 
 usage() {
     cat <<USAGE
@@ -63,9 +60,6 @@ Targets:
   all               Build every target that is available (default)
   host              Linux host kernel module
   rpi               Raspberry Pi ARM64 kernel module
-  zephyr            Both Zephyr variants
-  zephyr-nrf9151    nRF9151/LTE Zephyr firmware
-  zephyr-ethernet   nRF9151 + W5500 Zephyr firmware
 
 Environment:
   JOBS=N             Parallel build jobs (default: nproc)
@@ -76,8 +70,6 @@ Environment:
   KERNEL_AUTO_RECOVER=0 Disable automatic recovery of an unhealthy kernel tree
   RPI_KERNEL_GIT_URL=URL Raspberry Pi kernel source URL
   RPI_KERNEL_GIT_REF=REF Raspberry Pi kernel branch/tag (default: rpi-6.18.y)
-  NCS_DIR=PATH       Nordic Connect SDK tree (default used by app scripts)
-  ZEPHYR_SDK_INSTALL_DIR=PATH
   STRICT=1           Treat unavailable target as an error instead of skipping
   PNC_ENABLE=0        Disable pncwrap/pncnote integration (default: enabled)
   PNC_WRAPPER=CMD     Force wrapper command (default: pncwrap, then pncwrapper)
@@ -86,15 +78,12 @@ USAGE
 }
 
 if (( $# > 0 )); then
-    DO_HOST=0; DO_RPI=0; DO_ZEPHYR_NRF9151=0; DO_ZEPHYR_ETHERNET=0
+    DO_HOST=0; DO_RPI=0
     for arg in "$@"; do
         case "$arg" in
-            all) DO_HOST=1; DO_RPI=1; DO_ZEPHYR_NRF9151=1; DO_ZEPHYR_ETHERNET=1 ;;
+            all) DO_HOST=1; DO_RPI=1 ;;
             host) DO_HOST=1 ;;
             rpi) DO_RPI=1 ;;
-            zephyr) DO_ZEPHYR_NRF9151=1; DO_ZEPHYR_ETHERNET=1 ;;
-            zephyr-nrf9151) DO_ZEPHYR_NRF9151=1 ;;
-            zephyr-ethernet) DO_ZEPHYR_ETHERNET=1 ;;
             -h|--help) usage; exit 0 ;;
             *) echo "[FAIL] Unknown target: $arg" >&2; usage >&2; exit 2 ;;
         esac
@@ -553,52 +542,9 @@ MANIFEST
     echo "[INFO] target DTB    : $target_dtb"
 }
 
-ncs_available() {
-    local ncs="${NCS_DIR:-$ROOT/zephyr/nordic/ncs-3.3.0}"
-    [[ -x "$ncs/.venv/bin/python" ]]
-}
-
-stage_zephyr() {
-    local name="$1" builddir="$2" dst="$OUT/$1"
-    rm -rf "$dst"
-    mkdir -p "$dst"
-    local found=0 rel
-    while IFS= read -r -d '' f; do
-        found=1
-        rel="${f#"$builddir"/}"
-        mkdir -p "$dst/$(dirname "$rel")"
-        cp -a "$f" "$dst/$rel"
-    done < <(find "$builddir" -type f \( -name 'merged.hex' -o -name 'zephyr.hex' -o -name 'zephyr.bin' -o -name 'zephyr.elf' -o -name 'app_signed.hex' \) -print0 2>/dev/null)
-    if (( found == 0 )); then
-        echo "[WARN] Build succeeded but no standard firmware artifact was found under $builddir"
-    else
-        (cd "$dst" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
-    fi
-}
-
-build_zephyr_nrf9151() {
-    ncs_available || { skip "zephyr-nrf9151: NCS Python environment missing; set NCS_DIR"; return $?; }
-    if ! pnc_run "STCPv2 Zephyr nRF9151 build" env NCS_DIR="${NCS_DIR:-$ROOT/zephyr/nordic/ncs-3.3.0}" bash "$ZAPP/scripts/build.sh"; then
-        echo "[FAIL] zephyr-nrf9151: firmware build failed" >&2
-        return 1
-    fi
-    stage_zephyr zephyr-nrf9151 "$ZAPP/build-nrf9151" || return 1
-}
-
-build_zephyr_ethernet() {
-    ncs_available || { skip "zephyr-ethernet: NCS Python environment missing; set NCS_DIR"; return $?; }
-    if ! pnc_run "STCPv2 Zephyr Ethernet build" env NCS_DIR="${NCS_DIR:-$ROOT/zephyr/nordic/ncs-3.3.0}" bash "$ZAPP/scripts/build-ethernet.sh"; then
-        echo "[FAIL] zephyr-ethernet: firmware build failed" >&2
-        return 1
-    fi
-    stage_zephyr zephyr-ethernet "$ZAPP/build-ethernet" || return 1
-}
-
 rc=0
 if (( DO_HOST )); then run_target "host" build_host || rc=1; fi
 if (( DO_RPI )); then run_target "rpi" build_rpi || rc=1; fi
-if (( DO_ZEPHYR_NRF9151 )); then run_target "zephyr-nrf9151" build_zephyr_nrf9151 || rc=1; fi
-if (( DO_ZEPHYR_ETHERNET )); then run_target "zephyr-ethernet" build_zephyr_ethernet || rc=1; fi
 
 section "SUMMARY"
 printf 'Built:\n'

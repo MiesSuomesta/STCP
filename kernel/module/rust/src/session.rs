@@ -972,7 +972,9 @@ pub fn send(
         };
         frame.clear();
         if frame.capacity() < frame_len {
-            frame.try_reserve_exact(frame_len - frame.capacity())
+            // try_reserve_exact takes additional length, not missing capacity.
+            // frame.clear() made len zero: reserve the complete wire length.
+            frame.try_reserve_exact(frame_len)
                 .map_err(|_| StcpError::NoMem)?;
         }
         frame.resize(frame_len, 0);
@@ -1160,17 +1162,9 @@ fn fill_application_buffer_locked(ctx: &StcpContext) -> Result<(), StcpError> {
 
         match header.packet_type {
             PacketType::DataChunk | PacketType::DataChunkEnd => {
-                if frame.payload.len() < NONCE_LEN + AES_GCM_TAG_LEN {
-                    return protocol_error(ctx);
-                }
-
-                let mut nonce_bytes = [0u8; NONCE_LEN];
-                nonce_bytes.copy_from_slice(&frame.payload[..NONCE_LEN]);
-                let nonce = u64::from_be_bytes(nonce_bytes);
-                let buffered = BufferedFrame {
-                    header,
-                    nonce,
-                    ciphertext: frame.payload,
+                // Authenticate before ACKs, duplicate/reorder accounting or retention.
+                let Some(buffered) = authenticate_data_frame(ctx, frame) else {
+                    continue;
                 };
 
                 let expected = current_expected_sequence(ctx);
@@ -1244,6 +1238,26 @@ fn fill_application_buffer_locked(ctx: &StcpContext) -> Result<(), StcpError> {
     Ok(())
 }
 
+/// Only authenticated DATA can reach reliability state or the reorder queue.
+/// Decrypt once in the owned wire allocation; retain the nonce prefix as an offset.
+fn authenticate_data_frame(ctx: &StcpContext, mut frame: WireFrame) -> Option<BufferedFrame> {
+    if frame.payload.len() < NONCE_LEN + AES_GCM_TAG_LEN ||
+       frame.header.flags & !FLAG_COMPRESSED != 0 {
+        return None;
+    }
+    let crypto = {
+        let inner = ctx.inner.lock();
+        if frame.header.connection_id != inner.connection_id { return None; }
+        inner.crypto.clone()
+    };
+    let nonce = u64::from_be_bytes(frame.payload[..NONCE_LEN].try_into().ok()?);
+    let plaintext_len = crypto.decrypt_in_place(
+        nonce, &frame.header.encode(), &mut frame.payload[NONCE_LEN..],
+    ).ok()?;
+    frame.payload.truncate(NONCE_LEN + plaintext_len);
+    Some(BufferedFrame { header: frame.header, nonce, payload: frame.payload })
+}
+
 fn buffer_out_of_order_frame(
     ctx: &StcpContext,
     frame: BufferedFrame,
@@ -1264,8 +1278,8 @@ fn buffer_out_of_order_frame(
      * Never retain more frames than the receive side can reasonably
      * accept from the current send window.
      */
-    let retained = inner.out_of_order_frames.iter().fold(0usize, |n, f| n.saturating_add(f.ciphertext.capacity()));
-    if frame.ciphertext.capacity() > RX_REORDER_BUDGET.saturating_sub(retained) {
+    let retained = inner.out_of_order_frames.iter().fold(0usize, |n, f| n.saturating_add(f.payload.capacity()));
+    if frame.payload.capacity() > RX_REORDER_BUDGET.saturating_sub(retained) {
         return Err(StcpError::Kernel(-105));
     }
     if inner.out_of_order_frames.len() >= STCP_SEND_WINDOW {
@@ -1316,47 +1330,29 @@ fn process_in_order_frame(ctx: &StcpContext, frame: BufferedFrame) -> Result<boo
 
 fn process_in_order_frame_impl(
     ctx: &StcpContext,
-    mut frame: BufferedFrame,
+    frame: BufferedFrame,
 ) -> Result<bool, StcpError> {
     let packet_type = frame.header.packet_type;
     let sequence = frame.header.sequence;
 
-    /*
-     * Parser serialization guarantees a single RX committer. Snapshot the
-     * crypto context and validate sequence/nonce under the lock, then perform
-     * allocation and AES-GCM decryption outside it.
-     */
-    let crypto = {
+    // Parser serialization gives a single RX committer. BufferedFrame owns
+    // plaintext authenticated by authenticate_data_frame, including after reorder.
+    {
         let inner = ctx.inner.lock();
         if frame.header.sequence != inner.expected_rx_sequence ||
-           frame.nonce != inner.expected_rx_nonce
-        {
+           frame.nonce != inner.expected_rx_nonce {
             return Err(StcpError::Protocol);
         }
-        inner.crypto.clone()
-    };
-
-    let aad = frame.header.encode();
-    /* Decrypt directly over the ciphertext portion of the owned wire frame.
-     * The nonce prefix is retained as a skipped ByteQueue offset, so RX does
-     * not allocate a plaintext Vec and does not copy a multi-megabyte payload. */
-    let plaintext_len = crypto.decrypt_in_place(
-        frame.nonce,
-        &aad,
-        &mut frame.ciphertext[NONCE_LEN..],
-    )?;
-    frame.ciphertext.truncate(NONCE_LEN + plaintext_len);
-
-    if frame.header.flags & !FLAG_COMPRESSED != 0 {
-        return Err(StcpError::Protocol);
     }
+    let plaintext_len = frame.payload.len() - NONCE_LEN;
+    let compressed = frame.header.flags & FLAG_COMPRESSED != 0;
 
-    if frame.header.flags & FLAG_COMPRESSED == 0 && plaintext_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) {
+    if !compressed && plaintext_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) {
         return Err(StcpError::Kernel(-105));
     }
 
-    let decompressed = if frame.header.flags & FLAG_COMPRESSED != 0 {
-        let plaintext = &frame.ciphertext[NONCE_LEN..];
+    let decompressed = if compressed {
+        let plaintext = &frame.payload[NONCE_LEN..];
         let wire_len = plaintext.len();
         let (original_len, prefix_len) = match compression::decode_uvarint(plaintext) {
             Ok(value) => value,
@@ -1396,7 +1392,7 @@ fn process_in_order_frame_impl(
             return Err(StcpError::Protocol);
         }
 
-        let publish_capacity = decompressed.as_ref().map(|v| v.capacity()).unwrap_or(frame.ciphertext.capacity());
+        let publish_capacity = decompressed.as_ref().map(|v| v.capacity()).unwrap_or(frame.payload.capacity());
         if ctx.proto == 254 && inner.rx_message_ready &&
            publish_capacity > inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) {
             return Err(StcpError::Again);
@@ -1408,7 +1404,7 @@ fn process_in_order_frame_impl(
         let publish_result = if let Some(data) = decompressed {
             inner.rx_app_data.push_vec_from_bounded(data, 0, RX_APP_BUDGET, RX_CHUNK_LIMIT)
         } else {
-            inner.rx_app_data.push_vec_from_bounded(frame.ciphertext, NONCE_LEN, RX_APP_BUDGET, RX_CHUNK_LIMIT)
+            inner.rx_app_data.push_vec_from_bounded(frame.payload, NONCE_LEN, RX_APP_BUDGET, RX_CHUNK_LIMIT)
         };
         if let Err(error) = publish_result {
             if matches!(error, StcpError::NoMem) {

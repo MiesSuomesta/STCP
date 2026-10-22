@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-set -x 
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/artifacts/build"
@@ -42,7 +41,7 @@ pnc_run() {
 
 usage() {
     cat <<USAGE
-Usage: $(basename "$0") [host|rpi|kernel|all]
+Usage: $(basename "$0") [host|rpi|kernel|all] [--check]
 
 Default: host
 
@@ -54,7 +53,7 @@ Default: host
 Environment:
   SUDO=command                      local sudo command (default: sudo)
   RPI_HOST=host                     Raspberry Pi SSH host (default: raspi)
-  RPI_USER=user                     Raspberry Pi SSH user (default: current user)
+  RPI_USER=user                     Raspberry Pi SSH user (default: pi)
   RPI_SUDO=command                  remote sudo command (default: sudo)
   RPI_SSH_OPTS="..."               extra options for ssh/scp
   RPI_REBOOT=1                     reboot Raspberry after successful install (default: 0)
@@ -62,7 +61,8 @@ Environment:
   PNC_WRAPPER=CMD                   force pncwrap/pncwrapper command
   PNC_MOBILE=1                      also send pncnote notifications to mobile
 
-Run scripts/build-all.sh first.
+--check validates local staged artifacts without installing.
+Build Linux artifacts with STCP/scripts/build-all.sh (or scripts/build.sh --linux).
 USAGE
 }
 
@@ -79,7 +79,7 @@ install_host() {
     release="$(uname -r)"
     src="$OUT/kernel-host/stcp.ko"
 
-    [[ -f "$src" ]] || {
+    [[ -s "$src" ]] || {
         echo "[FAIL] Missing staged host module: $src" >&2
         echo "       Build it first with: scripts/build-all.sh host" >&2
         return 1
@@ -92,6 +92,8 @@ install_host() {
             return 1
         fi
     fi
+
+    if ((CHECK_ONLY)); then echo "[OK] Host staged module: $src"; return 0; fi
 
     echo "[INFO] Installing host module for kernel $release"
     cleanup_module_users
@@ -139,7 +141,13 @@ install_rpi() {
     krel="$(<"$stage/KERNEL_RELEASE")"
     target="$(<"$stage/TARGET")"
     target_dtb="$(<"$stage/TARGET_DTB")"
-    [[ -n "$krel" ]] || { echo "[FAIL] Empty Raspberry Pi kernel release" >&2; return 1; }
+    [[ $krel =~ ^[a-zA-Z0-9._+-]+$ && $target =~ ^[a-zA-Z0-9._+-]+$ &&
+       $target_dtb =~ ^[a-zA-Z0-9._+-]+\.dtb$ ]] || {
+        echo '[FAIL] Invalid staged kernel/target metadata' >&2; return 1;
+    }
+    [[ $krel != . && $krel != .. && $target != . && $target != .. ]] || {
+        echo "[FAIL] Invalid staged metadata component" >&2; return 1;
+    }
     [[ -d "$stage/rootfs/lib/modules/$krel" ]] || {
         echo "[FAIL] Missing staged module tree: $stage/rootfs/lib/modules/$krel" >&2
         return 1
@@ -156,6 +164,13 @@ install_rpi() {
         echo "[FAIL] staged STCP vermagic=$vermagic, staged kernel=$krel" >&2
         return 1
     fi
+
+    for file in System.map config Module.symvers; do
+        [[ -s "$stage/boot-payload/$file" ]] || {
+            echo "[FAIL] Missing boot metadata: $stage/boot-payload/$file" >&2; return 1;
+        }
+    done
+    if ((CHECK_ONLY)); then echo "[OK] Pi staged boot set: $krel"; return 0; fi
 
     if [[ -n "${RPI_SSH_OPTS:-}" ]]; then
         read -r -a ssh_opts <<< "$RPI_SSH_OPTS"
@@ -378,17 +393,28 @@ REMOTE_INSTALL
     fi
 }
 
-flag="${1:---host}"
-cmd="$(echo $flag | sed 's,^--,,')"
-
+CHECK_ONLY=0
+cmd=host
+seen_target=0
+for flag in "$@"; do
+    case "$flag" in
+        -h|--help) usage; exit 0 ;;
+        --check) CHECK_ONLY=1 ;;
+        host|rpi|kernel|all|--host|--rpi|--kernel|--all)
+            ((seen_target == 0)) || { echo '[FAIL] Only one Linux target/group allowed' >&2; exit 2; }
+            cmd="${flag#--}"; seen_target=1 ;;
+        *) echo "[FAIL] Unknown action: $flag" >&2; usage >&2; exit 2 ;;
+    esac
+done
 case "$cmd" in
-    host) install_host ;;
+    host|kernel) install_host ;;
     rpi) install_rpi ;;
-    kernel) install_host ;;
     all)
-        install_host
-        install_rpi
+        if ((CHECK_ONLY)); then install_host; install_rpi
+        else
+            bash "${BASH_SOURCE[0]}" all --check
+            install_host
+            install_rpi
+        fi
         ;;
-    -h|--help) usage ;;
-    *) echo "[FAIL] Unknown action: $flag" >&2; usage >&2; exit 2 ;;
 esac

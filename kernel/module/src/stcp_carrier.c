@@ -326,6 +326,34 @@ static bool stcp_carrier_stop_root(struct stcp_carrier *carrier)
 	return true;
 }
 
+/* Run only after stop_root has joined RX and excluded all send callbacks.
+ * EOF can clear connected before graceful_close is called; shutdown during
+ * stop can also move CLOSE_WAIT to LAST_ACK after the earlier FIN check.
+ * Do not leave these final FIN retries holding a dead STCP listener port.
+ * FIN_WAIT2/TIME_WAIT have acknowledged our FIN and retain normal TCP cleanup.
+ */
+static void stcp_tcp_prepare_final_close(struct socket *socket)
+{
+	struct sock *sk;
+
+	if (!socket || !socket->sk)
+		return;
+	sk = socket->sk;
+	lock_sock(sk);
+	switch (sk->sk_state) {
+	case TCP_CLOSE_WAIT:
+	case TCP_FIN_WAIT1:
+	case TCP_CLOSING:
+	case TCP_LAST_ACK:
+		sk->sk_lingertime = 0;
+		sock_set_flag(sk, SOCK_LINGER);
+		break;
+	default:
+		break;
+	}
+	release_sock(sk);
+}
+
 static void stcp_carrier_free_root(struct stcp_carrier *carrier)
 {
 	struct socket *socket;
@@ -356,8 +384,11 @@ static void stcp_carrier_free_root(struct stcp_carrier *carrier)
 	carrier->held_frame = NULL;
 	carrier->held_frame_len = 0;
 
-	if (socket)
+	if (socket) {
+		if (carrier->kind == STCP_CARRIER_TCP)
+			stcp_tcp_prepare_final_close(socket);
 		sock_release(socket);
+	}
 
 	kfree(carrier);
 }
@@ -656,9 +687,12 @@ struct stcp_carrier *stcp_carrier_create(
 		kfree(carrier);
 		return ERR_PTR(ret);
 	}
-	if (kind == STCP_CARRIER_TCP)
+	if (kind == STCP_CARRIER_TCP) {
+		/* Before bind so accepted TCP children inherit address reuse.
+		 * This does not enable SO_REUSEPORT or sharing active listeners. */
+		sock_set_reuseaddr(carrier->socket->sk);
 		stcp_tune_tcp_socket(carrier->socket);
-	else
+	} else
 		stcp_tune_udp_socket(carrier->socket);
 	return carrier;
 }
@@ -1274,12 +1308,19 @@ int stcp_carrier_graceful_close(
 
 	mutex_lock(&carrier->lifecycle_lock);
 	if (carrier->stopping || carrier->stopped || !carrier->socket ||
-	    carrier->listening || !carrier->connected) {
+	    carrier->listening) {
 		mutex_unlock(&carrier->lifecycle_lock);
 		return 0;
 	}
 	socket = carrier->socket;
 	sk = socket->sk;
+	/* Peer EOF clears connected but CLOSE_WAIT still needs our FIN.
+	 * Keep the bounded drain/FIN wait for that half-closed connection. */
+	if (!READ_ONCE(carrier->connected) &&
+	    READ_ONCE(sk->sk_state) != TCP_CLOSE_WAIT) {
+		mutex_unlock(&carrier->lifecycle_lock);
+		return 0;
+	}
 	mutex_unlock(&carrier->lifecycle_lock);
 
 	atomic64_inc(&stcp_tcp_close_started);

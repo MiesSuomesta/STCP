@@ -404,7 +404,7 @@ build_rpi() {
     install -m 0644 "$rpi_config" "$kdir/.config"
 
     echo "[INFO] Preparing Raspberry PI: Enabling AES.."
-    bash "$kdir/../scripts/prepare-rpi-kernel.sh"
+    CROSS_COMPILE="$cross" bash "$kdir/../scripts/prepare-rpi-kernel.sh" || return 1
 
     echo "[INFO] Normalizing Raspberry Pi config with ARCH=arm64"
     cp "$kdir/.config" /tmp/rpi-before-normalize.config

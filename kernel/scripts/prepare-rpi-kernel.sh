@@ -1,17 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
-    echo "[FAIL] Not inside STCP git repository"
-    exit 1
-}
-
-STCP_ROOT="$GIT_ROOT"
-
+# Resolve from this script, independently of the caller's working directory/repo.
+STCP_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 RPI_KERNEL="$STCP_ROOT/kernel/raspberry"
 CONFIG="$RPI_KERNEL/.config"
 
-echo "[INFO] Git root:   $GIT_ROOT"
+echo "[INFO] STCP root:   $STCP_ROOT"
 echo "[INFO] RPi kernel: $RPI_KERNEL"
 
 [[ -d "$RPI_KERNEL" ]] || {
@@ -76,7 +71,7 @@ echo "[INFO] Enabling RPi AES-GCM crypto library..."
 
 make -C "$RPI_KERNEL" \
     ARCH=arm64 \
-    CROSS_COMPILE=aarch64-linux-gnu- \
+    CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}" \
     olddefconfig
 
 echo "[INFO] Post-oldconfig: Verifying Raspberry Pi ARM64 config..."

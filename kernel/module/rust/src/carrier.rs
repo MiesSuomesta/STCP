@@ -354,37 +354,37 @@ fn create_udp_child(
 pub(crate) fn unregister_context(ctx: &StcpContext) {
     let ptr = ctx as *const StcpContext as usize;
 
-    /* Remove first so no new RX path can acquire a raw child pointer. Keep
-     * the removed child addresses while the registry lock still guarantees
-     * that their contexts are alive. */
-    let removed_children = {
-        let mut sessions = UDP_SESSIONS.lock();
-        let before = sessions.len();
-        unsafe { stcp_kernel_debug_event(210, ptr, before, 0); }
-
-        let mut removed = Vec::new();
-        sessions.retain(|entry| {
-            let remove = entry.child == ptr || entry.listener == ptr;
-            if remove && !removed.contains(&entry.child) {
-                removed.push(entry.child);
-            }
-            !remove
-        });
-
-        unsafe { stcp_kernel_debug_event(211, ptr, before, sessions.len()); }
-        removed
-    };
-
-    /* stcp_rust_release() frees a context only after session::release()
-     * returns. Listener release likewise drains/drops queued children only
-     * after this function returns. Therefore every removed child stays alive
-     * while we wait for already-acquired demux readers to finish. */
-    for child_ptr in removed_children {
+    // Remove and drain one child at a time: teardown must never allocate.
+    // Pin the child while the registry lock still guarantees its lifetime.
+    // A concurrent child release then waits for this pin as well as real RX
+    // readers; a raw pointer cannot become dangling between removal and wait.
+    let before = UDP_SESSIONS.lock().len();
+    unsafe { stcp_kernel_debug_event(210, ptr, before, 0); }
+    loop {
+        let child_ptr = {
+            let mut sessions = UDP_SESSIONS.lock();
+            let Some(entry) = sessions.iter().find(|entry| {
+                entry.child == ptr || entry.listener == ptr
+            }).copied() else { break; };
+            let child = unsafe { &*(entry.child as *const StcpContext) };
+            child.udp_demux_refs.fetch_add(1, Ordering::Acquire);
+            // Remove every alias of this child before dropping the lock, so
+            // another unregister cannot take a second teardown pin and wait
+            // for ours while we wait for theirs.
+            sessions.retain(|candidate| candidate.child != entry.child);
+            entry.child
+        };
         let child = unsafe { &*(child_ptr as *const StcpContext) };
-        while child.udp_demux_refs.load(Ordering::Acquire) != 0 {
+        // One reference is our pin. Guard destruction does not need the
+        // registry lock, so existing receivers can finish while we wait.
+        while child.udp_demux_refs.load(Ordering::Acquire) != 1 {
             spin_loop();
         }
+        child.udp_demux_refs.fetch_sub(1, Ordering::Release);
+        // Do not dereference child again: its own releaser may now free it.
     }
+    let after = UDP_SESSIONS.lock().len();
+    unsafe { stcp_kernel_debug_event(211, ptr, before, after); }
 
     /* Another unregister (notably listener teardown) may have removed this
      * child entry first. A context must therefore always drain its own RX

@@ -2051,7 +2051,9 @@ pub fn release(ctx: &StcpContext) {
         inner.owner = 0;
         inner.carrier = 0;
 
-        let queued_children = inner.accept_queue.drain(..).collect::<Vec<_>>();
+        // Teardown must remain allocation-free under memory pressure.
+        // Move the existing deque out; drop children after releasing the lock.
+        let queued_children = core::mem::take(&mut inner.accept_queue);
 
         inner.pending_frames.clear();
         inner.out_of_order_frames.clear();

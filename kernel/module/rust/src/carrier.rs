@@ -255,6 +255,43 @@ fn acquire_udp_child(
     Some(UdpSessionGuard { entry })
 }
 
+// Publish both ownership records under the same locks. Every fallible
+// reservation and every listener recheck must finish before either push.
+fn publish_udp_child(
+    listener: &StcpContext,
+    listener_ptr: usize,
+    connection_id: u64,
+    peer_addr: u32,
+    peer_port: u16,
+    expected_carrier: usize,
+    child: Box<StcpContext>,
+) -> Result<(usize, usize), (StcpError, Box<StcpContext>)> {
+    let mut inner = listener.inner.lock();
+    if inner.state != SocketState::Listening || inner.carrier != expected_carrier {
+        return Err((StcpError::Closed, child));
+    }
+    if inner.accept_queue.len() >= inner.backlog {
+        return Err((StcpError::Again, child));
+    }
+    let mut sessions = UDP_SESSIONS.lock();
+    if sessions.iter().any(|entry| {
+        entry.listener == listener_ptr && entry.connection_id == connection_id
+    }) {
+        return Err((StcpError::Again, child));
+    }
+    if sessions.try_reserve(1).is_err() || inner.accept_queue.try_reserve(1).is_err() {
+        return Err((StcpError::NoMem, child));
+    }
+    let child_ptr = child.as_ref() as *const StcpContext as usize;
+    let owner = inner.owner;
+    // Both pushes are now allocation-free while both locks remain held.
+    sessions.push(UdpSessionEntry {
+        listener: listener_ptr, connection_id, child: child_ptr, peer_addr, peer_port,
+    });
+    inner.accept_queue.push_back(child);
+    Ok((child_ptr, owner))
+}
+
 fn create_udp_child(
     listener: &StcpContext,
     listener_ptr: usize,
@@ -262,7 +299,7 @@ fn create_udp_child(
     peer_addr: u32,
     peer_port: u16,
 ) -> Result<usize, StcpError> {
-    let (local, backlog, owner, listener_carrier) = {
+    let (local, backlog, _owner, listener_carrier) = {
         let inner = listener.inner.lock();
         if inner.state != SocketState::Listening {
             return Err(StcpError::InvalidState);
@@ -334,21 +371,23 @@ fn create_udp_child(
         child_ref.inner.lock().carrier = child_carrier as usize;
     }
 
-    UDP_SESSIONS.lock().push(UdpSessionEntry {
-        listener: listener_ptr,
-        connection_id,
-        child: child_ptr,
-        peer_addr,
-        peer_port,
-    });
-
-    {
-        let mut inner = listener.inner.lock();
-        inner.accept_queue.push_back(unsafe { Box::from_raw(child_ptr as *mut StcpContext) });
+    // Retain Rust ownership until publication succeeds. If a final reserve
+    // or listener check fails, detach/destroy the C carrier before dropping
+    // the unpublished child and returning its RX admission reservation.
+    let child = unsafe { Box::from_raw(child_ptr as *mut StcpContext) };
+    match publish_udp_child(listener, listener_ptr, connection_id, peer_addr,
+                            peer_port, listener_carrier, child) {
+        Ok((child_ptr, owner)) => {
+            wake_accept(owner);
+            Ok(child_ptr)
+        }
+        Err((error, child)) => {
+            child.inner.lock().carrier = 0;
+            unsafe { stcp_carrier_destroy(child_carrier); }
+            drop(child);
+            Err(error)
+        }
     }
-
-    wake_accept(owner);
-    Ok(child_ptr)
 }
 
 pub(crate) fn unregister_context(ctx: &StcpContext) {

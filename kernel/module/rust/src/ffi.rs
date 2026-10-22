@@ -102,7 +102,11 @@ pub extern "C" fn stcp_rust_create(
         Err(error) => return error.errno(),
     };
 
-    let raw = Box::into_raw(Box::new(ctx)).cast();
+    let ctx = match crate::state::try_box_context(ctx) {
+        Ok(ctx) => ctx,
+        Err(error) => return error.errno(),
+    };
+    let raw = Box::into_raw(ctx).cast();
 
     unsafe {
         ptr::write(out_ctx, raw);
@@ -409,9 +413,10 @@ pub extern "C" fn stcp_rust_can_send(
     raw: *mut c_void,
     len: usize,
 ) -> c_int {
-    match with_ctx(raw, |ctx| session::can_send(ctx, len)) {
-        Ok(true) => 1,
-        Ok(false) => 0,
+    match with_ctx(raw, |ctx| session::send_ready(ctx, len)) {
+        Ok(Ok(true)) => 1,
+        Ok(Ok(false)) => 0,
+        Ok(Err(error)) => error.errno(),
         Err(errno) => errno,
     }
 }

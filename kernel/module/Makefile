@@ -13,6 +13,7 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 PWD := $(CURDIR)
 REPO_ROOT := $(abspath $(PWD)/../..)
 TEST_ROOT := $(REPO_ROOT)/tests/kernel
+PYTHON ?= python3
 V ?= 1
 JOBS ?= $(shell nproc)
 
@@ -34,6 +35,7 @@ RUSTFLAGS_KERNEL := \
 	-C no-redzone=yes \
 	-Z plt=yes
 AR_TOOL ?= llvm-ar
+NM_TOOL ?= llvm-nm
 LD_TOOL ?= ld.lld
 READELF_TOOL ?= readelf
 KBUILD_TOOL_ARGS := LLVM=$(LLVM)
@@ -48,6 +50,7 @@ RUSTFLAGS_KERNEL := \
 	-C force-frame-pointers=yes \
 	-C target-feature=-neon
 AR_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)ar,ar)
+NM_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)nm,nm)
 LD_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)ld,ld)
 READELF_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)readelf,readelf)
 KBUILD_TOOL_ARGS := ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
@@ -96,6 +99,8 @@ zip: clean test-clean
 
 module: rust-core
 	$(MAKE) -C "$(KDIR)" M="$(PWD)" $(KBUILD_TOOL_ARGS) $(KBUILD_STCP_ARGS) V="$(V)" -j"$(JOBS)" modules
+	LC_ALL=C "$(PYTHON)" "$(PWD)/scripts/check-p2p-link.py" \
+		--nm "$(NM_TOOL)" --readelf "$(READELF_TOOL)" --arch "$(ARCH)" "$(PWD)/stcp.ko"
 
 rust: check-tools
 	cd "$(RUST_DIR)" && \
@@ -115,6 +120,8 @@ rust-core: rust
 	test -n "$$objs" || { echo "No Rust objects in static library"; exit 1; }; \
 	"$(LD_TOOL)" -r $$objs -o "$(RUST_CORE_OBJ)"
 	@printf '%s\n' 'cmd_src/rust_core.o := prelinked Rust static library' > "$(PWD)/src/.rust_core.o.cmd"
+	LC_ALL=C "$(PYTHON)" "$(PWD)/scripts/check-p2p-link.py" \
+		--nm "$(NM_TOOL)" --readelf "$(READELF_TOOL)" --arch "$(ARCH)" --rust-only "$(RUST_CORE_OBJ)"
 	@echo "Rust core ready: $(RUST_CORE_OBJ)"
 
 check-relocations: rust-core
@@ -134,6 +141,9 @@ check-tools:
 	@"$(RUSTUP)" toolchain list | grep -q '^$(RUST_TOOLCHAIN)' || { echo "Rust nightly missing"; exit 1; }
 	@command -v "$(AR_TOOL)" >/dev/null || { echo "$(AR_TOOL) missing"; exit 1; }
 	@command -v "$(LD_TOOL)" >/dev/null || { echo "$(LD_TOOL) missing"; exit 1; }
+	@command -v "$(NM_TOOL)" >/dev/null || { echo "$(NM_TOOL) missing"; exit 1; }
+	@command -v "$(READELF_TOOL)" >/dev/null || { echo "$(READELF_TOOL) missing"; exit 1; }
+	@command -v "$(PYTHON)" >/dev/null || { echo "$(PYTHON) missing"; exit 1; }
 	@test -f "$(KDIR)/Makefile" || { echo "Kernel build directory missing/invalid: $(KDIR)"; exit 1; }
 
 clean:

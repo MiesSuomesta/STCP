@@ -979,7 +979,9 @@ static int stcp_sendmsg(
 				break;
 			wait_ret = wait_event_interruptible_timeout(
 				ssk->recv_wq,
-				stcp_rust_can_send(ssk->rust_ctx, chunk) > 0,
+				/* Terminal errno also ends the wait; retry send to
+                 * preserve the error and normal partial-write handling. */
+                stcp_rust_can_send(ssk->rust_ctx, chunk) != 0,
 				msecs_to_jiffies(STCP_SEND_READY_TIMEOUT_MS)
 			);
 			if (wait_ret < 0) {

@@ -1,7 +1,6 @@
 use alloc::{
     boxed::Box,
     collections::VecDeque,
-    sync::Arc,
     vec::Vec,
 };
 
@@ -210,7 +209,7 @@ pub fn set_owner(ctx: &StcpContext, owner: usize) {
 
 fn send_frame(
     ctx: &StcpContext,
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
     frame: &[u8],
     flags: i32,
@@ -313,7 +312,7 @@ pub fn connect(
     }
 
     let target = Address { addr, port };
-    let shared = Arc::new(Connection::new());
+    let shared = crate::state::SharedConnection::try_new(Connection::new())?;
 
     /*
      * UDP is connectionless at the carrier layer. The client must not create
@@ -420,9 +419,7 @@ pub fn connect(
         return Ok(());
     }
 
-    let listener = unsafe {
-        &*(listener_ptr.unwrap() as *const StcpContext)
-    };
+    let listener_ptr = listener_ptr.unwrap();
 
     let client_local = {
         let inner = ctx.inner.lock();
@@ -436,29 +433,17 @@ pub fn connect(
         shared.clone(),
     )?;
 
-    let child = Box::new(child_ctx);
+    let child = crate::state::try_box_context(child_ctx)?;
 
-    {
-        let mut inner = ctx.inner.lock();
-
-        inner.peer = Some(target);
-        inner.state = SocketState::Handshake;
-        inner.connection = Some(EndpointConnection {
-            shared: shared.clone(),
-            side: Side::A,
-        });
-
-        inner.tx_nonce = 0;
-        inner.expected_rx_nonce = 0;
-        inner.tx_sequence = 0;
-        inner.expected_rx_sequence = 0;
-        inner.highest_acked_sequence = None;
-        reset_reliability(&mut inner);
-        inner.pending_frames.clear();
-        inner.out_of_order_frames.clear();
-        inner.last_rx_sequence = None;
-        shared.set_owner(Side::A, inner.owner);
+    // Construction may allocate or yield. Revalidate the registry before
+    // borrowing its raw pointer, and keep it locked through publication/wake.
+    // release() unregisters before freeing the listener or its C owner.
+    let listeners = LISTENERS.lock();
+    if !listeners.iter().any(|entry| entry.ctx == listener_ptr && (entry.address.port == target.port && (entry.address.addr == target.addr || entry.address.addr == 0))) {
+        return Err(StcpError::ConnectionRefused);
     }
+    let listener = unsafe { &*(listener_ptr as *const StcpContext) };
+
 
     let listener_owner = {
         let mut inner = listener.inner.lock();
@@ -471,11 +456,40 @@ pub fn connect(
             return Err(StcpError::Again);
         }
 
+        // Every failure precedes client state and queue publication.
+        inner.accept_queue.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+
+        {
+            let mut inner = ctx.inner.lock();
+            if inner.state != SocketState::New && inner.state != SocketState::Bound {
+                return Err(StcpError::InvalidState);
+            }
+
+            inner.peer = Some(target);
+            inner.state = SocketState::Handshake;
+            inner.connection = Some(EndpointConnection {
+                shared: shared.clone(),
+                side: Side::A,
+            });
+
+            inner.tx_nonce = 0;
+            inner.expected_rx_nonce = 0;
+            inner.tx_sequence = 0;
+            inner.expected_rx_sequence = 0;
+            inner.highest_acked_sequence = None;
+            reset_reliability(&mut inner);
+            inner.pending_frames.clear();
+            inner.out_of_order_frames.clear();
+            inner.last_rx_sequence = None;
+            shared.set_owner(Side::A, inner.owner);
+        }
+
         inner.accept_queue.push_back(child);
         inner.owner
     };
 
     wake_accept(listener_owner);
+    drop(listeners);
     Ok(())
 }
 
@@ -573,9 +587,9 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         crate::carrier::debug_event(209, ctx, 1, 0);
         return Ok(());
     };
-    let result = process_handshake_frames_locked(ctx);
+    let result = finish_rx_result(ctx, process_handshake_frames_locked(ctx));
     drop(guard);
-    drain_deferred_parser(ctx);
+    if result.is_ok() { drain_deferred_parser(ctx); }
     result
 }
 
@@ -699,7 +713,7 @@ pub fn create_external_tcp_child(
         return Err(StcpError::Again);
     }
 
-    let shared = Arc::new(Connection::new());
+    let shared = crate::state::SharedConnection::try_new(Connection::new())?;
     let child = StcpContext::connected_child(
         listener.proto,
         Address { addr: local_addr, port: local_port },
@@ -707,7 +721,7 @@ pub fn create_external_tcp_child(
         shared,
     )?;
 
-    Ok(Box::new(child))
+    Ok(crate::state::try_box_context(child)?)
 }
 
 pub fn connection_id_value(ctx: &StcpContext) -> u64 {
@@ -782,6 +796,28 @@ fn frame_payload_len(ctx: &StcpContext) -> usize {
     }
 }
 
+// A terminal socket must not be mistaken for temporary TX backpressure.
+// Snapshot under the state lock; never advance parsing while holding it.
+fn terminal_send_error(ctx: &StcpContext) -> Option<StcpError> {
+    let inner = ctx.inner.lock();
+    if inner.rx_terminal_errno != 0 {
+        Some(StcpError::Kernel(inner.rx_terminal_errno))
+    } else if matches!(inner.state, SocketState::Closed | SocketState::Error) || inner.peer_eof {
+        Some(StcpError::Closed)
+    } else {
+        None
+    }
+}
+
+// C readiness: positive = sendable, zero = retry, negative = terminal errno.
+// Check again after can_send(), which may process authenticated controls.
+pub fn send_ready(ctx: &StcpContext, data_len: usize) -> Result<bool, StcpError> {
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    let ready = can_send(ctx, data_len);
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    Ok(ready)
+}
+
 pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
     if progress_handshake(ctx).is_err() {
         return false;
@@ -814,6 +850,7 @@ pub fn send(
     debug_event(330, ctx, 0, 0);
     progress_handshake(ctx)?;
 
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
     if !is_ready(ctx) {
         return Err(StcpError::Again);
     }
@@ -825,6 +862,7 @@ pub fn send(
         process_control_frames(ctx)?;
     }
 
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
     let (shared, side) = ready_connection(ctx)?;
 
     if shared.peer_closed(side) {
@@ -962,8 +1000,8 @@ pub fn send(
             .and_then(|value| value.checked_add(encrypted_len))
             .ok_or(StcpError::Protocol)?;
         /*
-         * TCP fast path reuses one frame allocation per socket. UDP keeps an
-         * Arc because reliability may retain the encrypted bytes for retry.
+         * TCP fast path reuses one frame allocation per socket. UDP shares the
+         * encrypted bytes because reliability may retain them for retry.
          */
         let mut frame = if reliable {
             Vec::new()
@@ -990,7 +1028,7 @@ pub fn send(
         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
 
         if reliable {
-            let frame: Arc<[u8]> = frame.into();
+            let frame = crate::state::SharedFrame::try_new(frame)?;
             {
                 let mut inner = ctx.inner.lock();
                 if inner.state != SocketState::Ready ||
@@ -999,12 +1037,14 @@ pub fn send(
                 {
                     return Err(StcpError::Again);
                 }
+                // Growth must succeed before committing nonce/sequence state.
+                inner.pending_frames.try_reserve(1).map_err(|_| StcpError::NoMem)?;
                 inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
                 inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
                 let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
                 inner.pending_frames.push_back(PendingFrame {
                     sequence,
-                    bytes: Arc::clone(&frame),
+                    bytes: frame.clone(),
                     age_ticks: 0,
                     rto_ticks,
                     retries: 0,
@@ -1111,10 +1151,9 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         crate::carrier::debug_event(209, ctx, 2, 0);
         return Ok(());
     };
-    let result = fill_application_buffer_locked(ctx);
+    let result = finish_rx_result(ctx, fill_application_buffer_locked(ctx));
     drop(guard);
-    let result = finish_rx_result(ctx, result);
-    drain_deferred_parser(ctx);
+    if result.is_ok() { drain_deferred_parser(ctx); }
     result
 }
 
@@ -1283,8 +1322,8 @@ fn buffer_out_of_order_frame(
         return Err(StcpError::Kernel(-105));
     }
     if inner.out_of_order_frames.len() >= STCP_SEND_WINDOW {
-        inner.state = SocketState::Error;
-        return Err(StcpError::Protocol);
+        drop(inner);
+        return protocol_error(ctx);
     }
 
     if inner.out_of_order_frames.try_reserve(1).is_err() {
@@ -1388,8 +1427,8 @@ fn process_in_order_frame_impl(
         if frame.header.sequence != inner.expected_rx_sequence ||
            frame.nonce != inner.expected_rx_nonce
         {
-            inner.state = SocketState::Error;
-            return Err(StcpError::Protocol);
+            drop(inner);
+            return protocol_error(ctx);
         }
 
         let publish_capacity = decompressed.as_ref().map(|v| v.capacity()).unwrap_or(frame.payload.capacity());
@@ -1496,8 +1535,8 @@ fn update_acknowledgment(
     let pending_before = inner.pending_frames.len();
 
     if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
-        inner.state = SocketState::Error;
-        return Err(StcpError::Protocol);
+        drop(inner);
+        return protocol_error(ctx);
     }
 
     if inner.highest_acked_sequence
@@ -1640,7 +1679,7 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
 
     let (shared, side) = connection_for_data(ctx)?;
     // Bounded batch: collecting retransmissions must never allocate under the lock.
-    let mut retransmit: [Option<Arc<[u8]>>; STCP_MAX_RETRANSMIT_PER_TICK] =
+    let mut retransmit: [Option<crate::state::SharedFrame>; STCP_MAX_RETRANSMIT_PER_TICK] =
         core::array::from_fn(|_| None);
     let mut retransmit_len = 0usize;
 
@@ -1682,7 +1721,7 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
                 .max(1);
 
             retransmitted_count = retransmitted_count.saturating_add(1);
-            retransmit[retransmit_len] = Some(Arc::clone(&pending.bytes));
+            retransmit[retransmit_len] = Some(pending.bytes.clone());
             retransmit_len += 1;
         }
 
@@ -1694,8 +1733,11 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
         if timed_out {
             inner.stats.timeout_failures =
                 inner.stats.timeout_failures.saturating_add(1);
-            inner.state = SocketState::Error;
-            return Err(StcpError::Closed);
+            drop(inner);
+            // Retries are exhausted: make the terminal timeout visible to
+            // recv/poll and wake existing waiters, without allocating.
+            fail_rx_error(ctx, -110);
+            return Err(StcpError::Kernel(-110));
         }
     }
 
@@ -1813,7 +1855,9 @@ fn finish_rx_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -> Resul
 }
 
 fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {
-    ctx.inner.lock().state = SocketState::Error;
+    // Publish the errno and readiness before waking blocked receivers.
+    // State::Error alone does not satisfy the C recv wait predicate.
+    fail_rx_error(ctx, StcpError::Protocol.errno());
     Err(StcpError::Protocol)
 }
 
@@ -1843,7 +1887,7 @@ fn remove_header(wire: &mut ByteQueue) -> Result<(), StcpError> {
 
 fn connection_for_handshake(
     ctx: &StcpContext,
-) -> Result<(Arc<Connection>, Side), StcpError> {
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
     let inner = ctx.inner.lock();
 
     if inner.state != SocketState::Handshake &&
@@ -1862,7 +1906,7 @@ fn connection_for_handshake(
 
 fn ready_connection(
     ctx: &StcpContext,
-) -> Result<(Arc<Connection>, Side), StcpError> {
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
     let inner = ctx.inner.lock();
 
     if inner.state != SocketState::Ready {
@@ -1879,7 +1923,7 @@ fn ready_connection(
 
 fn connection_for_data(
     ctx: &StcpContext,
-) -> Result<(Arc<Connection>, Side), StcpError> {
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
     let inner = ctx.inner.lock();
 
     if inner.state != SocketState::Ready &&
@@ -1928,46 +1972,53 @@ fn drain_deferred_parser(ctx: &StcpContext) {
 }
 
 pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
-    ctx.parser_pending.store(true, Ordering::Release);
-    let Some(guard) = try_parser_guard(ctx) else {
-        return Ok({
-            let inner = ctx.inner.lock();
-            inner.rx_message_ready || inner.peer_eof
-        });
-    };
-
-    let was_ready = is_ready_snapshot(ctx);
-    let mut result = Ok(());
     loop {
-        ctx.parser_pending.store(false, Ordering::Release);
-        let state = ctx.inner.lock().state;
-        if state == SocketState::Handshake {
-            result = process_handshake_frames_locked(ctx);
-        }
-        if result.is_ok() {
+        ctx.parser_pending.store(true, Ordering::Release);
+        let Some(guard) = try_parser_guard(ctx) else {
+            return Ok({
+                let inner = ctx.inner.lock();
+                inner.rx_message_ready || inner.peer_eof
+            });
+        };
+
+        let was_ready = is_ready_snapshot(ctx);
+        let mut result = Ok(());
+        loop {
+            ctx.parser_pending.store(false, Ordering::Release);
             let state = ctx.inner.lock().state;
-            if state == SocketState::Ready || state == SocketState::Closed {
-                result = fill_application_buffer_locked(ctx);
+            if state == SocketState::Handshake {
+                result = process_handshake_frames_locked(ctx);
+            }
+            if result.is_ok() {
+                let state = ctx.inner.lock().state;
+                if state == SocketState::Ready || state == SocketState::Closed {
+                    result = fill_application_buffer_locked(ctx);
+                }
+            }
+            if result.is_err() || !ctx.parser_pending.swap(false, Ordering::AcqRel) {
+                break;
             }
         }
-        if result.is_err() || !ctx.parser_pending.swap(false, Ordering::AcqRel) {
-            break;
-        }
-    }
-    drop(guard);
+        // Publish terminal budget failure while parser ownership still
+        // excludes a new committer, then release ownership for handoff.
+        let result = finish_rx_result(ctx, result);
+        drop(guard);
 
-    /* Publish the state before waking the accept/connect waiter.  This also
-     * covers a deferred parse completed by a different caller than RX. */
-    if !was_ready && is_ready_snapshot(ctx) {
-        wake_recv(ctx.inner.lock().owner);
+        /* Publish the state before waking the accept/connect waiter.  This also
+         * covers a deferred parse completed by a different caller than RX. */
+        if !was_ready && is_ready_snapshot(ctx) {
+            wake_recv(ctx.inner.lock().owner);
+        }
+        // A pending notification cannot turn a failed parse into success, or
+        // recursively retry the same failing frame without a new caller.
+        result?;
+        if ctx.parser_pending.load(Ordering::Acquire) {
+            // Close the release/notification race with constant stack usage.
+            continue;
+        }
+        let inner = ctx.inner.lock();
+        return Ok(inner.rx_message_ready || inner.peer_eof);
     }
-    if ctx.parser_pending.load(Ordering::Acquire) {
-        /* Another producer raced with releasing parser_busy. */
-        return progress_receive(ctx);
-    }
-    finish_rx_result(ctx, result)?;
-    let inner = ctx.inner.lock();
-    Ok(inner.rx_message_ready || inner.peer_eof)
 }
 
 pub fn is_connected(ctx: &StcpContext) -> bool {
@@ -2051,7 +2102,9 @@ pub fn release(ctx: &StcpContext) {
         inner.owner = 0;
         inner.carrier = 0;
 
-        let queued_children = inner.accept_queue.drain(..).collect::<Vec<_>>();
+        // Teardown must remain allocation-free under memory pressure.
+        // Move the existing deque out; drop children after releasing the lock.
+        let queued_children = core::mem::take(&mut inner.accept_queue);
 
         inner.pending_frames.clear();
         inner.out_of_order_frames.clear();

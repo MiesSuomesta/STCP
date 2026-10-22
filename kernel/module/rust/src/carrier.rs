@@ -1,7 +1,6 @@
 use alloc::{
     boxed::Box,
     collections::VecDeque,
-    sync::Arc,
     vec::Vec,
 };
 
@@ -71,7 +70,7 @@ pub(crate) fn wake_recv(owner: usize) {
 }
 
 pub(crate) fn outgoing_queue(
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
 ) -> &SpinLock<ByteQueue> {
     match side {
@@ -81,7 +80,7 @@ pub(crate) fn outgoing_queue(
 }
 
 pub(crate) fn incoming_queue(
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
 ) -> &SpinLock<ByteQueue> {
     match side {
@@ -104,7 +103,7 @@ pub(crate) fn set_carrier(ctx: &StcpContext, carrier: usize) {
 }
 
 pub(crate) fn transmit(
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
     carrier: usize,
     bytes: &[u8],
@@ -255,6 +254,43 @@ fn acquire_udp_child(
     Some(UdpSessionGuard { entry })
 }
 
+// Publish both ownership records under the same locks. Every fallible
+// reservation and every listener recheck must finish before either push.
+fn publish_udp_child(
+    listener: &StcpContext,
+    listener_ptr: usize,
+    connection_id: u64,
+    peer_addr: u32,
+    peer_port: u16,
+    expected_carrier: usize,
+    child: Box<StcpContext>,
+) -> Result<(usize, usize), (StcpError, Box<StcpContext>)> {
+    let mut inner = listener.inner.lock();
+    if inner.state != SocketState::Listening || inner.carrier != expected_carrier {
+        return Err((StcpError::Closed, child));
+    }
+    if inner.accept_queue.len() >= inner.backlog {
+        return Err((StcpError::Again, child));
+    }
+    let mut sessions = UDP_SESSIONS.lock();
+    if sessions.iter().any(|entry| {
+        entry.listener == listener_ptr && entry.connection_id == connection_id
+    }) {
+        return Err((StcpError::Again, child));
+    }
+    if sessions.try_reserve(1).is_err() || inner.accept_queue.try_reserve(1).is_err() {
+        return Err((StcpError::NoMem, child));
+    }
+    let child_ptr = child.as_ref() as *const StcpContext as usize;
+    let owner = inner.owner;
+    // Both pushes are now allocation-free while both locks remain held.
+    sessions.push(UdpSessionEntry {
+        listener: listener_ptr, connection_id, child: child_ptr, peer_addr, peer_port,
+    });
+    inner.accept_queue.push_back(child);
+    Ok((child_ptr, owner))
+}
+
 fn create_udp_child(
     listener: &StcpContext,
     listener_ptr: usize,
@@ -262,7 +298,7 @@ fn create_udp_child(
     peer_addr: u32,
     peer_port: u16,
 ) -> Result<usize, StcpError> {
-    let (local, backlog, owner, listener_carrier) = {
+    let (local, backlog, _owner, listener_carrier) = {
         let inner = listener.inner.lock();
         if inner.state != SocketState::Listening {
             return Err(StcpError::InvalidState);
@@ -282,17 +318,17 @@ fn create_udp_child(
         }
     }
 
-    let shared = Arc::new(Connection::new());
+    let shared = crate::state::SharedConnection::try_new(Connection::new())?;
     let peer = Address {
         addr: peer_addr,
         port: peer_port,
     };
-    let child = Box::new(StcpContext::connected_child(
+    let child = crate::state::try_box_context(StcpContext::connected_child(
         listener.proto,
         local,
         peer,
         shared,
-    )?);
+    )?)?;
 
     {
         let mut inner = child.inner.lock();
@@ -334,57 +370,59 @@ fn create_udp_child(
         child_ref.inner.lock().carrier = child_carrier as usize;
     }
 
-    UDP_SESSIONS.lock().push(UdpSessionEntry {
-        listener: listener_ptr,
-        connection_id,
-        child: child_ptr,
-        peer_addr,
-        peer_port,
-    });
-
-    {
-        let mut inner = listener.inner.lock();
-        inner.accept_queue.push_back(unsafe { Box::from_raw(child_ptr as *mut StcpContext) });
+    // Retain Rust ownership until publication succeeds. If a final reserve
+    // or listener check fails, detach/destroy the C carrier before dropping
+    // the unpublished child and returning its RX admission reservation.
+    let child = unsafe { Box::from_raw(child_ptr as *mut StcpContext) };
+    match publish_udp_child(listener, listener_ptr, connection_id, peer_addr,
+                            peer_port, listener_carrier, child) {
+        Ok((child_ptr, owner)) => {
+            wake_accept(owner);
+            Ok(child_ptr)
+        }
+        Err((error, child)) => {
+            child.inner.lock().carrier = 0;
+            unsafe { stcp_carrier_destroy(child_carrier); }
+            drop(child);
+            Err(error)
+        }
     }
-
-    wake_accept(owner);
-    Ok(child_ptr)
 }
 
 pub(crate) fn unregister_context(ctx: &StcpContext) {
     let ptr = ctx as *const StcpContext as usize;
 
-    /* Remove first so no new RX path can acquire a raw child pointer. Keep
-     * the removed child addresses while the registry lock still guarantees
-     * that their contexts are alive. */
-    let removed_children = {
-        let mut sessions = UDP_SESSIONS.lock();
-        let before = sessions.len();
-        unsafe { stcp_kernel_debug_event(210, ptr, before, 0); }
-
-        let mut removed = Vec::new();
-        sessions.retain(|entry| {
-            let remove = entry.child == ptr || entry.listener == ptr;
-            if remove && !removed.contains(&entry.child) {
-                removed.push(entry.child);
-            }
-            !remove
-        });
-
-        unsafe { stcp_kernel_debug_event(211, ptr, before, sessions.len()); }
-        removed
-    };
-
-    /* stcp_rust_release() frees a context only after session::release()
-     * returns. Listener release likewise drains/drops queued children only
-     * after this function returns. Therefore every removed child stays alive
-     * while we wait for already-acquired demux readers to finish. */
-    for child_ptr in removed_children {
+    // Remove and drain one child at a time: teardown must never allocate.
+    // Pin the child while the registry lock still guarantees its lifetime.
+    // A concurrent child release then waits for this pin as well as real RX
+    // readers; a raw pointer cannot become dangling between removal and wait.
+    let before = UDP_SESSIONS.lock().len();
+    unsafe { stcp_kernel_debug_event(210, ptr, before, 0); }
+    loop {
+        let child_ptr = {
+            let mut sessions = UDP_SESSIONS.lock();
+            let Some(entry) = sessions.iter().find(|entry| {
+                entry.child == ptr || entry.listener == ptr
+            }).copied() else { break; };
+            let child = unsafe { &*(entry.child as *const StcpContext) };
+            child.udp_demux_refs.fetch_add(1, Ordering::Acquire);
+            // Remove every alias of this child before dropping the lock, so
+            // another unregister cannot take a second teardown pin and wait
+            // for ours while we wait for theirs.
+            sessions.retain(|candidate| candidate.child != entry.child);
+            entry.child
+        };
         let child = unsafe { &*(child_ptr as *const StcpContext) };
-        while child.udp_demux_refs.load(Ordering::Acquire) != 0 {
+        // One reference is our pin. Guard destruction does not need the
+        // registry lock, so existing receivers can finish while we wait.
+        while child.udp_demux_refs.load(Ordering::Acquire) != 1 {
             spin_loop();
         }
+        child.udp_demux_refs.fetch_sub(1, Ordering::Release);
+        // Do not dereference child again: its own releaser may now free it.
     }
+    let after = UDP_SESSIONS.lock().len();
+    unsafe { stcp_kernel_debug_event(211, ptr, before, after); }
 
     /* Another unregister (notably listener teardown) may have removed this
      * child entry first. A context must therefore always drain its own RX

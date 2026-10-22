@@ -42,6 +42,7 @@ int stcp_rust_set_compression_level(void *ctx, u32 level);
 
 int stcp_rust_has_data(void *ctx);
 int stcp_rust_is_connected(void *ctx);
+/* 1 = sendable, 0 = retry later, negative = terminal errno. */
 int stcp_rust_can_send(void *ctx, size_t len);
 
 int stcp_rust_bind(void *ctx, u32 addr, u16 port);

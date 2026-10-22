@@ -391,7 +391,12 @@ pub fn decode_uvarint(input: &[u8]) -> Result<(usize, usize), StcpError> {
     let mut shift = 0usize;
     for (index, byte) in input.iter().copied().enumerate().take(10) {
         let part = (byte & 0x7f) as usize;
-        value |= part.checked_shl(shift as u32).ok_or(StcpError::Protocol)?;
+        // checked_shl validates the shift count, not bits lost at the top.
+        // Reject an unrepresentable length before combining its last group.
+        if shift >= usize::BITS as usize || part > (usize::MAX >> shift) {
+            return Err(StcpError::Protocol);
+        }
+        value |= part << shift;
         if byte & 0x80 == 0 {
             return Ok((value, index + 1));
         }

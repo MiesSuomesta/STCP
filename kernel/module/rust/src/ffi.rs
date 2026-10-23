@@ -102,7 +102,11 @@ pub extern "C" fn stcp_rust_create(
         Err(error) => return error.errno(),
     };
 
-    let raw = Box::into_raw(Box::new(ctx)).cast();
+    let ctx = match crate::state::try_box_context(ctx) {
+        Ok(ctx) => ctx,
+        Err(error) => return error.errno(),
+    };
+    let raw = Box::into_raw(ctx).cast();
 
     unsafe {
         ptr::write(out_ctx, raw);

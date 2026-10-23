@@ -436,7 +436,7 @@ pub fn connect(
         shared.clone(),
     )?;
 
-    let child = Box::new(child_ctx);
+    let child = crate::state::try_box_context(child_ctx)?;
 
     {
         let mut inner = ctx.inner.lock();
@@ -707,7 +707,7 @@ pub fn create_external_tcp_child(
         shared,
     )?;
 
-    Ok(Box::new(child))
+    Ok(crate::state::try_box_context(child)?)
 }
 
 pub fn connection_id_value(ctx: &StcpContext) -> u64 {

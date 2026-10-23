@@ -324,12 +324,12 @@ fn create_udp_child(
         addr: peer_addr,
         port: peer_port,
     };
-    let child = Box::new(StcpContext::connected_child(
+    let child = crate::state::try_box_context(StcpContext::connected_child(
         listener.proto,
         local,
         peer,
         shared,
-    )?);
+    )?)?;
 
     {
         let mut inner = child.inner.lock();

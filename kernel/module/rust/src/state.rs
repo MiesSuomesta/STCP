@@ -344,3 +344,19 @@ impl StcpContext {
         })
     }
 }
+
+// Keep allocation failure inside the protocol's Result boundary. Ownership
+// of value stays local until allocation succeeds, so error drops its leases.
+pub(crate) fn try_box_context(value: StcpContext) -> Result<Box<StcpContext>, crate::error::StcpError> {
+    let layout = core::alloc::Layout::new::<StcpContext>();
+    // StcpContext is non-zero-sized. alloc() respects its layout/alignment;
+    // Box takes over exactly this allocation after the initialized write.
+    let raw = unsafe { alloc::alloc::alloc(layout) }.cast::<StcpContext>();
+    if raw.is_null() {
+        return Err(crate::error::StcpError::NoMem);
+    }
+    unsafe {
+        raw.write(value);
+        Ok(Box::from_raw(raw))
+    }
+}

@@ -413,9 +413,10 @@ pub extern "C" fn stcp_rust_can_send(
     raw: *mut c_void,
     len: usize,
 ) -> c_int {
-    match with_ctx(raw, |ctx| session::can_send(ctx, len)) {
-        Ok(true) => 1,
-        Ok(false) => 0,
+    match with_ctx(raw, |ctx| session::send_ready(ctx, len)) {
+        Ok(Ok(true)) => 1,
+        Ok(Ok(false)) => 0,
+        Ok(Err(error)) => error.errno(),
         Err(errno) => errno,
     }
 }

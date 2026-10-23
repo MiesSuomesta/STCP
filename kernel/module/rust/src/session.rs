@@ -796,6 +796,28 @@ fn frame_payload_len(ctx: &StcpContext) -> usize {
     }
 }
 
+// A terminal socket must not be mistaken for temporary TX backpressure.
+// Snapshot under the state lock; never advance parsing while holding it.
+fn terminal_send_error(ctx: &StcpContext) -> Option<StcpError> {
+    let inner = ctx.inner.lock();
+    if inner.rx_terminal_errno != 0 {
+        Some(StcpError::Kernel(inner.rx_terminal_errno))
+    } else if matches!(inner.state, SocketState::Closed | SocketState::Error) || inner.peer_eof {
+        Some(StcpError::Closed)
+    } else {
+        None
+    }
+}
+
+// C readiness: positive = sendable, zero = retry, negative = terminal errno.
+// Check again after can_send(), which may process authenticated controls.
+pub fn send_ready(ctx: &StcpContext, data_len: usize) -> Result<bool, StcpError> {
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    let ready = can_send(ctx, data_len);
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    Ok(ready)
+}
+
 pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
     if progress_handshake(ctx).is_err() {
         return false;
@@ -828,6 +850,7 @@ pub fn send(
     debug_event(330, ctx, 0, 0);
     progress_handshake(ctx)?;
 
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
     if !is_ready(ctx) {
         return Err(StcpError::Again);
     }
@@ -839,6 +862,7 @@ pub fn send(
         process_control_frames(ctx)?;
     }
 
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
     let (shared, side) = ready_connection(ctx)?;
 
     if shared.peer_closed(side) {

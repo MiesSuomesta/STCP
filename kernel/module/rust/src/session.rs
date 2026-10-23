@@ -1,7 +1,6 @@
 use alloc::{
     boxed::Box,
     collections::VecDeque,
-    sync::Arc,
     vec::Vec,
 };
 
@@ -210,7 +209,7 @@ pub fn set_owner(ctx: &StcpContext, owner: usize) {
 
 fn send_frame(
     ctx: &StcpContext,
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
     frame: &[u8],
     flags: i32,
@@ -313,7 +312,7 @@ pub fn connect(
     }
 
     let target = Address { addr, port };
-    let shared = Arc::new(Connection::new());
+    let shared = crate::state::SharedConnection::try_new(Connection::new())?;
 
     /*
      * UDP is connectionless at the carrier layer. The client must not create
@@ -699,7 +698,7 @@ pub fn create_external_tcp_child(
         return Err(StcpError::Again);
     }
 
-    let shared = Arc::new(Connection::new());
+    let shared = crate::state::SharedConnection::try_new(Connection::new())?;
     let child = StcpContext::connected_child(
         listener.proto,
         Address { addr: local_addr, port: local_port },
@@ -962,8 +961,8 @@ pub fn send(
             .and_then(|value| value.checked_add(encrypted_len))
             .ok_or(StcpError::Protocol)?;
         /*
-         * TCP fast path reuses one frame allocation per socket. UDP keeps an
-         * Arc because reliability may retain the encrypted bytes for retry.
+         * TCP fast path reuses one frame allocation per socket. UDP shares the
+         * encrypted bytes because reliability may retain them for retry.
          */
         let mut frame = if reliable {
             Vec::new()
@@ -990,7 +989,7 @@ pub fn send(
         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
 
         if reliable {
-            let frame: Arc<[u8]> = frame.into();
+            let frame = crate::state::SharedFrame::try_new(frame)?;
             {
                 let mut inner = ctx.inner.lock();
                 if inner.state != SocketState::Ready ||
@@ -999,12 +998,14 @@ pub fn send(
                 {
                     return Err(StcpError::Again);
                 }
+                // Growth must succeed before committing nonce/sequence state.
+                inner.pending_frames.try_reserve(1).map_err(|_| StcpError::NoMem)?;
                 inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
                 inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
                 let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
                 inner.pending_frames.push_back(PendingFrame {
                     sequence,
-                    bytes: Arc::clone(&frame),
+                    bytes: frame.clone(),
                     age_ticks: 0,
                     rto_ticks,
                     retries: 0,
@@ -1640,7 +1641,7 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
 
     let (shared, side) = connection_for_data(ctx)?;
     // Bounded batch: collecting retransmissions must never allocate under the lock.
-    let mut retransmit: [Option<Arc<[u8]>>; STCP_MAX_RETRANSMIT_PER_TICK] =
+    let mut retransmit: [Option<crate::state::SharedFrame>; STCP_MAX_RETRANSMIT_PER_TICK] =
         core::array::from_fn(|_| None);
     let mut retransmit_len = 0usize;
 
@@ -1682,7 +1683,7 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
                 .max(1);
 
             retransmitted_count = retransmitted_count.saturating_add(1);
-            retransmit[retransmit_len] = Some(Arc::clone(&pending.bytes));
+            retransmit[retransmit_len] = Some(pending.bytes.clone());
             retransmit_len += 1;
         }
 
@@ -1843,7 +1844,7 @@ fn remove_header(wire: &mut ByteQueue) -> Result<(), StcpError> {
 
 fn connection_for_handshake(
     ctx: &StcpContext,
-) -> Result<(Arc<Connection>, Side), StcpError> {
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
     let inner = ctx.inner.lock();
 
     if inner.state != SocketState::Handshake &&
@@ -1862,7 +1863,7 @@ fn connection_for_handshake(
 
 fn ready_connection(
     ctx: &StcpContext,
-) -> Result<(Arc<Connection>, Side), StcpError> {
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
     let inner = ctx.inner.lock();
 
     if inner.state != SocketState::Ready {
@@ -1879,7 +1880,7 @@ fn ready_connection(
 
 fn connection_for_data(
     ctx: &StcpContext,
-) -> Result<(Arc<Connection>, Side), StcpError> {
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
     let inner = ctx.inner.lock();
 
     if inner.state != SocketState::Ready &&

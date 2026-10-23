@@ -1,7 +1,6 @@
 use alloc::{
     boxed::Box,
     collections::VecDeque,
-    sync::Arc,
     vec::Vec,
 };
 
@@ -114,14 +113,94 @@ impl Connection {
     }
 }
 
+// Strong-only ownership for connections and retained UDP frames. Allocation
+// stays fallible without depending on Arc layout or unstable allocator APIs.
+#[cfg(test)]
+static SHARED_VALUE_DROPS: AtomicUsize = AtomicUsize::new(0);
+
+struct SharedStorage<T> {
+    references: AtomicUsize,
+    value: T,
+}
+
+pub struct SharedValue<T> {
+    storage: core::ptr::NonNull<SharedStorage<T>>,
+}
+
+// Immutable sharing requires a payload safe to share and drop on any thread.
+// No mutable payload reference or weak-reference API is exposed.
+unsafe impl<T: Send + Sync> Send for SharedValue<T> {}
+unsafe impl<T: Send + Sync> Sync for SharedValue<T> {}
+
+impl<T> SharedValue<T> {
+    pub fn try_new(value: T) -> Result<Self, crate::error::StcpError> {
+        let layout = core::alloc::Layout::new::<SharedStorage<T>>();
+        // SharedStorage is nonzero-sized and its matching Box on final
+        // release uses exactly this layout and global allocator.
+        let raw = unsafe { alloc::alloc::alloc(layout) }.cast::<SharedStorage<T>>();
+        let Some(storage) = core::ptr::NonNull::new(raw) else {
+            return Err(crate::error::StcpError::NoMem);
+        };
+        unsafe { storage.as_ptr().write(SharedStorage {
+            references: AtomicUsize::new(1), value,
+        }); }
+        Ok(Self { storage })
+    }
+
+    #[cfg(test)]
+    pub fn strong_count(this: &Self) -> usize {
+        unsafe { this.storage.as_ref() }.references.load(Ordering::Acquire)
+    }
+}
+
+impl<T> Clone for SharedValue<T> {
+    fn clone(&self) -> Self {
+        let references = &unsafe { self.storage.as_ref() }.references;
+        // Check before incrementing: overflow must never wrap the count and
+        // permit premature free. A live &self already keeps the storage live.
+        if references.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
+            if n < isize::MAX as usize { Some(n + 1) } else { None }
+        }).is_err() {
+            panic!("STCP shared reference count overflow");
+        }
+        Self { storage: self.storage }
+    }
+}
+
+impl<T> core::ops::Deref for SharedValue<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        // Each live handle owns one reference, so value remains initialized
+        // and alive for the entire borrow. No mutable reference is exposed.
+        &unsafe { self.storage.as_ref() }.value
+    }
+}
+
+impl<T> Drop for SharedValue<T> {
+    fn drop(&mut self) {
+        let references = &unsafe { self.storage.as_ref() }.references;
+        if references.fetch_sub(1, Ordering::Release) != 1 { return; }
+        // Pair with other owners' Release decrements before destroying the
+        // synchronized value. Exactly one thread observes the final reference.
+        core::sync::atomic::fence(Ordering::Acquire);
+        #[cfg(test)]
+        SHARED_VALUE_DROPS.fetch_add(1, Ordering::Relaxed);
+        unsafe { drop(Box::from_raw(self.storage.as_ptr())); }
+    }
+}
+
+pub type SharedConnection = SharedValue<Connection>;
+// Retain the already encrypted Vec without copying its payload into an Arc.
+pub type SharedFrame = SharedValue<Vec<u8>>;
+
 pub struct EndpointConnection {
-    pub shared: Arc<Connection>,
+    pub shared: SharedConnection,
     pub side: Side,
 }
 
 pub struct PendingFrame {
     pub sequence: u64,
-    pub bytes: Arc<[u8]>,
+    pub bytes: SharedFrame,
     pub age_ticks: u32,
     pub rto_ticks: u32,
     pub retries: u8,
@@ -282,7 +361,7 @@ impl StcpContext {
         proto: u8,
         local: Address,
         peer: Address,
-        shared: Arc<Connection>,
+        shared: SharedConnection,
     ) -> Result<Self, crate::error::StcpError> {
         let rx_lease = crate::rx_policy::SessionLease::acquire()?;
         let crypto = CryptoContext::new()?;
@@ -358,5 +437,72 @@ pub(crate) fn try_box_context(value: StcpContext) -> Result<Box<StcpContext>, cr
     unsafe {
         raw.write(value);
         Ok(Box::from_raw(raw))
+    }
+}
+
+#[cfg(test)]
+mod shared_connection_tests {
+    use super::*;
+    #[test]
+    fn shared_frame_keeps_original_buffer_until_last_reference() {
+        let bytes=alloc::vec![17u8;4096];let pointer=bytes.as_ptr();
+        let frame=SharedFrame::try_new(bytes).unwrap();
+        assert_eq!(frame.as_ptr(),pointer);
+        let retained=frame.clone();drop(frame);
+        assert_eq!(retained.as_ptr(),pointer);assert_eq!(retained.len(),4096);
+        assert!(retained.iter().all(|b|*b==17));
+        assert_eq!(SharedFrame::strong_count(&retained),1);
+    }
+    #[test]
+    fn generic_shared_storage_honors_payload_alignment_and_drop_once() {
+        static DROPS: AtomicUsize=AtomicUsize::new(0);
+        #[repr(align(128))]
+        struct Aligned;
+        impl Drop for Aligned {fn drop(&mut self){DROPS.fetch_add(1,Ordering::Relaxed);}}
+        let before=DROPS.load(Ordering::Relaxed);
+        let value=SharedValue::try_new(Aligned).unwrap();
+        assert_eq!((&*value as *const Aligned as usize)%128,0);
+        let copy=value.clone();drop(value);assert_eq!(DROPS.load(Ordering::Relaxed),before);
+        std::thread::spawn(move ||drop(copy)).join().unwrap();
+        assert_eq!(DROPS.load(Ordering::Relaxed),before+1);
+    }
+
+    #[test]
+    fn shared_value_lives_until_final_reference_and_drops_once() {
+        let before=SHARED_VALUE_DROPS.load(Ordering::Acquire);
+        let a=SharedConnection::try_new(Connection::new()).unwrap();
+        a.set_owner(Side::A,42);a.a_to_b.lock().push_slice(b"alive").unwrap();
+        let b=a.clone();assert_eq!(SharedConnection::strong_count(&a),2);drop(a);
+        assert_eq!(SHARED_VALUE_DROPS.load(Ordering::Acquire),before);
+        assert_eq!(b.peer_owner(Side::B),42);let mut buf=[0u8;5];
+        assert_eq!(b.a_to_b.lock().peek_prefix(&mut buf),5);assert_eq!(&buf,b"alive");
+        drop(b);assert_eq!(SHARED_VALUE_DROPS.load(Ordering::Acquire),before+1);
+    }
+    #[test]
+    fn concurrent_clone_drop_and_last_release_on_another_thread() {
+        let before=SHARED_VALUE_DROPS.load(Ordering::Acquire);
+        let shared=SharedConnection::try_new(Connection::new()).unwrap();
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                let handle=shared.clone();
+                scope.spawn(move || {for _ in 0..2000 {
+                    let copy=handle.clone();copy.owner_a.fetch_add(1,Ordering::Relaxed);drop(copy);
+                }});
+            }
+        });
+        assert_eq!(shared.owner_a.load(Ordering::Acquire),16000);
+        assert_eq!(SharedConnection::strong_count(&shared),1);
+        assert_eq!(SHARED_VALUE_DROPS.load(Ordering::Acquire),before);
+        std::thread::spawn(move ||drop(shared)).join().unwrap();
+        assert_eq!(SHARED_VALUE_DROPS.load(Ordering::Acquire),before+1);
+    }
+    #[test]
+    fn reference_overflow_is_rejected_without_increment_or_wrap() {
+        let shared=SharedConnection::try_new(Connection::new()).unwrap();
+        let refs=&unsafe {shared.storage.as_ref()}.references;
+        refs.store(isize::MAX as usize,Ordering::Relaxed);
+        let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| shared.clone()));
+        let count=refs.load(Ordering::Acquire);refs.store(1,Ordering::Relaxed);
+        assert!(result.is_err());assert_eq!(count,isize::MAX as usize);
     }
 }

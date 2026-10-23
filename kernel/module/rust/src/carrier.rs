@@ -1,7 +1,6 @@
 use alloc::{
     boxed::Box,
     collections::VecDeque,
-    sync::Arc,
     vec::Vec,
 };
 
@@ -71,7 +70,7 @@ pub(crate) fn wake_recv(owner: usize) {
 }
 
 pub(crate) fn outgoing_queue(
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
 ) -> &SpinLock<ByteQueue> {
     match side {
@@ -81,7 +80,7 @@ pub(crate) fn outgoing_queue(
 }
 
 pub(crate) fn incoming_queue(
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
 ) -> &SpinLock<ByteQueue> {
     match side {
@@ -104,7 +103,7 @@ pub(crate) fn set_carrier(ctx: &StcpContext, carrier: usize) {
 }
 
 pub(crate) fn transmit(
-    shared: &Arc<Connection>,
+    shared: &crate::state::SharedConnection,
     side: Side,
     carrier: usize,
     bytes: &[u8],
@@ -319,7 +318,7 @@ fn create_udp_child(
         }
     }
 
-    let shared = Arc::new(Connection::new());
+    let shared = crate::state::SharedConnection::try_new(Connection::new())?;
     let peer = Address {
         addr: peer_addr,
         port: peer_port,

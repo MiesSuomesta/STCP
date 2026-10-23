@@ -419,9 +419,7 @@ pub fn connect(
         return Ok(());
     }
 
-    let listener = unsafe {
-        &*(listener_ptr.unwrap() as *const StcpContext)
-    };
+    let listener_ptr = listener_ptr.unwrap();
 
     let client_local = {
         let inner = ctx.inner.lock();
@@ -437,27 +435,15 @@ pub fn connect(
 
     let child = crate::state::try_box_context(child_ctx)?;
 
-    {
-        let mut inner = ctx.inner.lock();
-
-        inner.peer = Some(target);
-        inner.state = SocketState::Handshake;
-        inner.connection = Some(EndpointConnection {
-            shared: shared.clone(),
-            side: Side::A,
-        });
-
-        inner.tx_nonce = 0;
-        inner.expected_rx_nonce = 0;
-        inner.tx_sequence = 0;
-        inner.expected_rx_sequence = 0;
-        inner.highest_acked_sequence = None;
-        reset_reliability(&mut inner);
-        inner.pending_frames.clear();
-        inner.out_of_order_frames.clear();
-        inner.last_rx_sequence = None;
-        shared.set_owner(Side::A, inner.owner);
+    // Construction may allocate or yield. Revalidate the registry before
+    // borrowing its raw pointer, and keep it locked through publication/wake.
+    // release() unregisters before freeing the listener or its C owner.
+    let listeners = LISTENERS.lock();
+    if !listeners.iter().any(|entry| entry.ctx == listener_ptr && (entry.address.port == target.port && (entry.address.addr == target.addr || entry.address.addr == 0))) {
+        return Err(StcpError::ConnectionRefused);
     }
+    let listener = unsafe { &*(listener_ptr as *const StcpContext) };
+
 
     let listener_owner = {
         let mut inner = listener.inner.lock();
@@ -470,11 +456,40 @@ pub fn connect(
             return Err(StcpError::Again);
         }
 
+        // Every failure precedes client state and queue publication.
+        inner.accept_queue.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+
+        {
+            let mut inner = ctx.inner.lock();
+            if inner.state != SocketState::New && inner.state != SocketState::Bound {
+                return Err(StcpError::InvalidState);
+            }
+
+            inner.peer = Some(target);
+            inner.state = SocketState::Handshake;
+            inner.connection = Some(EndpointConnection {
+                shared: shared.clone(),
+                side: Side::A,
+            });
+
+            inner.tx_nonce = 0;
+            inner.expected_rx_nonce = 0;
+            inner.tx_sequence = 0;
+            inner.expected_rx_sequence = 0;
+            inner.highest_acked_sequence = None;
+            reset_reliability(&mut inner);
+            inner.pending_frames.clear();
+            inner.out_of_order_frames.clear();
+            inner.last_rx_sequence = None;
+            shared.set_owner(Side::A, inner.owner);
+        }
+
         inner.accept_queue.push_back(child);
         inner.owner
     };
 
     wake_accept(listener_owner);
+    drop(listeners);
     Ok(())
 }
 
@@ -572,9 +587,9 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         crate::carrier::debug_event(209, ctx, 1, 0);
         return Ok(());
     };
-    let result = process_handshake_frames_locked(ctx);
+    let result = finish_rx_result(ctx, process_handshake_frames_locked(ctx));
     drop(guard);
-    drain_deferred_parser(ctx);
+    if result.is_ok() { drain_deferred_parser(ctx); }
     result
 }
 
@@ -1112,10 +1127,9 @@ fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
         crate::carrier::debug_event(209, ctx, 2, 0);
         return Ok(());
     };
-    let result = fill_application_buffer_locked(ctx);
+    let result = finish_rx_result(ctx, fill_application_buffer_locked(ctx));
     drop(guard);
-    let result = finish_rx_result(ctx, result);
-    drain_deferred_parser(ctx);
+    if result.is_ok() { drain_deferred_parser(ctx); }
     result
 }
 
@@ -1929,46 +1943,53 @@ fn drain_deferred_parser(ctx: &StcpContext) {
 }
 
 pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
-    ctx.parser_pending.store(true, Ordering::Release);
-    let Some(guard) = try_parser_guard(ctx) else {
-        return Ok({
-            let inner = ctx.inner.lock();
-            inner.rx_message_ready || inner.peer_eof
-        });
-    };
-
-    let was_ready = is_ready_snapshot(ctx);
-    let mut result = Ok(());
     loop {
-        ctx.parser_pending.store(false, Ordering::Release);
-        let state = ctx.inner.lock().state;
-        if state == SocketState::Handshake {
-            result = process_handshake_frames_locked(ctx);
-        }
-        if result.is_ok() {
+        ctx.parser_pending.store(true, Ordering::Release);
+        let Some(guard) = try_parser_guard(ctx) else {
+            return Ok({
+                let inner = ctx.inner.lock();
+                inner.rx_message_ready || inner.peer_eof
+            });
+        };
+
+        let was_ready = is_ready_snapshot(ctx);
+        let mut result = Ok(());
+        loop {
+            ctx.parser_pending.store(false, Ordering::Release);
             let state = ctx.inner.lock().state;
-            if state == SocketState::Ready || state == SocketState::Closed {
-                result = fill_application_buffer_locked(ctx);
+            if state == SocketState::Handshake {
+                result = process_handshake_frames_locked(ctx);
+            }
+            if result.is_ok() {
+                let state = ctx.inner.lock().state;
+                if state == SocketState::Ready || state == SocketState::Closed {
+                    result = fill_application_buffer_locked(ctx);
+                }
+            }
+            if result.is_err() || !ctx.parser_pending.swap(false, Ordering::AcqRel) {
+                break;
             }
         }
-        if result.is_err() || !ctx.parser_pending.swap(false, Ordering::AcqRel) {
-            break;
-        }
-    }
-    drop(guard);
+        // Publish terminal budget failure while parser ownership still
+        // excludes a new committer, then release ownership for handoff.
+        let result = finish_rx_result(ctx, result);
+        drop(guard);
 
-    /* Publish the state before waking the accept/connect waiter.  This also
-     * covers a deferred parse completed by a different caller than RX. */
-    if !was_ready && is_ready_snapshot(ctx) {
-        wake_recv(ctx.inner.lock().owner);
+        /* Publish the state before waking the accept/connect waiter.  This also
+         * covers a deferred parse completed by a different caller than RX. */
+        if !was_ready && is_ready_snapshot(ctx) {
+            wake_recv(ctx.inner.lock().owner);
+        }
+        // A pending notification cannot turn a failed parse into success, or
+        // recursively retry the same failing frame without a new caller.
+        result?;
+        if ctx.parser_pending.load(Ordering::Acquire) {
+            // Close the release/notification race with constant stack usage.
+            continue;
+        }
+        let inner = ctx.inner.lock();
+        return Ok(inner.rx_message_ready || inner.peer_eof);
     }
-    if ctx.parser_pending.load(Ordering::Acquire) {
-        /* Another producer raced with releasing parser_busy. */
-        return progress_receive(ctx);
-    }
-    finish_rx_result(ctx, result)?;
-    let inner = ctx.inner.lock();
-    Ok(inner.rx_message_ready || inner.peer_eof)
 }
 
 pub fn is_connected(ctx: &StcpContext) -> bool {

@@ -1298,8 +1298,8 @@ fn buffer_out_of_order_frame(
         return Err(StcpError::Kernel(-105));
     }
     if inner.out_of_order_frames.len() >= STCP_SEND_WINDOW {
-        inner.state = SocketState::Error;
-        return Err(StcpError::Protocol);
+        drop(inner);
+        return protocol_error(ctx);
     }
 
     if inner.out_of_order_frames.try_reserve(1).is_err() {
@@ -1403,8 +1403,8 @@ fn process_in_order_frame_impl(
         if frame.header.sequence != inner.expected_rx_sequence ||
            frame.nonce != inner.expected_rx_nonce
         {
-            inner.state = SocketState::Error;
-            return Err(StcpError::Protocol);
+            drop(inner);
+            return protocol_error(ctx);
         }
 
         let publish_capacity = decompressed.as_ref().map(|v| v.capacity()).unwrap_or(frame.payload.capacity());
@@ -1511,8 +1511,8 @@ fn update_acknowledgment(
     let pending_before = inner.pending_frames.len();
 
     if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
-        inner.state = SocketState::Error;
-        return Err(StcpError::Protocol);
+        drop(inner);
+        return protocol_error(ctx);
     }
 
     if inner.highest_acked_sequence
@@ -1709,8 +1709,11 @@ pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
         if timed_out {
             inner.stats.timeout_failures =
                 inner.stats.timeout_failures.saturating_add(1);
-            inner.state = SocketState::Error;
-            return Err(StcpError::Closed);
+            drop(inner);
+            // Retries are exhausted: make the terminal timeout visible to
+            // recv/poll and wake existing waiters, without allocating.
+            fail_rx_error(ctx, -110);
+            return Err(StcpError::Kernel(-110));
         }
     }
 
@@ -1828,7 +1831,9 @@ fn finish_rx_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -> Resul
 }
 
 fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {
-    ctx.inner.lock().state = SocketState::Error;
+    // Publish the errno and readiness before waking blocked receivers.
+    // State::Error alone does not satisfy the C recv wait predicate.
+    fail_rx_error(ctx, StcpError::Protocol.errno());
     Err(StcpError::Protocol)
 }
 

@@ -499,6 +499,13 @@ pub extern "C" fn stcp_rust_carrier_receive_from(
                 /* Unknown connection IDs are silently discarded. */
                 return 0;
             }
+            // Do not reserve a child or RX admission slot for a malformed
+            // first datagram. PublicKey must contain the complete wire key.
+            if header.payload_len != crate::frame::STCP_PUBLIC_KEY_LEN ||
+               header.flags & !crate::frame::FLAG_COMPRESSION_CAPABLE != 0 ||
+               bytes.len() < STCP_HEADER_LEN + crate::frame::STCP_PUBLIC_KEY_LEN {
+                return -71;
+            }
             match create_udp_child(
                 ctx,
                 listener_ptr,

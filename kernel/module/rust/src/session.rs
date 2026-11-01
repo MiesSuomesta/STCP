@@ -533,7 +533,7 @@ pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
     let state = ctx.inner.lock().state;
 
     if state == SocketState::Handshake {
-        finish_rx_result(ctx, process_handshake_frames(ctx))?;
+        finish_handshake_result(ctx, process_handshake_frames(ctx))?;
     }
 
     Ok(())
@@ -587,7 +587,7 @@ fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
         crate::carrier::debug_event(209, ctx, 1, 0);
         return Ok(());
     };
-    let result = finish_rx_result(ctx, process_handshake_frames_locked(ctx));
+    let result = finish_handshake_result(ctx, process_handshake_frames_locked(ctx));
     drop(guard);
     if result.is_ok() { drain_deferred_parser(ctx); }
     result
@@ -1854,6 +1854,20 @@ fn finish_rx_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -> Resul
     result
 }
 
+// A malformed handshake or failed key derivation is terminal. Transient
+// transport conditions (EAGAIN/ENOMEM) are not protocol violations.
+// Publish the terminal state while parser ownership is still held.
+fn finish_handshake_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -> Result<T, StcpError> {
+    match result {
+        Err(StcpError::Protocol) | Err(StcpError::Crypto) => {
+            let error = result.as_ref().err().copied().unwrap();
+            fail_rx_error(ctx, error.errno());
+        }
+        _ => {}
+    }
+    finish_rx_result(ctx, result)
+}
+
 fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {
     // Publish the errno and readiness before waking blocked receivers.
     // State::Error alone does not satisfy the C recv wait predicate.
@@ -1982,6 +1996,7 @@ pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
         };
 
         let was_ready = is_ready_snapshot(ctx);
+        let state_was_handshake = ctx.inner.lock().state == SocketState::Handshake;
         let mut result = Ok(());
         loop {
             ctx.parser_pending.store(false, Ordering::Release);
@@ -2001,7 +2016,11 @@ pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
         }
         // Publish terminal budget failure while parser ownership still
         // excludes a new committer, then release ownership for handoff.
-        let result = finish_rx_result(ctx, result);
+        let result = if state_was_handshake {
+            finish_handshake_result(ctx, result)
+        } else {
+            finish_rx_result(ctx, result)
+        };
         drop(guard);
 
         /* Publish the state before waking the accept/connect waiter.  This also

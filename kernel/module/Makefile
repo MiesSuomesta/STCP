@@ -24,38 +24,44 @@ RUST_OBJ_DIR   := $(PWD)/.rust-objects
 RUST_CORE_OBJ  := $(PWD)/src/rust_core.o
 
 ifeq ($(PLATFORM),host)
-ARCH ?= x86_64
-LLVM ?= 1
-RUST_TARGET ?= x86_64-unknown-none
-RUSTFLAGS_KERNEL := \
+    ARCH ?= x86_64
+    LLVM ?= 0
+    RUST_TARGET ?= x86_64-unknown-none
+    RUSTFLAGS_KERNEL := \
 	-C relocation-model=static \
 	-C code-model=kernel \
 	-C panic=abort \
 	-C force-frame-pointers=yes \
 	-C no-redzone=yes \
 	-Z plt=yes
-AR_TOOL ?= llvm-ar
-NM_TOOL ?= llvm-nm
-LD_TOOL ?= ld.lld
-READELF_TOOL ?= readelf
-KBUILD_TOOL_ARGS := LLVM=$(LLVM)
+    AR_TOOL ?= llvm-ar
+    NM_TOOL ?= llvm-nm
+    LD_TOOL ?= ld.lld
+    READELF_TOOL ?= readelf
+
+    ifeq ($(LLVM),1)
+        KBUILD_TOOL_ARGS := LLVM=1
+    else
+        KBUILD_TOOL_ARGS := CC=gcc LD=ld AR=ar NM=nm
+    endif
+
 else ifeq ($(PLATFORM),rpi)
-ARCH := arm64
-CROSS_COMPILE ?= aarch64-linux-gnu-
-RUST_TARGET ?= aarch64-unknown-none
-RUSTFLAGS_KERNEL := \
+    ARCH := arm64
+    CROSS_COMPILE ?= aarch64-linux-gnu-
+    RUST_TARGET ?= aarch64-unknown-none
+    RUSTFLAGS_KERNEL := \
 	-C relocation-model=static \
 	-C code-model=small \
 	-C panic=abort \
 	-C force-frame-pointers=yes \
 	-C target-feature=-neon
-AR_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)ar,ar)
-NM_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)nm,nm)
-LD_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)ld,ld)
-READELF_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)readelf,readelf)
-KBUILD_TOOL_ARGS := ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+    AR_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)ar,ar)
+    NM_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)nm,nm)
+    LD_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)ld,ld)
+    READELF_TOOL ?= $(if $(CROSS_COMPILE),$(CROSS_COMPILE)readelf,readelf)
+    KBUILD_TOOL_ARGS := ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
 else
-$(error Unknown PLATFORM='$(PLATFORM)'; use PLATFORM=host or PLATFORM=rpi)
+    $(error Unknown PLATFORM='$(PLATFORM)'; use PLATFORM=host or PLATFORM=rpi)
 endif
 
 RUST_OUT_DIR   := $(RUST_DIR)/target/$(RUST_TARGET)/release

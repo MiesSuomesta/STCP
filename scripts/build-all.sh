@@ -331,7 +331,7 @@ ensure_rpi_kernel_tree_healthy() {
 build_host() {
     [[ -d "/lib/modules/$(uname -r)/build" ]] || { skip "host: /lib/modules/$(uname -r)/build missing"; return $?; }
     make -C "$KMOD" LOCALVERSION="$LOCALVERSION" clean >/dev/null || true
-    if ! pnc_run "STCPv2 host module build" make -C "$KMOD" LOCALVERSION="$LOCALVERSION" PLATFORM=host JOBS="$JOBS" module; then
+    if ! pnc_run "STCP host module build" make -C "$KMOD" LOCALVERSION="$LOCALVERSION" PLATFORM=host JOBS="$JOBS" module; then
         echo "[FAIL] host: kernel module build failed" >&2
         return 1
     fi

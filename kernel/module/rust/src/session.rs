@@ -1509,27 +1509,21 @@ fn authenticated_control_frame(
     sequence: u64,
     acknowledgment: u64,
 ) -> Result<Vec<u8>, StcpError> {
-    let (crypto, connection_id, nonce) = {
-        let mut inner = ctx.inner.lock();
-        let nonce = inner.tx_control_nonce;
-        // Reserve before releasing the lock: concurrent sends never reuse it.
-        inner.tx_control_nonce = nonce.checked_add(1).ok_or(StcpError::Crypto)?;
-        (inner.crypto.clone(), inner.connection_id, nonce)
-    };
-    crate::control::encode(&crypto, packet_type, sequence, acknowledgment,
-                           connection_id, nonce)
+    let mut inner = ctx.inner.lock();
+    let nonce = inner.tx_control_nonce;
+    // Reserve the nonce before encryption; never reuse it after an error.
+    inner.tx_control_nonce = nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+    crate::control::encode(&inner.crypto, packet_type, sequence, acknowledgment,
+                           inner.connection_id, nonce)
 }
 
 fn authenticate_control(ctx: &StcpContext, header: &Header, payload: &[u8]) -> bool {
-    let (crypto, connection_id) = {
-        let inner = ctx.inner.lock();
-        (inner.crypto.clone(), inner.connection_id)
-    };
-    let Some(nonce) = crate::control::verify(&crypto, header, payload, connection_id) else {
+    let mut inner = ctx.inner.lock();
+    let Some(nonce) = crate::control::verify(&inner.crypto, header, payload, inner.connection_id) else {
         return false;
     };
-    // Parser serialization plus this lock makes replay publication atomic.
-    ctx.inner.lock().control_replay.accept(nonce)
+    // Verify and publish replay state under the same lock.
+    inner.control_replay.accept(nonce)
 }
 
 fn current_expected_sequence(ctx: &StcpContext) -> u64 {

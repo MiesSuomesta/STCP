@@ -646,10 +646,19 @@ fn process_handshake_frames_locked(ctx: &StcpContext) -> Result<(), StcpError> {
             (inner.role, inner.crypto.clone())
         };
 
-        crypto.derive_session_keys(&key, role)?;
+        // A cryptographic failure is fatal; never retry this handshake.
+        if crypto.derive_session_keys(&key, role).is_err() {
+            return Err(StcpError::Protocol);
+        }
 
         {
             let mut inner = ctx.inner.lock();
+            // Crypto was derived outside the spinlock. Never publish keys to
+            // a socket that closed, failed, or already installed its keys.
+            if inner.state != SocketState::Handshake || inner.crypto.ready()
+                || inner.crypto.public_key() != crypto.public_key() {
+                return Err(StcpError::Protocol);
+            }
             inner.crypto = crypto;
         }
 
@@ -1832,6 +1841,11 @@ fn fail_rx_error(ctx: &StcpContext, error: i32) {
     let (owner, endpoint) = {
         let mut inner = ctx.inner.lock();
         inner.state = SocketState::Error;
+        // Stop using this connection's secrets immediately. Any detached
+        // crypto snapshots remain a separate ownership concern for audit.
+        inner.crypto.invalidate();
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
         if inner.rx_terminal_errno == 0 { inner.rx_terminal_errno = error; }
         inner.rx_paused = false;
         inner.rx_partial_started_ms = None;
@@ -1861,7 +1875,8 @@ fn finish_handshake_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -
     match result {
         Err(StcpError::Protocol) | Err(StcpError::Crypto) => {
             let error = result.as_ref().err().copied().unwrap();
-            fail_rx_error(ctx, error.errno());
+            let _ = error;
+            fail_rx_error(ctx, StcpError::Protocol.errno());
         }
         _ => {}
     }

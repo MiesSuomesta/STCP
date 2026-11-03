@@ -54,7 +54,7 @@ fn wipe_secret<const N: usize>(secret: &mut [u8; N]) {
 
 #[derive(Clone)] pub struct CryptoContext{secret_key:[u8;32],public_key:[u8;64],tx_key:Option<[u8;32]>,rx_key:Option<[u8;32]>,tx_control_key:Option<[u8;32]>,rx_control_key:Option<[u8;32]>}
 impl CryptoContext{
- pub fn new()->Result<Self,StcpError>{let mut secret=[0;32];let mut pub32=[0;32];let r=unsafe{stcp_kernel_x25519_keypair(secret.as_mut_ptr(),pub32.as_mut_ptr())};if r!=0{return Err(StcpError::Kernel(r));}let mut public=[0;64];public[..32].copy_from_slice(&pub32);Ok(Self{secret_key:secret,public_key:public,tx_key:None,rx_key:None,tx_control_key:None,rx_control_key:None})}
+ pub fn new()->Result<Self,StcpError>{let mut secret=[0;32];let mut pub32=[0;32];let r=unsafe{stcp_kernel_x25519_keypair(secret.as_mut_ptr(),pub32.as_mut_ptr())};if r!=0{wipe_secret(&mut secret);pub32.fill(0);return Err(StcpError::Crypto);}let mut public=[0;64];public[..32].copy_from_slice(&pub32);Ok(Self{secret_key:secret,public_key:public,tx_key:None,rx_key:None,tx_control_key:None,rx_control_key:None})}
  pub fn invalidate(&mut self) {
   wipe_secret(&mut self.secret_key);
   if let Some(mut key)=self.tx_key.take(){wipe_secret(&mut key);}
@@ -70,7 +70,7 @@ impl CryptoContext{
   crypto_diag_stage_set(40);
   let r=unsafe{stcp_kernel_x25519_shared(shared.as_mut_ptr(),self.secret_key.as_ptr(),peer.as_ptr())};
   crypto_diag_stage_set(90);
-  if r!=0{wipe_secret(&mut shared);return Err(StcpError::Kernel(r));}
+  if r!=0{wipe_secret(&mut shared);return Err(StcpError::Crypto);}
 
   let mut local=[0u8;32];
   local.copy_from_slice(&self.public_key[..32]);
@@ -100,7 +100,7 @@ impl CryptoContext{
   if r!=0{
    c2s.fill(0);
    s2c.fill(0);
-   return Err(StcpError::Kernel(r));
+   return Err(StcpError::Crypto);
   }
   if c2s==s2c{
    c2s.fill(0);
@@ -124,7 +124,7 @@ impl CryptoContext{
   let empty = [0u8; 1];
   let rc = unsafe { stcp_kernel_aes256_gcm_encrypt(key.as_ptr(), nonce,
       aad.as_ptr(), aad.len(), empty.as_ptr(), 0, tag.as_mut_ptr(), tag.len()) };
-  if rc != 0 { tag.fill(0); return Err(StcpError::Kernel(rc)); }
+  if rc != 0 { tag.fill(0); return Err(StcpError::Crypto); }
   Ok(tag)
  }
  pub fn verify_control_tag(&self, nonce: u64, aad: &[u8], tag: &[u8]) -> bool {
@@ -140,7 +140,7 @@ impl CryptoContext{
   if out.len()<required{return Err(StcpError::NoMem);}
   let key=self.tx_key.as_ref().ok_or(StcpError::InvalidState)?;
   let r=unsafe{stcp_kernel_aes256_gcm_encrypt(key.as_ptr(),nonce,nc(aad),aad.len(),nc(plain),plain.len(),out.as_mut_ptr(),out.len())};
-  if r!=0{out[..required].fill(0);return Err(StcpError::Kernel(r));}
+  if r!=0{out[..required].fill(0);return Err(StcpError::Crypto);}
   Ok(required)
  }
  pub fn decrypt_into(&self,nonce:u64,aad:&[u8],cipher:&[u8],out:&mut[u8])->Result<usize,StcpError>{
@@ -149,7 +149,7 @@ impl CryptoContext{
   if out.len()<required{return Err(StcpError::NoMem);}
   let key=self.rx_key.as_ref().ok_or(StcpError::InvalidState)?;
   let r=unsafe{stcp_kernel_aes256_gcm_decrypt(key.as_ptr(),nonce,nc(aad),aad.len(),cipher.as_ptr(),cipher.len(),out.as_mut_ptr(),out.len())};
-  if r!=0{out[..required].fill(0);return Err(StcpError::Kernel(r));}
+  if r!=0{out[..required].fill(0);return Err(StcpError::Crypto);}
   Ok(required)
  }
  pub fn decrypt_in_place(&self,nonce:u64,aad:&[u8],cipher_and_tag:&mut[u8])->Result<usize,StcpError>{
@@ -157,7 +157,7 @@ impl CryptoContext{
   let required=cipher_and_tag.len()-AES_GCM_TAG_LEN;
   let key=self.rx_key.as_ref().ok_or(StcpError::InvalidState)?;
   let r=unsafe{stcp_kernel_aes256_gcm_decrypt_in_place(key.as_ptr(),nonce,nc(aad),aad.len(),cipher_and_tag.as_mut_ptr(),cipher_and_tag.len())};
-  if r!=0{cipher_and_tag[..required].fill(0);return Err(StcpError::Kernel(r));}
+  if r!=0{cipher_and_tag[..required].fill(0);return Err(StcpError::Crypto);}
   Ok(required)
  }
  pub fn encrypt(&self,nonce:u64,aad:&[u8],plain:&[u8])->Result<Vec<u8>,StcpError>{let mut out=Vec::new();out.try_reserve_exact(plain.len()+AES_GCM_TAG_LEN).map_err(|_|StcpError::NoMem)?;out.resize(plain.len()+AES_GCM_TAG_LEN,0);let n=self.encrypt_into(nonce,aad,plain,&mut out)?;out.truncate(n);Ok(out)}

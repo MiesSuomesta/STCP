@@ -44,17 +44,26 @@ unsafe extern "C" {
  fn stcp_kernel_aes256_gcm_decrypt(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*const u8,cipher_len:usize,out:*mut u8,out_len:usize)->c_int;
  fn stcp_kernel_aes256_gcm_decrypt_in_place(key:*const u8,nonce:u64,aad:*const u8,aad_len:usize,cipher:*mut u8,cipher_len:usize)->c_int;
 }
+// Explicitly clear temporary key material, including on error paths.
+// Volatile writes prevent the compiler from eliding these stores.
+#[inline(never)]
+fn wipe_secret<const N: usize>(secret: &mut [u8; N]) {
+ for byte in secret.iter_mut() { unsafe { core::ptr::write_volatile(byte, 0); } }
+ core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+}
+
 #[derive(Clone)] pub struct CryptoContext{secret_key:[u8;32],public_key:[u8;64],tx_key:Option<[u8;32]>,rx_key:Option<[u8;32]>,tx_control_key:Option<[u8;32]>,rx_control_key:Option<[u8;32]>}
 impl CryptoContext{
  pub fn new()->Result<Self,StcpError>{let mut secret=[0;32];let mut pub32=[0;32];let r=unsafe{stcp_kernel_x25519_keypair(secret.as_mut_ptr(),pub32.as_mut_ptr())};if r!=0{return Err(StcpError::Kernel(r));}let mut public=[0;64];public[..32].copy_from_slice(&pub32);Ok(Self{secret_key:secret,public_key:public,tx_key:None,rx_key:None,tx_control_key:None,rx_control_key:None})}
  pub const fn public_key(&self)->[u8;64]{self.public_key}
  pub fn derive_session_keys(&mut self,peer:&[u8;64],role:Role)->Result<(),StcpError>{
+  if self.tx_key.is_some() || self.rx_key.is_some() || self.tx_control_key.is_some() || self.rx_control_key.is_some() { return Err(StcpError::InvalidState); }
   crypto_diag_stage_set(30);
   let mut shared=[0u8;32];
   crypto_diag_stage_set(40);
   let r=unsafe{stcp_kernel_x25519_shared(shared.as_mut_ptr(),self.secret_key.as_ptr(),peer.as_ptr())};
   crypto_diag_stage_set(90);
-  if r!=0{return Err(StcpError::Kernel(r));}
+  if r!=0{wipe_secret(&mut shared);return Err(StcpError::Kernel(r));}
 
   let mut local=[0u8;32];
   local.copy_from_slice(&self.public_key[..32]);
@@ -77,7 +86,7 @@ impl CryptoContext{
     s2c.as_mut_ptr()
    )
   };
-  shared.fill(0);
+  wipe_secret(&mut shared);
   local.fill(0);
   remote.fill(0);
 
@@ -150,7 +159,7 @@ impl CryptoContext{
 impl Drop for CryptoContext{fn drop(&mut self){self.secret_key.fill(0);if let Some(k)=&mut self.tx_key{k.fill(0)}if let Some(k)=&mut self.rx_key{k.fill(0)}if let Some(k)=&mut self.tx_control_key{k.fill(0)}if let Some(k)=&mut self.rx_control_key{k.fill(0)}}}
 fn nc(x:&[u8])->*const u8{if x.is_empty(){core::ptr::null()}else{x.as_ptr()}}fn nm(x:&mut[u8])->*mut u8{if x.is_empty(){core::ptr::null_mut()}else{x.as_mut_ptr()}}
 
-pub fn selftest()->Result<(),StcpError>{let mut c=CryptoContext::new()?;let mut s=CryptoContext::new()?;let cp=c.public_key();let sp=s.public_key();c.derive_session_keys(&sp,Role::Client)?;s.derive_session_keys(&cp,Role::Server)?;let aad=b"STCP-selftest";let plain=b"directional session keys";let enc=c.encrypt(0,aad,plain)?;let dec=s.decrypt(0,aad,&enc)?;if dec.as_slice()!=plain{return Err(StcpError::Crypto);}let mut in_place=enc.clone();let n=s.decrypt_in_place(0,aad,&mut in_place)?;in_place.truncate(n);if in_place.as_slice()!=plain{return Err(StcpError::Crypto);}let mut bad=enc.clone();if let Some(x)=bad.last_mut(){*x^=1;}if s.decrypt(0,aad,&bad).is_ok(){return Err(StcpError::Crypto);}if s.decrypt(0,b"wrong-AAD",&enc).is_ok(){return Err(StcpError::Crypto);}if s.decrypt(1,aad,&enc).is_ok(){return Err(StcpError::Crypto);}let mut bad_in_place=bad.clone();if s.decrypt_in_place(0,aad,&mut bad_in_place).is_ok(){return Err(StcpError::Crypto);}if c.decrypt(0,aad,&enc).is_ok(){return Err(StcpError::Crypto);}Ok(())}
+pub fn selftest()->Result<(),StcpError>{let mut c=CryptoContext::new()?;let mut s=CryptoContext::new()?;let cp=c.public_key();let sp=s.public_key();c.derive_session_keys(&sp,Role::Client)?;s.derive_session_keys(&cp,Role::Server)?;if !matches!(c.derive_session_keys(&sp,Role::Client),Err(StcpError::InvalidState)){return Err(StcpError::Crypto);}if !matches!(s.derive_session_keys(&cp,Role::Server),Err(StcpError::InvalidState)){return Err(StcpError::Crypto);}let aad=b"STCP-selftest";let plain=b"directional session keys";let enc=c.encrypt(0,aad,plain)?;let dec=s.decrypt(0,aad,&enc)?;if dec.as_slice()!=plain{return Err(StcpError::Crypto);}let mut in_place=enc.clone();let n=s.decrypt_in_place(0,aad,&mut in_place)?;in_place.truncate(n);if in_place.as_slice()!=plain{return Err(StcpError::Crypto);}let mut bad=enc.clone();if let Some(x)=bad.last_mut(){*x^=1;}if s.decrypt(0,aad,&bad).is_ok(){return Err(StcpError::Crypto);}if s.decrypt(0,b"wrong-AAD",&enc).is_ok(){return Err(StcpError::Crypto);}if s.decrypt(1,aad,&enc).is_ok(){return Err(StcpError::Crypto);}let mut bad_in_place=bad.clone();if s.decrypt_in_place(0,aad,&mut bad_in_place).is_ok(){return Err(StcpError::Crypto);}if c.decrypt(0,aad,&enc).is_ok(){return Err(StcpError::Crypto);}Ok(())}
 
 #[cfg(test)]
 mod control_vectors {

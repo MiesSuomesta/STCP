@@ -539,6 +539,81 @@ pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
     Ok(())
 }
 
+
+/// Test-only deterministic RX injection seam for HB-01/HB-02.
+///
+/// Caller must provide a live Handshake context with an attached carrier and
+/// fully encoded STCP frames, including a valid authenticated DATA frame.
+/// This function does NOT generate keys or bypass authentication. The entire
+/// batch is queued before the real production handshake parser is invoked.
+/// Return: (Ready, remaining queued wire bytes). The test must then drive the
+/// normal established RX path and compare the delivered plaintext exactly.
+/// Do not enable the `stcp_hb_test` feature in release builds.
+#[cfg(feature = "stcp_hb_test")]
+pub fn hb_test_inject_handshake_batch(
+    ctx: &StcpContext,
+    encoded_wire_batch: &[u8],
+) -> Result<(bool, usize), StcpError> {
+    if ctx.inner.lock().state != SocketState::Handshake {
+        return Err(StcpError::InvalidState);
+    }
+    let (shared, side) = connection_for_handshake(ctx)?;
+    let queue = incoming_queue(&shared, side);
+    {
+        let mut wire = queue.lock();
+        // Never overwrite an existing partial frame or unrelated input.
+        if !wire.is_empty() {
+            return Err(StcpError::InvalidState);
+        }
+        wire.push_slice_bounded(encoded_wire_batch, RX_WIRE_BUDGET, RX_CHUNK_LIMIT)?;
+    }
+    // Invoke the actual production parser and crypto state machine.
+    progress_handshake(ctx)?;
+    let ready = ctx.inner.lock().state == SocketState::Ready;
+    let remaining = queue.lock().len();
+    Ok((ready, remaining))
+}
+
+
+/// Test-only HB-01/HB-02 assertion using the production RX path.
+///
+/// Preconditions: `ctx` is an initialized Handshake endpoint; `wire_batch`
+/// contains a real peer PublicKey, HandshakeDone, and authenticated DATA
+/// produced with that peer's negotiated session keys. The caller owns
+/// session creation and fixture generation; this function never bypasses
+/// cryptographic verification or fabricates a Ready state.
+///
+/// Returns the queued DATA byte count and delivered plaintext length.
+#[cfg(feature = "stcp_hb_test")]
+pub fn hb_test_assert_first_data(
+    ctx: &StcpContext,
+    wire_batch: &[u8],
+    expected_plaintext: &[u8],
+) -> Result<(usize, usize), StcpError> {
+    if expected_plaintext.is_empty() {
+        return Err(StcpError::InvalidState);
+    }
+    let (ready, queued_bytes) = hb_test_inject_handshake_batch(ctx, wire_batch)?;
+    if !ready || queued_bytes == 0 {
+        return Err(StcpError::Protocol);
+    }
+    let mut output = Vec::new();
+    output.try_reserve_exact(expected_plaintext.len() + 1)
+        .map_err(|_| StcpError::NoMem)?;
+    output.resize(expected_plaintext.len() + 1, 0);
+    let delivered = recv(ctx, &mut output)?;
+    if delivered != expected_plaintext.len() ||
+        &output[..delivered] != expected_plaintext {
+        return Err(StcpError::Protocol);
+    }
+    // A second receive must not redeliver the first application message.
+    // Other independent incoming application frames are outside this fixture.
+    match recv(ctx, &mut output) {
+        Err(StcpError::Again) => Ok((queued_bytes, delivered)),
+        _ => Err(StcpError::Protocol),
+    }
+}
+
 fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
     crate::carrier::debug_event(302, ctx, 0, 0);
     let (shared, side, public_key) = {

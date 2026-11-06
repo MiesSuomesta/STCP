@@ -686,6 +686,10 @@ fn process_handshake_frames_locked(ctx: &StcpContext) -> Result<(), StcpError> {
         }
  let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
         PacketType::PublicKey => {
+            // A peer may supply its public key only once per handshake.
+            if received_key.is_some() || ctx.inner.lock().crypto.ready() {
+                return Err(StcpError::Protocol);
+            }
             if frame.payload.len()!=PUBLIC_KEY_WIRE_LEN{return Err(StcpError::Protocol);}
             if frame.header.flags & !(FLAG_COMPRESSION_CAPABLE) != 0 { return Err(StcpError::Protocol); }
             if frame.header.flags & FLAG_COMPRESSION_CAPABLE != 0 {
@@ -694,6 +698,10 @@ fn process_handshake_frames_locked(ctx: &StcpContext) -> Result<(), StcpError> {
             let mut key=[0u8;PUBLIC_KEY_WIRE_LEN]; key.copy_from_slice(&frame.payload); crate::crypto::crypto_diag_stage_set(20); received_key=Some(key);
         }
         PacketType::HandshakeDone => {
+            // Reject duplicates within this batch and across parser passes.
+            if received_done || ctx.inner.lock().peer_handshake_done {
+                return Err(StcpError::Protocol);
+            }
             if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
             received_done = true;
 

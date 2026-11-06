@@ -22,6 +22,11 @@ RUSTUP         ?= rustup
 RUST_TOOLCHAIN ?= nightly
 RUST_OBJ_DIR   := $(PWD)/.rust-objects
 RUST_CORE_OBJ  := $(PWD)/src/rust_core.o
+STCP_HAVE_SOCKADDR_UNSIZED := 0
+#STCP_HAVE_SOCKADDR_UNSIZED := $(shell 
+#    grep -A 3 -F '(*connect)' "$(KDIR)/include/linux/net.h" 2>/dev/null | 
+#    grep -q 'struct sockaddr_unsized' && echo 1 || echo 0)
+
 
 ifeq ($(PLATFORM),host)
     ARCH ?= x86_64
@@ -73,8 +78,8 @@ RUST_STATICLIB := $(RUST_OUT_DIR)/libstcp_kernel_core.a
 # struct sockaddr *.  linux/net.h is the authoritative API consumed by this
 # module, so use it as the feature probe.
 STCP_HAVE_SOCKADDR_UNSIZED := $(shell \
-	grep -Eq 'sockaddr_unsized' "$(KDIR)/include/linux/net.h" 2>/dev/null \
-	&& echo 1 || echo 0)
+	sed -n '/(\*connect)/,+3p' "$(KDIR)/include/linux/net.h" 2>/dev/null | \
+	grep -q 'struct sockaddr_unsized' && echo 1 || echo 0)
 KBUILD_STCP_ARGS := STCP_HAVE_SOCKADDR_UNSIZED=$(STCP_HAVE_SOCKADDR_UNSIZED)
 
 KERNEL_RELEASE := $(shell $(MAKE) -sC "$(KDIR)" kernelrelease 2>/dev/null || uname -r)

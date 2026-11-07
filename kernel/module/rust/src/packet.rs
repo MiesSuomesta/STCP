@@ -4,8 +4,8 @@ use crate::error::StcpError;
 
 pub const STCP_MAGIC: [u8; 4] = *b"STCP";
 pub const STCP_VERSION: u8 = 2;
-pub const STCP_HEADER_LEN: usize = 16;
-pub const STCP_PUBLIC_KEY_LEN: usize = 64;
+pub const STCP_HEADER_LEN: usize = 17;
+pub const STCP_PUBLIC_KEY_LEN: usize = 32;
 pub const STCP_NONCE_LEN: usize = 8;
 pub const STCP_AUTH_TAG_LEN: usize = 16;
 pub const STCP_FRAME_PAYLOAD_LEN: usize = 60 * 1024;

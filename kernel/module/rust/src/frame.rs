@@ -22,7 +22,7 @@ pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
  * session before a value can overflow its compact u32 wire representation.
  */
 pub const STCP_HEADER_LEN: usize = 17;
-pub const STCP_PUBLIC_KEY_LEN: usize = 64;
+pub const STCP_PUBLIC_KEY_LEN: usize = 32;
 pub const STCP_NONCE_LEN: usize = 8;
 pub const STCP_AUTH_TAG_LEN: usize = 16;
 pub const STCP_UDP_FRAME_PAYLOAD_LEN: usize = 60 * 1024;

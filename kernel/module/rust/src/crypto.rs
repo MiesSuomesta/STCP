@@ -28,7 +28,7 @@ pub extern "C" fn stcp_rust_crypto_diag_stage_get() -> usize {
     STCP_CRYPTO_DIAG_STAGE.load(Ordering::Relaxed)
 }
 
-pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=64; pub const AES256_KEY_LEN:usize=32; pub const AES_GCM_TAG_LEN:usize=16; pub const NONCE_LEN:usize=8;
+pub const X25519_KEY_LEN:usize=32; pub const PUBLIC_KEY_WIRE_LEN:usize=32; pub const AES256_KEY_LEN:usize=32; pub const AES_GCM_TAG_LEN:usize=16; pub const NONCE_LEN:usize=8;
 #[derive(Clone,Copy,PartialEq,Eq)] pub enum Role{Client,Server}
 unsafe extern "C" {
  fn stcp_kernel_x25519_keypair(secret:*mut u8,public_key:*mut u8)->c_int;
@@ -52,9 +52,9 @@ fn wipe_secret<const N: usize>(secret: &mut [u8; N]) {
  core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 }
 
-#[derive(Clone)] pub struct CryptoContext{secret_key:[u8;32],public_key:[u8;64],tx_key:Option<[u8;32]>,rx_key:Option<[u8;32]>,tx_control_key:Option<[u8;32]>,rx_control_key:Option<[u8;32]>}
+#[derive(Clone)] pub struct CryptoContext{secret_key:[u8;32],public_key:[u8;32],tx_key:Option<[u8;32]>,rx_key:Option<[u8;32]>,tx_control_key:Option<[u8;32]>,rx_control_key:Option<[u8;32]>}
 impl CryptoContext{
- pub fn new()->Result<Self,StcpError>{let mut secret=[0;32];let mut pub32=[0;32];let r=unsafe{stcp_kernel_x25519_keypair(secret.as_mut_ptr(),pub32.as_mut_ptr())};if r!=0{wipe_secret(&mut secret);pub32.fill(0);return Err(StcpError::Crypto);}let mut public=[0;64];public[..32].copy_from_slice(&pub32);Ok(Self{secret_key:secret,public_key:public,tx_key:None,rx_key:None,tx_control_key:None,rx_control_key:None})}
+ pub fn new()->Result<Self,StcpError>{let mut secret=[0;32];let mut pub32=[0;32];let r=unsafe{stcp_kernel_x25519_keypair(secret.as_mut_ptr(),pub32.as_mut_ptr())};if r!=0{wipe_secret(&mut secret);pub32.fill(0);return Err(StcpError::Crypto);}let public=pub32;Ok(Self{secret_key:secret,public_key:public,tx_key:None,rx_key:None,tx_control_key:None,rx_control_key:None})}
  pub fn invalidate(&mut self) {
   wipe_secret(&mut self.secret_key);
   if let Some(mut key)=self.tx_key.take(){wipe_secret(&mut key);}
@@ -62,8 +62,8 @@ impl CryptoContext{
   if let Some(mut key)=self.tx_control_key.take(){wipe_secret(&mut key);}
   if let Some(mut key)=self.rx_control_key.take(){wipe_secret(&mut key);}
  }
- pub const fn public_key(&self)->[u8;64]{self.public_key}
- pub fn derive_session_keys(&mut self,peer:&[u8;64],role:Role)->Result<(),StcpError>{
+ pub const fn public_key(&self)->[u8;32]{self.public_key}
+ pub fn derive_session_keys(&mut self,peer:&[u8;32],role:Role)->Result<(),StcpError>{
   if self.tx_key.is_some() || self.rx_key.is_some() || self.tx_control_key.is_some() || self.rx_control_key.is_some() { return Err(StcpError::InvalidState); }
   crypto_diag_stage_set(30);
   let mut shared=[0u8;32];
@@ -73,9 +73,9 @@ impl CryptoContext{
   if r!=0{wipe_secret(&mut shared);return Err(StcpError::Crypto);}
 
   let mut local=[0u8;32];
-  local.copy_from_slice(&self.public_key[..32]);
+  local.copy_from_slice(&self.public_key);
   let mut remote=[0u8;32];
-  remote.copy_from_slice(&peer[..32]);
+  remote.copy_from_slice(&peer[..]);
 
   let (client_pub,server_pub)=match role{
    Role::Client=>(&local,&remote),

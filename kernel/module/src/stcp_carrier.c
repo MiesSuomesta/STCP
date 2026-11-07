@@ -560,8 +560,25 @@ static int stcp_receiver_thread(void *argument)
 		}
 
 		cond_resched();
-		if (ret)
-			pr_err_ratelimited("stcp: Rust carrier receive failed: %d\n", ret);
+
+                if (ret) {
+                        pr_err_ratelimited("stcp: Rust carrier receive failed: %d\n", ret);
+                
+                        if (carrier->kind == STCP_CARRIER_TCP &&
+                            ret != -EAGAIN && ret != -ENOMEM) {
+                                stcp_carrier_record_terminal_error(carrier, ret);
+                
+                                /*
+                                 * The receiver task must remain alive until
+                                 * kthread_stop() performs the authoritative stop.
+                                 */
+                                while (!kthread_should_stop())
+                                        schedule_timeout_interruptible(
+                                                msecs_to_jiffies(100) ?: 1);
+                
+                                break;
+                        }
+                }
 
 		/* Rust queue_to_context() performs the normal wake.  Keep only the
 		 * pre-attachment fallback used during handshake/accept. */

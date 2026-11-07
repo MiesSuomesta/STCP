@@ -196,5 +196,5 @@ module_init(stcp_module_init);
 module_exit(stcp_module_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("STCPv2");
+MODULE_AUTHOR("STCP");
 MODULE_DESCRIPTION("Rust-backed STCP BSD socket loopback implementation");

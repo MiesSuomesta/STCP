@@ -1,0 +1,1973 @@
+use alloc::{
+    boxed::Box,
+    collections::VecDeque,
+    vec::Vec,
+};
+
+use core::{
+    ptr,
+    sync::atomic::Ordering,
+};
+
+#[cfg(target_has_atomic = "64")]
+use core::sync::atomic::AtomicU64;
+
+#[cfg(not(target_has_atomic = "64"))]
+use core::sync::atomic::AtomicU32;
+
+use crate::{
+    crypto::{
+        AES_GCM_TAG_LEN,
+        NONCE_LEN,
+        PUBLIC_KEY_WIRE_LEN,
+    },
+    carrier::{
+        incoming_queue,
+        wake_accept,
+        wake_recv,
+    },
+    byte_queue::{ByteQueue, RX_WIRE_BUDGET, RX_APP_BUDGET, RX_REORDER_BUDGET, RX_CHUNK_LIMIT, RX_FRAME_DATA_LIMIT},
+    error::StcpError,
+    frame::{
+        encode_frame,
+        Header,
+        PacketType,
+        FLAG_COMPRESSED,
+        FLAG_COMPRESSION_CAPABLE,
+        STCP_FRAME_PAYLOAD_LEN,
+        STCP_STREAM_FRAME_PAYLOAD_LEN,
+        STCP_UDP_FRAME_PAYLOAD_LEN,
+        STCP_HEADER_LEN,
+    },
+    spinlock::SpinLock,
+    state::{
+        Address,
+        Connection,
+        EndpointConnection,
+        Side,
+        SocketState,
+        BufferedFrame,
+        PendingFrame,
+        StcpContext,
+    },
+};
+
+#[derive(Clone, Copy)]
+struct ListenerEntry {
+    address: Address,
+    ctx: usize,
+}
+
+static LISTENERS: SpinLock<Vec<ListenerEntry>> =
+    SpinLock::new(Vec::new());
+
+#[cfg(target_has_atomic = "64")]
+static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
+
+#[cfg(not(target_has_atomic = "64"))]
+static NEXT_CONNECTION_ID: AtomicU32 = AtomicU32::new(1);
+
+#[inline]
+fn next_connection_id() -> u64 {
+    #[cfg(target_has_atomic = "64")]
+    {
+        let id = NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+        if id == 0 {
+            return NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+        }
+        id
+    }
+
+    #[cfg(not(target_has_atomic = "64"))]
+    {
+        /*
+         * ARMv8-M Mainline guarantees 32-bit atomics, but not 64-bit atomics.
+         * The STCP wire field remains u64; Zephyr uses a monotonically
+         * increasing 32-bit local ID widened to u64. Zero remains reserved.
+         */
+        let id = NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+        if id == 0 {
+            return NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed) as u64;
+        }
+        id as u64
+    }
+}
+
+unsafe extern "C" {
+    fn stcp_carrier_destroy(carrier: *mut core::ffi::c_void);
+}
+
+
+
+struct ParserGuard<'a> { ctx: &'a StcpContext }
+impl Drop for ParserGuard<'_> { fn drop(&mut self) { self.ctx.parser_busy.store(false, Ordering::Release); } }
+fn try_parser_guard(ctx: &StcpContext) -> Option<ParserGuard<'_>> {
+    ctx.parser_busy.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).ok().map(|_| ParserGuard { ctx })
+}
+struct WireFrame { header: Header, payload: Vec<u8> }
+fn extract_next_wire_frame(ctx: &StcpContext, queue: &SpinLock<ByteQueue>) -> Result<Option<WireFrame>, StcpError> {
+    check_rx_deadline(ctx)?;
+    let mut retries = 0usize;
+    loop {
+        retries = retries.saturating_add(1);
+        if retries > 1024 {
+            crate::carrier::debug_event(208, ctx, retries, queue.lock().len());
+            return Err(StcpError::Protocol);
+        }
+        let header = {
+            let mut wire = queue.lock();
+            if wire.len() < STCP_HEADER_LEN {
+                let partial = !wire.is_empty(); drop(wire);
+                observe_partial_frame(ctx, partial);
+                return Ok(None);
+            }
+            let header = match peek_header(&wire) {
+                Ok(header) => header,
+                Err(StcpError::Again) => return Ok(None),
+                Err(StcpError::Protocol) => { wire.discard(1); continue; }
+                Err(error) => return Err(error),
+            };
+            if matches!(header.packet_type, PacketType::DataChunk | PacketType::DataChunkEnd) &&
+               header.payload_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) + NONCE_LEN + AES_GCM_TAG_LEN + 10 {
+                crate::carrier::debug_event(952, ctx, header.payload_len, frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT));
+                return Err(StcpError::Kernel(-105));
+            }
+            let frame_len = STCP_HEADER_LEN.checked_add(header.payload_len).ok_or(StcpError::Protocol)?;
+            if wire.len() < frame_len {
+                drop(wire); observe_partial_frame(ctx, true); return Ok(None);
+            }
+            header
+        };
+        crate::carrier::debug_event(203, ctx, header.packet_type as usize, header.payload_len);
+        if pause_for_tcp_frame(ctx, &header) { return Ok(None); }
+        if matches!(header.packet_type, PacketType::DataChunk | PacketType::DataChunkEnd) {
+            let mut inner = ctx.inner.lock();
+            if header.sequence == inner.expected_rx_sequence &&
+               inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) != 0 {
+                inner.rx_app_data.reserve_owned_slot()?;
+            }
+        }
+        let payload = {
+            let mut wire = queue.lock();
+            let current = peek_header(&wire)?;
+            if current.packet_type != header.packet_type || current.payload_len != header.payload_len || current.sequence != header.sequence || current.acknowledgment != header.acknowledgment || current.connection_id != header.connection_id {
+                continue;
+            }
+            wire.take_after_prefix(STCP_HEADER_LEN, header.payload_len)?
+        };
+        observe_partial_frame(ctx, false);
+        return Ok(Some(WireFrame { header, payload }));
+    }
+}
+
+/* STCP-UDP: allow up to 16 unacknowledged frames. Actual admission is
+ * additionally limited by the shared TX/RX/crypto frame buffer pool. */
+const STCP_SEND_WINDOW: usize = 16;
+const STCP_ACK_EVERY_FRAMES: u8 = 4;
+const STCP_MAX_RETRANSMIT_PER_TICK: usize = 4;
+const STCP_TICK_MS: u32 = 20;
+const STCP_INITIAL_RTO_MS: u32 = 60;
+const STCP_MIN_RTO_MS: u32 = 20;
+const STCP_MAX_RTO_MS: u32 = 3_000;
+const STCP_MAX_RETRIES: u8 = 8;
+
+fn ms_to_ticks(ms: u32) -> u32 {
+    ms.saturating_add(STCP_TICK_MS - 1) / STCP_TICK_MS
+}
+
+fn clamp_rto(ms: u32) -> u32 {
+    ms.clamp(STCP_MIN_RTO_MS, STCP_MAX_RTO_MS)
+}
+
+fn update_rtt_estimator(inner: &mut crate::state::ContextInner, sample_ms: u32) {
+    let sample_ms = sample_ms.max(1);
+
+    match inner.srtt_ms {
+        None => {
+            inner.srtt_ms = Some(sample_ms);
+            inner.rttvar_ms = (sample_ms / 2).max(1);
+        }
+        Some(srtt) => {
+            let error = srtt.abs_diff(sample_ms);
+            inner.rttvar_ms = ((3 * inner.rttvar_ms) + error) / 4;
+            inner.srtt_ms = Some(((7 * srtt) + sample_ms) / 8);
+        }
+    }
+
+    let srtt = inner.srtt_ms.unwrap_or(sample_ms);
+    inner.rto_ms = clamp_rto(
+        srtt.saturating_add(4u32.saturating_mul(inner.rttvar_ms)),
+    );
+    inner.stats.rtt_samples = inner.stats.rtt_samples.saturating_add(1);
+}
+
+fn reset_reliability(inner: &mut crate::state::ContextInner) {
+    inner.srtt_ms = None;
+    inner.rttvar_ms = 0;
+    inner.rto_ms = STCP_INITIAL_RTO_MS;
+    inner.last_ack_sent = None;
+    inner.rx_frames_since_ack = 0;
+    inner.stats = crate::state::ReliabilityStats::new();
+}
+
+fn connection_id(ctx: &StcpContext) -> u64 {
+    ctx.inner.lock().connection_id
+}
+
+pub fn set_owner(ctx: &StcpContext, owner: usize) {
+    let mut inner = ctx.inner.lock();
+    inner.owner = owner;
+
+    if let Some(endpoint) = &inner.connection {
+        endpoint.shared.set_owner(endpoint.side, owner);
+    }
+}
+
+fn send_frame(
+    ctx: &StcpContext,
+    shared: &crate::state::SharedConnection,
+    side: Side,
+    frame: &[u8],
+    flags: i32,
+) -> Result<(), StcpError> {
+    let (carrier_ptr, connection_id) = {
+        let inner = ctx.inner.lock();
+        (inner.carrier, inner.connection_id)
+    };
+
+    if frame.len() < STCP_HEADER_LEN {
+        return Err(StcpError::Protocol);
+    }
+
+    /* Frames are encoded with the final connection id. Avoid a full-frame copy. */
+    let _ = connection_id;
+    crate::carrier::transmit(
+        shared,
+        side,
+        carrier_ptr,
+        frame,
+        flags,
+    )
+}
+
+pub fn bind(
+    ctx: &StcpContext,
+    addr: u32,
+    port: u16,
+) -> Result<(), StcpError> {
+    let mut inner = ctx.inner.lock();
+
+    if inner.state != SocketState::New {
+        return Err(StcpError::InvalidState);
+    }
+
+    inner.local = Some(Address { addr, port });
+    inner.state = SocketState::Bound;
+
+    Ok(())
+}
+
+pub fn listen(
+    ctx: &StcpContext,
+    backlog: i32,
+) -> Result<(), StcpError> {
+    let address = {
+        let inner = ctx.inner.lock();
+
+        if inner.state != SocketState::Bound {
+            return Err(StcpError::InvalidState);
+        }
+
+        inner.local.ok_or(StcpError::InvalidState)?
+    };
+
+    let ctx_ptr = ptr::from_ref(ctx) as usize;
+    let mut listeners = LISTENERS.lock();
+
+    if listeners.iter().any(|entry| entry.address == address) {
+        return Err(StcpError::AddressInUse);
+    }
+
+    // Do not publish Listening until registration can complete without allocation.
+    listeners.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+    let mut inner = ctx.inner.lock();
+    if inner.state != SocketState::Bound {
+        return Err(StcpError::InvalidState);
+    }
+    inner.backlog = backlog.max(1) as usize;
+    inner.state = SocketState::Listening;
+    listeners.push(ListenerEntry {
+        address,
+        ctx: ctx_ptr,
+    });
+    drop(inner);
+
+    Ok(())
+}
+
+pub fn connect(
+    ctx: &StcpContext,
+    addr: u32,
+    port: u16,
+) -> Result<(), StcpError> {
+    {
+        let inner = ctx.inner.lock();
+
+        if inner.state != SocketState::New &&
+           inner.state != SocketState::Bound
+        {
+            return Err(StcpError::InvalidState);
+        }
+    }
+
+    let target = Address { addr, port };
+    let shared = crate::state::SharedConnection::try_new(Connection::new())?;
+
+    /*
+     * External carrier mode (Zephyr and remote Linux peers). The C adapter
+     * has already connected the native TCP/UDP socket and attached it with
+     * stcp_rust_set_carrier(). In this mode the Rust core must not search the
+     * process-local LISTENERS registry; it creates the endpoint state and
+     * performs the normal wire handshake over the attached carrier.
+     */
+    if ctx.inner.lock().carrier != 0 {
+        let mut inner = ctx.inner.lock();
+        inner.peer = Some(target);
+        if ctx.proto == 254 && inner.connection_id == 0 {
+            inner.connection_id = next_connection_id();
+        }
+        inner.state = SocketState::Handshake;
+        inner.connection = Some(EndpointConnection {
+            shared: shared.clone(),
+            side: Side::A,
+        });
+        inner.tx_nonce = 0;
+        inner.expected_rx_nonce = 0;
+        inner.tx_sequence = 0;
+        inner.expected_rx_sequence = 0;
+        inner.highest_acked_sequence = None;
+        reset_reliability(&mut inner);
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
+        inner.last_rx_sequence = None;
+        shared.set_owner(Side::A, inner.owner);
+        return Ok(());
+    }
+
+    /*
+     * UDP is connectionless at the carrier layer. The client must not create
+     * or enqueue a server child through the in-kernel listener registry.
+     *
+     * The client sends the first PublicKey datagram with a fresh connection
+     * ID. The UDP listener creates the server child only when that datagram is
+     * received, because only then are the real peer address and port known.
+     */
+    if ctx.proto == 254 {
+        let mut inner = ctx.inner.lock();
+
+        inner.peer = Some(target);
+
+        if inner.connection_id == 0 {
+            inner.connection_id = next_connection_id();
+        }
+
+        inner.state = SocketState::Handshake;
+        inner.connection = Some(EndpointConnection {
+            shared: shared.clone(),
+            side: Side::A,
+        });
+
+        inner.tx_nonce = 0;
+        inner.expected_rx_nonce = 0;
+        inner.tx_sequence = 0;
+        inner.expected_rx_sequence = 0;
+        inner.highest_acked_sequence = None;
+        reset_reliability(&mut inner);
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
+        inner.last_rx_sequence = None;
+
+        shared.set_owner(Side::A, inner.owner);
+        return Ok(());
+    }
+
+    /*
+     * The existing in-kernel paired transport path is retained for the
+     * non-UDP test/backend implementation.
+     */
+    let listener_ptr = {
+        let listeners = LISTENERS.lock();
+
+        listeners
+            .iter()
+            .find(|entry| entry.address == target)
+            .map(|entry| entry.ctx)
+            .ok_or(StcpError::ConnectionRefused)?
+    };
+
+
+    let client_local = {
+        let inner = ctx.inner.lock();
+        inner.local.unwrap_or(Address { addr: 0, port: 0 })
+    };
+
+    let child_ctx = StcpContext::connected_child(
+        ctx.proto,
+        target,
+        client_local,
+        shared.clone(),
+    )?;
+
+    let child = crate::state::try_box_context(child_ctx)?;
+
+    // Construction may allocate or yield. Revalidate the registry before
+    // borrowing its raw pointer, and keep it locked through publication/wake.
+    // release() unregisters before freeing the listener or its C owner.
+    let listeners = LISTENERS.lock();
+    if !listeners.iter().any(|entry| entry.ctx == listener_ptr && entry.address == target) {
+        return Err(StcpError::ConnectionRefused);
+    }
+    let listener = unsafe { &*(listener_ptr as *const StcpContext) };
+
+
+    let listener_owner = {
+        let mut inner = listener.inner.lock();
+
+        if inner.state != SocketState::Listening {
+            return Err(StcpError::ConnectionRefused);
+        }
+
+        if inner.accept_queue.len() >= inner.backlog {
+            return Err(StcpError::Again);
+        }
+
+        // Every failure precedes client state and queue publication.
+        inner.accept_queue.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+
+        {
+            let mut inner = ctx.inner.lock();
+            if inner.state != SocketState::New && inner.state != SocketState::Bound {
+                return Err(StcpError::InvalidState);
+            }
+
+            inner.peer = Some(target);
+            inner.state = SocketState::Handshake;
+            inner.connection = Some(EndpointConnection {
+                shared: shared.clone(),
+                side: Side::A,
+            });
+
+            inner.tx_nonce = 0;
+            inner.expected_rx_nonce = 0;
+            inner.tx_sequence = 0;
+            inner.expected_rx_sequence = 0;
+            inner.highest_acked_sequence = None;
+            reset_reliability(&mut inner);
+            inner.pending_frames.clear();
+            inner.out_of_order_frames.clear();
+            inner.last_rx_sequence = None;
+            shared.set_owner(Side::A, inner.owner);
+        }
+
+        inner.accept_queue.push_back(child);
+        inner.owner
+    };
+
+    wake_accept(listener_owner);
+    drop(listeners);
+    Ok(())
+}
+
+pub fn start_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
+    {
+        let inner = ctx.inner.lock();
+        crate::carrier::debug_event(260, ctx, inner.state as usize, inner.carrier);
+
+        if inner.state != SocketState::Handshake {
+            return Err(StcpError::InvalidState);
+        }
+
+        if inner.carrier == 0 {
+            return Err(StcpError::Kernel(-107));
+        }
+    }
+
+    let result = send_public_key(ctx);
+    crate::carrier::debug_event(261, ctx, result.is_ok() as usize, 0);
+    result
+}
+
+pub fn progress_handshake(ctx: &StcpContext) -> Result<(), StcpError> {
+    check_rx_deadline(ctx)?;
+    let state = ctx.inner.lock().state;
+
+    if state == SocketState::Handshake {
+        finish_handshake_result(ctx, finish_rx_result(ctx, process_handshake_frames(ctx)))?;
+    }
+
+    Ok(())
+}
+
+
+/// Test-only deterministic RX injection seam for HB-01/HB-02.
+///
+/// Caller must provide a live Handshake context with an attached carrier and
+/// fully encoded STCP frames, including a valid authenticated DATA frame.
+/// This function does NOT generate keys or bypass authentication. The entire
+/// batch is queued before the real production handshake parser is invoked.
+/// Return: (Ready, remaining queued wire bytes). The test must then drive the
+/// normal established RX path and compare the delivered plaintext exactly.
+/// Do not enable the `stcp_hb_test` feature in release builds.
+#[cfg(feature = "stcp_hb_test")]
+pub fn hb_test_inject_handshake_batch(
+    ctx: &StcpContext,
+    encoded_wire_batch: &[u8],
+) -> Result<(bool, usize), StcpError> {
+    if ctx.inner.lock().state != SocketState::Handshake {
+        return Err(StcpError::InvalidState);
+    }
+    let (shared, side) = connection_for_handshake(ctx)?;
+    let queue = incoming_queue(&shared, side);
+    {
+        let mut wire = queue.lock();
+        // Never overwrite an existing partial frame or unrelated input.
+        if !wire.is_empty() {
+            return Err(StcpError::InvalidState);
+        }
+        wire.push_slice_bounded(encoded_wire_batch, RX_WIRE_BUDGET, RX_CHUNK_LIMIT)?;
+    }
+    // Invoke the actual production parser and crypto state machine.
+    progress_handshake(ctx)?;
+    let ready = ctx.inner.lock().state == SocketState::Ready;
+    let remaining = queue.lock().len();
+    Ok((ready, remaining))
+}
+
+
+/// Test-only HB-01/HB-02 assertion using the production RX path.
+///
+/// Preconditions: `ctx` is an initialized Handshake endpoint; `wire_batch`
+/// contains a real peer PublicKey, HandshakeDone, and authenticated DATA
+/// produced with that peer's negotiated session keys. The caller owns
+/// session creation and fixture generation; this function never bypasses
+/// cryptographic verification or fabricates a Ready state.
+///
+/// Returns the queued DATA byte count and delivered plaintext length.
+#[cfg(feature = "stcp_hb_test")]
+pub fn hb_test_assert_first_data(
+    ctx: &StcpContext,
+    wire_batch: &[u8],
+    expected_plaintext: &[u8],
+) -> Result<(usize, usize), StcpError> {
+    if expected_plaintext.is_empty() {
+        return Err(StcpError::InvalidState);
+    }
+    let (ready, queued_bytes) = hb_test_inject_handshake_batch(ctx, wire_batch)?;
+    if !ready || queued_bytes == 0 {
+        return Err(StcpError::Protocol);
+    }
+    let mut output = Vec::new();
+    output.try_reserve_exact(expected_plaintext.len() + 1)
+        .map_err(|_| StcpError::NoMem)?;
+    output.resize(expected_plaintext.len() + 1, 0);
+    let delivered = recv(ctx, &mut output)?;
+    if delivered != expected_plaintext.len() ||
+        &output[..delivered] != expected_plaintext {
+        return Err(StcpError::Protocol);
+    }
+    // A second receive must not redeliver the first application message.
+    // Other independent incoming application frames are outside this fixture.
+    match recv(ctx, &mut output) {
+        Err(StcpError::Again) => Ok((queued_bytes, delivered)),
+        _ => Err(StcpError::Protocol),
+    }
+}
+
+fn send_public_key(ctx: &StcpContext) -> Result<(), StcpError> {
+    let (shared, side, public_key) = {
+        let inner = ctx.inner.lock();
+
+        if inner.state != SocketState::Handshake {
+            return Err(StcpError::InvalidState);
+        }
+
+        let endpoint = inner
+            .connection
+            .as_ref()
+            .ok_or(StcpError::InvalidState)?;
+
+        (
+            endpoint.shared.clone(),
+            endpoint.side,
+            inner.crypto.public_key(),
+        )
+    };
+
+    let mut header = Header::with_numbers(
+        PacketType::PublicKey, public_key.len(), 0, 0, connection_id(ctx),
+    )?;
+    // Capability means RX can decode LZ4, not that TX compression is enabled.
+    header.flags |= FLAG_COMPRESSION_CAPABLE;
+    let mut frame = Vec::new();
+    frame.try_reserve_exact(STCP_HEADER_LEN + public_key.len())
+        .map_err(|_| StcpError::NoMem)?;
+    frame.extend_from_slice(&header.encode());
+    frame.extend_from_slice(&public_key);
+
+    send_frame(ctx, &shared, side, &frame, 0)?;
+    Ok(())
+}
+
+fn process_handshake_frames(ctx: &StcpContext) -> Result<(), StcpError> {
+    crate::carrier::debug_event(262, ctx, 0, 0);
+    let Some(_guard)=try_parser_guard(ctx) else { crate::carrier::debug_event(209,ctx,1,0); return Ok(()); };
+    let (shared,side)=connection_for_handshake(ctx)?; let queue=incoming_queue(&shared,side);
+    let mut received_key:Option<[u8;PUBLIC_KEY_WIRE_LEN]>=None; let mut received_done=false;
+    loop {
+        // Once the peer key and HandshakeDone have been received, leave any
+        // following DATA in the queue for the established-session RX path.
+        // HandshakeDone may arrive before PublicKey, including in an earlier
+        // parser pass, so include the persisted handshake state.
+        let have_handshake_inputs = {
+            let inner = ctx.inner.lock();
+            (received_done || inner.peer_handshake_done) &&
+                (received_key.is_some() || inner.crypto.ready())
+        };
+        if have_handshake_inputs {
+            break;
+        }
+        let Some(frame)=extract_next_wire_frame(ctx,queue)? else { break; }; match frame.header.packet_type {
+        PacketType::PublicKey => {
+            // A peer may supply its public key only once per handshake.
+            if received_key.is_some() || ctx.inner.lock().crypto.ready() {
+                return Err(StcpError::Protocol);
+            }
+            if frame.header.flags & !FLAG_COMPRESSION_CAPABLE != 0 { return Err(StcpError::Protocol); }
+            if frame.payload.len() != PUBLIC_KEY_WIRE_LEN { return Err(StcpError::Protocol); }
+            ctx.inner.lock().peer_compression_capable =
+                frame.header.flags & FLAG_COMPRESSION_CAPABLE != 0;
+            crate::carrier::debug_event(263, ctx, frame.payload.len(), 0);
+            let mut key = [0u8; PUBLIC_KEY_WIRE_LEN];
+            key.copy_from_slice(&frame.payload);
+            received_key = Some(key);
+        }
+        PacketType::HandshakeDone => {
+            // Reject duplicates within this batch and across parser passes.
+            if received_done || ctx.inner.lock().peer_handshake_done {
+                return Err(StcpError::Protocol);
+            }
+            if !frame.payload.is_empty() { return Err(StcpError::Protocol); }
+            received_done = true;
+        }
+        _ => { crate::carrier::debug_event(206,ctx,frame.header.packet_type as usize,frame.payload.len()); return Err(StcpError::Protocol); }
+    }}
+    if let Some(key)=received_key {
+
+        let (role, mut crypto) = {
+            let inner = ctx.inner.lock();
+            let role = inner.role;
+            crate::carrier::debug_event(264, ctx, role as usize, 0);
+            (role, inner.crypto.clone())
+        };
+
+        // A cryptographic failure is fatal; never retry this handshake.
+        if crypto.derive_session_keys(&key, role).is_err() {
+            return Err(StcpError::Protocol);
+        }
+
+        {
+            let mut inner = ctx.inner.lock();
+            // Crypto was derived outside the spinlock. Never publish keys to
+            // a socket that closed, failed, or already installed its keys.
+            if inner.state != SocketState::Handshake || inner.crypto.ready()
+                || inner.crypto.public_key() != crypto.public_key() {
+                return Err(StcpError::Protocol);
+            }
+            inner.crypto = crypto;
+            crate::carrier::debug_event(265, ctx, role as usize, 0);
+        }
+
+        let done=encode_frame(PacketType::HandshakeDone,connection_id(ctx),&[])?;
+        crate::carrier::debug_event(266,ctx,done.len(),0);
+        send_frame(ctx,&shared,side,&done,0)?;
+        crate::carrier::debug_event(267,ctx,done.len(),0);
+    }
+    {
+        let mut inner = ctx.inner.lock();
+
+        if received_done {
+            inner.peer_handshake_done = true;
+            crate::carrier::debug_event(251, ctx, 1, 0);
+        }
+
+        /*
+         * The local crypto context becoming ready only means that we have
+         * received and processed the peer public key.  It does NOT mean that
+         * the peer has finished installing its keys and accepted our
+         * HandshakeDone frame yet.
+         *
+         * Marking the socket Ready at that earlier point created an
+         * intermittent first-DATA race: connect() returned success and the
+         * client sent application bytes while the accepted child was still in
+         * Handshake.  The first frame could then be consumed as a handshake
+         * frame or left unprocessed until both userspace peers timed out.
+         */
+        if inner.crypto.ready() && inner.peer_handshake_done {
+            if inner.state != SocketState::Ready {
+                inner.state = SocketState::Ready;
+                crate::carrier::debug_event(252, ctx, 1, 0);
+            }
+        } else {
+            crate::carrier::debug_event(
+                250,
+                ctx,
+                inner.crypto.ready() as usize,
+                inner.peer_handshake_done as usize,
+            );
+        }
+    }
+    Ok(())
+}
+
+pub fn accept(
+    ctx: &StcpContext,
+) -> Result<Box<StcpContext>, StcpError> {
+    let mut inner = ctx.inner.lock();
+
+    if inner.state != SocketState::Listening {
+        return Err(StcpError::InvalidState);
+    }
+
+    inner
+        .accept_queue
+        .pop_front()
+        .ok_or(StcpError::Again)
+}
+
+#[inline]
+fn frame_payload_len(ctx: &StcpContext) -> usize {
+    if ctx.proto == 254 {
+        STCP_UDP_FRAME_PAYLOAD_LEN.min(1024)
+    } else {
+        STCP_STREAM_FRAME_PAYLOAD_LEN
+    }
+}
+
+// A terminal socket must not be mistaken for temporary TX backpressure.
+// Snapshot under the state lock; never advance parsing while holding it.
+fn terminal_send_error(ctx: &StcpContext) -> Option<StcpError> {
+    let inner = ctx.inner.lock();
+    if inner.rx_terminal_errno != 0 {
+        Some(StcpError::Kernel(inner.rx_terminal_errno))
+    } else if matches!(inner.state, SocketState::Closed | SocketState::Error) || inner.peer_eof {
+        Some(StcpError::Closed)
+    } else {
+        None
+    }
+}
+
+// C readiness: positive = sendable, zero = retry, negative = terminal errno.
+// Check again after can_send(), which may process authenticated controls.
+pub fn send_ready(ctx: &StcpContext, data_len: usize) -> Result<bool, StcpError> {
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    let ready = can_send(ctx, data_len);
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    Ok(ready)
+}
+
+pub fn can_send(ctx: &StcpContext, data_len: usize) -> bool {
+    if progress_handshake(ctx).is_err() {
+        return false;
+    }
+
+    /* TCP already provides reliable ordered delivery and has no STCP ACK
+     * window to drain. Avoid running the RX parser on every TX readiness
+     * query; recv() owns parsing on the stream fast path. */
+    let carrier_ptr = ctx.inner.lock().carrier;
+    let reliable = crate::carrier::reliability_required(carrier_ptr);
+    if reliable && process_control_frames(ctx).is_err() {
+        return false;
+    }
+
+    let data_len = if reliable { data_len.min(1024) } else { data_len };
+    let frame_count = if data_len == 0 {
+        0
+    } else {
+        data_len.div_ceil(frame_payload_len(ctx))
+    };
+
+    // TX_POOL_ADMISSION_FIX: poll readiness includes actual buffer capacity.
+    if reliable && !crate::allocator::tx_pool_ready(frame_count) { return false; }
+    let inner = ctx.inner.lock();
+    inner.state == SocketState::Ready &&
+        inner.pending_frames.len() + frame_count <= STCP_SEND_WINDOW
+}
+
+// Failure-only observation; does not alter the result or socket state.
+fn send_stage<T>(ctx: &StcpContext, stage: usize,
+                 result: Result<T, StcpError>) -> Result<T, StcpError> {
+    if let Err(error) = &result {
+        if error.errno() != -11 {
+            crate::carrier::debug_event(920, ctx, stage, (-error.errno()) as usize);
+        }
+    }
+    result
+}
+
+pub fn send(
+    ctx: &StcpContext,
+    data: &[u8],
+) -> Result<usize, StcpError> {
+    send_stage(ctx, 1, progress_handshake(ctx))?;
+
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    if !is_ready(ctx) {
+        return Err(StcpError::Again);
+    }
+
+    let carrier_ptr = ctx.inner.lock().carrier;
+    let reliable = crate::carrier::reliability_required(carrier_ptr);
+
+    if reliable {
+        send_stage(ctx, 2, process_control_frames(ctx))?;
+    }
+
+    if let Some(error) = terminal_send_error(ctx) { return Err(error); }
+    let (shared, side) = ready_connection(ctx)?;
+
+    if shared.peer_closed(side) {
+        return Err(StcpError::Closed);
+    }
+
+    let data = if reliable { &data[..data.len().min(1024)] } else { data };
+    let frame_count = if data.is_empty() {
+        0
+    } else {
+        data.len().div_ceil(frame_payload_len(ctx))
+    };
+
+    if reliable {
+        let inner = ctx.inner.lock();
+        if inner.pending_frames.len() + frame_count > STCP_SEND_WINDOW {
+            return Err(StcpError::Again);
+        }
+    }
+
+    let _pool_reservation = if reliable {
+        Some(crate::allocator::TxPoolReservation::acquire(frame_count)?)
+    } else { None };
+    let payload_limit = frame_payload_len(ctx);
+    let mut position = 0usize;
+
+    while position < data.len() {
+        let end = (position + payload_limit).min(data.len());
+        let packet_type = if end == data.len() {
+            PacketType::DataChunkEnd
+        } else {
+            PacketType::DataChunk
+        };
+        let plaintext = &data[position..end];
+
+        /*
+         * Snapshot immutable crypto/state under the short socket lock. The C
+         * tx_lock serializes sends for this socket, so allocation and ChaCha
+         * can run without holding the Rust spinlock for several milliseconds.
+         */
+        let (sequence, nonce, acknowledgment, connection_id, crypto) = {
+            let inner = ctx.inner.lock();
+            if inner.state != SocketState::Ready {
+                return Err(StcpError::InvalidState);
+            }
+            (
+                inner.tx_sequence,
+                inner.tx_nonce,
+                inner.last_rx_sequence.unwrap_or(0),
+                inner.connection_id,
+                inner.crypto.clone(),
+            )
+        };
+
+        let (compression_level, peer_capable) = {
+            let inner = ctx.inner.lock();
+            (inner.compression_level, inner.peer_compression_capable)
+        };
+        let mut compressed_storage = Vec::new();
+        let mut wire_plaintext = plaintext;
+        let mut compressed = false;
+        if peer_capable && compression_level >= 0 && plaintext.len() >= 64 {
+            let selected = if compression_level == 0 {
+                crate::compression::auto_sample_level(plaintext)
+            } else {
+                crate::compression::CompressionLevel::from_u32(compression_level as u32)
+            };
+            if let Some(level) = selected {
+                let mut prefix = [0u8; 10];
+                let prefix_len = crate::compression::encode_uvarint(plaintext.len(), &mut prefix);
+                if let Ok(candidate) = crate::compression::compress_block_with_prefix(
+                    plaintext, level, &prefix[..prefix_len],
+                ) {
+                    if candidate.len() < plaintext.len() {
+                        compressed_storage = candidate;
+                        wire_plaintext = &compressed_storage;
+                        compressed = true;
+                    }
+                }
+            }
+        }
+        let encrypted_len = wire_plaintext
+            .len()
+            .checked_add(AES_GCM_TAG_LEN)
+            .ok_or(StcpError::Protocol)?;
+        let payload_len = NONCE_LEN
+            .checked_add(encrypted_len)
+            .ok_or(StcpError::Protocol)?;
+        let mut header_value = Header::with_numbers(
+            packet_type, payload_len, sequence, acknowledgment, connection_id,
+        )?;
+        if compressed { header_value.flags |= FLAG_COMPRESSED; }
+        let header = header_value.encode();
+        let frame_len = STCP_HEADER_LEN
+            .checked_add(NONCE_LEN)
+            .and_then(|value| value.checked_add(encrypted_len))
+            .ok_or(StcpError::Protocol)?;
+        /*
+         * TCP fast path reuses one frame allocation per socket. UDP shares the
+         * encrypted bytes because reliability may retain them for retry.
+         */
+        let mut frame = if reliable {
+            Vec::new()
+        } else {
+            core::mem::take(&mut ctx.inner.lock().tx_frame_scratch)
+        };
+        frame.clear();
+        if frame.capacity() < frame_len {
+            // try_reserve_exact is relative to len, not capacity. clear()
+            // made len zero; reserve the full wire length before resize so
+            // growth stays fallible when an existing TCP scratch is too small.
+            frame.try_reserve_exact(frame_len)
+                .map_err(|_| StcpError::NoMem)?;
+        }
+        frame.resize(frame_len, 0);
+        frame[..STCP_HEADER_LEN].copy_from_slice(&header);
+        frame[STCP_HEADER_LEN..STCP_HEADER_LEN + NONCE_LEN]
+            .copy_from_slice(&nonce.to_be_bytes());
+        let encrypted_written = send_stage(ctx, 3, crypto.encrypt_into(
+            nonce,
+            &header,
+            wire_plaintext,
+            &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
+        ))?;
+        frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
+
+        if reliable {
+            let frame = crate::state::SharedFrame::try_new(frame)?;
+            {
+                let mut inner = ctx.inner.lock();
+                if inner.state != SocketState::Ready ||
+                   inner.tx_sequence != sequence ||
+                   inner.tx_nonce != nonce
+                {
+                    return Err(StcpError::Again);
+                }
+                // Growth must succeed before committing nonce/sequence state.
+                inner.pending_frames.try_reserve(1).map_err(|_| StcpError::NoMem)?;
+                inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+                inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+                let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
+                inner.pending_frames.push_back(PendingFrame {
+                    sequence,
+                    bytes: frame.clone(),
+                    age_ticks: 0,
+                    rto_ticks,
+                    retries: 0,
+                    retransmitted: false,
+                });
+                inner.stats.sent_frames = inner.stats.sent_frames.saturating_add(1);
+            }
+            send_stage(ctx, 4, send_frame(ctx, &shared, side, &frame, 0))?;
+        } else {
+            {
+                let mut inner = ctx.inner.lock();
+                if inner.state != SocketState::Ready ||
+                   inner.tx_sequence != sequence ||
+                   inner.tx_nonce != nonce
+                {
+                    inner.tx_frame_scratch = frame;
+                    return Err(StcpError::Again);
+                }
+                inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+                inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+            }
+            let send_result = send_frame(ctx, &shared, side, &frame, 0);
+            ctx.inner.lock().tx_frame_scratch = frame;
+            send_stage(ctx, 4, send_result)?;
+        }
+        position = end;
+    }
+
+    Ok(data.len())
+}
+
+pub fn recv(
+    ctx: &StcpContext,
+    output: &mut [u8],
+) -> Result<usize, StcpError> {
+    crate::carrier::debug_event(101, ctx, output.len(), 0);
+    progress_handshake(ctx)?;
+    crate::carrier::debug_event(102, ctx, 0, 0);
+
+    if output.is_empty() {
+        return Ok(0);
+    }
+
+    /*
+     * accept() may return before the asynchronous carrier handshake has
+     * reached Ready.  For a blocking SOCK_STREAM recv this is not an
+     * invalid socket state: report Again so the C wrapper can sleep on
+     * recv_wq and retry after the carrier wakes it.
+     */
+    {
+        let inner = ctx.inner.lock();
+
+        if inner.state == SocketState::Handshake {
+            return Err(StcpError::Again);
+        }
+
+        if inner.state != SocketState::Ready &&
+           inner.state != SocketState::Closed
+        {
+            return Err(if inner.rx_terminal_errno != 0 { StcpError::Kernel(inner.rx_terminal_errno) } else { StcpError::InvalidState });
+        }
+    }
+
+    crate::carrier::debug_event(110, ctx, 0, 0);
+    fill_application_buffer(ctx)?;
+    crate::carrier::debug_event(111, ctx, 0, 0);
+
+    let mut inner = ctx.inner.lock();
+    crate::carrier::debug_event(112, ctx, inner.rx_app_data.len(), inner.rx_message_ready as usize);
+
+    if inner.rx_message_ready && !inner.rx_app_data.is_empty() {
+        let count = inner.rx_app_data.read_into(output);
+
+        if inner.rx_app_data.retained_bytes() <= RX_APP_BUDGET / 2 { inner.rx_paused = false; }
+        if inner.rx_app_data.is_empty() {
+            inner.rx_message_ready = false;
+        }
+
+        return Ok(count);
+    }
+
+    if inner.peer_eof {
+        return Ok(0);
+    }
+
+    Err(StcpError::Again)
+}
+
+
+fn fill_application_buffer(ctx: &StcpContext) -> Result<(), StcpError> {
+    finish_rx_result(ctx, fill_application_buffer_impl(ctx))
+}
+
+fn fill_application_buffer_impl(ctx: &StcpContext) -> Result<(), StcpError> {
+    {
+        let inner = ctx.inner.lock();
+        if inner.state != SocketState::Ready &&
+           inner.state != SocketState::Closed {
+            return Err(StcpError::InvalidState);
+        }
+        if inner.peer_eof {
+            return Ok(());
+        }
+    }
+
+    let Some(_guard) = try_parser_guard(ctx) else {
+        return Ok(());
+    };
+
+    let (shared, side) = connection_for_data(ctx)?;
+    let queue = incoming_queue(&shared, side);
+
+    const MAX_RX_BATCH_FRAMES: usize = 128;
+    let mut became_readable = false;
+    let mut peer_eof = false;
+
+    for _ in 0..MAX_RX_BATCH_FRAMES {
+        let Some(frame) = extract_next_wire_frame(ctx, queue)? else {
+            break;
+        };
+
+        let header = frame.header;
+
+        if crate::control::is_control(header.packet_type) &&
+           !authenticate_control(ctx, &header, &frame.payload) {
+            // Authentication/replay failure is terminal for this STCP session.
+            return protocol_error(ctx);
+        }
+
+        match header.packet_type {
+            PacketType::DataChunk | PacketType::DataChunkEnd => {
+                let Some(buffered) = authenticate_data_frame(ctx, frame) else {
+                    // Never continue a cryptographic session after failed authentication.
+                    return protocol_error(ctx);
+                };
+
+                let expected = current_expected_sequence(ctx);
+
+                if header.sequence < expected {
+                    {
+                        let mut inner = ctx.inner.lock();
+                        inner.stats.duplicate_frames =
+                            inner.stats.duplicate_frames.saturating_add(1);
+                    }
+                    queue_ack(ctx, header.sequence, true)?;
+                    continue;
+                }
+
+                if header.sequence > expected {
+                    {
+                        let mut inner = ctx.inner.lock();
+                        inner.stats.reordered_frames =
+                            inner.stats.reordered_frames.saturating_add(1);
+                    }
+                    buffer_out_of_order_frame(ctx, buffered)?;
+                    continue;
+                }
+
+                became_readable |= process_in_order_frame(ctx, buffered)?;
+
+                while let Some(buffered) = take_next_buffered_frame(ctx) {
+                    became_readable |= process_in_order_frame(ctx, buffered)?;
+                }
+            }
+
+            PacketType::Ack => {
+                update_acknowledgment(ctx, header.acknowledgment)?;
+            }
+            PacketType::Ping => {
+                queue_pong(ctx, header.sequence)?;
+            }
+            PacketType::Pong => {}
+            PacketType::Reset => {
+                return protocol_error(ctx);
+            }
+            PacketType::Close => {
+                peer_eof = true;
+                break;
+            }
+
+            PacketType::PublicKey | PacketType::HandshakeDone => {
+                // Handshake retransmissions cannot mutate an established session.
+                continue;
+            }
+        }
+    }
+
+    let mut should_wake = became_readable;
+
+    if peer_eof {
+        let mut inner = ctx.inner.lock();
+
+        if peer_eof && !inner.peer_eof {
+            inner.peer_eof = true;
+            should_wake = true;
+        }
+    }
+
+    if should_wake {
+        let owner = ctx.inner.lock().owner;
+        wake_recv(owner);
+    }
+
+    Ok(())
+}
+
+/// Only authenticated DATA can reach reliability state or the reorder queue.
+/// Decrypt once in the owned wire allocation; retain the nonce prefix as an offset.
+fn authenticate_data_frame(ctx: &StcpContext, mut frame: WireFrame) -> Option<BufferedFrame> {
+    if frame.payload.len() < NONCE_LEN + AES_GCM_TAG_LEN ||
+       frame.header.flags & !FLAG_COMPRESSED != 0 {
+        return None;
+    }
+    let crypto = {
+        let inner = ctx.inner.lock();
+        if frame.header.connection_id != inner.connection_id { return None; }
+        inner.crypto.clone()
+    };
+    let nonce = u64::from_be_bytes(frame.payload[..NONCE_LEN].try_into().ok()?);
+    let plaintext_len = crypto.decrypt_in_place(
+        nonce, &frame.header.encode(), &mut frame.payload[NONCE_LEN..],
+    ).ok()?;
+    frame.payload.truncate(NONCE_LEN + plaintext_len);
+    Some(BufferedFrame { header: frame.header, nonce, payload: frame.payload })
+}
+
+fn buffer_out_of_order_frame(
+    ctx: &StcpContext,
+    frame: BufferedFrame,
+) -> Result<(), StcpError> {
+    let mut inner = ctx.inner.lock();
+
+    if inner
+        .out_of_order_frames
+        .iter()
+        .any(|buffered| {
+            buffered.header.sequence == frame.header.sequence
+        })
+    {
+        return Ok(());
+    }
+
+    /*
+     * Never retain more frames than the receive side can reasonably
+     * accept from the current send window.
+     */
+    let retained = inner.out_of_order_frames.iter().fold(0usize, |n, f| n.saturating_add(f.payload.capacity()));
+    if frame.payload.capacity() > RX_REORDER_BUDGET.saturating_sub(retained) {
+        crate::carrier::debug_event(953, ctx, retained, frame.payload.capacity());
+        return Err(StcpError::Kernel(-105));
+    }
+    if inner.out_of_order_frames.len() >= STCP_SEND_WINDOW {
+        drop(inner);
+        return protocol_error(ctx);
+    }
+
+    inner
+        .out_of_order_frames
+        .try_reserve(1)
+        .map_err(|_| StcpError::NoMem)?;
+
+    inner.out_of_order_frames.push(frame);
+    Ok(())
+}
+
+fn take_next_buffered_frame(
+    ctx: &StcpContext,
+) -> Option<BufferedFrame> {
+    let mut inner = ctx.inner.lock();
+    let expected = inner.expected_rx_sequence;
+
+    let position = inner
+        .out_of_order_frames
+        .iter()
+        .position(|frame| {
+            frame.header.sequence == expected
+        })?;
+
+    Some(inner.out_of_order_frames.swap_remove(position))
+}
+
+fn process_in_order_frame(ctx: &StcpContext, frame: BufferedFrame) -> Result<bool, StcpError> {
+    match process_in_order_frame_impl(ctx, frame) {
+        // This frame was already detached. Never advertise it as unconsumed
+        // carrier input: failure here is terminal rather than a replay request.
+        Err(StcpError::NoMem) => {
+            crate::carrier::debug_event(954, ctx, 0, 0);
+            rx_budget_snapshot(ctx, 3, 0);
+            fail_rx_budget(ctx); Err(StcpError::Kernel(-105))
+        },
+        result => result,
+    }
+}
+
+fn process_in_order_frame_impl(
+    ctx: &StcpContext,
+    frame: BufferedFrame,
+) -> Result<bool, StcpError> {
+    let packet_type = frame.header.packet_type;
+    let sequence = frame.header.sequence;
+
+    // Parser serialization gives a single RX committer. BufferedFrame owns
+    // plaintext authenticated by authenticate_data_frame, including after reorder.
+    {
+        let inner = ctx.inner.lock();
+        if frame.header.sequence != inner.expected_rx_sequence ||
+           frame.nonce != inner.expected_rx_nonce {
+            return Err(StcpError::Protocol);
+        }
+    }
+    let plaintext_len = frame.payload.len() - NONCE_LEN;
+    let compressed = frame.header.flags & FLAG_COMPRESSED != 0;
+
+    // Decode outside the socket spinlock. Bound allocation by the configured
+    // maximum frame payload; reject malformed lengths and compressed bombs.
+    if frame.header.flags & FLAG_COMPRESSED == 0 && plaintext_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) {
+        crate::carrier::debug_event(955, ctx, plaintext_len, frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT));
+        return Err(StcpError::Kernel(-105));
+    }
+
+    let decompressed = if compressed {
+        let plaintext = &frame.payload[NONCE_LEN..];
+        let (original_len, prefix_len) = crate::compression::decode_uvarint(plaintext)?;
+        if original_len > frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) {
+            crate::carrier::debug_event(956, ctx, original_len, frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT));
+            return Err(StcpError::Kernel(-105));
+        }
+        if original_len == 0 {
+            return Err(StcpError::Protocol);
+        }
+        let block = plaintext.get(prefix_len..).ok_or(StcpError::Protocol)?;
+        let decoded = crate::compression::decompress_block(block, original_len)?;
+        if decoded.len() != original_len {
+            return Err(StcpError::Protocol);
+        }
+        Some(decoded)
+    } else {
+        None
+    };
+
+    let became_readable = {
+        let mut inner = ctx.inner.lock();
+        if frame.header.sequence != inner.expected_rx_sequence ||
+           frame.nonce != inner.expected_rx_nonce
+        {
+            drop(inner);
+            return protocol_error(ctx);
+        }
+
+        let publish_capacity = decompressed.as_ref().map(|v| v.capacity()).unwrap_or(frame.payload.capacity());
+        if ctx.proto == 254 && inner.rx_message_ready &&
+           publish_capacity > inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) {
+            return Err(StcpError::Again);
+        }
+        let next_rx_nonce = inner.expected_rx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+        let next_rx_sequence = inner.expected_rx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+        if inner.state != SocketState::Ready && inner.state != SocketState::Closed { return Err(StcpError::Closed); }
+        let was_readable = inner.rx_message_ready;
+        if let Some(decoded) = decompressed {
+            inner.rx_app_data.push_vec_from_bounded(decoded, 0, RX_APP_BUDGET, RX_CHUNK_LIMIT)?;
+        } else {
+            // Preserve the existing zero-copy fast path for plain frames.
+            inner.rx_app_data.push_vec_from_bounded(frame.payload, NONCE_LEN, RX_APP_BUDGET, RX_CHUNK_LIMIT)?;
+        }
+
+        inner.expected_rx_nonce = next_rx_nonce;
+        inner.expected_rx_sequence = next_rx_sequence;
+        inner.last_rx_sequence = Some(sequence);
+
+        if packet_type == PacketType::DataChunkEnd || ctx.proto == 253 {
+            inner.rx_message_ready = true;
+        }
+        !was_readable && inner.rx_message_ready
+    };
+
+    queue_ack(
+        ctx,
+        sequence,
+        packet_type == PacketType::DataChunkEnd,
+    )?;
+
+    Ok(became_readable)
+}
+
+fn authenticated_control_frame(
+    ctx: &StcpContext,
+    packet_type: PacketType,
+    sequence: u64,
+    acknowledgment: u64,
+) -> Result<Vec<u8>, StcpError> {
+    let mut inner = ctx.inner.lock();
+    let nonce = inner.tx_control_nonce;
+    // Reserve the nonce before encryption; never reuse it after an error.
+    inner.tx_control_nonce = nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+    crate::control::encode(&inner.crypto, packet_type, sequence, acknowledgment,
+                           inner.connection_id, nonce)
+}
+
+fn authenticate_control(ctx: &StcpContext, header: &Header, payload: &[u8]) -> bool {
+    let mut inner = ctx.inner.lock();
+    let Some(nonce) = crate::control::verify(&inner.crypto, header, payload, inner.connection_id) else {
+        return false;
+    };
+    // Verify and publish replay state under the same lock.
+    inner.control_replay.accept(nonce)
+}
+
+fn current_expected_sequence(ctx: &StcpContext) -> u64 {
+    ctx.inner.lock().expected_rx_sequence
+}
+
+fn update_acknowledgment(
+    ctx: &StcpContext,
+    acknowledgment: u64,
+) -> Result<(), StcpError> {
+    let mut inner = ctx.inner.lock();
+    let pending_before = inner.pending_frames.len();
+
+    if acknowledgment >= inner.tx_sequence && inner.tx_sequence != 0 {
+        drop(inner);
+        return protocol_error(ctx);
+    }
+
+    if inner.highest_acked_sequence
+        .map(|previous| acknowledgment > previous)
+        .unwrap_or(true)
+    {
+        inner.highest_acked_sequence = Some(acknowledgment);
+    }
+
+    while inner.pending_frames
+        .front()
+        .map(|frame| frame.sequence <= acknowledgment)
+        .unwrap_or(false)
+    {
+        if let Some(frame) = inner.pending_frames.pop_front() {
+            /*
+             * Karn's algorithm: never derive an RTT sample from a frame
+             * that has been retransmitted because the ACK is ambiguous.
+             */
+            if !frame.retransmitted {
+                let sample_ms = frame.age_ticks
+                    .max(1)
+                    .saturating_mul(STCP_TICK_MS);
+                update_rtt_estimator(&mut inner, sample_ms);
+            }
+
+            inner.stats.acknowledged_frames =
+                inner.stats.acknowledged_frames.saturating_add(1);
+        }
+    }
+
+    // ACK_SEND_WAKE_FIX: publish available capacity before waking send().
+    let released = inner.pending_frames.len() < pending_before;
+    let owner = inner.owner;
+    drop(inner);
+    if released {
+        wake_recv(owner);
+    }
+    Ok(())
+}
+
+fn queue_ack(
+    ctx: &StcpContext,
+    sequence: u64,
+    force: bool,
+) -> Result<(), StcpError> {
+    let carrier_ptr = ctx.inner.lock().carrier;
+    if !crate::carrier::reliability_required(carrier_ptr) {
+        return Ok(());
+    }
+
+    let mut sequence = sequence;
+    let should_send = {
+        let mut inner = ctx.inner.lock();
+
+        // DUPLICATE_ACK_RECOVERY_FIX: retransmit the latest cumulative ACK.
+        if let Some(acknowledged) = inner.last_ack_sent {
+            if acknowledged >= sequence {
+                if !force { return Ok(()); }
+                sequence = acknowledged;
+            }
+        }
+
+        inner.rx_frames_since_ack =
+            inner.rx_frames_since_ack.saturating_add(1);
+
+        if force || inner.rx_frames_since_ack >= STCP_ACK_EVERY_FRAMES {
+            inner.rx_frames_since_ack = 0;
+            inner.last_ack_sent = Some(sequence);
+            true
+        } else {
+            false
+        }
+    };
+
+    if !should_send {
+        return Ok(());
+    }
+
+    /* ACK is cumulative: one control frame releases every pending frame up
+     * to `sequence`.  This cuts ACK traffic by roughly 8x for fragmented
+     * UDP application messages while DataChunkEnd still flushes promptly. */
+    let (shared, side) = connection_for_data(ctx)?;
+    let frame = authenticated_control_frame(ctx, PacketType::Ack, 0, sequence)?;
+    send_frame(ctx, &shared, side, &frame, 0)?;
+    Ok(())
+}
+
+fn queue_pong(
+    ctx: &StcpContext,
+    ping_sequence: u64,
+) -> Result<(), StcpError> {
+    let (shared, side) = connection_for_data(ctx)?;
+    let frame = authenticated_control_frame(ctx, PacketType::Pong, ping_sequence, 0)?;
+    send_frame(ctx, &shared, side, &frame, 0)?;
+    Ok(())
+}
+
+fn process_control_frames(ctx: &StcpContext) -> Result<(), StcpError> { crate::carrier::debug_event(140,ctx,0,0); let result=fill_application_buffer(ctx); crate::carrier::debug_event(143,ctx,result.is_ok() as usize,0); result }
+
+pub fn tick(ctx: &StcpContext) -> Result<bool, StcpError> {
+    check_rx_deadline(ctx)?;
+    {
+        let inner = ctx.inner.lock();
+
+        if inner.state == SocketState::Closed ||
+           inner.state == SocketState::Error
+        {
+            return Ok(false);
+        }
+
+        if inner.state != SocketState::Ready {
+            return Ok(true);
+        }
+    }
+
+    let carrier_ptr = {
+        let inner = ctx.inner.lock();
+        inner.carrier
+    };
+
+    if !crate::carrier::reliability_required(carrier_ptr) {
+        /* TCP carrier RX already parses and publishes complete frames from
+         * queue_to_context(). Avoid a redundant timer-driven parser pass. */
+        return Ok(true);
+    }
+
+    process_control_frames(ctx)?;
+
+    let (shared, side) = connection_for_data(ctx)?;
+    // Bounded batch: collecting retransmissions must never allocate under the lock.
+    let mut retransmit: [Option<crate::state::SharedFrame>; STCP_MAX_RETRANSMIT_PER_TICK] =
+        core::array::from_fn(|_| None);
+    let mut retransmit_len = 0usize;
+
+    {
+        let mut inner = ctx.inner.lock();
+        let mut retransmitted_count = 0u64;
+        let mut timed_out = false;
+
+        for pending in &mut inner.pending_frames {
+            pending.age_ticks = pending.age_ticks.saturating_add(1);
+
+            if pending.age_ticks < pending.rto_ticks {
+                continue;
+            }
+
+            if pending.retries >= STCP_MAX_RETRIES {
+                timed_out = true;
+                break;
+            }
+
+            /* Never retransmit the entire window in one timer callback. A
+             * delayed cumulative ACK previously made hundreds of frames fire
+             * together, congesting loopback UDP and delaying the ACK further. */
+            if retransmit_len >= STCP_MAX_RETRANSMIT_PER_TICK {
+                continue;
+            }
+
+            pending.age_ticks = 0;
+            pending.retries = pending.retries.saturating_add(1);
+            pending.retransmitted = true;
+
+            /*
+             * Exponential backoff is per frame. Clamp at the global
+             * maximum RTO so a dead peer eventually fails predictably.
+             */
+            pending.rto_ticks = pending.rto_ticks
+                .saturating_mul(2)
+                .min(ms_to_ticks(STCP_MAX_RTO_MS))
+                .max(1);
+
+            retransmitted_count = retransmitted_count.saturating_add(1);
+            retransmit[retransmit_len] = Some(pending.bytes.clone());
+            retransmit_len += 1;
+        }
+
+        inner.stats.retransmitted_frames = inner
+            .stats
+            .retransmitted_frames
+            .saturating_add(retransmitted_count);
+
+        if timed_out {
+            inner.stats.timeout_failures =
+                inner.stats.timeout_failures.saturating_add(1);
+            drop(inner);
+            // Retries are exhausted: make the terminal timeout visible to
+            // recv/poll and wake existing waiters, without allocating.
+            fail_rx_error(ctx, -110);
+            return Err(StcpError::Kernel(-110));
+        }
+    }
+
+    for frame in retransmit.into_iter().flatten() {
+        send_frame(ctx, &shared, side, &frame, 0)?;
+    }
+
+    Ok(true)
+}
+
+pub fn reliability_snapshot(
+    ctx: &StcpContext,
+) -> (u32, u32, u32, crate::state::ReliabilityStats) {
+    let inner = ctx.inner.lock();
+    (
+        inner.srtt_ms.unwrap_or(0),
+        inner.rttvar_ms,
+        inner.rto_ms,
+        inner.stats,
+    )
+}
+
+fn observe_partial_frame(ctx: &StcpContext, partial: bool) {
+    let mut inner = ctx.inner.lock();
+    if !partial || inner.rx_paused { inner.rx_partial_started_ms = None; }
+    else if inner.rx_partial_started_ms.is_none() { inner.rx_partial_started_ms = Some(crate::rx_policy::now_ms()); }
+}
+
+pub(crate) fn note_rx_allocation_stall(ctx: &StcpContext) { observe_partial_frame(ctx, true); }
+
+fn check_rx_deadline(ctx: &StcpContext) -> Result<(), StcpError> {
+    let expired = {
+        let inner = ctx.inner.lock();
+        !inner.rx_paused && inner.rx_partial_started_ms.map(|start|
+            crate::rx_policy::now_ms().saturating_sub(start) >= crate::rx_policy::PARTIAL_FRAME_TIMEOUT_MS
+        ).unwrap_or(false)
+    };
+    if expired { fail_rx_error(ctx, -110); return Err(StcpError::Kernel(-110)); }
+    Ok(())
+}
+
+fn pause_for_tcp_frame(ctx: &StcpContext, header: &Header) -> bool {
+    if ctx.proto != 253 || !matches!(header.packet_type, PacketType::DataChunk | PacketType::DataChunkEnd) { return false; }
+    let mut inner = ctx.inner.lock();
+    let retained = inner.rx_app_data.retained_bytes();
+    if inner.rx_paused && retained > RX_APP_BUDGET / 2 { return true; }
+    inner.rx_paused = false;
+    let needed = if header.flags & FLAG_COMPRESSED != 0 {
+        frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT)
+    } else { header.payload_len };
+    if inner.rx_message_ready && retained != 0 && needed > inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) {
+        inner.rx_paused = true; inner.rx_partial_started_ms = None; return true;
+    }
+    false
+}
+
+/// Called before C consumes stream bytes. Zero pauses reads; negative is terminal.
+pub(crate) fn rx_allowance(ctx: &StcpContext, maximum: usize) -> Result<usize, StcpError> {
+    check_rx_deadline(ctx)?;
+    // Also retry a retained complete frame after a reader freed capacity.
+    match progress_receive(ctx) {
+        Ok(_) | Err(StcpError::Again) => {},
+        Err(StcpError::NoMem) => note_rx_allocation_stall(ctx),
+        Err(error) => return Err(error),
+    }
+    let mut inner = ctx.inner.lock();
+    if inner.state == SocketState::Error || inner.state == SocketState::Closed { return Err(if inner.rx_terminal_errno != 0 { StcpError::Kernel(inner.rx_terminal_errno) } else { StcpError::Closed }); }
+    if ctx.proto != 253 { return Ok(maximum); }
+    let used = inner.rx_app_data.retained_bytes();
+    if inner.rx_paused && used > RX_APP_BUDGET / 2 { return Ok(0); }
+    inner.rx_paused = false;
+    let high = RX_APP_BUDGET.saturating_sub(frame_payload_len(ctx).min(RX_FRAME_DATA_LIMIT) + 64);
+    if inner.rx_message_ready && (used > high || inner.rx_app_data.owned_capacity_room(RX_APP_BUDGET, RX_CHUNK_LIMIT) == 0) {
+        inner.rx_paused = true; inner.rx_partial_started_ms = None; return Ok(0);
+    }
+    let endpoint = inner.connection.as_ref().map(|e| (e.shared.clone(), e.side));
+    drop(inner);
+    let Some((shared, side)) = endpoint else { return Ok(maximum); };
+    let room = incoming_queue(&shared,side).lock().bounded_append_room(RX_WIRE_BUDGET, RX_CHUNK_LIMIT);
+    Ok(maximum.min(room))
+}
+
+// Error-only snapshots. Capture queue statistics before fail_rx_error clears them.
+// Do not hold the socket lock while acquiring the wire-queue lock.
+pub(crate) fn rx_budget_snapshot(ctx: &StcpContext, stage: usize, input: usize) {
+    let (app_len, app_retained, reorder_count, reorder_retained, endpoint) = {
+        let inner = ctx.inner.lock();
+        (inner.rx_app_data.len(), inner.rx_app_data.retained_bytes(),
+         inner.out_of_order_frames.len(),
+         inner.out_of_order_frames.iter().fold(0usize, |n, f| n.saturating_add(f.payload.capacity())),
+         inner.connection.as_ref().map(|e| (e.shared.clone(), e.side)))
+    };
+    let (wire_len, wire_retained) = if let Some((shared, side)) = endpoint {
+        let wire = crate::carrier::incoming_queue(&shared, side).lock();
+        (wire.len(), wire.retained_bytes())
+    } else { (0, 0) };
+    crate::carrier::debug_event(960, ctx, stage, input);
+    crate::carrier::debug_event(961, ctx, wire_len, wire_retained);
+    crate::carrier::debug_event(962, ctx, app_len, app_retained);
+    crate::carrier::debug_event(963, ctx, reorder_count, reorder_retained);
+}
+
+pub(crate) fn fail_rx_budget(ctx: &StcpContext) { fail_rx_error(ctx, -105); }
+
+fn fail_rx_error(ctx: &StcpContext, error: i32) {
+    let (owner, endpoint) = {
+        let mut inner = ctx.inner.lock();
+        inner.state = SocketState::Error;
+        // Stop using this connection's secrets immediately. Any detached
+        // crypto snapshots remain a separate ownership concern for audit.
+        inner.crypto.invalidate();
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
+        if inner.rx_terminal_errno == 0 { inner.rx_terminal_errno = error; }
+        inner.rx_paused = false;
+        inner.rx_partial_started_ms = None;
+        inner.rx_app_data.clear();
+        inner.rx_message_ready = false;
+        // Make the existing wait predicate observe this terminal state.
+        inner.peer_eof = true;
+        inner.out_of_order_frames.clear();
+        (inner.owner, inner.connection.as_ref().map(|e| (e.shared.clone(), e.side)))
+    };
+    if let Some((shared, side)) = endpoint {
+        incoming_queue(&shared, side).lock().clear();
+    }
+    wake_recv(owner);
+}
+
+fn finish_rx_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -> Result<T, StcpError> {
+    if matches!(result, Err(StcpError::Kernel(-105))) {
+        rx_budget_snapshot(ctx, 4, 0);
+        fail_rx_budget(ctx);
+    }
+    result
+}
+
+// Handshake crypto/protocol failures are terminal and reported as EPROTO.
+fn finish_handshake_result<T>(ctx: &StcpContext, result: Result<T, StcpError>) -> Result<T, StcpError> {
+    match result {
+        Err(StcpError::Protocol) | Err(StcpError::Crypto) => {
+            fail_rx_error(ctx, StcpError::Protocol.errno());
+            Err(StcpError::Protocol)
+        }
+        _ => result,
+    }
+}
+
+fn protocol_error<T>(ctx: &StcpContext) -> Result<T, StcpError> {
+    // Publish the errno and readiness before waking blocked receivers.
+    // State::Error alone does not satisfy the C recv wait predicate.
+    fail_rx_error(ctx, StcpError::Protocol.errno());
+    Err(StcpError::Protocol)
+}
+
+fn peek_header(
+    wire: &ByteQueue,
+) -> Result<Header, StcpError> {
+    let mut header_bytes = [0u8; STCP_HEADER_LEN];
+
+    if wire.peek_prefix(&mut header_bytes) != STCP_HEADER_LEN {
+        return Err(StcpError::Again);
+    }
+
+    Header::decode(&header_bytes)
+}
+
+fn remove_header(wire: &mut ByteQueue) -> Result<(), StcpError> {
+    /*
+     * This must never live inside debug_assert!: debug assertions are
+     * compiled out in release builds, which previously left zero-length
+     * control frames at the queue head forever.
+     */
+    if wire.discard(STCP_HEADER_LEN) != STCP_HEADER_LEN {
+        return Err(StcpError::Protocol);
+    }
+    Ok(())
+}
+
+fn connection_for_handshake(
+    ctx: &StcpContext,
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
+    let inner = ctx.inner.lock();
+
+    if inner.state != SocketState::Handshake &&
+       inner.state != SocketState::Ready
+    {
+        return Err(StcpError::InvalidState);
+    }
+
+    let endpoint = inner
+        .connection
+        .as_ref()
+        .ok_or(StcpError::InvalidState)?;
+
+    Ok((endpoint.shared.clone(), endpoint.side))
+}
+
+fn ready_connection(
+    ctx: &StcpContext,
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
+    let inner = ctx.inner.lock();
+
+    if inner.state != SocketState::Ready {
+        return Err(StcpError::InvalidState);
+    }
+
+    let endpoint = inner
+        .connection
+        .as_ref()
+        .ok_or(StcpError::InvalidState)?;
+
+    Ok((endpoint.shared.clone(), endpoint.side))
+}
+
+fn connection_for_data(
+    ctx: &StcpContext,
+) -> Result<(crate::state::SharedConnection, Side), StcpError> {
+    let inner = ctx.inner.lock();
+
+    if inner.state != SocketState::Ready &&
+       inner.state != SocketState::Closed
+    {
+        return Err(StcpError::InvalidState);
+    }
+
+    let endpoint = inner
+        .connection
+        .as_ref()
+        .ok_or(StcpError::InvalidState)?;
+
+    Ok((endpoint.shared.clone(), endpoint.side))
+}
+
+pub fn has_accept(ctx: &StcpContext) -> bool {
+    let inner = ctx.inner.lock();
+    !inner.accept_queue.is_empty()
+}
+
+pub fn has_data(ctx: &StcpContext) -> bool {
+    /*
+     * Keep poll()/wait_event() side-effect free. Carrier RX publishes complete
+     * application data before waking recv_wq, so readiness only needs an
+     * acquire-style state check here. Parsing inside a wait condition caused
+     * lost-wakeup races and repeated parser work under churn.
+     */
+    let inner = ctx.inner.lock();
+    inner.rx_message_ready || inner.peer_eof
+}
+
+/*
+ * Called by the carrier immediately after appending bytes. It advances the
+ * handshake and parses all currently complete frames before the C side wakes
+ * recv_wq. This guarantees that a wake corresponds to data/EOF visible to
+ * recv(), eliminating the producer-before-publication race.
+ */
+pub(crate) fn progress_receive(ctx: &StcpContext) -> Result<bool, StcpError> {
+    progress_handshake(ctx)?;
+
+    let state = ctx.inner.lock().state;
+    if state == SocketState::Ready || state == SocketState::Closed {
+        fill_application_buffer(ctx)?;
+    }
+
+    let inner = ctx.inner.lock();
+    Ok(inner.rx_message_ready || inner.peer_eof)
+}
+
+pub fn is_connected(ctx: &StcpContext) -> bool {
+    let _ = progress_handshake(ctx);
+    is_ready(ctx)
+}
+
+pub(crate) fn is_ready_snapshot(ctx: &StcpContext) -> bool {
+    ctx.inner.lock().state == SocketState::Ready
+}
+
+fn is_ready(ctx: &StcpContext) -> bool {
+    is_ready_snapshot(ctx)
+}
+
+pub fn shutdown(
+    ctx: &StcpContext,
+    _how: i32,
+) {
+    let connection = {
+        let mut inner = ctx.inner.lock();
+
+        if inner.state == SocketState::Closed {
+            return;
+        }
+
+        inner.state = SocketState::Closed;
+
+        inner.connection
+            .as_ref()
+            .map(|endpoint| {
+                (endpoint.shared.clone(), endpoint.side)
+            })
+    };
+
+    if let Some((shared, side)) = connection {
+        let acknowledgment = ctx.inner.lock().last_rx_sequence.unwrap_or(0);
+        if let Ok(close_frame) = authenticated_control_frame(ctx, PacketType::Close, 0, acknowledgment) {
+            let _ = send_frame(ctx, &shared, side, &close_frame, 0);
+        }
+
+        shared.close(side);
+        wake_recv(shared.peer_owner(side));
+    }
+}
+
+fn unregister_listener(ctx: &StcpContext) {
+    let ctx_ptr = ptr::from_ref(ctx) as usize;
+    let mut listeners = LISTENERS.lock();
+
+    /*
+     * Remove by context identity rather than by socket state/address.
+     * Release may run after a partial setup, an error transition, or after
+     * the state was already changed to Closed.
+     */
+    listeners.retain(|entry| entry.ctx != ctx_ptr);
+}
+
+pub fn release(ctx: &StcpContext) {
+    crate::carrier::unregister_context(ctx);
+    unregister_listener(ctx);
+
+    /*
+     * Final release is local teardown only. It must not call shutdown(),
+     * send a Close frame, or touch a carrier that may already be detached.
+     */
+    let (connection, queued_children) = {
+        let mut inner = ctx.inner.lock();
+
+        let connection = inner.connection.take().map(|endpoint| {
+            (endpoint.shared, endpoint.side)
+        });
+
+        inner.state = SocketState::Closed;
+        inner.owner = 0;
+        inner.carrier = 0;
+
+        // Teardown must remain allocation-free under memory pressure.
+        // Move the existing deque out; drop children after releasing the lock.
+        let queued_children = core::mem::take(&mut inner.accept_queue);
+
+        inner.pending_frames.clear();
+        inner.out_of_order_frames.clear();
+        inner.rx_app_data.clear();
+        inner.rx_message_ready = false;
+        inner.peer_eof = true;
+
+        (connection, queued_children)
+    };
+
+    for child in queued_children {
+        let carrier = {
+            let mut child_inner = child.inner.lock();
+            let carrier = child_inner.carrier;
+            child_inner.carrier = 0;
+            child_inner.owner = 0;
+            child_inner.state = SocketState::Closed;
+            carrier
+        };
+
+        if carrier != 0 {
+            unsafe {
+                stcp_carrier_destroy(
+                    carrier as *mut core::ffi::c_void,
+                )
+            };
+        }
+
+        drop(child);
+    }
+
+    if let Some((shared, side)) = connection {
+        shared.set_owner(side, 0);
+        shared.close(side);
+        wake_recv(shared.peer_owner(side));
+    }
+}

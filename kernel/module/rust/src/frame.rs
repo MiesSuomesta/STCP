@@ -7,7 +7,7 @@ pub const STCP_VERSION: u8 = 3;
 pub const FLAG_COMPRESSED: u8 = 0x01;
 pub const FLAG_COMPRESSION_CAPABLE: u8 = 0x02;
 /*
- * Compact STCPv2 wire header.
+ * Compact STCP wire header.
  *
  * byte 0: bits 0..3 packet type, bits 4..5 version, bits 6..7 flags
  * bytes 1..4: payload length (u32, network byte order)

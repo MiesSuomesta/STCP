@@ -22,4 +22,16 @@ typedef struct sockaddr stcp_sockaddr_t;
 #define STCP_KERNEL_SOCKADDR(addr) ((struct sockaddr *)(addr))
 #endif
 
+#ifdef STCP_HAVE_BIND_SOCKADDR_UNSIZED
+typedef struct sockaddr_unsized stcp_bind_sockaddr_t;
+#else
+typedef struct sockaddr stcp_bind_sockaddr_t;
+#endif
+
+#ifdef STCP_HAVE_BIND_SOCKADDR_UNSIZED
+#define STCP_KERNEL_BIND_SOCKADDR(addr) ((struct sockaddr_unsized *)(addr))
+#else
+#define STCP_KERNEL_BIND_SOCKADDR(addr) ((struct sockaddr *)(addr))
+#endif
+
 #endif /* STCP_KERNEL_COMPAT_H */

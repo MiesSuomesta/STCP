@@ -406,7 +406,7 @@ static int stcp_release(struct socket *sock)
 
 static int stcp_bind(
 	struct socket *sock,
-	stcp_sockaddr_t *addr,
+	stcp_bind_sockaddr_t *addr,
 	int addr_len
 )
 {

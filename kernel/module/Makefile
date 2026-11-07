@@ -77,10 +77,13 @@ RUST_STATICLIB := $(RUST_OUT_DIR)/libstcp_kernel_core.a
 # unrelated/generated headers even though struct proto_ops still uses
 # struct sockaddr *.  linux/net.h is the authoritative API consumed by this
 # module, so use it as the feature probe.
+STCP_HAVE_BIND_SOCKADDR_UNSIZED := $(shell \
+    sed -n '/(\*bind)/,+3p' "$(KDIR)/include/linux/net.h" 2>/dev/null | \
+    grep -q 'struct sockaddr_unsized' && echo 1 || echo 0)
 STCP_HAVE_SOCKADDR_UNSIZED := $(shell \
-	sed -n '/(\*connect)/,+3p' "$(KDIR)/include/linux/net.h" 2>/dev/null | \
-	grep -q 'struct sockaddr_unsized' && echo 1 || echo 0)
-KBUILD_STCP_ARGS := STCP_HAVE_SOCKADDR_UNSIZED=$(STCP_HAVE_SOCKADDR_UNSIZED)
+    sed -n '/(\*connect)/,+3p' "$(KDIR)/include/linux/net.h" 2>/dev/null | \
+    grep -q 'struct sockaddr_unsized' && echo 1 || echo 0)
+KBUILD_STCP_ARGS := STCP_HAVE_SOCKADDR_UNSIZED=$(STCP_HAVE_SOCKADDR_UNSIZED) STCP_HAVE_BIND_SOCKADDR_UNSIZED=$(STCP_HAVE_BIND_SOCKADDR_UNSIZED)
 
 KERNEL_RELEASE := $(shell $(MAKE) -sC "$(KDIR)" kernelrelease 2>/dev/null || uname -r)
 KERNEL_RUNNING_RELEASE := $(shell uname -r)

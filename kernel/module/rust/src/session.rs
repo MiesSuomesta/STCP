@@ -1287,15 +1287,16 @@ fn fill_application_buffer_locked(ctx: &StcpContext) -> Result<(), StcpError> {
 
         if crate::control::is_control(header.packet_type) &&
            !authenticate_control(ctx, &header, &frame.payload) {
-            // Invalid, plaintext, stale and replayed controls have no effects.
-            continue;
+            // Authentication/replay failure is terminal for this STCP session.
+            return protocol_error(ctx);
         }
 
         match header.packet_type {
             PacketType::DataChunk | PacketType::DataChunkEnd => {
                 // Authenticate before ACKs, duplicate/reorder accounting or retention.
                 let Some(buffered) = authenticate_data_frame(ctx, frame) else {
-                    continue;
+                    // Never continue a cryptographic session after failed authentication.
+                    return protocol_error(ctx);
                 };
 
                 let expected = current_expected_sequence(ctx);

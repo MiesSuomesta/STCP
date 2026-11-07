@@ -18,3 +18,7 @@ ccflags-y += -I$(src)/include
 ifeq ($(STCP_HAVE_SOCKADDR_UNSIZED),1)
 ccflags-y += -DSTCP_HAVE_SOCKADDR_UNSIZED=1
 endif
+
+ifeq ($(STCP_HAVE_BIND_SOCKADDR_UNSIZED),1)
+ccflags-y += -DSTCP_HAVE_BIND_SOCKADDR_UNSIZED=1
+endif

@@ -926,7 +926,7 @@ int stcp_carrier_bind(struct stcp_carrier *carrier, u32 address, u16 port)
 		return ret;
 	return kernel_bind(
 		carrier->socket,
-		STCP_KERNEL_SOCKADDR(&socket_address),
+		STCP_KERNEL_BIND_SOCKADDR(&socket_address),
 		sizeof(struct sockaddr_in)
 	);
 }

@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use crate::error::StcpError;
 
 pub const STCP_MAGIC: [u8; 4] = *b"STCP";
-pub const STCP_VERSION: u8 = 2;
+pub const STCP_VERSION: u8 = 3;
 pub const STCP_HEADER_LEN: usize = 17;
 pub const STCP_PUBLIC_KEY_LEN: usize = 32;
 pub const STCP_NONCE_LEN: usize = 8;

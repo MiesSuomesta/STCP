@@ -1111,28 +1111,40 @@ pub fn send(
         frame[..STCP_HEADER_LEN].copy_from_slice(&header);
         frame[STCP_HEADER_LEN..STCP_HEADER_LEN + NONCE_LEN]
             .copy_from_slice(&nonce.to_be_bytes());
+        let next_nonce = nonce.checked_add(1).ok_or(StcpError::Crypto)?;
+        let next_sequence = sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+
+        // After attempting AEAD, the old nonce must never be used for a new
+        // frame. If the frame cannot be committed, invalidate the session.
+        let fail_after_crypto = |error: StcpError| {
+            fail_rx_error(ctx, error.errno());
+            error
+        };
         let encrypted_written = crypto.encrypt_into(
             nonce,
             &header,
             wire_plaintext,
             &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
-        )?;
+        ).map_err(fail_after_crypto)?;
         frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
 
         if reliable {
-            let frame = crate::state::SharedFrame::try_new(frame)?;
+            let frame = crate::state::SharedFrame::try_new(frame).map_err(fail_after_crypto)?;
             {
                 let mut inner = ctx.inner.lock();
                 if inner.state != SocketState::Ready ||
                    inner.tx_sequence != sequence ||
                    inner.tx_nonce != nonce
                 {
-                    return Err(StcpError::Again);
+                    drop(inner);
+                    return Err(fail_after_crypto(StcpError::Protocol));
                 }
-                // Growth must succeed before committing nonce/sequence state.
-                inner.pending_frames.try_reserve(1).map_err(|_| StcpError::NoMem)?;
-                inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
-                inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+                if inner.pending_frames.try_reserve(1).is_err() {
+                    drop(inner);
+                    return Err(fail_after_crypto(StcpError::NoMem));
+                }
+                inner.tx_nonce = next_nonce;
+                inner.tx_sequence = next_sequence;
                 let rto_ticks = ms_to_ticks(inner.rto_ms.max(STCP_INITIAL_RTO_MS));
                 inner.pending_frames.push_back(PendingFrame {
                     sequence,
@@ -1154,10 +1166,11 @@ pub fn send(
                    inner.tx_nonce != nonce
                 {
                     inner.tx_frame_scratch = frame;
-                    return Err(StcpError::Again);
+                    drop(inner);
+                    return Err(fail_after_crypto(StcpError::Protocol));
                 }
-                inner.tx_nonce = inner.tx_nonce.checked_add(1).ok_or(StcpError::Crypto)?;
-                inner.tx_sequence = inner.tx_sequence.checked_add(1).ok_or(StcpError::Protocol)?;
+                inner.tx_nonce = next_nonce;
+                inner.tx_sequence = next_sequence;
             }
             let send_result = send_frame(ctx, &shared, side, &frame, 0);
             ctx.inner.lock().tx_frame_scratch = frame;

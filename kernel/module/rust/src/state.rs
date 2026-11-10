@@ -128,7 +128,7 @@ pub struct SharedValue<T> {
 }
 
 // Immutable sharing requires a payload safe to share and drop on any thread.
-// No mutable payload reference or weak-reference API is exposed.
+// Mutable access requires unique ownership. There are no weak references.
 unsafe impl<T: Send + Sync> Send for SharedValue<T> {}
 unsafe impl<T: Send + Sync> Sync for SharedValue<T> {}
 
@@ -145,6 +145,17 @@ impl<T> SharedValue<T> {
             references: AtomicUsize::new(1), value,
         }); }
         Ok(Self { storage })
+    }
+
+    pub(crate) fn get_mut(&mut self) -> Option<&mut T> {
+        let references = &unsafe { self.storage.as_ref() }.references;
+        if references.load(Ordering::Acquire) != 1 {
+            return None;
+        }
+        // The acquire load pairs with other owners' release decrements.
+        // With no weak handles and exclusive access to the sole remaining
+        // handle, nobody can borrow the value or increment the count.
+        Some(unsafe { &mut (*self.storage.as_ptr()).value })
     }
 
     #[cfg(test)]
@@ -171,7 +182,7 @@ impl<T> core::ops::Deref for SharedValue<T> {
     type Target = T;
     fn deref(&self) -> &T {
         // Each live handle owns one reference, so value remains initialized
-        // and alive for the entire borrow. No mutable reference is exposed.
+        // and alive for the entire borrow.
         &unsafe { self.storage.as_ref() }.value
     }
 }

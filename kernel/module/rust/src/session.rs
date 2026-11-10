@@ -1120,16 +1120,26 @@ pub fn send(
             fail_rx_error(ctx, error.errno());
             error
         };
-        let encrypted_written = crypto.encrypt_into(
-            nonce,
-            &header,
-            wire_plaintext,
-            &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
-        ).map_err(fail_after_crypto)?;
-        frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
+        let encrypt_frame = |frame: &mut Vec<u8>| -> Result<(), StcpError> {
+            let encrypted_written = crypto
+                .encrypt_into(
+                    nonce,
+                    &header,
+                    wire_plaintext,
+                    &mut frame[STCP_HEADER_LEN + NONCE_LEN..],
+                )
+                .map_err(fail_after_crypto)?;
+            frame.truncate(STCP_HEADER_LEN + NONCE_LEN + encrypted_written);
+            Ok(())
+        };
 
         if reliable {
-            let frame = crate::state::SharedFrame::try_new(frame).map_err(fail_after_crypto)?;
+            // Reserve both allocations before consuming the DATA nonce. The
+            // per-socket TX lock serializes producers of pending DATA frames.
+            let mut frame = crate::state::SharedFrame::try_new(frame)?;
+            ctx.inner.lock().pending_frames.try_reserve(1)
+                .map_err(|_| StcpError::NoMem)?;
+            encrypt_frame(frame.get_mut().ok_or(StcpError::InvalidState)?)?;
             {
                 let mut inner = ctx.inner.lock();
                 if inner.state != SocketState::Ready ||
@@ -1139,9 +1149,9 @@ pub fn send(
                     drop(inner);
                     return Err(fail_after_crypto(StcpError::Protocol));
                 }
-                if inner.pending_frames.try_reserve(1).is_err() {
+                if inner.pending_frames.len() == inner.pending_frames.capacity() {
                     drop(inner);
-                    return Err(fail_after_crypto(StcpError::NoMem));
+                    return Err(fail_after_crypto(StcpError::Protocol));
                 }
                 inner.tx_nonce = next_nonce;
                 inner.tx_sequence = next_sequence;
@@ -1159,6 +1169,7 @@ pub fn send(
             debug_event(337, ctx, 0, 0);
             send_frame(ctx, &shared, side, &frame, 0)?;
         } else {
+            encrypt_frame(&mut frame)?;
             {
                 let mut inner = ctx.inner.lock();
                 if inner.state != SocketState::Ready ||
